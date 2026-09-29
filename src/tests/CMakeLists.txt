@@ -9,6 +9,13 @@ include(ECMAddTests)
 
 include(FindGem)  # For servicemenutest, see bottom of this file
 
+add_test(
+    NAME whale_identity_regressions
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/src
+        -P ${PROJECT_SOURCE_DIR}/cmake/WhaleIdentityTest.cmake
+)
+
 # KItemSetTest
 ecm_add_test(kitemsettest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 
