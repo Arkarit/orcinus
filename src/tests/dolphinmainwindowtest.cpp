@@ -5,6 +5,7 @@
  */
 
 #include "dolphinmainwindow.h"
+#include "config-dolphin.h"
 #include "dolphin_detailsmodesettings.h"
 #include "dolphin_generalsettings.h"
 #include "dolphincontextmenu.h"
@@ -12,6 +13,7 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
+#include "global.h"
 #include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kfileitemmodelrolesupdater.h"
 #include "kitemviews/kitemlistcontainer.h"
@@ -55,6 +57,7 @@ class DolphinMainWindowTest : public QObject
 private Q_SLOTS:
     void initTestCase();
     void init();
+    void testWhaleRuntimeIdentity();
     void testSyncDesktopAndPhoneUi();
     void testClosingTabsWithSearchBoxVisible();
     void testActiveViewAfterClosingSplitView_data();
@@ -117,6 +120,9 @@ QList<QUrl> tabUrls(const KConfigGroup &group, int index)
 void DolphinMainWindowTest::initTestCase()
 {
     QVERIFY(m_tmpHome.isValid());
+    QCoreApplication::setApplicationName(QStringLiteral(WHALE_COMPONENT));
+    QApplication::setApplicationDisplayName(QStringLiteral(WHALE_DISPLAY_NAME));
+    QCoreApplication::setOrganizationDomain(QStringLiteral(WHALE_ORG_DOMAIN));
     qputenv("HOME", m_tmpHome.path().toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
@@ -136,12 +142,19 @@ void DolphinMainWindowTest::initTestCase()
     }
 
     // to save us from kxmlgui / KLocalized warning
-    KLocalizedString::setApplicationDomain({"dolphin"});
+    KLocalizedString::setApplicationDomain({"whale"});
 }
 
 void DolphinMainWindowTest::init()
 {
     m_mainWindow.reset(new DolphinMainWindow());
+}
+
+void DolphinMainWindowTest::testWhaleRuntimeIdentity()
+{
+    QCOMPARE(Dolphin::currentInstanceServiceName(), QStringLiteral(WHALE_APP_ID "-%1").arg(QCoreApplication::applicationPid()));
+    QCOMPARE(Dolphin::mainWindowDbusPath(), QStringLiteral("/whale/Whale_1"));
+    QCOMPARE(m_mainWindow->dbusName(), Dolphin::mainWindowDbusPath());
 }
 
 /**
@@ -155,13 +168,13 @@ void DolphinMainWindowTest::testSyncDesktopAndPhoneUi()
     std::unordered_set<QString> exceptions{{QStringLiteral("version"), QStringLiteral("ToolBar")}};
 
     QDomDocument desktopUi;
-    QFile desktopUiXmlFile(":/kxmlgui5/dolphin/dolphinui.rc");
+    QFile desktopUiXmlFile(":/kxmlgui5/whale/dolphinui.rc");
     QVERIFY2(desktopUiXmlFile.open(QIODevice::ReadOnly), qPrintable(QStringLiteral("couldn't open %1").arg(desktopUiXmlFile.fileName())));
     desktopUi.setContent(&desktopUiXmlFile);
     desktopUiXmlFile.close();
 
     QDomDocument phoneUi;
-    QFile phoneUiXmlFile(":/kxmlgui5/dolphin/dolphinuiforphones.rc");
+    QFile phoneUiXmlFile(":/kxmlgui5/whale/dolphinuiforphones.rc");
     QVERIFY2(phoneUiXmlFile.open(QIODevice::ReadOnly), qPrintable(QStringLiteral("couldn't open %1").arg(phoneUiXmlFile.fileName())));
     phoneUi.setContent(&phoneUiXmlFile);
     phoneUiXmlFile.close();
@@ -1312,7 +1325,7 @@ void DolphinMainWindowTest::testAutoSaveSession()
     QVERIFY(m_mainWindow->isVisible());
 
     // Create config file
-    KConfigGui::setSessionConfig(QStringLiteral("dolphin"), QStringLiteral("dolphin"));
+    KConfigGui::setSessionConfig(QStringLiteral(WHALE_COMPONENT), QStringLiteral(WHALE_COMPONENT));
     KConfig *config = KConfigGui::sessionConfig();
     m_mainWindow->saveGlobalProperties(config);
     m_mainWindow->savePropertiesInternal(config, 1);

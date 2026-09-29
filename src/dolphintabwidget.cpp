@@ -6,6 +6,7 @@
 
 #include "dolphintabwidget.h"
 
+#include "config-dolphin.h"
 #include "dolphin_generalsettings.h"
 #include "dolphintabbar.h"
 #include "dolphinviewcontainer.h"
@@ -451,8 +452,8 @@ void DolphinTabWidget::detachTab(int index)
     }
     args << QStringLiteral("--new-window");
 
-    KIO::CommandLauncherJob *job = new KIO::CommandLauncherJob("dolphin", args, this);
-    job->setDesktopName(QStringLiteral("org.kde.dolphin"));
+    KIO::CommandLauncherJob *job = new KIO::CommandLauncherJob(WHALE_EXECUTABLE, args, this);
+    job->setDesktopName(QStringLiteral(WHALE_APP_ID));
     job->start();
 
     closeTab(index);

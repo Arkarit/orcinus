@@ -1,5 +1,5 @@
 <RCC>
-<qresource prefix="/kxmlgui5/dolphin">
+<qresource prefix="/kxmlgui5/whale">
 <file>dolphinui.rc</file>
 <file>dolphinuiforphones.rc</file>
 </qresource>

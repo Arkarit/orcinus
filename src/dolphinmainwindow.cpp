@@ -9,6 +9,7 @@
 #include "dolphinmainwindow.h"
 
 #include "admin/workerintegration.h"
+#include "config-dolphin.h"
 #include "dolphin_generalsettings.h"
 #include "dolphinbookmarkhandler.h"
 #include "dolphincontextmenu.h"
@@ -144,8 +145,8 @@ DolphinMainWindow::DolphinMainWindow()
 #ifndef Q_OS_WIN
     setWindowFlags(Qt::WindowContextHelpButtonHint);
 #endif
-    setComponentName(QStringLiteral("dolphin"), QGuiApplication::applicationDisplayName());
-    setObjectName(QStringLiteral("Dolphin#"));
+    setComponentName(QStringLiteral(WHALE_COMPONENT), QGuiApplication::applicationDisplayName());
+    setObjectName(QStringLiteral(WHALE_DISPLAY_NAME "#"));
 
     setStateConfigGroup("State");
 
@@ -211,7 +212,7 @@ DolphinMainWindow::DolphinMainWindow()
     setupFileItemActions();
 
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
-    setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QString() /* load the default dolphinui.rc file */);
+    setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     stateChanged(QStringLiteral("new_file"));
 
     QClipboard *clipboard = QApplication::clipboard();
@@ -757,7 +758,7 @@ void DolphinMainWindow::slotSaveSession()
         m_sessionSaveScheduled = true;
     } else if (!m_sessionSaveTimer->isActive()) {
         // No point in saving the session if the timer is running (since it will save the session again when it times out).
-        KConfigGui::setSessionConfig(QStringLiteral("dolphin"), QStringLiteral("dolphin"));
+        KConfigGui::setSessionConfig(QStringLiteral(WHALE_COMPONENT), QStringLiteral(WHALE_COMPONENT));
         KConfig *config = KConfigGui::sessionConfig();
         saveGlobalProperties(config);
         savePropertiesInternal(config, 1);

@@ -23,6 +23,16 @@ QList<QUrl> validateUris(const QStringList &uriList);
  */
 QUrl homeUrl();
 
+/**
+ * Returns the D-Bus service name of the current Whale process.
+ */
+QString currentInstanceServiceName();
+
+/**
+ * Returns the D-Bus object path exported by the first Whale main window.
+ */
+QString mainWindowDbusPath();
+
 enum class OpenNewWindowFlag {
     None = 0,
     Select = 1 << 1
@@ -37,7 +47,7 @@ void openNewWindow(const QList<QUrl> &urls = {}, QWidget *window = nullptr, cons
 /**
  * Attaches URLs to an existing Dolphin instance if possible.
  * If @p preferredService is a valid dbus service, it will be tried first.
- * @p preferredService needs to support the org.kde.dolphin.MainWindow dbus interface with the /dolphin/Dolphin_1 path.
+ * @p preferredService needs to support the org.kde.dolphin.MainWindow D-Bus interface at the path returned by mainWindowDbusPath().
  * Returns true if the URLs were successfully attached.
  */
 bool attachToExistingInstance(const QList<QUrl> &inputUrls, bool openFiles, bool splitView, const QString &preferredService, const QString &activationToken);
