@@ -22,6 +22,7 @@ set(WHALE_BUG_URL "https://github.com/Arkarit/whale/issues")
 set(WHALE_HOMEPAGE "https://github.com/Arkarit/whale")
 
 option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Whale" OFF)
+option(WHALE_INSTALL_DOLPHIN_EXTRAS "Install Dolphin-named compatibility artifacts (may conflict with Dolphin)" OFF)
 
 set(QT_MIN_VERSION "6.4.0")
 set(KF6_MIN_VERSION "6.23.0")
@@ -186,7 +187,9 @@ else()
 endif()
 
 add_subdirectory(src)
-add_subdirectory(doc)
+if(WHALE_INSTALL_DOLPHIN_EXTRAS)
+    add_subdirectory(doc)
+endif()
 add_subdirectory(appiumtests)
 
 # CMake files
@@ -198,55 +201,52 @@ configure_package_config_file(
     INSTALL_DESTINATION ${CMAKECONFIG_INSTALL_DIR}
 )
 
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/DolphinVcsConfig.cmake"
-    "${CMAKE_CURRENT_BINARY_DIR}/DolphinVcsConfigVersion.cmake"
-    DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
-    COMPONENT Devel
-)
-
-install(EXPORT DolphinVcsTargets
-    DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
-    FILE DolphinVcsTargets.cmake
-)
-
-install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/dolphinvcs_version.h"
-    DESTINATION "${KDE_INSTALL_INCLUDEDIR}/Dolphin"
-    COMPONENT Devel
-)
-
-if(FLATPAK)
-    ecm_generate_dbus_service_file(
-        NAME org.freedesktop.FileManager1
-        EXECUTABLE "${KDE_INSTALL_FULL_BINDIR}/dolphin --daemon"
-        SYSTEMD_SERVICE plasma-dolphin.service
-        DESTINATION ${KDE_INSTALL_DBUSSERVICEDIR}
+if(WHALE_INSTALL_DOLPHIN_EXTRAS)
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/DolphinVcsConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/DolphinVcsConfigVersion.cmake"
+        DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+        COMPONENT Devel
     )
-else()
-    ecm_generate_dbus_service_file(
-        NAME org.freedesktop.FileManager1
-        EXECUTABLE "${KDE_INSTALL_FULL_BINDIR}/dolphin --daemon"
-        SYSTEMD_SERVICE plasma-dolphin.service
-        DESTINATION ${KDE_INSTALL_DBUSSERVICEDIR}
-        RENAME org.kde.dolphin.FileManager1.service
+
+    install(EXPORT DolphinVcsTargets
+        DESTINATION "${CMAKECONFIG_INSTALL_DIR}"
+        FILE DolphinVcsTargets.cmake
+    )
+
+    install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/dolphinvcs_version.h"
+        DESTINATION "${KDE_INSTALL_INCLUDEDIR}/Dolphin"
+        COMPONENT Devel
     )
 endif()
 
-ecm_install_configured_files(INPUT plasma-dolphin.service.in DESTINATION ${KDE_INSTALL_SYSTEMDUSERUNITDIR})
+if(WHALE_PROVIDE_FILEMANAGER1)
+    ecm_generate_dbus_service_file(
+        NAME org.freedesktop.FileManager1
+        EXECUTABLE "${KDE_INSTALL_FULL_BINDIR}/${WHALE_EXECUTABLE} --daemon"
+        SYSTEMD_SERVICE plasma-whale.service
+        DESTINATION ${KDE_INSTALL_DBUSSERVICEDIR}
+        RENAME ${WHALE_APP_ID}.FileManager1.service
+    )
+
+    ecm_install_configured_files(INPUT plasma-whale.service.in DESTINATION ${KDE_INSTALL_SYSTEMDUSERUNITDIR})
+endif()
 
 ecm_qt_install_logging_categories(
         EXPORT DOLPHIN
-        FILE dolphin.categories
+        FILE whale.categories
         DESTINATION ${KDE_INSTALL_LOGGINGCATEGORIESDIR}
         )
 
-ki18n_install(po)
-if(KF6DocTools_FOUND)
-    kdoctools_install(po)
-endif()
+if(WHALE_INSTALL_DOLPHIN_EXTRAS)
+    ki18n_install(po)
+    if(KF6DocTools_FOUND)
+        kdoctools_install(po)
+    endif()
 
-install(FILES completions/dolphin.zsh RENAME _dolphin DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
+    install(FILES completions/dolphin.zsh RENAME _dolphin DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
+endif()
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 

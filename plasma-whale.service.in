@@ -1,0 +1,8 @@
+[Unit]
+Description=Whale file manager
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=@KDE_INSTALL_FULL_BINDIR@/@WHALE_EXECUTABLE@ --daemon
+BusName=org.freedesktop.FileManager1
+Slice=background.slice
