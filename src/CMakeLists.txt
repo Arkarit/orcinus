@@ -11,7 +11,7 @@ set(KFIND_PACKAGE_NAME "kfind")
 configure_file(config-dolphin.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-dolphin.h)
 
 add_definitions(
-    -DTRANSLATION_DOMAIN=\"dolphin\"
+    -DTRANSLATION_DOMAIN=\"whale\"
 )
 remove_definitions(
     -DQT_NO_CAST_FROM_BYTEARRAY

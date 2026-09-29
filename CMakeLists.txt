@@ -248,6 +248,28 @@ if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     install(FILES completions/dolphin.zsh RENAME _dolphin DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
 endif()
 
+# Reuse Dolphin's upstream translations under Whale's independent translation
+# domain. The source catalogs remain untouched, which keeps upstream updates
+# easy to merge and avoids installing files that collide with Dolphin.
+find_package(Gettext REQUIRED)
+file(GLOB whale_po_files CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/*/dolphin.po")
+set(whale_mo_files)
+foreach(whale_po_file IN LISTS whale_po_files)
+    get_filename_component(whale_po_dir "${whale_po_file}" DIRECTORY)
+    get_filename_component(whale_locale "${whale_po_dir}" NAME)
+    set(whale_mo_file "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES/whale.mo")
+    add_custom_command(
+        OUTPUT "${whale_mo_file}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES"
+        COMMAND ${GETTEXT_MSGFMT_EXECUTABLE} -o "${whale_mo_file}" "${whale_po_file}"
+        DEPENDS "${whale_po_file}"
+        VERBATIM
+    )
+    list(APPEND whale_mo_files "${whale_mo_file}")
+    install(FILES "${whale_mo_file}" DESTINATION "${KDE_INSTALL_LOCALEDIR}/${whale_locale}/LC_MESSAGES")
+endforeach()
+add_custom_target(whale-translations ALL DEPENDS ${whale_mo_files})
+
 set(WHALE_DAEMON_COMPLETION "")
 if(WHALE_PROVIDE_FILEMANAGER1)
     set(WHALE_DAEMON_COMPLETION "  '--daemon[Start Whale Daemon (only required for DBus Interface).]' \\\n")
