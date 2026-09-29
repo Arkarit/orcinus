@@ -391,7 +391,7 @@ void DolphinViewActionHandler::createActions(SelectionMode::ActionTextHelper *ac
                                          "<para>Items can also be hidden if their names are listed in a text file "
                                          "named \".hidden\". Files with the \"application/x-trash\" MIME type, "
                                          "such as backup files, can also be hidden by enabling that setting in "
-                                         "Configure Dolphin > View > General.</para>"));
+                                         "Configure Whale > View > General.</para>"));
     m_actionCollection->setDefaultShortcuts(showHiddenFiles, KStandardShortcut::showHideHiddenFiles());
     connect(showHiddenFiles, &KToggleAction::triggered, this, &DolphinViewActionHandler::toggleShowHiddenFiles);
 

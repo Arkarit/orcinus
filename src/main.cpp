@@ -141,10 +141,10 @@ int main(int argc, char **argv)
                                         i18nc("@info:shell",
                                               "The files and folders passed as arguments "
                                               "will be selected.")));
-    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("split"), i18nc("@info:shell", "Dolphin will get started with a split view.")));
-    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("new-window"), i18nc("@info:shell", "Dolphin will explicitly open in a new window.")));
-    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("sudo") << QStringLiteral("admin"),
-                                        i18nc("@info:shell", "Set up Dolphin for administrative tasks.")));
+    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("split"), i18nc("@info:shell", "Whale will get started with a split view.")));
+    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("new-window"), i18nc("@info:shell", "Whale will explicitly open in a new window.")));
+    parser.addOption(
+        QCommandLineOption(QStringList() << QStringLiteral("sudo") << QStringLiteral("admin"), i18nc("@info:shell", "Set up Whale for administrative tasks.")));
 #if WHALE_PROVIDE_FILEMANAGER1
     parser.addOption(
         QCommandLineOption(QStringList() << QStringLiteral("daemon"), i18nc("@info:shell", "Start Whale Daemon (only required for DBus Interface).")));

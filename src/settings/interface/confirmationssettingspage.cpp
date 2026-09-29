@@ -61,7 +61,7 @@ ConfirmationsSettingsPage::ConfirmationsSettingsPage(QWidget *parent)
     m_confirmRenameFileType = new QCheckBox(i18nc("@option:check Ask for confirmation when", "Renaming a file will change its type"), this);
     m_confirmHide = new QCheckBox(i18nc("@option:check Ask for confirmation when", "Renaming a file or folder will hide it"), this);
 
-    QLabel *confirmLabelDolphin = new QLabel(i18nc("@title:group", "Ask for confirmation in Dolphin when:"), this);
+    QLabel *confirmLabelDolphin = new QLabel(i18nc("@title:group", "Ask for confirmation in Whale when:"), this);
     confirmLabelDolphin->setWordWrap(true);
 
     m_confirmClosingMultipleTabs = new QCheckBox(i18nc("@option:check Ask for confirmation in Dolphin when", "Closing windows with multiple tabs"), this);

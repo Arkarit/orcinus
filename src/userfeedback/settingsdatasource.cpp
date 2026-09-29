@@ -26,7 +26,7 @@ QString SettingsDataSource::name() const
 
 QString SettingsDataSource::description() const
 {
-    return i18nc("description of kuserfeedback data source provided by dolphin", "A subset of Dolphin settings.");
+    return i18nc("description of kuserfeedback data source provided by Whale", "A subset of Whale settings.");
 }
 
 QVariant SettingsDataSource::data()

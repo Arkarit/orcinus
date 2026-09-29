@@ -101,7 +101,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
 #if !defined(Q_OS_WIN) && !defined(Q_OS_HAIKU)
     if (getuid() == 0) {
         // We must be logged in as the root user; show a big scary warning
-        showMessage(i18n("Running Dolphin as root can be dangerous. Please be careful."), KMessageWidget::Warning);
+        showMessage(i18n("Running Whale as root can be dangerous. Please be careful."), KMessageWidget::Warning);
     }
 #endif
 
@@ -957,10 +957,10 @@ void DolphinViewContainer::slotUrlNavigatorLocationChanged(const QUrl &url)
     } else if (KProtocolManager::isSourceProtocol(url)) {
         if (url.scheme().startsWith(QLatin1String("http"))) {
             showMessage(i18nc("@info:status", // krazy:exclude=qmethods
-                              "Dolphin does not support web pages, the web browser has been launched"),
+                              "Whale does not support web pages, the web browser has been launched"),
                         KMessageWidget::Information);
         } else {
-            showMessage(i18nc("@info:status", "Protocol not supported by Dolphin, default application has been launched"), KMessageWidget::Information);
+            showMessage(i18nc("@info:status", "Protocol not supported by Whale, default application has been launched"), KMessageWidget::Information);
         }
 
         QDesktopServices::openUrl(url);
