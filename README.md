@@ -1,4 +1,42 @@
-# Dolphin
+# Whale
+
+Whale is a personal file manager based on KDE Dolphin. This fork keeps Dolphin's
+upstream history, architecture, authorship, and licensing while giving the
+application an independent identity and room for additional features.
+
+Whale is currently intended to coexist with the distribution-provided Dolphin.
+It uses its own executable, application ID, configuration, session state,
+private library, desktop entry, and translation domain. Shared KDE facilities
+such as places, service menus, trash, and per-folder view properties remain
+shared intentionally.
+
+## Building Whale
+
+Use a build and install prefix separate from any Dolphin development build:
+
+```bash
+cmake -S . -B ../build-whale -G Ninja \
+    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+    -DBUILD_TESTING=ON \
+    -DCMAKE_INSTALL_PREFIX="$PWD/../install-whale"
+cmake --build ../build-whale
+../build-whale/bin/whale --new-window
+```
+
+The safe defaults do not claim `org.freedesktop.FileManager1` and do not install
+Dolphin-named KParts, KCMs, plugins, documentation, or developer files. The
+optional FileManager1 integration can be enabled with
+`-DWHALE_PROVIDE_FILEMANAGER1=ON`.
+
+Phase 1 expects the system Dolphin package to remain installed. Whale reuses its
+`libdolphinvcs.so.6`, version-control plugins, service-menu integration, and
+handbook. If a matching optional BalooWidgets package is unavailable, the
+information panel is disabled but Whale can still be built.
+
+Whale issues belong in the [Whale issue tracker](https://github.com/Arkarit/whale/issues).
+Issues reproducible in unmodified Dolphin should be reported upstream.
+
+## Upstream Dolphin
 
 Dolphin is KDE's file manager that lets you navigate and browse the contents of your hard drives, USB sticks, SD cards, and more. Creating, moving, or deleting files and folders is simple and fast. See more information [on Dolphin's homepage](https://apps.kde.org/dolphin/).
 

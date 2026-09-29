@@ -14,8 +14,8 @@ to replay across upstream merges.
 - `CLAUDE.md` contains the practical build, test, and architecture summary. Its instructions apply
   to every coding agent despite the filename.
 - `.privatedoc/dolphin-architektur.md` is the detailed source map and extension-point analysis.
-- `.privatedoc/whale-rename-plan.md` is the product-rename and collision-avoidance plan. It is still
-  a plan; its section 9 decisions require user confirmation before implementation.
+- `.privatedoc/whale-rename-plan.md` is the product-rename and collision-avoidance plan. Its section
+  9 decisions were confirmed on 2026-09-29 and phase 1 has been implemented.
 
 Treat `.privatedoc/` as internal project documentation unless the user explicitly asks to publish
 it.
@@ -27,8 +27,8 @@ it.
   system prefix.
 - For the Whale rename, configure a separate `../build-whale` and use a separate
   `../install-whale` prefix.
-- Run development windows with `--new-window` until Whale and Dolphin have distinct D-Bus identity;
-  otherwise the process may hand its URLs to the installed Dolphin and exit.
+- Run `../build-whale/bin/whale --new-window` when a fresh development window is wanted. Whale and
+  Dolphin now have distinct D-Bus identities; without the option, Whale may reuse its own instance.
 - Prefer focused builds/tests while iterating, then run the relevant broader test set. Tests use
   QTest and are registered in `src/tests/CMakeLists.txt`.
 - New source files need SPDX headers. Keep KDE clang-format and CI conventions intact.
