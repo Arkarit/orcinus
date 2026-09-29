@@ -248,6 +248,13 @@ if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     install(FILES completions/dolphin.zsh RENAME _dolphin DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
 endif()
 
+set(WHALE_DAEMON_COMPLETION "")
+if(WHALE_PROVIDE_FILEMANAGER1)
+    set(WHALE_DAEMON_COMPLETION "  '--daemon[Start Whale Daemon (only required for DBus Interface).]' \\\n")
+endif()
+configure_file(completions/whale.zsh.in ${CMAKE_CURRENT_BINARY_DIR}/_whale @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/_whale DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
+
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 
 include(KDEClangFormat)

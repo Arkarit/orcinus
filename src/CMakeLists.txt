@@ -539,6 +539,10 @@ ecm_add_app_icon(dolphin
         icons/64-apps-org.kde.dolphin.png
 )
 
+install(FILES icons/org.kde.dolphin.svg
+        DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps
+        RENAME ${WHALE_APP_ID}.svg)
+
 if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     install(FILES icons/org.kde.dolphin.svg DESTINATION ${KDE_INSTALL_ICONDIR}/hicolor/scalable/apps)
 endif()
@@ -633,6 +637,24 @@ if(NOT WIN32 AND WHALE_INSTALL_DOLPHIN_EXTRAS)
 endif()
 
 ########### install files ###############
+
+# Derive Whale's desktop file from Dolphin's upstream-maintained translations.
+# Product-name translations are intentionally dropped because the brand name is
+# always "Whale"; translated generic names, comments, and keywords are retained.
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/org.kde.dolphin.desktop whale_desktop_contents)
+string(REGEX REPLACE "(^|\n)Name\\[[^\n]*" "" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "Name=Dolphin" "Name=${WHALE_DISPLAY_NAME}" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "Exec=dolphin %u" "Exec=${WHALE_EXECUTABLE} %u" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "Icon=org.kde.dolphin" "Icon=${WHALE_APP_ID}" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "InitialPreference=10" "InitialPreference=9" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "X-DBUS-ServiceName=org.kde.dolphin" "X-DBUS-ServiceName=${WHALE_APP_ID}" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "StartupWMClass=dolphin" "StartupWMClass=${WHALE_EXECUTABLE}" whale_desktop_contents "${whale_desktop_contents}")
+string(REGEX REPLACE "(^|\n)X-KDE-Shortcuts=[^\n]*" "" whale_desktop_contents "${whale_desktop_contents}")
+set(whale_desktop_file ${CMAKE_CURRENT_BINARY_DIR}/${WHALE_APP_ID}.desktop)
+file(WRITE ${whale_desktop_file} "${whale_desktop_contents}")
+
+install(PROGRAMS ${whale_desktop_file} DESTINATION ${KDE_INSTALL_APPDIR})
+install(FILES ${WHALE_APP_ID}.metainfo.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
 
 if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     install(PROGRAMS org.kde.dolphin.desktop DESTINATION ${KDE_INSTALL_APPDIR})
