@@ -5,6 +5,15 @@
 #cmakedefine01 HAVE_TERMINAL
 #cmakedefine01 HAVE_X11
 
+#define WHALE_EXECUTABLE "@WHALE_EXECUTABLE@"
+#define WHALE_COMPONENT "@WHALE_COMPONENT@"
+#define WHALE_ORG_DOMAIN "@WHALE_ORG_DOMAIN@"
+#define WHALE_APP_ID "@WHALE_APP_ID@"
+#define WHALE_DISPLAY_NAME "@WHALE_DISPLAY_NAME@"
+#define WHALE_BUG_URL "@WHALE_BUG_URL@"
+#define WHALE_HOMEPAGE "@WHALE_HOMEPAGE@"
+#cmakedefine01 WHALE_PROVIDE_FILEMANAGER1
+
 #define KDE_INSTALL_FULL_DATADIR "${KDE_INSTALL_FULL_DATADIR}"
 
 /** The name of the package that needs to be installed so URLs starting with "admin:" can be opened in Dolphin. */

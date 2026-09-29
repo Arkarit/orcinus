@@ -1,7 +1,7 @@
 # Whale: Produkt-Rename – Änderungs- und Testplan
 
 Stand: 2026-09-25, Basis `1914f03` (Upstream-Dolphin 26.11.70-dev).
-Status: **Plan, noch nicht umgesetzt.**
+Status: **Entscheidungen am 2026-09-29 bestätigt; Umsetzung begonnen.**
 
 **Ziel:** Whale lässt sich systemweit parallel zum installierten Dolphin installieren, ohne Kollision bei
 Dateien, IDs, D-Bus, Konfiguration oder Laufzeitverhalten. Whale ist als eigener Standard-Dateimanager
@@ -384,11 +384,10 @@ Vorher Prüfsummen der Dolphin-Dateien sichern:
 
 ---
 
-## 9. Offene Punkte zur Bestätigung
+## 9. Bestätigte Entscheidungen
 
-1. Die App-ID **`io.github.arkarit.whale`** (E1) – oder eine andere Domain?
-2. Weiterverwendung der **System-VCS-Bibliothek** (E3) und damit die Laufzeitabhängigkeit von Dolphin
-   in Phase 1: OK?
-3. Übersetzungen per eigener `msgfmt`-Regel (E5) – oder zunächst nur Englisch und Deutsch?
-4. Schritt 7 (sichtbare „Dolphin“-Texte) gleich mitmachen oder später?
-5. Ein eigenes Icon: Gibt es schon ein Motiv, oder zunächst die Kopie des Dolphin-Icons?
+Die Empfehlungen E1–E11 wurden am 2026-09-29 bestätigt. Zusätzlich gilt:
+
+1. Übersetzungen werden per eigener `msgfmt`-Regel aus allen vorhandenen `dolphin.po` erzeugt.
+2. Sichtbare Produkttexte werden bereits in Phase 1 auf Whale umgestellt.
+3. Bis ein eigenes Motiv vorliegt, wird das Dolphin-Icon unter der Whale-App-ID kopiert.

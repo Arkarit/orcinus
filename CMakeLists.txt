@@ -11,6 +11,18 @@ set (RELEASE_SERVICE_VERSION_MICRO "70")
 set (RELEASE_SERVICE_VERSION "${RELEASE_SERVICE_VERSION_MAJOR}.${RELEASE_SERVICE_VERSION_MINOR}.${RELEASE_SERVICE_VERSION_MICRO}")
 project(Dolphin VERSION ${RELEASE_SERVICE_VERSION})
 
+# Whale product identity. Keep these values centralized so the fork-specific
+# changes remain small and easy to review when merging Dolphin upstream.
+set(WHALE_EXECUTABLE "whale")
+set(WHALE_COMPONENT "whale")
+set(WHALE_ORG_DOMAIN "arkarit.github.io")
+set(WHALE_APP_ID "io.github.arkarit.whale")
+set(WHALE_DISPLAY_NAME "Whale")
+set(WHALE_BUG_URL "https://github.com/Arkarit/whale/issues")
+set(WHALE_HOMEPAGE "https://github.com/Arkarit/whale")
+
+option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Whale" OFF)
+
 set(QT_MIN_VERSION "6.4.0")
 set(KF6_MIN_VERSION "6.23.0")
 
@@ -93,6 +105,8 @@ find_package(KF6 ${KF6_MIN_VERSION} REQUIRED COMPONENTS
     ColorScheme
 )
 
+# Whale must not submit telemetry under Dolphin's KDE product identity.
+set(CMAKE_DISABLE_FIND_PACKAGE_KF6UserFeedback ON)
 find_package(KF6UserFeedback ${KF6_MIN_VERSION})
 set_package_properties(KF6UserFeedback
         PROPERTIES TYPE OPTIONAL
