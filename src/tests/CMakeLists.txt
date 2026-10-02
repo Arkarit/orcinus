@@ -78,6 +78,10 @@ LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
 add_executable(kfileitemmodelbenchmark kfileitemmodelbenchmark.cpp testdir.cpp)
 target_link_libraries(kfileitemmodelbenchmark dolphinprivate Qt6::Test)
 
+# FileNameHighlightingBenchmark, not run automatically with `ctest` or `make test`
+add_executable(filenamehighlightingbenchmark filenamehighlightingbenchmark.cpp testdir.cpp)
+target_link_libraries(filenamehighlightingbenchmark dolphinprivate Qt6::Test)
+
 # KItemListKeyboardSearchManagerTest
 ecm_add_test(kitemlistkeyboardsearchmanagertest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 
