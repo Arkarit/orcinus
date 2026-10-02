@@ -44,6 +44,11 @@ ecm_add_test(kitemlistcontrollerexpandtest.cpp testdir.cpp
 TEST_NAME kitemlistcontrollerexpandtest
 LINK_LIBRARIES dolphinprivate Qt6::Test)
 
+# KStandardItemListWidgetTest
+ecm_add_test(kstandarditemlistwidgettest.cpp testdir.cpp
+TEST_NAME kstandarditemlistwidgettest
+LINK_LIBRARIES dolphinprivate Qt6::Test)
+
 # KFileItemListViewTest
 ecm_add_test(kfileitemlistviewtest.cpp testdir.cpp
 TEST_NAME kfileitemlistviewtest

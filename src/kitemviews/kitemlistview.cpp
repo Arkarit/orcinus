@@ -1264,6 +1264,25 @@ void KItemListView::updatePalette()
     setStyleOption(option);
 }
 
+void KItemListView::invalidateItemAppearance()
+{
+    if (!m_model) {
+        return;
+    }
+
+    // Reapplying the data marks the widget caches as dirty.
+    for (auto it = m_visibleItems.constBegin(); it != m_visibleItems.constEnd(); ++it) {
+        it.value()->setData(m_model->data(it.key()));
+    }
+
+    m_sizeHintResolver->clearCache();
+    m_layouter->markAsDirty();
+    if (m_itemSize.isEmpty()) {
+        updatePreferredColumnWidths();
+    }
+    doLayout(NoAnimation);
+}
+
 void KItemListView::slotItemsInserted(const KItemRangeList &itemRanges)
 {
     m_scrollAnchorIndex = -1;

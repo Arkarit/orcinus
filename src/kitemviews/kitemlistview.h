@@ -447,6 +447,13 @@ protected:
     virtual void updateFont();
     virtual void updatePalette();
 
+    /**
+     * Refreshes the visible widgets and recalculates the item sizes. Derived classes
+     * call this if something that influences the appearance of the items has changed
+     * outside of the model and the style option, e.g. a font customized per item.
+     */
+    void invalidateItemAppearance();
+
 protected Q_SLOTS:
     virtual void slotItemsInserted(const KItemRangeList &itemRanges);
     virtual void slotItemsRemoved(const KItemRangeList &itemRanges);

@@ -69,14 +69,12 @@ qreal KStandardItemListWidgetInformant::preferredRoleColumnWidth(const QByteArra
     const QString text = roleText(role, values);
     qreal width = KStandardItemListWidget::columnPadding(option);
 
-    const QFontMetrics &normalFontMetrics = option.fontMetrics;
-    const QFontMetrics linkFontMetrics(customizedFontForLinks(option.font));
-
     if (role == "rating") {
         width += KStandardItemListWidget::preferredRatingSize(option).width();
     } else {
-        // If current item is a link, we use the customized link font metrics instead of the normal font metrics.
-        const QFontMetrics &fontMetrics = itemIsLink(index, view) ? linkFontMetrics : normalFontMetrics;
+        // The item might use a customized font, e.g. if it is a link.
+        const QFont font = itemFont(index, view, option.font);
+        const QFontMetrics fontMetrics = font == option.font ? option.fontMetrics : QFontMetrics(font);
 
         width += fontMetrics.horizontalAdvance(text);
 
@@ -131,6 +129,11 @@ QFont KStandardItemListWidgetInformant::customizedFontForLinks(const QFont &base
     return baseFont;
 }
 
+QFont KStandardItemListWidgetInformant::itemFont(int index, const KItemListView *view, const QFont &baseFont) const
+{
+    return itemIsLink(index, view) ? customizedFontForLinks(baseFont) : baseFont;
+}
+
 void KStandardItemListWidgetInformant::calculateIconsLayoutItemSizeHints(QVector<std::pair<qreal, bool>> &logicalHeightHints,
                                                                          qreal &logicalWidthHint,
                                                                          const KItemListView *view) const
@@ -144,8 +147,6 @@ void KStandardItemListWidgetInformant::calculateIconsLayoutItemSizeHints(QVector
     const qreal additionalRolesSpacing = additionalRolesCount * option.fontMetrics.lineSpacing();
     const qreal spacingAndIconHeight = option.iconSize + option.padding * 3;
 
-    const QFont linkFont = customizedFontForLinks(normalFont);
-
     QTextOption textOption(Qt::AlignHCenter);
     textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
 
@@ -154,8 +155,8 @@ void KStandardItemListWidgetInformant::calculateIconsLayoutItemSizeHints(QVector
             continue;
         }
 
-        // If the current item is a link, we use the customized link font instead of the normal font.
-        const QFont &font = itemIsLink(index, view) ? linkFont : normalFont;
+        // The item might use a customized font, e.g. if it is a link.
+        const QFont font = itemFont(index, view, normalFont);
 
         const QString &text = KStringHandler::preProcessWrap(itemText(index, view));
 
@@ -206,15 +207,28 @@ void KStandardItemListWidgetInformant::calculateCompactLayoutItemSizeHints(QVect
     const qreal paddingAndIconWidth = option.padding * 4 + option.iconSize;
     const qreal height = option.padding * 2 + qMax(option.iconSize, (1 + additionalRolesCount) * normalFontMetrics.lineSpacing());
 
-    const QFontMetrics linkFontMetrics(customizedFontForLinks(option.font));
+    // Only a few customized fonts are used, e.g. for links. Reuse their metrics.
+    QList<std::pair<QFont, QFontMetrics>> customizedFontMetrics;
+    auto fontMetricsFor = [&](const QFont &font) -> QFontMetrics {
+        if (font == option.font) {
+            return normalFontMetrics;
+        }
+        for (const auto &[customizedFont, metrics] : std::as_const(customizedFontMetrics)) {
+            if (customizedFont == font) {
+                return metrics;
+            }
+        }
+        customizedFontMetrics.append({font, QFontMetrics(font)});
+        return customizedFontMetrics.constLast().second;
+    };
 
     for (int index = 0; index < logicalHeightHints.count(); ++index) {
         if (logicalHeightHints.at(index).first > 0.0) {
             continue;
         }
 
-        // If the current item is a link, we use the customized link font metrics instead of the normal font metrics.
-        const QFontMetrics &fontMetrics = itemIsLink(index, view) ? linkFontMetrics : normalFontMetrics;
+        // The item might use a customized font, e.g. if it is a link.
+        const QFontMetrics fontMetrics = fontMetricsFor(itemFont(index, view, option.font));
 
         // For each row exactly one role is shown. Calculate the maximum required width that is necessary
         // to show all roles without horizontal clipping.
@@ -276,6 +290,8 @@ KStandardItemListWidget::KStandardItemListWidget(KItemListWidgetInformant *infor
     , m_expansionArea()
     , m_customTextColor()
     , m_additionalInfoTextColor()
+    , m_nameTextColor()
+    , m_hiddenNameTextColor()
     , m_overlays()
     , m_rating()
     , m_roleEditor(nullptr)
@@ -719,7 +735,9 @@ QColor KStandardItemListWidget::textColor(const QWidget &widget) const
 {
     if (!isSelected()) {
         if (m_isHidden) {
-            return m_additionalInfoTextColor;
+            return m_nameTextColor.isValid() ? m_hiddenNameTextColor : m_additionalInfoTextColor;
+        } else if (m_nameTextColor.isValid()) {
+            return m_nameTextColor;
         } else if (m_customTextColor.isValid()) {
             return m_customTextColor;
         }
@@ -728,6 +746,20 @@ QColor KStandardItemListWidget::textColor(const QWidget &widget) const
     const QPalette::ColorGroup group = isActiveWindow() && widget.hasFocus() ? QPalette::Active : QPalette::Inactive;
     const QPalette::ColorRole role = normalTextColorRole();
     return styleOption().palette.color(group, role);
+}
+
+void KStandardItemListWidget::setNameTextColor(const QColor &color)
+{
+    if (color != m_nameTextColor) {
+        m_nameTextColor = color;
+        updateHiddenNameTextColor();
+        update();
+    }
+}
+
+QColor KStandardItemListWidget::nameTextColor() const
+{
+    return m_nameTextColor;
 }
 
 void KStandardItemListWidget::setOverlays(QHash<Qt::Corner, QString> &overlays)
@@ -811,6 +843,7 @@ void KStandardItemListWidget::styleOptionChanged(const KItemListStyleOption &cur
     KItemListWidget::styleOptionChanged(current, previous);
 
     updateAdditionalInfoTextColor();
+    updateHiddenNameTextColor();
     m_dirtyLayout = true;
 }
 
@@ -1591,11 +1624,20 @@ void KStandardItemListWidget::updateAdditionalInfoTextColor()
     // For the color of the additional info the inactive text color
     // is not used as this might lead to unreadable text for some color schemes. Instead
     // the text color c1 is slightly mixed with the background color.
+    m_additionalInfoTextColor = fadedTextColor(c1);
+}
+
+void KStandardItemListWidget::updateHiddenNameTextColor()
+{
+    m_hiddenNameTextColor = m_nameTextColor.isValid() ? fadedTextColor(m_nameTextColor) : QColor();
+}
+
+QColor KStandardItemListWidget::fadedTextColor(const QColor &color) const
+{
     const QColor c2 = styleOption().palette.base().color();
     const int p1 = 70;
     const int p2 = 100 - p1;
-    m_additionalInfoTextColor =
-        QColor((c1.red() * p1 + c2.red() * p2) / 100, (c1.green() * p1 + c2.green() * p2) / 100, (c1.blue() * p1 + c2.blue() * p2) / 100);
+    return QColor((color.red() * p1 + c2.red() * p2) / 100, (color.green() * p1 + c2.green() * p2) / 100, (color.blue() * p1 + c2.blue() * p2) / 100);
 }
 
 void KStandardItemListWidget::drawOverlays(QPainter *painter) const

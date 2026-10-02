@@ -76,6 +76,14 @@ protected:
      */
     virtual QFont customizedFontForLinks(const QFont &baseFont) const;
 
+    /**
+     * @return The font used to calculate the size of the item with the index @p index,
+     *         based on @p baseFont. It must match the font the widget uses for painting
+     *         (see KStandardItemListWidget::customizedFont()). The default implementation
+     *         returns customizedFontForLinks() for links and @p baseFont otherwise.
+     */
+    virtual QFont itemFont(int index, const KItemListView *view, const QFont &baseFont) const;
+
     void calculateIconsLayoutItemSizeHints(QVector<std::pair<qreal, bool>> &logicalHeightHints, qreal &logicalWidthHint, const KItemListView *view) const;
     void calculateCompactLayoutItemSizeHints(QVector<std::pair<qreal, bool>> &logicalHeightHints, qreal &logicalWidthHint, const KItemListView *view) const;
     void calculateDetailsLayoutItemSizeHints(QVector<std::pair<qreal, bool>> &logicalHeightHints, qreal &logicalWidthHint, const KItemListView *view) const;
@@ -166,6 +174,15 @@ protected:
     void setTextColor(const QColor &color);
     QColor textColor(const QWidget &widget) const;
 
+    /**
+     * Sets a color that is used only for the name of the item. In contrast to
+     * setTextColor(), the additional information keeps its color. Hidden items
+     * show a faded variant of the name color. Selected items keep the palette
+     * colors. An invalid color restores the default behavior.
+     */
+    void setNameTextColor(const QColor &color);
+    QColor nameTextColor() const;
+
     void setOverlays(QHash<Qt::Corner, QString> &overlay);
     QHash<Qt::Corner, QString> overlays() const;
 
@@ -202,6 +219,12 @@ protected:
         QStaticText staticText;
     };
     void updateAdditionalInfoTextColor();
+    void updateHiddenNameTextColor();
+
+    /**
+     * @return @p color slightly mixed with the base color of the palette.
+     */
+    QColor fadedTextColor(const QColor &color) const;
 
 public Q_SLOTS:
     void finishRoleEditing();
@@ -298,6 +321,8 @@ private:
 
     QColor m_customTextColor;
     QColor m_additionalInfoTextColor;
+    QColor m_nameTextColor;
+    QColor m_hiddenNameTextColor;
 
     QHash<Qt::Corner, QString> m_overlays;
     QPixmap m_rating;
@@ -310,6 +335,7 @@ private:
 
     friend class KStandardItemListWidgetInformant; // Accesses private static methods to be able to
                                                    // share a common layout calculation
+    friend class KStandardItemListWidgetTest; // For unit testing
 };
 
 #endif
