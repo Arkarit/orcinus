@@ -27,6 +27,9 @@ it.
   system prefix.
 - For the Whale rename, configure a separate `../build-whale` and use a separate
   `../install-whale` prefix.
+- A focused build does not refresh installed runtime resources. After changing icons, desktop
+  files, translations, or similar data, run `cmake --install ../build-whale` into the private
+  `../install-whale` prefix before visual testing; never install them into the system prefix.
 - Run `../build-whale/bin/whale --new-window` when a fresh development window is wanted. Whale and
   Dolphin now have distinct D-Bus identities; without the option, Whale may reuse its own instance.
 - Prefer focused builds/tests while iterating, then run the relevant broader test set. Tests use
