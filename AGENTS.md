@@ -38,6 +38,10 @@ it.
 - This is a product rename, not an internal rewrite. Unless a feature requires otherwise, retain
   Dolphin class names, source filenames, namespaces, CMake target names, translation sources, and
   upstream-facing structure.
+- Keep narrowly scoped features and fixes Dolphin-compatible whenever practical. Structure them as
+  small, self-contained changes that can be replayed onto a plain Dolphin fork and proposed
+  upstream as merge requests; isolate unavoidable Whale product integration from the transferable
+  core change.
 - Whale and the installed Dolphin must remain usable in parallel. Never introduce shared installed
   filenames, application identity, configuration, session state, or private-library SONAMEs.
 - In particular, an installed Whale must use `libwhaleprivate`, never `libdolphinprivate`; an ABI

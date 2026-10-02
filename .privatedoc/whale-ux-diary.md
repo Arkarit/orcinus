@@ -29,6 +29,12 @@ Entscheidungen sind keine unumstößlichen Wahrheiten. Wenn neue Erkenntnisse ei
 ändern, soll der alte Stand nachvollziehbar bleiben und durch ein datiertes Addendum ergänzt werden.
 So bleibt sichtbar, auf welcher Informationsbasis Whale sich entwickelt hat.
 
+Begrenzte Features und Fehlerkorrekturen sollen, soweit praktisch möglich, Dolphin-kompatibel
+entstehen. Ihr fachlicher Kern wird klein, eigenständig und ohne unnötige Whale-Abhängigkeiten
+gehalten, damit er auf einen unveränderten Dolphin-Fork übertragen und KDE als Merge Request
+angeboten werden kann. Unvermeidbare Whale-Produktintegration – etwa eine abweichende
+Konfigurationsdatei – bleibt von diesem übertragbaren Kern getrennt.
+
 ---
 
 # UX-001 – Ziehen aus der freien Fläche einer Detailzeile
@@ -36,7 +42,7 @@ So bleibt sichtbar, auf welcher Informationsbasis Whale sich entwickelt hat.
 ## Metadaten
 
 - **Datum:** 2026-10-02
-- **Status:** Produktentscheidung vorbereitet; Umsetzung noch ausstehend
+- **Status:** Implementiert und automatisiert getestet; praktische Erprobung steht aus
 - **Bereich:** Dateiansicht, Detailansicht, Mausinteraktion, Drag-and-drop, Rubberband-Selektion
 - **Upstream-Bezug:** Dolphin-kompatibles Verhalten bleibt zunächst der Default
 - **Betroffene Schicht:** `KItemListController`, `KItemListView`, Detailansicht-Einstellungen
@@ -438,6 +444,48 @@ Falls ein echter `QDrag::exec()` im Unit-Test unpraktisch ist, soll die Entschei
 beiden Gesten über einen testbaren Zustand, ein Signal oder eine eng begrenzte Test-Naht geprüft
 werden. Produktionslogik darf nicht nur für den Test dupliziert werden.
 
+## Umsetzung vom 2. Oktober 2026
+
+Die Umsetzung folgt der vorgesehenen Trennung zwischen übertragbarem Dolphin-Kern und
+Whale-Integration:
+
+- `KItemListView` besitzt die standardmäßig ausgeschaltete boolesche Eigenschaft
+  `dragFromAnywhereOnRow`. Der Controller kennt weder KConfig noch Whale-spezifische Klassen.
+- `KItemListWidget::selectionRectContent()` benennt den selektionsunabhängigen Inhaltsbereich. Die
+  Basisklasse fällt kompatibel auf `selectionRectCore()` zurück;
+  `KStandardItemListWidget` liefert in der Detailansicht ausdrücklich Icon und Text. Bestehende
+  Bedeutungen von `selectionRectCore()` und `selectionRectFull()` bleiben erhalten.
+- Bei aktivierter Eigenschaft verwendet nur der linke Mauspfad die volle Zeile als mögliches
+  Dragziel. Rechtsklick, eingehende Drops und andere Ansichten werden nicht umdefiniert.
+- `Shift` auf der freien Zeilenfläche startet den vorhandenen Rubberband-Pfad, ohne vorher die
+  Auswahl oder den Auswahlanker zu verändern. Bleibt die Bewegung unter
+  `QApplication::startDragDistance()`, wird die Geste beim Loslassen weiterhin als normaler
+  Shift-Klick und damit als Bereichsauswahl abgeschlossen.
+- Auswahl- und Expansionstoggles sind von diesem Shift-Sonderpfad ausgenommen.
+- Die KConfigXT-Einstellung heißt `DragFromAnywhereOnRow`, ist standardmäßig `false` und wird von
+  `DolphinItemListView` nur in der Detailansicht auf die generische View-Eigenschaft abgebildet.
+- Die Checkbox „Drag files and folders from anywhere on the row“ steht unter
+  `Configure Whale → View → Details`; ihr Hilfetext nennt den Shift-Ausweg.
+
+Der Regressionstest `KItemListControllerTest::testDragFromAnywhereOnRow()` prüft:
+
+- den unveränderten Dolphin-Default auf einer freien, nicht selektierten Zeilenfläche;
+- den Item-Pfad bei eingeschaltetem Full-row Drag;
+- den Shift-Rubberband-Start ohne vorzeitige Auswahländerung; und
+- die erhaltene Shift-Bereichsauswahl bei einer Bewegung unterhalb der Drag-Schwelle;
+- die selektionsunabhängige Erkennung der freien Fläche auch auf einer ausgewählten Zeile.
+
+Der Test vermeidet absichtlich ein blockierendes natives `QDrag::exec()`. Er prüft stattdessen die
+entscheidende Verzweigung: Ist kein Rubberband aktiv und das Item ausgewählt, erreicht eine weitere
+Bewegung den bereits bestehenden und separat verwendeten Item-Drag-Pfad. Zusätzlich lief die
+vollständige `kitemlistcontrollertest`-Suite mit 95 bestandenen Tests sowie der Build des
+Anwendungsziels `whale` erfolgreich durch.
+
+Vor einer abschließenden UX-Bewertung bleiben praktische Mausproben sinnvoll, insbesondere mit
+Mehrfachauswahl, `Ctrl`, Rechts-nach-links-Layout und echten ausgehenden sowie eingehenden
+Drag-and-drop-Vorgängen. Diese Restprüfung betrifft nicht die dokumentierte Kernentscheidung,
+sondern mögliche Randwirkungen im realen Desktop-Stack.
+
 ## Risiken und Beobachtungspunkte
 
 ### Auffindbarkeit
@@ -488,13 +536,11 @@ Ein Default-Wechsel oder eine andere Modifier-Belegung benötigt einen eigenen D
 > Dolphin's existing selection behavior remains the default. When full-row dragging is enabled,
 > hold Shift while dragging from empty space in a row to start a selection rectangle instead.
 
-## Noch offene Implementierungsfragen
+## Noch offene Fragen nach der Umsetzung
 
-- Endgültiger Name und Typ der KConfigXT-Einstellung.
-- Boolesche View-Eigenschaft oder Enum für die Interaktionsart.
-- Endgültige englische Beschriftung und Hilfetext.
-- Exakte, selektionsunabhängige Geometrie des Inhaltsbereichs bei mehreren sichtbaren Spalten.
-- Ob der bestehende Press/Release-Ablauf für einen Shift-Klick ausreicht oder die Gestenentscheidung
-  bis `mouseMoveEvent()` verzögert werden muss.
-- Geeignete Test-Naht für den Drag-Start, ohne einen blockierenden nativen Drag im Unit-Test
-  auszuführen.
+- Bewährt sich die englische Beschriftung im realen Einstellungsdialog auch bei schmalen Fenstern
+  und nach Übersetzungen?
+- Ist der Shift-Ausweg ohne weitere sichtbare Erklärung hinreichend auffindbar?
+- Zeigt die praktische Nutzung Gründe für einen späteren Default-Wechsel?
+- Sollte eine spätere Upstream-Einreichung Einstellung, generischen Kern und UI-Anbindung in
+  getrennte, einzeln prüfbare Commits aufteilen?
