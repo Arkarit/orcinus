@@ -77,6 +77,9 @@ private Q_SLOTS:
     void testSymlinks();
     void testMimeType_data();
     void testMimeType();
+    void testNamePattern_data();
+    void testNamePattern();
+    void testNamePatternMatchesDirectories();
     void testCascade();
     void testOffBlocksLowerRules();
     void testDisabledRulesAreSkipped();
@@ -304,6 +307,54 @@ void FileNameHighlighterTest::testMimeType()
     const FileNameHighlighter highlighter(true, {rule(Condition::MimeType, boldStyle(), patterns)});
 
     QCOMPARE(highlighter.styleFor(item).bold.has_value(), expected);
+}
+
+void FileNameHighlighterTest::testNamePattern_data()
+{
+    QTest::addColumn<QString>("name");
+    QTest::addColumn<QStringList>("patterns");
+    QTest::addColumn<bool>("caseSensitive");
+    QTest::addColumn<bool>("expected");
+
+    const QStringList sources = {QStringLiteral("*.cpp"), QStringLiteral("*.h")};
+
+    QTest::newRow("suffix") << "main.cpp" << sources << false << true;
+    QTest::newRow("second pattern") << "main.h" << sources << false << true;
+    QTest::newRow("other suffix") << "main.c" << sources << false << false;
+    QTest::newRow("case insensitive") << "MAIN.CPP" << sources << false << true;
+    QTest::newRow("case sensitive") << "MAIN.CPP" << sources << true << false;
+    QTest::newRow("case sensitive match") << "main.cpp" << sources << true << true;
+    QTest::newRow("whole name") << "Makefile" << QStringList{QStringLiteral("Makefile")} << false << true;
+    QTest::newRow("patterns match the whole name") << "Makefile.bak" << QStringList{QStringLiteral("Makefile")} << false << false;
+    QTest::newRow("multiple suffixes") << "archive.tar.gz" << QStringList{QStringLiteral("*.tar.gz")} << false << true;
+    QTest::newRow("single character") << "file1.txt" << QStringList{QStringLiteral("file?.txt")} << false << true;
+    QTest::newRow("single character only") << "file10.txt" << QStringList{QStringLiteral("file?.txt")} << false << false;
+    QTest::newRow("character set") << "file2.txt" << QStringList{QStringLiteral("file[0-3].txt")} << false << true;
+}
+
+void FileNameHighlighterTest::testNamePattern()
+{
+    QFETCH(QString, name);
+    QFETCH(QStringList, patterns);
+    QFETCH(bool, caseSensitive);
+    QFETCH(bool, expected);
+
+    const KFileItem item = createFile(name, QFile::ReadOwner | QFile::WriteOwner);
+    FileNameHighlightRule namePattern = rule(Condition::NamePattern, boldStyle(), patterns);
+    namePattern.caseSensitive = caseSensitive;
+    const FileNameHighlighter highlighter(true, {namePattern});
+
+    QCOMPARE(highlighter.styleFor(item).bold.has_value(), expected);
+    // Name patterns are not MIME types.
+    QVERIFY(highlighter.m_mimeTypeMatches.isEmpty());
+    QVERIFY(!highlighter.fontDependsOnMimeType());
+}
+
+void FileNameHighlighterTest::testNamePatternMatchesDirectories()
+{
+    QVERIFY(QDir(m_dir->path()).mkdir(QStringLiteral("build-release")));
+    const FileNameHighlighter highlighter(true, {rule(Condition::NamePattern, boldStyle(), {QStringLiteral("build*")})});
+    QVERIFY(highlighter.styleFor(itemFor(QStringLiteral("build-release"))).bold.has_value());
 }
 
 void FileNameHighlighterTest::testCascade()

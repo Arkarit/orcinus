@@ -29,6 +29,7 @@ private Q_SLOTS:
     void testEmptyRuleList();
     void testUnsetAttributesStayUnset();
     void testColorKeys();
+    void testNamePatternRule();
     void testUnknownEntriesAreSkipped();
     void testSaveRemovesStaleRules();
 
@@ -188,6 +189,32 @@ void FileNameHighlightingSettingsTest::testColorKeys()
     const FileNameHighlightingSettings loaded = FileNameHighlightingSettings::load(reopenedConfig());
     QCOMPARE(loaded.rules.at(0).style.color, FileNameColor::schemeRole(KColorScheme::PositiveText));
     QVERIFY(!loaded.rules.at(1).style.color.isSet());
+}
+
+void FileNameHighlightingSettingsTest::testNamePatternRule()
+{
+    FileNameHighlightRule sensitive;
+    sensitive.name = QStringLiteral("Sources");
+    sensitive.condition = Condition::NamePattern;
+    sensitive.patterns = {QStringLiteral("*.cpp"), QStringLiteral("Makefile")};
+    sensitive.caseSensitive = true;
+    sensitive.style.bold = true;
+
+    FileNameHighlightRule insensitive = sensitive;
+    insensitive.caseSensitive = false;
+
+    FileNameHighlightingSettings settings;
+    settings.rules = {sensitive, insensitive};
+    settings.save(freshConfig());
+
+    const KConfigGroup group(reopenedConfig(), QStringLiteral("FileNameHighlighting"));
+    QCOMPARE(group.group(QStringLiteral("Rule0")).readEntry("Condition", QString()), QStringLiteral("NamePattern"));
+    QVERIFY(group.group(QStringLiteral("Rule0")).readEntry("CaseSensitive", false));
+    // The default is not written.
+    QVERIFY(!group.group(QStringLiteral("Rule1")).hasKey("CaseSensitive"));
+
+    const FileNameHighlightingSettings loaded = FileNameHighlightingSettings::load(reopenedConfig());
+    QCOMPARE(loaded.rules, settings.rules);
 }
 
 void FileNameHighlightingSettingsTest::testUnknownEntriesAreSkipped()

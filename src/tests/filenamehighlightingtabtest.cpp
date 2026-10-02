@@ -11,8 +11,10 @@
 #include <KColorButton>
 #include <KConfigGroup>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRadioButton>
@@ -59,6 +61,7 @@ private Q_SLOTS:
     void testDialogRoundTrip();
     void testDialogPrefillsCustomColor();
     void testDialogRequiresMimeTypes();
+    void testDialogNamePatterns();
     void testParsePatterns();
     void testUnknownMimeTypePatterns();
     void testDisplayName();
@@ -166,6 +169,12 @@ void FileNameHighlightingTabTest::testDialogRoundTrip_data()
     custom.style.color = FileNameColor::custom(QColor(10, 120, 200));
     custom.style.bold = true;
     QTest::newRow("custom color") << custom;
+
+    FileNameHighlightRule namePattern = rule(QStringLiteral("Sources"), Condition::NamePattern);
+    namePattern.patterns = {QStringLiteral("*.cpp"), QStringLiteral("*.h")};
+    namePattern.caseSensitive = true;
+    namePattern.style.italic = true;
+    QTest::newRow("name pattern") << namePattern;
 }
 
 void FileNameHighlightingTabTest::testDialogRoundTrip()
@@ -200,13 +209,35 @@ void FileNameHighlightingTabTest::testDialogRequiresMimeTypes()
     QPushButton *ok = dialog.m_buttonBox->button(QDialogButtonBox::Ok);
     QVERIFY(ok->isEnabled());
 
-    dialog.m_mimeTypes->setText(QStringLiteral(" ; "));
+    dialog.m_patterns->setText(QStringLiteral(" ; "));
     QVERIFY(!ok->isEnabled());
 
     // Other conditions have no patterns.
     dialog.m_condition->setCurrentIndex(dialog.m_condition->findData(static_cast<int>(Condition::Symlink)));
     QVERIFY(ok->isEnabled());
     QVERIFY(dialog.rule().patterns.isEmpty());
+}
+
+void FileNameHighlightingTabTest::testDialogNamePatterns()
+{
+    FileNameHighlightRule namePattern = rule(QStringLiteral("Sources"), Condition::NamePattern);
+    namePattern.patterns = {QStringLiteral("*.cpp")};
+    namePattern.caseSensitive = true;
+
+    FileNameHighlightingRuleDialog dialog(namePattern);
+    QVERIFY(!dialog.m_patternsWarning->isVisibleTo(&dialog));
+    QVERIFY(dialog.m_caseSensitive->isVisibleTo(&dialog));
+    QVERIFY(!dialog.m_chooseMimeTypes->isVisibleTo(&dialog));
+
+    // Patterns are matched against names, which never contain a slash.
+    dialog.m_patterns->setText(QStringLiteral("src/*.cpp"));
+    QVERIFY(dialog.m_patternsWarning->isVisibleTo(&dialog));
+
+    // Case sensitivity only belongs to name patterns.
+    dialog.m_condition->setCurrentIndex(dialog.m_condition->findData(static_cast<int>(Condition::MimeType)));
+    QVERIFY(!dialog.m_caseSensitive->isVisibleTo(&dialog));
+    QVERIFY(dialog.m_chooseMimeTypes->isVisibleTo(&dialog));
+    QVERIFY(!dialog.rule().caseSensitive);
 }
 
 void FileNameHighlightingTabTest::testParsePatterns()
@@ -237,6 +268,15 @@ void FileNameHighlightingTabTest::testDisplayName()
     unnamed.patterns = {QStringLiteral("image/*"), QStringLiteral("audio/*")};
     QVERIFY(FileNameHighlightingRuleDialog::displayName(unnamed).contains(QLatin1String("image/*, audio/*")));
     QCOMPARE(FileNameHighlightingRuleDialog::exampleFileName(unnamed), QStringLiteral("photo.jpg"));
+
+    FileNameHighlightRule namePattern = rule(QString(), Condition::NamePattern);
+    namePattern.patterns = {QStringLiteral("*.cpp"), QStringLiteral("Makefile")};
+    QVERIFY(FileNameHighlightingRuleDialog::displayName(namePattern).contains(QLatin1String("*.cpp, Makefile")));
+    QCOMPARE(FileNameHighlightingRuleDialog::exampleFileName(namePattern), QStringLiteral("example.cpp"));
+    namePattern.patterns = {QStringLiteral("file?.txt")};
+    QCOMPARE(FileNameHighlightingRuleDialog::exampleFileName(namePattern), QStringLiteral("filex.txt"));
+    namePattern.patterns = {QStringLiteral("[ab].txt")};
+    QCOMPARE(FileNameHighlightingRuleDialog::exampleFileName(namePattern), QStringLiteral("example"));
 }
 
 QTEST_MAIN(FileNameHighlightingTabTest)

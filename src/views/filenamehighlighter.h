@@ -18,6 +18,7 @@
 #include <QFont>
 #include <QHash>
 #include <QList>
+#include <QRegularExpression>
 #include <QStringList>
 
 #include <functional>
@@ -81,12 +82,21 @@ struct DOLPHIN_EXPORT FileNameHighlightRule {
         Executable,
         Symlink,
         MimeType,
+        NamePattern,
     };
 
     QString name;
     bool enabled = true;
     Condition condition = Condition::Executable;
+    /**
+     * MIME types such as "text/plain" or groups such as "image/" followed by "*"
+     * for Condition::MimeType, wildcard patterns such as "*.cpp" for Condition::NamePattern.
+     */
     QStringList patterns;
+    /**
+     * Whether the patterns of a Condition::NamePattern rule are case sensitive.
+     */
+    bool caseSensitive = false;
     FileNameTextStyle style;
 
     bool operator==(const FileNameHighlightRule &other) const;
@@ -194,6 +204,7 @@ public:
 private:
     bool ruleMatches(int ruleIndex, const KFileItem &item, std::optional<QString> &mimeTypeName) const;
     bool mimeTypeRuleMatches(int ruleIndex, const KFileItem &item, std::optional<QString> &mimeTypeName) const;
+    bool namePatternRuleMatches(int ruleIndex, const KFileItem &item) const;
     bool posixExecuteBitsAreMeaningful(const KFileItem &item) const;
 
     bool m_enabled;
@@ -202,6 +213,9 @@ private:
     KSharedConfigPtr m_colorSchemeConfig;
     bool m_affectsFont = false;
     bool m_fontDependsOnMimeType = false;
+
+    // Compiled patterns of the file name pattern rules, by rule index.
+    QList<QList<QRegularExpression>> m_namePatterns;
 
     mutable QHash<QString, QBitArray> m_mimeTypeMatches;
     mutable QHash<QString, bool> m_posixExecuteBitsMeaningful;

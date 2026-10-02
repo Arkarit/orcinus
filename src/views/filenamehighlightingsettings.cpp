@@ -110,6 +110,7 @@ FileNameHighlightingSettings FileNameHighlightingSettings::load(const KSharedCon
         rule.enabled = ruleGroup.readEntry("Enabled", true);
         rule.condition = *condition;
         rule.patterns = ruleGroup.readEntry("Patterns", QStringList());
+        rule.caseSensitive = ruleGroup.readEntry("CaseSensitive", false);
 
         if (ruleGroup.hasKey("ColorRole")) {
             const std::optional<KColorScheme::ForegroundRole> role = colorRoleFromName(ruleGroup.readEntry("ColorRole", QString()));
@@ -152,6 +153,9 @@ void FileNameHighlightingSettings::save(const KSharedConfigPtr &config) const
         if (!rule.patterns.isEmpty()) {
             ruleGroup.writeEntry("Patterns", rule.patterns);
         }
+        if (rule.caseSensitive) {
+            ruleGroup.writeEntry("CaseSensitive", true);
+        }
 
         switch (rule.style.color.source()) {
         case FileNameColor::Source::SchemeRole:
@@ -179,14 +183,18 @@ QString FileNameHighlightingSettings::conditionName(FileNameHighlightRule::Condi
         return QStringLiteral("Symlink");
     case FileNameHighlightRule::Condition::MimeType:
         return QStringLiteral("MimeType");
+    case FileNameHighlightRule::Condition::NamePattern:
+        return QStringLiteral("NamePattern");
     }
     return QString();
 }
 
 std::optional<FileNameHighlightRule::Condition> FileNameHighlightingSettings::conditionFromName(const QString &name)
 {
-    for (const auto condition :
-         {FileNameHighlightRule::Condition::Executable, FileNameHighlightRule::Condition::Symlink, FileNameHighlightRule::Condition::MimeType}) {
+    for (const auto condition : {FileNameHighlightRule::Condition::Executable,
+                                 FileNameHighlightRule::Condition::Symlink,
+                                 FileNameHighlightRule::Condition::MimeType,
+                                 FileNameHighlightRule::Condition::NamePattern}) {
         if (conditionName(condition) == name) {
             return condition;
         }

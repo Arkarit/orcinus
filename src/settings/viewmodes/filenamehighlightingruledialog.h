@@ -12,6 +12,7 @@
 #include <QDialog>
 
 class KColorButton;
+class QCheckBox;
 class QComboBox;
 class QDialogButtonBox;
 class QLabel;
@@ -54,7 +55,7 @@ public:
     static QColor previewColor(const FileNameTextStyle &style, const QPalette &palette);
 
     /**
-     * @return The MIME type patterns of @p text, separated by semicolons or commas.
+     * @return The patterns of @p text, separated by semicolons or commas.
      */
     static QStringList parsePatterns(const QString &text);
 
@@ -66,6 +67,7 @@ public:
 
 private:
     void updateWidgets();
+    bool hasPatterns() const;
     void chooseMimeTypes();
     FileNameHighlightRule::Condition condition() const;
     FileNameTextStyle style() const;
@@ -74,10 +76,12 @@ private:
 
     QLineEdit *m_name;
     QComboBox *m_condition;
-    QLabel *m_mimeTypesLabel;
-    QWidget *m_mimeTypesWidget;
-    QLineEdit *m_mimeTypes;
-    QLabel *m_mimeTypesWarning;
+    QLabel *m_patternsLabel;
+    QWidget *m_patternsWidget;
+    QLineEdit *m_patterns;
+    QPushButton *m_chooseMimeTypes;
+    QLabel *m_patternsWarning;
+    QCheckBox *m_caseSensitive;
     QRadioButton *m_colorUnchanged;
     QRadioButton *m_colorFromScheme;
     QRadioButton *m_colorCustom;

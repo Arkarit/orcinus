@@ -12,6 +12,7 @@
 #include <KMimeTypeChooser>
 
 #include <QButtonGroup>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -24,6 +25,8 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QRegularExpression>
+
+#include <algorithm>
 
 namespace
 {
@@ -115,25 +118,29 @@ FileNameHighlightingRuleDialog::FileNameHighlightingRuleDialog(const FileNameHig
     m_condition->addItem(i18nc("@item:inlistbox file name highlighting condition", "Symbolic links"),
                          static_cast<int>(FileNameHighlightRule::Condition::Symlink));
     m_condition->addItem(i18nc("@item:inlistbox file name highlighting condition", "MIME type"), static_cast<int>(FileNameHighlightRule::Condition::MimeType));
+    m_condition->addItem(i18nc("@item:inlistbox file name highlighting condition", "File name pattern"),
+                         static_cast<int>(FileNameHighlightRule::Condition::NamePattern));
     m_condition->setCurrentIndex(m_condition->findData(static_cast<int>(rule.condition)));
     formLayout->addRow(i18nc("@label:listbox", "Condition:"), m_condition);
 
-    m_mimeTypesWidget = new QWidget(this);
-    auto mimeTypesLayout = new QVBoxLayout(m_mimeTypesWidget);
+    m_patternsWidget = new QWidget(this);
+    auto mimeTypesLayout = new QVBoxLayout(m_patternsWidget);
     mimeTypesLayout->setContentsMargins(0, 0, 0, 0);
     auto mimeTypesRow = new QHBoxLayout();
-    m_mimeTypes = new QLineEdit(m_mimeTypesWidget);
-    m_mimeTypes->setPlaceholderText(i18nc("@info:placeholder", "e.g. image/*; text/plain"));
-    m_mimeTypes->setText(rule.condition == FileNameHighlightRule::Condition::MimeType ? rule.patterns.join(QLatin1String("; ")) : QString());
-    auto chooseMimeTypes = new QPushButton(i18nc("@action:button", "Choose…"), m_mimeTypesWidget);
-    mimeTypesRow->addWidget(m_mimeTypes);
-    mimeTypesRow->addWidget(chooseMimeTypes);
+    m_patterns = new QLineEdit(m_patternsWidget);
+    m_patterns->setText(rule.patterns.join(QLatin1String("; ")));
+    m_chooseMimeTypes = new QPushButton(i18nc("@action:button", "Choose…"), m_patternsWidget);
+    mimeTypesRow->addWidget(m_patterns);
+    mimeTypesRow->addWidget(m_chooseMimeTypes);
     mimeTypesLayout->addLayout(mimeTypesRow);
-    m_mimeTypesWarning = new QLabel(m_mimeTypesWidget);
-    m_mimeTypesWarning->setWordWrap(true);
-    mimeTypesLayout->addWidget(m_mimeTypesWarning);
-    m_mimeTypesLabel = new QLabel(i18nc("@label:textbox", "MIME types:"), this);
-    formLayout->addRow(m_mimeTypesLabel, m_mimeTypesWidget);
+    m_patternsWarning = new QLabel(m_patternsWidget);
+    m_patternsWarning->setWordWrap(true);
+    mimeTypesLayout->addWidget(m_patternsWarning);
+    m_caseSensitive = new QCheckBox(i18nc("@option:check file name patterns", "Case sensitive"), m_patternsWidget);
+    m_caseSensitive->setChecked(rule.caseSensitive);
+    mimeTypesLayout->addWidget(m_caseSensitive);
+    m_patternsLabel = new QLabel(this);
+    formLayout->addRow(m_patternsLabel, m_patternsWidget);
 
     // Text color: unchanged, a role of the color scheme or a custom color.
     m_colorUnchanged = new QRadioButton(i18nc("@option:radio text color", "Unchanged"), this);
@@ -207,8 +214,9 @@ FileNameHighlightingRuleDialog::FileNameHighlightingRuleDialog(const FileNameHig
     topLayout->addWidget(m_buttonBox);
 
     connect(m_condition, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
-    connect(m_mimeTypes, &QLineEdit::textChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
-    connect(chooseMimeTypes, &QPushButton::clicked, this, &FileNameHighlightingRuleDialog::chooseMimeTypes);
+    connect(m_patterns, &QLineEdit::textChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_chooseMimeTypes, &QPushButton::clicked, this, &FileNameHighlightingRuleDialog::chooseMimeTypes);
+    connect(m_caseSensitive, &QCheckBox::toggled, this, &FileNameHighlightingRuleDialog::updateWidgets);
     connect(colorGroup, &QButtonGroup::buttonToggled, this, &FileNameHighlightingRuleDialog::updateWidgets);
     connect(m_colorRole, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
     connect(m_customColor, &KColorButton::changed, this, &FileNameHighlightingRuleDialog::updateWidgets);
@@ -234,7 +242,8 @@ FileNameHighlightRule FileNameHighlightingRuleDialog::rule() const
     FileNameHighlightRule rule = m_rule;
     rule.name = m_name->text().trimmed();
     rule.condition = condition();
-    rule.patterns = rule.condition == FileNameHighlightRule::Condition::MimeType ? parsePatterns(m_mimeTypes->text()) : QStringList();
+    rule.patterns = hasPatterns() ? parsePatterns(m_patterns->text()) : QStringList();
+    rule.caseSensitive = rule.condition == FileNameHighlightRule::Condition::NamePattern && m_caseSensitive->isChecked();
     rule.style = style();
     return rule;
 }
@@ -252,6 +261,8 @@ QString FileNameHighlightingRuleDialog::displayName(const FileNameHighlightRule 
         return i18nc("@item:inlistbox file name highlighting condition", "Symbolic links");
     case FileNameHighlightRule::Condition::MimeType:
         return i18nc("@item:inlistbox %1 is a list of MIME types", "MIME type: %1", rule.patterns.join(QLatin1String(", ")));
+    case FileNameHighlightRule::Condition::NamePattern:
+        return i18nc("@item:inlistbox %1 is a list of file name patterns", "File name: %1", rule.patterns.join(QLatin1String(", ")));
     }
     return QString();
 }
@@ -265,6 +276,16 @@ QString FileNameHighlightingRuleDialog::exampleFileName(const FileNameHighlightR
         return QStringLiteral("link");
     case FileNameHighlightRule::Condition::MimeType:
         break;
+    case FileNameHighlightRule::Condition::NamePattern: {
+        // "*.cpp" -> "example.cpp"; patterns with character sets get a generic name.
+        QString name = rule.patterns.value(0);
+        if (name.isEmpty() || name.contains(QLatin1Char('['))) {
+            return QStringLiteral("example");
+        }
+        name.replace(QLatin1Char('*'), QLatin1String("example"));
+        name.replace(QLatin1Char('?'), QLatin1Char('x'));
+        return name;
+    }
     }
 
     const QString pattern = rule.patterns.value(0);
@@ -344,14 +365,34 @@ QStringList FileNameHighlightingRuleDialog::unknownMimeTypePatterns(const QStrin
 void FileNameHighlightingRuleDialog::updateWidgets()
 {
     const bool isMimeType = condition() == FileNameHighlightRule::Condition::MimeType;
-    m_mimeTypesLabel->setVisible(isMimeType);
-    m_mimeTypesWidget->setVisible(isMimeType);
+    const bool isNamePattern = condition() == FileNameHighlightRule::Condition::NamePattern;
+    m_patternsLabel->setVisible(hasPatterns());
+    m_patternsWidget->setVisible(hasPatterns());
+    m_patternsLabel->setText(isMimeType ? i18nc("@label:textbox", "MIME types:") : i18nc("@label:textbox", "File name patterns:"));
+    m_patterns->setPlaceholderText(isMimeType ? i18nc("@info:placeholder", "e.g. image/*; text/plain")
+                                              : i18nc("@info:placeholder", "e.g. *.cpp; *.h; Makefile"));
+    m_chooseMimeTypes->setVisible(isMimeType);
+    m_caseSensitive->setVisible(isNamePattern);
 
-    const QStringList patterns = parsePatterns(m_mimeTypes->text());
-    const QStringList unknown = isMimeType ? unknownMimeTypePatterns(patterns) : QStringList();
-    m_mimeTypesWarning->setVisible(!unknown.isEmpty());
-    m_mimeTypesWarning->setText(i18nc("@info %1 is a list of MIME types", "Unknown MIME types: %1", unknown.join(QLatin1String(", "))));
-    m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(!isMimeType || !patterns.isEmpty());
+    const QStringList patterns = parsePatterns(m_patterns->text());
+    QString warning;
+    if (isMimeType) {
+        const QStringList unknown = unknownMimeTypePatterns(patterns);
+        if (!unknown.isEmpty()) {
+            warning = i18nc("@info %1 is a list of MIME types", "Unknown MIME types: %1", unknown.join(QLatin1String(", ")));
+        }
+    } else if (isNamePattern) {
+        // File names never contain a slash, so such patterns never match.
+        const bool containsSlash = std::any_of(patterns.cbegin(), patterns.cend(), [](const QString &pattern) {
+            return pattern.contains(QLatin1Char('/'));
+        });
+        if (containsSlash) {
+            warning = i18nc("@info", "File name patterns match names only and cannot contain \"/\".");
+        }
+    }
+    m_patternsWarning->setVisible(!warning.isEmpty());
+    m_patternsWarning->setText(warning);
+    m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(!hasPatterns() || !patterns.isEmpty());
 
     m_colorRole->setEnabled(m_colorFromScheme->isChecked());
     m_customColor->setEnabled(m_colorCustom->isChecked());
@@ -365,12 +406,17 @@ void FileNameHighlightingRuleDialog::updateWidgets()
     m_preview->setText(exampleFileName(current));
 }
 
+bool FileNameHighlightingRuleDialog::hasPatterns() const
+{
+    return condition() == FileNameHighlightRule::Condition::MimeType || condition() == FileNameHighlightRule::Condition::NamePattern;
+}
+
 void FileNameHighlightingRuleDialog::chooseMimeTypes()
 {
     // The chooser handles exact MIME types; group patterns like "image/*" are kept.
     QStringList groups;
     QStringList exactTypes;
-    const QStringList patterns = parsePatterns(m_mimeTypes->text());
+    const QStringList patterns = parsePatterns(m_patterns->text());
     for (const QString &pattern : patterns) {
         (isGroupPattern(pattern) ? groups : exactTypes).append(pattern);
     }
@@ -385,7 +431,7 @@ void FileNameHighlightingRuleDialog::chooseMimeTypes()
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
-    m_mimeTypes->setText((groups + dialog.chooser()->mimeTypes()).join(QLatin1String("; ")));
+    m_patterns->setText((groups + dialog.chooser()->mimeTypes()).join(QLatin1String("; ")));
 }
 
 FileNameHighlightRule::Condition FileNameHighlightingRuleDialog::condition() const

@@ -104,7 +104,8 @@ bool FileNameTextStyle::operator==(const FileNameTextStyle &other) const
 
 bool FileNameHighlightRule::operator==(const FileNameHighlightRule &other) const
 {
-    return name == other.name && enabled == other.enabled && condition == other.condition && patterns == other.patterns && style == other.style;
+    return name == other.name && enabled == other.enabled && condition == other.condition && patterns == other.patterns && caseSensitive == other.caseSensitive
+        && style == other.style;
 }
 
 FileNameHighlighter::FileNameHighlighter(bool enabled,
@@ -116,6 +117,18 @@ FileNameHighlighter::FileNameHighlighter(bool enabled,
     , m_fileSystemType(fileSystemType ? std::move(fileSystemType) : FileSystemTypeFunction(&KFileSystemType::fileSystemType))
     , m_colorSchemeConfig(std::move(colorSchemeConfig))
 {
+    m_namePatterns.resize(m_rules.count());
+    for (int i = 0; i < m_rules.count(); ++i) {
+        const FileNameHighlightRule &rule = m_rules.at(i);
+        if (rule.condition != FileNameHighlightRule::Condition::NamePattern) {
+            continue;
+        }
+        const Qt::CaseSensitivity caseSensitivity = rule.caseSensitive ? Qt::CaseSensitive : Qt::CaseInsensitive;
+        for (const QString &pattern : rule.patterns) {
+            m_namePatterns[i].append(QRegularExpression::fromWildcard(pattern, caseSensitivity));
+        }
+    }
+
     for (const FileNameHighlightRule &rule : std::as_const(m_rules)) {
         if (!rule.enabled || (!rule.style.bold.has_value() && !rule.style.italic.has_value())) {
             continue;
@@ -318,6 +331,19 @@ bool FileNameHighlighter::ruleMatches(int ruleIndex, const KFileItem &item, std:
         return item.isLink();
     case FileNameHighlightRule::Condition::MimeType:
         return mimeTypeRuleMatches(ruleIndex, item, mimeTypeName);
+    case FileNameHighlightRule::Condition::NamePattern:
+        return namePatternRuleMatches(ruleIndex, item);
+    }
+    return false;
+}
+
+bool FileNameHighlighter::namePatternRuleMatches(int ruleIndex, const KFileItem &item) const
+{
+    const QString name = item.name();
+    for (const QRegularExpression &pattern : m_namePatterns.at(ruleIndex)) {
+        if (pattern.match(name).hasMatch()) {
+            return true;
+        }
     }
     return false;
 }

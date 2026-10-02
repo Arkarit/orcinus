@@ -32,6 +32,7 @@ Skriptsprache.
 | O3 | Bei eingeschaltetem Highlighting bestimmt die Regelliste Bold/Italic. Die Default-Regel „Symbolic links → Italic On“ ersetzt Dolphins eingebautes Link-Kursiv. Ausgeschaltet: exakt Dolphin. Regel deaktiviert/gelöscht: kein automatisches Kursiv. `Italic Off` unterdrückt Kursiv explizit. |
 | O4 | `image/*` bedeutet die kanonische MIME-Hauptgruppe `image`, ohne transitive Suche über Vorfahren. Exakte Typen verwenden `inherits()`. |
 | O5 | **Offen:** Die Kontrastkorrektur wird zentral gekapselt implementiert; die Schwelle wird bei der visuellen Erprobung festgelegt. |
+| Nachtrag 2026-10-03 | NamePattern wird vor dem Benchmarking umgesetzt. Groß-/Kleinschreibung ist pro Regel einstellbar (`caseSensitive`, Default: ignorieren). Namensmuster gelten für Dateien und Ordner. |
 | Korrektur | `Executable = bekannter Windows-Executable-Typ ODER POSIX-executable`. Die Endungsprüfung (`.exe`) gilt immer; der X-Bit-Zweig nur auf Dateisystemen mit aussagekräftigen POSIX-Bits. |
 
 ---
@@ -248,6 +249,7 @@ FileNameHighlightRule
     Condition    condition     // V1: Executable, Symlink, MimeType
                                // später: NamePattern, BrokenSymlink, Setuid, Setgid, Sticky,
                                //         OtherWritable, Fifo, Socket, Device
+    bool         caseSensitive // nur NamePattern; Default false (Nachtrag 2026-10-03)
     QStringList  patterns      // nur für musterbasierte Bedingungen; ODER-verknüpft
                                // MimeType:    "image/*", "audio/*", "video/*", "text/x-c++src"
                                // NamePattern: "*.cpp", "Makefile"
@@ -817,7 +819,7 @@ vollständigen, nutzbaren Stand (V1).**
 
 Danach:
 
-7. **NamePattern und BrokenSymlink** als weitere Bedingungen (Datenmodell und Speicherung sind
+7. **NamePattern** (umgesetzt am 2026-10-03, vor dem Benchmarking) und **BrokenSymlink** als weitere Bedingungen (Datenmodell und Speicherung sind
    bereits vorbereitet; nur Matcher, Editor-Auswahl und Tests).
 8. **Weitere Unix-Flags** (setuid, setgid, sticky, für andere beschreibbar, FIFO, Socket, Gerät)
    und gegebenenfalls weitere Nicht-POSIX-Executable-Typen nach eigener Entscheidung.
