@@ -1,0 +1,409 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Whale contributors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#include "filenamehighlightingruledialog.h"
+
+#include <KColorButton>
+#include <KLazyLocalizedString>
+#include <KLocalizedString>
+#include <KMimeTypeChooser>
+
+#include <QButtonGroup>
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMimeDatabase>
+#include <QPainter>
+#include <QPixmap>
+#include <QPushButton>
+#include <QRadioButton>
+#include <QRegularExpression>
+
+namespace
+{
+enum TriState {
+    Unchanged,
+    On,
+    Off,
+};
+
+struct ColorRoleLabel {
+    KColorScheme::ForegroundRole role;
+    KLazyLocalizedString label;
+};
+
+const ColorRoleLabel colorRoleLabels[] = {
+    {KColorScheme::NormalText, kli18nc("@item:inlistbox color scheme text color", "Normal text")},
+    {KColorScheme::InactiveText, kli18nc("@item:inlistbox color scheme text color", "Inactive text")},
+    {KColorScheme::ActiveText, kli18nc("@item:inlistbox color scheme text color", "Active text")},
+    {KColorScheme::LinkText, kli18nc("@item:inlistbox color scheme text color", "Link text")},
+    {KColorScheme::VisitedText, kli18nc("@item:inlistbox color scheme text color", "Visited text")},
+    {KColorScheme::NegativeText, kli18nc("@item:inlistbox color scheme text color", "Negative text")},
+    {KColorScheme::NeutralText, kli18nc("@item:inlistbox color scheme text color", "Neutral text")},
+    {KColorScheme::PositiveText, kli18nc("@item:inlistbox color scheme text color", "Positive text")},
+};
+
+QComboBox *createTriStateComboBox(const QString &on, const QString &off, QWidget *parent)
+{
+    auto comboBox = new QComboBox(parent);
+    comboBox->addItem(i18nc("@item:inlistbox text style attribute is not changed", "Unchanged"));
+    comboBox->addItem(on);
+    comboBox->addItem(off);
+    return comboBox;
+}
+
+int triStateIndex(const std::optional<bool> &value)
+{
+    if (!value.has_value()) {
+        return Unchanged;
+    }
+    return *value ? On : Off;
+}
+
+std::optional<bool> triStateValue(int index)
+{
+    switch (index) {
+    case On:
+        return true;
+    case Off:
+        return false;
+    default:
+        return std::nullopt;
+    }
+}
+
+QIcon colorSwatch(const QColor &color)
+{
+    QPixmap pixmap(16, 16);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    painter.drawRoundedRect(QRectF(1, 1, 14, 14), 3, 3);
+    return QIcon(pixmap);
+}
+
+bool isGroupPattern(const QString &pattern)
+{
+    return pattern.endsWith(QLatin1String("/*")) && pattern.count(QLatin1Char('/')) == 1;
+}
+}
+
+FileNameHighlightingRuleDialog::FileNameHighlightingRuleDialog(const FileNameHighlightRule &rule, QWidget *parent)
+    : QDialog(parent)
+    , m_rule(rule)
+{
+    setWindowTitle(i18nc("@title:window", "File Name Highlighting Rule"));
+
+    auto topLayout = new QVBoxLayout(this);
+    auto formLayout = new QFormLayout();
+    topLayout->addLayout(formLayout);
+
+    m_name = new QLineEdit(this);
+    m_name->setText(rule.name);
+    formLayout->addRow(i18nc("@label:textbox", "Name:"), m_name);
+
+    m_condition = new QComboBox(this);
+    m_condition->addItem(i18nc("@item:inlistbox file name highlighting condition", "Executable files"),
+                         static_cast<int>(FileNameHighlightRule::Condition::Executable));
+    m_condition->addItem(i18nc("@item:inlistbox file name highlighting condition", "Symbolic links"),
+                         static_cast<int>(FileNameHighlightRule::Condition::Symlink));
+    m_condition->addItem(i18nc("@item:inlistbox file name highlighting condition", "MIME type"), static_cast<int>(FileNameHighlightRule::Condition::MimeType));
+    m_condition->setCurrentIndex(m_condition->findData(static_cast<int>(rule.condition)));
+    formLayout->addRow(i18nc("@label:listbox", "Condition:"), m_condition);
+
+    m_mimeTypesWidget = new QWidget(this);
+    auto mimeTypesLayout = new QVBoxLayout(m_mimeTypesWidget);
+    mimeTypesLayout->setContentsMargins(0, 0, 0, 0);
+    auto mimeTypesRow = new QHBoxLayout();
+    m_mimeTypes = new QLineEdit(m_mimeTypesWidget);
+    m_mimeTypes->setPlaceholderText(i18nc("@info:placeholder", "e.g. image/*; text/plain"));
+    m_mimeTypes->setText(rule.condition == FileNameHighlightRule::Condition::MimeType ? rule.patterns.join(QLatin1String("; ")) : QString());
+    auto chooseMimeTypes = new QPushButton(i18nc("@action:button", "Choose…"), m_mimeTypesWidget);
+    mimeTypesRow->addWidget(m_mimeTypes);
+    mimeTypesRow->addWidget(chooseMimeTypes);
+    mimeTypesLayout->addLayout(mimeTypesRow);
+    m_mimeTypesWarning = new QLabel(m_mimeTypesWidget);
+    m_mimeTypesWarning->setWordWrap(true);
+    mimeTypesLayout->addWidget(m_mimeTypesWarning);
+    m_mimeTypesLabel = new QLabel(i18nc("@label:textbox", "MIME types:"), this);
+    formLayout->addRow(m_mimeTypesLabel, m_mimeTypesWidget);
+
+    // Text color: unchanged, a role of the color scheme or a custom color.
+    m_colorUnchanged = new QRadioButton(i18nc("@option:radio text color", "Unchanged"), this);
+    m_colorFromScheme = new QRadioButton(i18nc("@option:radio text color", "From color scheme:"), this);
+    m_colorCustom = new QRadioButton(i18nc("@option:radio text color", "Custom:"), this);
+    auto colorGroup = new QButtonGroup(this);
+    colorGroup->addButton(m_colorUnchanged);
+    colorGroup->addButton(m_colorFromScheme);
+    colorGroup->addButton(m_colorCustom);
+
+    m_colorRole = new QComboBox(this);
+    for (const ColorRoleLabel &entry : colorRoleLabels) {
+        const QColor color = FileNameHighlighter::resolveNameColor(FileNameColor::schemeRole(entry.role), palette());
+        m_colorRole->addItem(colorSwatch(color), entry.label.toString(), static_cast<int>(entry.role));
+    }
+    m_customColor = new KColorButton(this);
+
+    auto schemeRow = new QHBoxLayout();
+    schemeRow->addWidget(m_colorFromScheme);
+    schemeRow->addWidget(m_colorRole);
+    schemeRow->addStretch();
+    auto customRow = new QHBoxLayout();
+    customRow->addWidget(m_colorCustom);
+    customRow->addWidget(m_customColor);
+    customRow->addStretch();
+
+    formLayout->addRow(i18nc("@label", "Text color:"), m_colorUnchanged);
+    formLayout->addRow(QString(), schemeRow);
+    formLayout->addRow(QString(), customRow);
+    auto schemeHint = new QLabel(i18nc("@info", "Colors from the color scheme adapt to light and dark color schemes."), this);
+    schemeHint->setWordWrap(true);
+    QFont hintFont = schemeHint->font();
+    hintFont.setPointSizeF(hintFont.pointSizeF() * 0.9);
+    schemeHint->setFont(hintFont);
+    formLayout->addRow(QString(), schemeHint);
+
+    switch (rule.style.color.source()) {
+    case FileNameColor::Source::Unset:
+        m_colorUnchanged->setChecked(true);
+        m_customColor->setColor(palette().text().color());
+        break;
+    case FileNameColor::Source::SchemeRole:
+        m_colorFromScheme->setChecked(true);
+        m_colorRole->setCurrentIndex(m_colorRole->findData(static_cast<int>(rule.style.color.role())));
+        m_customColor->setColor(FileNameHighlighter::resolveNameColor(rule.style.color, palette()));
+        break;
+    case FileNameColor::Source::Custom:
+        m_colorCustom->setChecked(true);
+        m_customColor->setColor(rule.style.color.customColor());
+        break;
+    }
+
+    m_bold = createTriStateComboBox(i18nc("@item:inlistbox", "Bold"), i18nc("@item:inlistbox", "Not bold"), this);
+    m_bold->setCurrentIndex(triStateIndex(rule.style.bold));
+    formLayout->addRow(i18nc("@label:listbox", "Bold:"), m_bold);
+
+    m_italic = createTriStateComboBox(i18nc("@item:inlistbox", "Italic"), i18nc("@item:inlistbox", "Not italic"), this);
+    m_italic->setCurrentIndex(triStateIndex(rule.style.italic));
+    formLayout->addRow(i18nc("@label:listbox", "Italic:"), m_italic);
+
+    m_preview = new QLabel(this);
+    m_preview->setAutoFillBackground(true);
+    m_preview->setFrameShape(QFrame::StyledPanel);
+    m_preview->setContentsMargins(6, 4, 6, 4);
+    formLayout->addRow(i18nc("@label", "Preview:"), m_preview);
+
+    m_buttonBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(m_buttonBox, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(m_buttonBox, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    topLayout->addStretch();
+    topLayout->addWidget(m_buttonBox);
+
+    connect(m_condition, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_mimeTypes, &QLineEdit::textChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(chooseMimeTypes, &QPushButton::clicked, this, &FileNameHighlightingRuleDialog::chooseMimeTypes);
+    connect(colorGroup, &QButtonGroup::buttonToggled, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_colorRole, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_customColor, &KColorButton::changed, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_bold, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_italic, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_name, &QLineEdit::textChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+
+    // Switching from a scheme color to a custom color starts with the current scheme color.
+    connect(m_colorCustom, &QRadioButton::toggled, this, [this](bool checked) {
+        if (checked && m_rule.style.color.source() != FileNameColor::Source::Custom) {
+            const QColor schemeColor =
+                FileNameHighlighter::resolveNameColor(FileNameColor::schemeRole(static_cast<KColorScheme::ForegroundRole>(m_colorRole->currentData().toInt())),
+                                                      palette());
+            m_customColor->setColor(schemeColor);
+        }
+    });
+
+    updateWidgets();
+}
+
+FileNameHighlightRule FileNameHighlightingRuleDialog::rule() const
+{
+    FileNameHighlightRule rule = m_rule;
+    rule.name = m_name->text().trimmed();
+    rule.condition = condition();
+    rule.patterns = rule.condition == FileNameHighlightRule::Condition::MimeType ? parsePatterns(m_mimeTypes->text()) : QStringList();
+    rule.style = style();
+    return rule;
+}
+
+QString FileNameHighlightingRuleDialog::displayName(const FileNameHighlightRule &rule)
+{
+    if (!rule.name.isEmpty()) {
+        return rule.name;
+    }
+
+    switch (rule.condition) {
+    case FileNameHighlightRule::Condition::Executable:
+        return i18nc("@item:inlistbox file name highlighting condition", "Executable files");
+    case FileNameHighlightRule::Condition::Symlink:
+        return i18nc("@item:inlistbox file name highlighting condition", "Symbolic links");
+    case FileNameHighlightRule::Condition::MimeType:
+        return i18nc("@item:inlistbox %1 is a list of MIME types", "MIME type: %1", rule.patterns.join(QLatin1String(", ")));
+    }
+    return QString();
+}
+
+QString FileNameHighlightingRuleDialog::exampleFileName(const FileNameHighlightRule &rule)
+{
+    switch (rule.condition) {
+    case FileNameHighlightRule::Condition::Executable:
+        return QStringLiteral("program");
+    case FileNameHighlightRule::Condition::Symlink:
+        return QStringLiteral("link");
+    case FileNameHighlightRule::Condition::MimeType:
+        break;
+    }
+
+    const QString pattern = rule.patterns.value(0);
+    if (pattern == QLatin1String("image/*")) {
+        return QStringLiteral("photo.jpg");
+    } else if (pattern == QLatin1String("audio/*")) {
+        return QStringLiteral("song.mp3");
+    } else if (pattern == QLatin1String("video/*")) {
+        return QStringLiteral("movie.mp4");
+    }
+
+    const QMimeType mimeType = QMimeDatabase().mimeTypeForName(pattern);
+    if (mimeType.isValid() && !mimeType.preferredSuffix().isEmpty()) {
+        return QStringLiteral("example.") + mimeType.preferredSuffix();
+    }
+    return QStringLiteral("example");
+}
+
+QFont FileNameHighlightingRuleDialog::previewFont(const FileNameTextStyle &style, const QFont &baseFont)
+{
+    QFont font(baseFont);
+    if (style.bold.has_value()) {
+        font.setBold(*style.bold);
+    }
+    if (style.italic.has_value()) {
+        font.setItalic(*style.italic);
+    }
+    return font;
+}
+
+QColor FileNameHighlightingRuleDialog::previewColor(const FileNameTextStyle &style, const QPalette &palette)
+{
+    const QColor color = FileNameHighlighter::resolveNameColor(style.color, palette);
+    return color.isValid() ? color : palette.text().color();
+}
+
+QStringList FileNameHighlightingRuleDialog::parsePatterns(const QString &text)
+{
+    QStringList patterns;
+    const QStringList parts = text.split(QRegularExpression(QStringLiteral("[;,]")), Qt::SkipEmptyParts);
+    for (const QString &part : parts) {
+        const QString pattern = part.trimmed();
+        if (!pattern.isEmpty() && !patterns.contains(pattern)) {
+            patterns.append(pattern);
+        }
+    }
+    return patterns;
+}
+
+QStringList FileNameHighlightingRuleDialog::unknownMimeTypePatterns(const QStringList &patterns)
+{
+    const QMimeDatabase database;
+    QStringList unknown;
+    QStringList groups;
+
+    for (const QString &pattern : patterns) {
+        if (isGroupPattern(pattern)) {
+            if (groups.isEmpty()) {
+                const QList<QMimeType> mimeTypes = database.allMimeTypes();
+                for (const QMimeType &mimeType : mimeTypes) {
+                    const QString group = mimeType.name().section(QLatin1Char('/'), 0, 0);
+                    if (!groups.contains(group)) {
+                        groups.append(group);
+                    }
+                }
+            }
+            if (!groups.contains(pattern.chopped(2))) {
+                unknown.append(pattern);
+            }
+        } else if (!database.mimeTypeForName(pattern).isValid()) {
+            unknown.append(pattern);
+        }
+    }
+    return unknown;
+}
+
+void FileNameHighlightingRuleDialog::updateWidgets()
+{
+    const bool isMimeType = condition() == FileNameHighlightRule::Condition::MimeType;
+    m_mimeTypesLabel->setVisible(isMimeType);
+    m_mimeTypesWidget->setVisible(isMimeType);
+
+    const QStringList patterns = parsePatterns(m_mimeTypes->text());
+    const QStringList unknown = isMimeType ? unknownMimeTypePatterns(patterns) : QStringList();
+    m_mimeTypesWarning->setVisible(!unknown.isEmpty());
+    m_mimeTypesWarning->setText(i18nc("@info %1 is a list of MIME types", "Unknown MIME types: %1", unknown.join(QLatin1String(", "))));
+    m_buttonBox->button(QDialogButtonBox::Ok)->setEnabled(!isMimeType || !patterns.isEmpty());
+
+    m_colorRole->setEnabled(m_colorFromScheme->isChecked());
+    m_customColor->setEnabled(m_colorCustom->isChecked());
+
+    const FileNameHighlightRule current = rule();
+    QPalette previewPalette = m_preview->palette();
+    previewPalette.setColor(QPalette::Window, palette().base().color());
+    previewPalette.setColor(QPalette::WindowText, previewColor(current.style, palette()));
+    m_preview->setPalette(previewPalette);
+    m_preview->setFont(previewFont(current.style, font()));
+    m_preview->setText(exampleFileName(current));
+}
+
+void FileNameHighlightingRuleDialog::chooseMimeTypes()
+{
+    // The chooser handles exact MIME types; group patterns like "image/*" are kept.
+    QStringList groups;
+    QStringList exactTypes;
+    const QStringList patterns = parsePatterns(m_mimeTypes->text());
+    for (const QString &pattern : patterns) {
+        (isGroupPattern(pattern) ? groups : exactTypes).append(pattern);
+    }
+
+    KMimeTypeChooserDialog dialog(i18nc("@title:window", "Choose MIME Types"),
+                                  i18nc("@info", "Select the MIME types whose file names should be highlighted:"),
+                                  exactTypes,
+                                  QString(),
+                                  QStringList(),
+                                  KMimeTypeChooser::Comments | KMimeTypeChooser::Patterns,
+                                  this);
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    m_mimeTypes->setText((groups + dialog.chooser()->mimeTypes()).join(QLatin1String("; ")));
+}
+
+FileNameHighlightRule::Condition FileNameHighlightingRuleDialog::condition() const
+{
+    return static_cast<FileNameHighlightRule::Condition>(m_condition->currentData().toInt());
+}
+
+FileNameTextStyle FileNameHighlightingRuleDialog::style() const
+{
+    FileNameTextStyle style;
+    if (m_colorFromScheme->isChecked()) {
+        style.color = FileNameColor::schemeRole(static_cast<KColorScheme::ForegroundRole>(m_colorRole->currentData().toInt()));
+    } else if (m_colorCustom->isChecked()) {
+        style.color = FileNameColor::custom(m_customColor->color());
+    }
+    style.bold = triStateValue(m_bold->currentIndex());
+    style.italic = triStateValue(m_italic->currentIndex());
+    return style;
+}
+
+#include "moc_filenamehighlightingruledialog.cpp"

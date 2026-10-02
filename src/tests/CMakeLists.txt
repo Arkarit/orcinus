@@ -121,6 +121,11 @@ ecm_add_test(filenamehighlightingviewtest.cpp testdir.cpp
 TEST_NAME filenamehighlightingviewtest
 LINK_LIBRARIES dolphinprivate Qt6::Test)
 
+# FileNameHighlightingTabTest
+ecm_add_test(filenamehighlightingtabtest.cpp
+TEST_NAME filenamehighlightingtabtest
+LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
+
 # ServiceMenuShortcutManagerTest (depends on the KIO service-menu shortcut API)
 if(KF6KIO_VERSION VERSION_GREATER_EQUAL "6.24.0")
     ecm_add_test(servicemenushortcutmanagertest.cpp LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)

@@ -7,6 +7,7 @@
 #include "viewsettingspage.h"
 
 #include "contentdisplaytab.h"
+#include "filenamehighlightingtab.h"
 #include "generalviewsettingspage.h"
 #include "viewsettingstab.h"
 #include <KLocalizedString>
@@ -38,6 +39,13 @@ ViewSettingsPage::ViewSettingsPage(const QUrl &url, QWidget *parent)
                       i18nc("@title:tab how file items columns are displayed", "Content Display"));
     connect(contentDisplayTab, &SettingsPageBase::changed, this, &ViewSettingsPage::changed);
 
+    // File Name Highlighting Tab
+    FileNameHighlightingTab *highlightingTab = new FileNameHighlightingTab(tabWidget);
+    tabWidget->addTab(highlightingTab,
+                      QIcon::fromTheme(QStringLiteral("format-text-color")),
+                      i18nc("@title:tab how file names are highlighted", "Highlighting"));
+    connect(highlightingTab, &SettingsPageBase::changed, this, &ViewSettingsPage::changed);
+
     // Initialize 'Icons' tab
     ViewSettingsTab *iconsTab = new ViewSettingsTab(ViewSettingsTab::IconsMode, tabWidget);
     tabWidget->addTab(iconsTab, QIcon::fromTheme(QStringLiteral("view-list-icons")), i18nc("@title:tab", "Icons"));
@@ -55,6 +63,7 @@ ViewSettingsPage::ViewSettingsPage(const QUrl &url, QWidget *parent)
 
     m_tabs.append(generalViewPage);
     m_tabs.append(contentDisplayTab);
+    m_tabs.append(highlightingTab);
     m_tabs.append(iconsTab);
     m_tabs.append(compactTab);
     m_tabs.append(detailsTab);
