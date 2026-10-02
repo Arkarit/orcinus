@@ -118,6 +118,7 @@ target_sources(dolphinprivate PRIVATE
     views/dolphinviewactionhandler.cpp
     views/draganddrophelper.cpp
     views/filenamehighlighter.cpp
+    views/filenamehighlightingsettings.cpp
     views/versioncontrol/updateitemstatesthread.cpp
     views/versioncontrol/versioncontrolobserver.cpp
     views/viewmodecontroller.cpp
@@ -173,6 +174,7 @@ target_sources(dolphinprivate PRIVATE
     views/dolphinviewactionhandler.h
     views/draganddrophelper.h
     views/filenamehighlighter.h
+    views/filenamehighlightingsettings.h
     views/versioncontrol/updateitemstatesthread.h
     views/versioncontrol/versioncontrolobserver.h
     views/viewmodecontroller.h

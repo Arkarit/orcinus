@@ -108,6 +108,9 @@ ecm_add_test(draganddrophelpertest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 # FileNameHighlighterTest
 ecm_add_test(filenamehighlightertest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 
+# FileNameHighlightingSettingsTest
+ecm_add_test(filenamehighlightingsettingstest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
+
 # ServiceMenuShortcutManagerTest (depends on the KIO service-menu shortcut API)
 if(KF6KIO_VERSION VERSION_GREATER_EQUAL "6.24.0")
     ecm_add_test(servicemenushortcutmanagertest.cpp LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
