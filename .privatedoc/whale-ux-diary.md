@@ -544,3 +544,277 @@ Ein Default-Wechsel oder eine andere Modifier-Belegung benötigt einen eigenen D
 - Zeigt die praktische Nutzung Gründe für einen späteren Default-Wechsel?
 - Sollte eine spätere Upstream-Einreichung Einstellung, generischen Kern und UI-Anbindung in
   getrennte, einzeln prüfbare Commits aufteilen?
+
+---
+
+# UX-002 – Dateinamen nach Typ und Dateiflags einfärben
+
+## Metadaten
+
+- **Datum:** 2026-10-02
+- **Status:** Evaluation; noch nicht entschieden und nicht implementiert
+- **Bereich:** Dateiansicht (alle Ansichtsmodi), Darstellung, Einstellungsdialog
+- **Upstream-Bezug:** Default soll Dolphin-kompatibel bleiben (keine Einfärbung)
+- **Betroffene Schicht:** `DolphinFileItemListWidget`, `KStandardItemListWidget`,
+  `View`-Einstellungsseite
+
+## Ausgangslage
+
+Fast alle grafischen Dateimanager stellen Dateinamen einheitlich in der Textfarbe des Farbschemas
+dar. Typ und Eigenschaften einer Datei sind nur über das Icon, eine zusätzliche Spalte oder das
+Kontextmenü erkennbar. Im Terminal ist dagegen seit Jahrzehnten etabliert, dass `ls --color` Namen
+nach Dateiart, Rechten und Endung einfärbt (`LS_COLORS`, `dircolors`).
+
+Besonders vermisst wird die Hervorhebung **ausführbarer Dateien** (gesetztes X-Bit). Das Icon zeigt
+das nicht zuverlässig: Ein Shell-Skript mit und ohne X-Bit sieht in Dolphin gleich aus, und die
+Spalte „Permissions“ muss eigens eingeblendet und gelesen werden. Schon die Einfärbung nach X allein
+wäre ein deutlicher Gewinn.
+
+Gewünscht sind daher zwei Arten von Regeln:
+
+1. **Dateiflags:** zuallererst ausführbar (X), perspektivisch weitere Eigenschaften wie Symlink,
+   defekter Symlink, setuid/setgid, Sticky-Bit, Sonderdateien (FIFO, Socket, Gerät).
+2. **Dateityp:** MIME-Typ beziehungsweise Dateiendung, etwa Bilder, Archive, Quellcode.
+
+## Vorhandene technische Grundlage
+
+Die Analyse des Quellcodes zeigt, dass das Einfärben von Dateinamen bereits einen fertigen
+Mechanismus besitzt, der heute für den Versionskontrollstatus verwendet wird:
+
+- `src/views/dolphinfileitemlistwidget.cpp`, `refreshCache()`: berechnet für VCS-Zustände eine
+  Tönung, mischt sie 50/50 mit der Textfarbe und übergibt sie mit `setTextColor()`.
+- `src/kitemviews/kstandarditemlistwidget.cpp`, `textColor()`: verwendet die eigene Farbe nur für
+  **nicht selektierte** Einträge. Selektierte Einträge erhalten weiterhin `HighlightedText`;
+  versteckte Einträge bleiben abgeblendet und haben Vorrang.
+- `updateAdditionalInfoTextColor()`: leitet die Farbe der übrigen Spalten (Größe, Datum …) aus der
+  eigenen Farbe ab, indem sie zu 70 % mit dem Hintergrund gemischt wird.
+
+Eine weitere Farbquelle in `DolphinFileItemListWidget::refreshCache()` wirkt damit automatisch in
+Symbol-, Kompakt- und Detailansicht, ohne den generischen Zeichenpfad zu verändern.
+
+### Zugriff auf Typ und Flags
+
+- Die Modellrolle `"type"` ist ungeeignet: Sie enthält nur den übersetzten Anzeigenamen
+  (`mimeComment()`, `kfileitemmodel.cpp`) und wird nur bei Bedarf befüllt.
+- Das Widget erreicht das `KFileItem` über das Modell, wie es `kfileitemlistwidget.cpp` bereits tut
+  (`fileItemModel->fileItem(index)`).
+- **Flags** sind sofort und billig verfügbar, weil sie aus dem `UDSEntry` stammen:
+  `KFileItem::isExecutable()` (seit KF 6.0), `permissions()`, `mode()`, `isLink()`, `linkDest()`,
+  `isDir()`, `isRegularFile()`. Für X ist keine asynchrone Nachbestimmung nötig.
+- **MIME-Typ:** `currentMimeType()` ist zunächst nur aus dem Namen geraten. Der
+  `KFileItemModelRolesUpdater` bestimmt den Typ für sichtbare Einträge später inhaltsbasiert. Bei
+  Dateien ohne eindeutige Endung kann eine Typfarbe deshalb kurz nach dem Erscheinen wechseln –
+  genau wie heute das Icon.
+
+### Performance
+
+Die Zuordnung MIME-Typ → Farbe soll pro MIME-Typname zwischengespeichert werden, inklusive der
+Auflösung der MIME-Vererbung. Flag-Prüfungen sind einfache Bitoperationen. Ein spürbares Risiko für
+große Verzeichnisse ist nicht erkennbar; es sollte dennoch mit einem Verzeichnis mit mehreren
+zehntausend Einträgen gemessen werden.
+
+## Betroffene Nutzerperspektiven
+
+### Power-User („Simon“)
+
+- arbeiten parallel im Terminal und kennen `ls --color`;
+- wollen Skripte, Binärdateien und Symlinks ohne zusätzliche Spalte erkennen;
+- profitieren von frei konfigurierbaren Regeln, gegebenenfalls aus `LS_COLORS` übernommen.
+
+### Office-Nutzer („Lisa“)
+
+- benötigen das Feature in der Regel nicht und dürfen davon nicht gestört werden;
+- könnten von dezenten Typfarben (Dokumente, Bilder, Archive) profitieren, wenn sie es bewusst
+  einschalten.
+
+### Upstream-orientierte Nutzer
+
+- erwarten zunächst unveränderte Darstellung; daher ist die Funktion standardmäßig aus.
+
+## Entwurf der Entscheidung
+
+Noch nicht bestätigt. Vorgeschlagen wird:
+
+1. **Default aus.** Ohne Einschalten verhält sich Whale wie Dolphin.
+2. **Zwei Regelarten**, in dieser Reihenfolge ausgewertet:
+   1. Flag-Regeln (X, Symlink, …);
+   2. Typ-Regeln (MIME-Typ mit Platzhalter und Vererbung, alternativ Dateiendung).
+
+   Innerhalb einer Regelart gewinnt die erste passende Regel. Die Rangfolge Flag vor Typ entspricht
+   der Konvention von GNU `ls`, bei der eine ausführbare Datei als „ausführbar“ und nicht nach ihrer
+   Endung gefärbt wird.
+3. **Rangfolge gegenüber vorhandenen Zuständen:**
+   - Selektion: Markierungsfarbe gewinnt (bestehendes Verhalten, sichert Lesbarkeit).
+   - Versteckt: bleibt abgeblendet (bestehendes Verhalten). Zu prüfen ist, ob eine abgeblendete
+     Variante der Regelfarbe besser wäre.
+   - VCS-Status: gewinnt vor Typ- und Flagfarbe, damit Statusinformationen nicht verloren gehen.
+   - Ausgeschnitten: bleibt wie bisher erkennbar.
+4. **Nur der Dateiname wird eingefärbt.** Die übrigen Spalten erhalten über den vorhandenen
+   Mechanismus automatisch eine blasse Variante; ob das erwünscht ist, wird bei der Erprobung
+   bewertet.
+5. **Farbe ist zusätzliche, nie alleinige Information.** Alle Eigenschaften bleiben über Icon,
+   Spalten oder Eigenschaften-Dialog erkennbar (Barrierefreiheit, Farbsehschwäche).
+
+### Ausführbar (X) im Detail
+
+X ist der wichtigste Einzelfall und wird als erster Ausbauschritt empfohlen. Folgende Fragen sind
+dafür zu klären:
+
+- **Ordner ausschließen.** Ordner tragen fast immer ein X-Bit (Durchsuchbarkeit). Die Regel soll nur
+  für reguläre Dateien gelten (`isRegularFile()` beziehungsweise `isFile() && !isDir()`).
+- **Welche Bits zählen?** `isExecutable()` ist im Header nur als „has executable permission“
+  dokumentiert. Vor der Umsetzung ist in den KIO-Quellen zu prüfen, ob Benutzer-, Gruppen- oder
+  beliebiges X-Bit gemeint ist. `ls` färbt bei jedem gesetzten X-Bit (`S_IXUGO`); dieser Konvention
+  zu folgen ist naheliegend.
+- **Dateisysteme ohne echte Unix-Rechte.** Auf FAT-, exFAT- und häufig NTFS-Mounts melden alle
+  Dateien X. Ohne Gegenmaßnahme wäre ein ganzer USB-Stick eingefärbt. Optionen:
+  - (a) hinnehmen, wie `ls` es tut;
+  - (b) Dateisysteme ohne POSIX-Rechte erkennen und dort keine X-Färbung anwenden;
+  - (c) per Einstellung abschaltbar machen.
+
+  Empfohlen wird (b), falls die Erkennung mit vertretbarem Aufwand zuverlässig möglich ist
+  (etwa über `KMountPoint` beziehungsweise den Dateisystemtyp), sonst (a).
+- **`noexec`-Mounts.** Dort ist das X-Bit gesetzt, die Datei aber nicht ausführbar. `ls` ignoriert
+  das; Whale sollte es zunächst ebenso tun, weil die Farbe das Recht und nicht die tatsächliche
+  Ausführbarkeit beschreibt.
+- **Nicht lokale URLs.** Viele KIO-Worker (z. B. SFTP) liefern Rechte. Die Färbung soll auch dort
+  gelten, sofern Rechte bekannt sind; fehlen sie (`KFileItem::Unknown`), wird nicht gefärbt.
+- **`.desktop`-Dateien und Typ „ausführbar“ ohne X-Bit** sind keine Flag-Frage. Sie können über eine
+  Typ-Regel (`application/x-executable`, `application/x-desktop`) abgedeckt werden.
+
+### Weitere Flags (später)
+
+In Anlehnung an `LS_COLORS` kommen in Frage: Symlink (`ln`), defekter Symlink (`or`), setuid (`su`),
+setgid (`sg`), Sticky-Ordner (`st`), für andere beschreibbare Ordner (`ow`, `tw`), FIFO (`pi`),
+Socket (`so`), Block-/Zeichengerät (`bd`, `cd`). Sie sind technisch ähnlich billig wie X, aber
+seltener relevant. Defekte Symlinks erfordern gegebenenfalls einen zusätzlichen `stat` und sind
+deshalb gesondert zu bewerten.
+
+## Farbschema-Verträglichkeit
+
+Feste Farben sind der heikelste Punkt, weil Whale helle und dunkle Farbschemata unterstützen muss.
+Erwogen werden:
+
+- **(a) Eine Farbe je Regel mit automatischer Kontrastkorrektur** gegenüber `QPalette::Base`. Die
+  Farbe wird, falls nötig, in der Helligkeit angepasst, bis ein Mindestkontrast erreicht ist.
+- **(b) Getrennte Farben für helles und dunkles Schema.** Präzise, aber doppelte Pflege.
+- **(c) Tönung wie beim VCS-Status**, 50/50 mit der Textfarbe gemischt. Immer lesbar, aber blass und
+  für eine bewusste Farbkodierung oft zu schwach.
+
+Empfohlen wird (a). Die Standardregeln sollten so gewählt werden, dass sie in Breeze und Breeze Dark
+ohne Korrektur gut funktionieren. Bei einem Wechsel des Farbschemas zur Laufzeit muss die Korrektur
+neu berechnet werden; der vorhandene Pfad über `styleOption().palette` sollte das abdecken, was bei
+der Umsetzung zu verifizieren ist.
+
+## Platzierung in den Einstellungen
+
+Vorgeschlagen wird ein neuer **horizontaler Reiter** unter:
+
+`Configure Whale → View → <neuer Reiter>` (Arbeitstitel „Colors“ oder „Highlighting“)
+
+Begründung:
+
+- Die Funktion betrifft die Darstellung und gilt für alle Ansichtsmodi, genau wie der Reiter
+  „Content Display“.
+- Ein eigener Eintrag in der vertikalen Seitenliste wäre prominenter, als es eine optionale
+  Darstellungsfunktion rechtfertigt, und widerspräche dem Grundsatz unaufdringlicher Optionen.
+- Die Einbindung erfolgt in `src/settings/viewmodes/viewsettingspage.cpp` nach dem Muster von
+  `ContentDisplayTab`.
+
+Risiko: Die Reiterleiste ist mit fünf Einträgen bereits gut gefüllt. Mit sechs Reitern und
+Übersetzungen ist die Breite bei kleinen Dialoggrößen zu prüfen.
+
+Vorgesehener Inhalt:
+
+- Häkchen „Color file names by type and permissions“ (Arbeitstitel), standardmäßig aus;
+- Abschnitt **Flags**: zunächst nur „Executable files“ mit Farbwähler;
+- Abschnitt **Types**: Regeltabelle (Muster, Farbe, Vorschau), Hinzufügen, Entfernen, Hoch, Runter;
+- „Defaults“ stellt einen vorbereiteten Regelsatz wieder her.
+
+### Speicherung
+
+KConfigXT eignet sich gut für das Häkchen und einzelne Flag-Farben, aber schlecht für Listen
+strukturierter Regeln. Vorgeschlagen wird eine eigene Gruppe in der Whale-Konfiguration (z. B.
+`[FileNameColors]`), gelesen von einer kleinen Regelklasse. Die Regeln gelten global, nicht pro
+Ordner.
+
+## Abgrenzung: Was ausdrücklich nicht geändert wird
+
+- Kein Einfärben von Icons, Zeilenhintergründen oder Markierungen.
+- Keine Änderung der Selektionsdarstellung.
+- Keine Abhängigkeit von Baloo oder zusätzlichen Dateisystemzugriffen für den Basisumfang.
+- Keine Ordner-spezifischen Regeln über die View-Properties.
+
+## Erwogene Alternativen
+
+### Nur ein fester, nicht konfigurierbarer Regelsatz
+
+**Zu prüfen.** Einfacher umzusetzen und für X allein ausreichend, aber für Typfarben zu
+unflexibel. Ein fester X-Regelsatz könnte ein sinnvoller erster Schritt sein.
+
+### `LS_COLORS` direkt übernehmen
+
+**Als Zusatz interessant, nicht als Grundlage.** `LS_COLORS` verwendet Terminalfarben und
+Attribute (fett, Hintergrund), die sich nicht eins zu eins auf ein grafisches Farbschema abbilden
+lassen. Ein späterer Import ist denkbar.
+
+### Färbung über eine neue Spalte oder ein Overlay-Emblem
+
+**Verworfen** als Ersatz: Emblem-Ecken sind bereits durch VCS und Plugins belegt, und eine Spalte
+existiert in Form von „Permissions“ schon. Ziel ist gerade das Erkennen auf einen Blick ohne
+zusätzliche Elemente.
+
+### Eigener Eintrag in der linken Seitenliste
+
+**Vorerst verworfen**, siehe Platzierung.
+
+## Vorgeschlagener Ausbau in Schritten
+
+1. **X-Färbung:** generische Farbquelle im Widget, Flag-Regel „ausführbar“ für reguläre Dateien,
+   Kontrastkorrektur, Häkchen und Farbwähler im neuen Reiter, Tests.
+2. **Typ-Regeln:** Regelklasse mit MIME-Platzhaltern, Vererbung und Endungsmustern, Regeltabelle,
+   Standardregeln.
+3. **Weitere Flags** und gegebenenfalls `LS_COLORS`-Import.
+
+Jeder Schritt kann für sich erprobt und bewertet werden.
+
+## Upstream-Übertragbarkeit
+
+Wie bei UX-001 wird zwischen übertragbarem Kern und Whale-Integration getrennt:
+
+- **Kern:** Regelauswertung, Farbquelle in `DolphinFileItemListWidget::refreshCache()`,
+  Rangfolge gegenüber VCS, Kontrastkorrektur, Tests.
+- **Integration:** Einstellungsreiter, Speicherung, Standardregeln.
+
+Ob KDE die Funktion annehmen würde, ist offen. Sie ist optional und standardmäßig aus und erfüllt
+damit das README-Kriterium unaufdringlicher Optionen. Die X-Färbung allein ist vermutlich der am
+leichtesten vermittelbare Teil.
+
+## Vorläufige Akzeptanzkriterien
+
+1. Ohne Einschalten ist die Darstellung identisch mit Dolphin.
+2. Eingeschaltet erscheinen reguläre Dateien mit X-Bit in der konfigurierten Farbe, Ordner nicht.
+3. Selektierte Einträge bleiben in der Markierungsfarbe lesbar.
+4. VCS-Farben haben Vorrang vor Flag- und Typfarben.
+5. In Breeze und Breeze Dark sind alle Standardfarben gut lesbar; ein Schemawechsel zur Laufzeit wird
+   ohne Neustart übernommen.
+6. Ändern der Rechte (`chmod +x`) wird ohne manuelles Neuladen sichtbar.
+7. Symbol-, Kompakt- und Detailansicht verhalten sich gleich.
+8. Ein Verzeichnis mit mehreren zehntausend Einträgen lässt sich nicht spürbar langsamer anzeigen und
+   scrollen.
+
+## Offene Fragen
+
+- Welche Bits prüft `KFileItem::isExecutable()` genau?
+- Wie wird mit FAT/exFAT/NTFS umgegangen (Optionen a–c oben)?
+- Sollen Typ-Regeln MIME-Typen, Endungen oder beides erlauben?
+- Welche Farbstrategie (a–c) wird gewählt?
+- Wie heißt der neue Reiter, und passt er in die Reiterleiste?
+- Sollen versteckte Dateien ihre Regelfarbe abgeblendet behalten?
+- Sollen die übrigen Spalten den Farbstich übernehmen?
+
+## Entwurf für ein späteres Changelog
+
+> **Colored file names:** Whale can color file names by permissions and type. Executable files stand
+> out at a glance, and custom rules can highlight images, archives, source code or any other file
+> type. Colors adapt to light and dark color schemes. The feature is off by default.
