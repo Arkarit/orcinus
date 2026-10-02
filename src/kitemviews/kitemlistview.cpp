@@ -73,6 +73,7 @@ KItemListView::KItemListView(QGraphicsWidget *parent)
     , m_enabledSelectionToggles(false)
     , m_grouped(false)
     , m_highlightEntireRow(false)
+    , m_dragFromAnywhereOnRow(false)
     , m_alternateBackgrounds(false)
     , m_supportsItemExpanding(false)
     , m_supportsGroupCollapsing(false)
@@ -564,6 +565,16 @@ void KItemListView::setHighlightEntireRow(bool highlightEntireRow)
 bool KItemListView::highlightEntireRow() const
 {
     return m_highlightEntireRow;
+}
+
+void KItemListView::setDragFromAnywhereOnRow(bool enabled)
+{
+    m_dragFromAnywhereOnRow = enabled;
+}
+
+bool KItemListView::dragFromAnywhereOnRow() const
+{
+    return m_dragFromAnywhereOnRow;
 }
 
 void KItemListView::setAlternateBackgrounds(bool alternate)

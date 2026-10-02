@@ -50,6 +50,7 @@ KItemListController::KItemListController(KItemModelBase *model, KItemListView *v
     , m_selectionManager(new KItemListSelectionManager(this))
     , m_keyboardManager(new KItemListKeyboardSearchManager(this))
     , m_pressedIndex(std::nullopt)
+    , m_shiftRubberBandIndex(std::nullopt)
     , m_pressedMouseGlobalPos()
     , m_autoActivationTimer(nullptr)
     , m_swipeGesture(Qt::CustomGesture)
@@ -605,6 +606,7 @@ bool KItemListController::mousePressEvent(QGraphicsSceneMouseEvent *event, const
 {
     m_mousePress = true;
     m_pressedMouseGlobalPos = event->screenPos();
+    m_shiftRubberBandIndex.reset();
 
     if (event->source() == Qt::MouseEventSynthesizedByQt && m_isTouchEvent) {
         return false;
@@ -618,6 +620,23 @@ bool KItemListController::mousePressEvent(QGraphicsSceneMouseEvent *event, const
     m_pressedIndex = m_view->itemAt(pressedMousePos);
 
     const Qt::MouseButtons buttons = event->buttons();
+
+    if (event->button() == Qt::LeftButton && event->modifiers() & Qt::ShiftModifier && m_selectionBehavior == MultiSelection && m_view->dragFromAnywhereOnRow()
+        && m_pressedIndex.has_value()) {
+        const auto row = m_view->m_visibleItems.value(m_pressedIndex.value());
+        const QPointF mappedPos = row->mapFromItem(m_view, pressedMousePos);
+        if (row->selectionRectFull().contains(mappedPos) && !row->selectionRectContent().contains(mappedPos)
+            && !m_view->isAboveExpansionToggle(m_pressedIndex.value(), pressedMousePos)
+            && !m_view->isAboveSelectionToggle(m_pressedIndex.value(), pressedMousePos)) {
+            // In full-row drag mode Shift temporarily restores the background-like rubber-band
+            // behavior of the otherwise draggable empty part of a row. Bypass onPress() so the
+            // selection remains untouched until this gesture becomes either a click or a drag.
+            m_shiftRubberBandIndex = m_pressedIndex;
+            Q_EMIT mouseButtonPressed(m_pressedIndex.value(), buttons);
+            startRubberBand();
+            return false;
+        }
+    }
 
     if (!m_pressedIndex.has_value()) {
         Q_EMIT clickViewBackground(event->button());
@@ -1692,6 +1711,10 @@ bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifier
     const bool leftClick = buttons & Qt::LeftButton;
     const bool rightClick = buttons & Qt::RightButton;
     const bool singleClickActivation = m_view->style()->styleHint(QStyle::SH_ItemView_ActivateItemOnSingleClick);
+    const auto pressIsOnItemTarget = [this, leftClick, &pos](const KItemListWidget *row) {
+        const QRectF targetRect = leftClick && m_view->dragFromAnywhereOnRow() ? row->selectionRectFull() : row->selectionRectCore();
+        return targetRect.contains(row->mapFromItem(m_view, pos));
+    };
 
     // The previous selection is cleared if either
     // 1. The selection mode is SingleSelection, or
@@ -1711,8 +1734,7 @@ bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifier
         // clear and bail when we got an existing multi-selection
         if (selectedItemsCount > 1 && m_pressedIndex.has_value()) {
             const auto row = m_view->m_visibleItems.value(m_pressedIndex.value());
-            const auto mappedPos = row->mapFromItem(m_view, pos);
-            if (row->selectionRectCore().contains(mappedPos)) {
+            if (pressIsOnItemTarget(row)) {
                 // we are indeed inside the text/icon rect, keep m_pressedIndex what it is
                 // and short-circuit for single-click activation (it will then propagate to onRelease and activate the item)
                 // or we just keep going for double-click activation
@@ -1776,7 +1798,7 @@ bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifier
         // The hover highlight area of an item is being pressed.
         const auto row = m_view->m_visibleItems.value(m_pressedIndex.value()); // anything outside of row.contains() will be the empty region of the row rect
 
-        const bool hitTargetIsRowEmptyRegion = !row->selectionRectCore().contains(row->mapFromItem(m_view, pos));
+        const bool hitTargetIsRowEmptyRegion = !pressIsOnItemTarget(row);
         // again, when this method returns false, a rubberBand selection is created as the event is not consumed;
         // createRubberBand here tells us whether to return true or false.
         bool createRubberBand = (hitTargetIsRowEmptyRegion && m_selectionManager->selectedItems().isEmpty());
@@ -1809,9 +1831,7 @@ bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifier
                 // - toggle the selection of item(s) or
                 // - they want to begin a drag on the item(s) to copy them.
                 // We rule out the latter, if the item is not clicked directly and was unselected previously.
-                const auto row = m_view->m_visibleItems.value(m_pressedIndex.value());
-                const auto mappedPos = row->mapFromItem(m_view, pos);
-                if (!row->selectionRectCore().contains(mappedPos)) {
+                if (hitTargetIsRowEmptyRegion) {
                     createRubberBand = true;
                 } else {
                     m_selectionManager->setSelected(m_pressedIndex.value(), 1, KItemListSelectionManager::Toggle);
@@ -1868,9 +1888,19 @@ bool KItemListController::onRelease(const QPointF &pos, const Qt::KeyboardModifi
         // then we have a single click on one of the rows
         if ((rubberBand->endPosition() - rubberBand->startPosition()).manhattanLength() < QApplication::startDragDistance()) {
             rubberBandRelease = false; // since we're only selecting, unmark rubber band release flag
-            // m_pressedIndex will have no value if we came from a multi-selection clearing onPress
-            // in that case, we don't select anything
-            if (index.has_value() && m_pressedIndex.has_value()) {
+            if (index.has_value() && m_shiftRubberBandIndex == index) {
+                // A Shift press on the empty part of a row did not turn into a rubber-band drag,
+                // so preserve the established Shift-click range-selection behavior.
+                m_selectionManager->setCurrentItem(index.value());
+                m_keyboardAnchorIndex = index.value();
+                m_keyboardAnchorPos = keyboardAnchorPos(index.value());
+                if (!m_selectionManager->isAnchoredSelectionActive()) {
+                    m_selectionManager->setSelected(index.value(), 1, KItemListSelectionManager::Select);
+                    m_selectionManager->beginAnchoredSelection(index.value());
+                }
+            } else if (index.has_value() && m_pressedIndex.has_value()) {
+                // m_pressedIndex will have no value if we came from a multi-selection clearing onPress
+                // in that case, we don't select anything
                 if (controlPressed && m_selectionBehavior == MultiSelection) {
                     m_selectionManager->setSelected(m_pressedIndex.value(), 1, KItemListSelectionManager::Toggle);
                 } else {
@@ -1925,6 +1955,7 @@ bool KItemListController::onRelease(const QPointF &pos, const Qt::KeyboardModifi
 
     m_pressedMouseGlobalPos = QPointF();
     m_pressedIndex = std::nullopt;
+    m_shiftRubberBandIndex = std::nullopt;
     m_clearSelectionIfItemsAreNotDragged = false;
     return false;
 }

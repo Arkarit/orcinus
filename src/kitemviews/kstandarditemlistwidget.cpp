@@ -550,10 +550,15 @@ QRectF KStandardItemListWidget::selectionRectCore() const
 {
     // Allow dragging from selection area in details view.
     if (m_layout == DetailsLayout && highlightEntireRow() && !isSelected()) {
-        QRectF result = m_iconRect | m_textRect;
-        return result;
+        return selectionRectContent();
     }
     return selectionRectFull();
+}
+
+QRectF KStandardItemListWidget::selectionRectContent() const
+{
+    const_cast<KStandardItemListWidget *>(this)->triggerCacheRefreshing();
+    return m_iconRect | m_textRect;
 }
 
 QRectF KStandardItemListWidget::expansionToggleRect() const

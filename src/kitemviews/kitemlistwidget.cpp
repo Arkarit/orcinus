@@ -417,6 +417,11 @@ QRectF KItemListWidget::textFocusRect() const
     return textRect();
 }
 
+QRectF KItemListWidget::selectionRectContent() const
+{
+    return selectionRectCore();
+}
+
 QRectF KItemListWidget::selectionToggleRect() const
 {
     return QRectF();

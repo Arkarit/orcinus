@@ -368,6 +368,7 @@ private:
     KItemListSelectionManager *m_selectionManager;
     KItemListKeyboardSearchManager *m_keyboardManager;
     std::optional<int> m_pressedIndex;
+    std::optional<int> m_shiftRubberBandIndex;
     QPointF m_pressedMouseGlobalPos;
 
     bool m_autoActivationEnabled = false;

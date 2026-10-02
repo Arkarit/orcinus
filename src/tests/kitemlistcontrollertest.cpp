@@ -9,7 +9,10 @@
 #include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistgroupheader.h"
+#include "kitemviews/kitemlistheader.h"
 #include "kitemviews/kitemlistselectionmanager.h"
+#include "kitemviews/kitemlistwidget.h"
+#include "kitemviews/private/kitemlistrubberband.h"
 #include "kitemviews/private/kitemlistviewlayouter.h"
 #include "testdir.h"
 
@@ -82,6 +85,7 @@ private Q_SLOTS:
     void testKeyboardNavigationSingleSelectionNoSelection_data();
     void testKeyboardNavigationSingleSelectionNoSelection();
     void testMouseClickActivation();
+    void testDragFromAnywhereOnRow();
     void testRapidRightClickShowsItemContextMenu();
     void testKeyboardNavigationAfterMouseSelection();
 
@@ -97,6 +101,9 @@ private:
      * by changing the geometry of the container.
      */
     void adjustGeometryForColumnCount(int count);
+    QPointF emptyRowPosition(int index) const;
+    void simulateMousePress(const QPointF &pos, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+    void simulateMouseRelease(const QPointF &pos, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
     void simulateMouseClickOnItem(int index);
     void simulateMouseClickOnGroupHeader(int firstItemIndex);
     void simulateDragMove(const QPointF &pos, QMimeData *mimeData);
@@ -200,6 +207,8 @@ void KItemListControllerTest::init()
 
     m_controller->setSelectionBehavior(KItemListController::MultiSelection);
     QCOMPARE(m_controller->selectionBehavior(), KItemListController::MultiSelection);
+
+    m_view->setDragFromAnywhereOnRow(false);
 }
 
 void KItemListControllerTest::cleanup()
@@ -1176,6 +1185,71 @@ void KItemListControllerTest::testMouseClickActivation()
     m_testStyle->setActivateItemOnSingleClick(restoreSettingsSingleClick);
 }
 
+void KItemListControllerTest::testDragFromAnywhereOnRow()
+{
+    QApplication::setLayoutDirection(Qt::LeftToRight);
+    m_view->setLayoutDirection(Qt::LeftToRight);
+    m_view->setItemLayout(KFileItemListView::IconsLayout);
+    m_view->setItemLayout(KFileItemListView::DetailsLayout);
+    m_view->header()->setAutomaticColumnResizing(false);
+    m_view->header()->setColumnWidth("text", 500);
+    m_view->setItemSize(QSizeF(700, 50));
+    m_container->resize(700, 500);
+    QApplication::processEvents();
+
+    m_view->setScrollOffset(0);
+    QCOMPARE(m_view->firstVisibleIndex(), 0);
+
+    const int index = 2;
+    const QPointF emptyRowPos = emptyRowPosition(index);
+    QCOMPARE(m_view->itemAt(emptyRowPos), std::optional<int>(index));
+
+    // The default remains Dolphin-compatible: the empty part of an unselected row starts
+    // a rubber-band selection.
+    simulateMousePress(emptyRowPos);
+    QVERIFY(m_view->rubberBand()->isActive());
+    simulateMouseRelease(emptyRowPos);
+    QVERIFY(!m_view->rubberBand()->isActive());
+
+    // With full-row dragging enabled, the same position is handled as an item press and
+    // can therefore become an item drag when the pointer moves far enough.
+    m_selectionManager->clearSelection();
+    m_view->setDragFromAnywhereOnRow(true);
+    simulateMousePress(emptyRowPos);
+    QVERIFY(!m_view->rubberBand()->isActive());
+    QCOMPARE(m_selectionManager->selectedItems(), KItemSet() << index);
+    simulateMouseRelease(emptyRowPos);
+
+    // Shift temporarily restores rubber-band behavior, while a Shift press and release
+    // without a drag remains the established range-selection gesture.
+    m_selectionManager->clearSelection();
+    m_selectionManager->setCurrentItem(0);
+    m_selectionManager->setSelected(0, 1, KItemListSelectionManager::Select);
+    m_selectionManager->beginAnchoredSelection(0);
+
+    simulateMousePress(emptyRowPos, Qt::ShiftModifier);
+    QVERIFY(m_view->rubberBand()->isActive());
+    QCOMPARE(m_selectionManager->currentItem(), 0);
+    QCOMPARE(m_selectionManager->selectedItems(), KItemSet() << 0);
+
+    simulateMouseRelease(emptyRowPos, Qt::ShiftModifier);
+    QVERIFY(!m_view->rubberBand()->isActive());
+    QCOMPARE(m_selectionManager->currentItem(), index);
+    QCOMPARE(m_selectionManager->selectedItems(), KItemSet() << 0 << 1 << 2);
+
+    // The content rectangle used by the Shift override is independent of selection state.
+    // Therefore, the same empty position also starts a rubber band on a selected row.
+    simulateMousePress(emptyRowPos, Qt::ShiftModifier);
+    QVERIFY(m_view->rubberBand()->isActive());
+    QCOMPARE(m_selectionManager->selectedItems(), KItemSet() << 0 << 1 << 2);
+    simulateMouseRelease(emptyRowPos, Qt::ShiftModifier);
+    QVERIFY(!m_view->rubberBand()->isActive());
+    QCOMPARE(m_selectionManager->selectedItems(), KItemSet() << 0 << 1 << 2);
+
+    m_view->setDragFromAnywhereOnRow(false);
+    m_view->header()->setAutomaticColumnResizing(true);
+}
+
 void KItemListControllerTest::testRapidRightClickShowsItemContextMenu()
 {
     // Bug 504878: right-clicking an item, then rapidly right-clicking a second item, opened the
@@ -1332,6 +1406,43 @@ void KItemListControllerTest::adjustGeometryForColumnCount(int count)
         rect.setSize(rect.size() + size);
         m_container->setGeometry(rect);
     }
+}
+
+QPointF KItemListControllerTest::emptyRowPosition(int index) const
+{
+    KItemListWidget *row = m_view->m_visibleItems.value(index);
+    Q_ASSERT(row);
+
+    const QRectF fullRect = row->selectionRectFull();
+    const QRectF contentRect = row->selectionRectContent();
+    const QPointF localPos(fullRect.right() - 2, fullRect.center().y());
+    Q_ASSERT(fullRect.contains(localPos));
+    Q_ASSERT(!contentRect.contains(localPos));
+    return localPos + m_view->itemRect(index).topLeft();
+}
+
+void KItemListControllerTest::simulateMousePress(const QPointF &pos, Qt::KeyboardModifiers modifiers)
+{
+    const QPoint screenPos = m_container->mapToGlobal(pos.toPoint());
+    QGraphicsSceneMouseEvent event(QEvent::GraphicsSceneMousePress);
+    event.setPos(pos);
+    event.setScreenPos(screenPos);
+    event.setButton(Qt::LeftButton);
+    event.setButtons(Qt::LeftButton);
+    event.setModifiers(modifiers);
+    m_view->event(&event);
+}
+
+void KItemListControllerTest::simulateMouseRelease(const QPointF &pos, Qt::KeyboardModifiers modifiers)
+{
+    const QPoint screenPos = m_container->mapToGlobal(pos.toPoint());
+    QGraphicsSceneMouseEvent event(QEvent::GraphicsSceneMouseRelease);
+    event.setPos(pos);
+    event.setScreenPos(screenPos);
+    event.setButton(Qt::LeftButton);
+    event.setButtons(Qt::NoButton);
+    event.setModifiers(modifiers);
+    m_view->event(&event);
 }
 
 void KItemListControllerTest::simulateDragMove(const QPointF &pos, QMimeData *mimeData)

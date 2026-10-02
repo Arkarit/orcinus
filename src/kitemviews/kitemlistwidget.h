@@ -177,6 +177,12 @@ public:
     virtual QRectF selectionRectCore() const = 0;
 
     /**
+     * @return The selection-independent area occupied by the item's content.
+     *         By default selectionRectCore() is returned.
+     */
+    virtual QRectF selectionRectContent() const;
+
+    /**
      * @return Rectangle for the selection-toggle that is used to select or deselect an item.
      *         Per default an empty rectangle is returned which means that no selection-toggle
      *         is available.

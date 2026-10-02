@@ -239,6 +239,13 @@ public:
     void setHighlightEntireRow(bool highlightEntireRow);
     bool highlightEntireRow() const;
 
+    /**
+     * Controls whether a left-button drag can start from the full item row instead of only
+     * from the item's content. Disabled by default.
+     */
+    void setDragFromAnywhereOnRow(bool enabled);
+    bool dragFromAnywhereOnRow() const;
+
     void setAlternateBackgrounds(bool alternate);
     bool alternateBackgrounds() const;
 
@@ -743,6 +750,7 @@ private:
     bool m_enabledSelectionToggles;
     bool m_grouped;
     bool m_highlightEntireRow;
+    bool m_dragFromAnywhereOnRow;
     bool m_alternateBackgrounds;
     bool m_supportsItemExpanding;
     bool m_supportsGroupCollapsing;
