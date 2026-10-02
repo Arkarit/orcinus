@@ -58,6 +58,7 @@ private:
     QRadioButton *m_entireRow;
     QRadioButton *m_iconAndNameOnly;
     QCheckBox *m_expandableFolders;
+    QCheckBox *m_dragFromAnywhereOnRow;
     QLabel *m_fontWarningLabel;
 };
 

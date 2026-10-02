@@ -37,6 +37,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
     , m_widthBox(nullptr)
     , m_maxLinesBox(nullptr)
     , m_expandableFolders(nullptr)
+    , m_dragFromAnywhereOnRow(nullptr)
 {
     QFormLayout *topLayout = new QFormLayout(this);
     topLayout->setFormAlignment(Qt::AlignHCenter);
@@ -121,6 +122,11 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
         topLayout->addRow(i18nc("@title:group", "Open files and folders:"), m_entireRow);
         // clang-format on
         topLayout->addRow(QString(), m_iconAndNameOnly);
+
+        m_dragFromAnywhereOnRow = new QCheckBox(i18nc("@option:check", "Drag files and folders from anywhere on the row"));
+        m_dragFromAnywhereOnRow->setToolTip(
+            i18nc("@info:tooltip", "Hold Shift while dragging from the empty part of a row to start a selection rectangle instead."));
+        topLayout->addRow(i18nc("@label:checkbox", "Dragging:"), m_dragFromAnywhereOnRow);
         break;
     }
 
@@ -142,6 +148,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
     case DetailsMode:
         connect(m_entireRow, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
         connect(m_expandableFolders, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
+        connect(m_dragFromAnywhereOnRow, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
         break;
     default:
         break;
@@ -202,6 +209,7 @@ void ViewSettingsTab::applySettings()
         }
         detailsModeSettings->setHighlightEntireRow(m_entireRow->isChecked());
         detailsModeSettings->setExpandableFolders(m_expandableFolders->isChecked());
+        detailsModeSettings->setDragFromAnywhereOnRow(m_dragFromAnywhereOnRow->isChecked());
         detailsModeSettings->save();
         break;
     }
@@ -243,6 +251,7 @@ void ViewSettingsTab::loadSettings()
         m_entireRow->setChecked(DetailsModeSettings::highlightEntireRow());
         m_iconAndNameOnly->setChecked(!m_entireRow->isChecked());
         m_expandableFolders->setChecked(DetailsModeSettings::expandableFolders());
+        m_dragFromAnywhereOnRow->setChecked(DetailsModeSettings::dragFromAnywhereOnRow());
         break;
     default:
         break;

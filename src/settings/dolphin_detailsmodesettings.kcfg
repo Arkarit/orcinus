@@ -39,6 +39,10 @@
             <label>Highlight entire row</label>
             <default>true</default>
         </entry>
+        <entry name="DragFromAnywhereOnRow" type="Bool">
+            <label>Drag files and folders from anywhere on the row</label>
+            <default>false</default>
+        </entry>
         <entry name="ExpandableFolders" type="Bool">
             <label>Expandable folders</label>
             <default>true</default>

@@ -112,6 +112,7 @@ void DolphinItemListView::readSettings()
     setEnabledSelectionToggles(m_selectionTogglesEnabled);
     setHighlightEntireRow(itemLayoutHighlightEntireRow(itemLayout()));
     setSupportsItemExpanding(itemLayoutSupportsItemExpanding(itemLayout()));
+    setDragFromAnywhereOnRow(itemLayout() == DetailsLayout && DetailsModeSettings::dragFromAnywhereOnRow());
 
     updateFont();
     updateGridSize();
@@ -146,6 +147,7 @@ bool DolphinItemListView::itemLayoutSupportsItemExpanding(ItemLayout layout) con
 void DolphinItemListView::onItemLayoutChanged(ItemLayout current, ItemLayout previous)
 {
     setHeaderVisible(current == DetailsLayout);
+    setDragFromAnywhereOnRow(current == DetailsLayout && DetailsModeSettings::dragFromAnywhereOnRow());
 
     updateFont();
     updateGridSize();
