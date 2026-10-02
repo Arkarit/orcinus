@@ -82,6 +82,7 @@ private Q_SLOTS:
     void testDisabledRulesAreSkipped();
     void testFontOnlyEvaluationSkipsMimeTypeRules();
     void testAffectsFont();
+    void testFontFor();
     void testSchemeRoleFollowsColorScheme();
     void testCustomColor();
     void testContrastCorrection();
@@ -393,6 +394,34 @@ void FileNameHighlighterTest::testAffectsFont()
     const FileNameHighlighter mimeFont(true, {rule(Condition::MimeType, boldStyle(), {QStringLiteral("image/*")})});
     QVERIFY(mimeFont.affectsFont());
     QVERIFY(mimeFont.fontDependsOnMimeType());
+}
+
+void FileNameHighlighterTest::testFontFor()
+{
+    createFile(QStringLiteral("target.sh"), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+    QVERIFY(QFile::link(m_dir->filePath(QStringLiteral("target.sh")), m_dir->filePath(QStringLiteral("link.sh"))));
+    const KFileItem link = itemFor(QStringLiteral("link.sh"));
+    const QFont baseFont;
+
+    // Without font rules, links are not italic: the rules replace Dolphin's built-in italic font.
+    const FileNameHighlighter colorOnly(true, {rule(Condition::Symlink, colorStyle(FileNameColor::custom(Qt::red)))});
+    QCOMPARE(colorOnly.fontFor(link, baseFont), baseFont);
+
+    const FileNameHighlighter fonts(true, {rule(Condition::Executable, boldStyle()), rule(Condition::Symlink, italicStyle())}, [](const QString &) {
+        return KFileSystemType::Other;
+    });
+    const QFont font = fonts.fontFor(link, baseFont);
+    QVERIFY(font.bold());
+    QVERIFY(font.italic());
+
+    // "Off" removes an attribute of the base font.
+    QFont italicBase;
+    italicBase.setItalic(true);
+    const FileNameHighlighter off(true, {rule(Condition::Symlink, italicStyle(false))});
+    QVERIFY(!off.fontFor(link, italicBase).italic());
+
+    const FileNameHighlighter disabled(false, {rule(Condition::Symlink, boldStyle())});
+    QCOMPARE(disabled.fontFor(link, baseFont), baseFont);
 }
 
 void FileNameHighlighterTest::testSchemeRoleFollowsColorScheme()

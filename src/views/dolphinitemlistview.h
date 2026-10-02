@@ -10,6 +10,9 @@
 #include "dolphin_export.h"
 #include "kitemviews/kfileitemlistview.h"
 
+#include <memory>
+
+class FileNameHighlighter;
 class KFileItemListView;
 
 /**
@@ -45,6 +48,13 @@ public:
     void readSettings();
     void writeSettings();
 
+    /**
+     * Sets the rules used to highlight file names. Usually they are loaded by
+     * readSettings() from the file name highlighting settings.
+     */
+    void setFileNameHighlighter(std::shared_ptr<const FileNameHighlighter> highlighter);
+    const FileNameHighlighter *fileNameHighlighter() const;
+
 protected:
     KItemListWidgetCreatorBase *defaultWidgetCreator() const override;
     /** Overwriting in the Dolphin-specific class because we want this to be user-configurable.
@@ -54,8 +64,11 @@ protected:
     void onItemLayoutChanged(ItemLayout current, ItemLayout previous) override;
     void onPreviewsShownChanged(bool shown) override;
     void onVisibleRolesChanged(const QList<QByteArray> &current, const QList<QByteArray> &previous) override;
+    void onModelChanged(KItemModelBase *current, KItemModelBase *previous) override;
+    bool itemSizeHintUpdateRequired(const QSet<QByteArray> &changedRoles) const override;
 
     void updateFont() override;
+    void updatePalette() override;
 
 private:
     void updateGridSize();
@@ -68,6 +81,7 @@ private:
     int m_zoomLevel;
     int m_previewSize = 0;
     int m_iconSize = 0;
+    std::shared_ptr<const FileNameHighlighter> m_fileNameHighlighter;
 };
 
 #endif

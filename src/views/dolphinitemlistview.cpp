@@ -12,6 +12,9 @@
 #include "dolphin_generalsettings.h"
 #include "dolphin_iconsmodesettings.h"
 #include "dolphinfileitemlistwidget.h"
+#include "filenamehighlighter.h"
+#include "filenamehighlightingsettings.h"
+#include "kitemviews/kfileitemmodel.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "zoomlevelinfo.h"
 
@@ -22,6 +25,9 @@ DolphinItemListView::DolphinItemListView(QGraphicsWidget *parent)
     : KFileItemListView(parent)
     , m_zoomLevel(0)
 {
+    const FileNameHighlightingSettings highlighting = FileNameHighlightingSettings::load();
+    m_fileNameHighlighter = std::make_shared<const FileNameHighlighter>(highlighting.enabled, highlighting.rules);
+
     DolphinItemListView::updateFont();
     updateGridSize();
 }
@@ -119,7 +125,23 @@ void DolphinItemListView::readSettings()
 
     const KConfigGroup globalConfig(KSharedConfig::openConfig(), QStringLiteral("PreviewSettings"));
     setEnabledPlugins(globalConfig.readEntry("Plugins", KIO::PreviewJob::defaultPlugins()));
+
+    const FileNameHighlightingSettings highlighting = FileNameHighlightingSettings::load();
+    if (!m_fileNameHighlighter || m_fileNameHighlighter->isEnabled() != highlighting.enabled || m_fileNameHighlighter->rules() != highlighting.rules) {
+        setFileNameHighlighter(std::make_shared<const FileNameHighlighter>(highlighting.enabled, highlighting.rules));
+    }
     endTransaction();
+}
+
+void DolphinItemListView::setFileNameHighlighter(std::shared_ptr<const FileNameHighlighter> highlighter)
+{
+    m_fileNameHighlighter = std::move(highlighter);
+    invalidateItemAppearance();
+}
+
+const FileNameHighlighter *DolphinItemListView::fileNameHighlighter() const
+{
+    return m_fileNameHighlighter.get();
 }
 
 void DolphinItemListView::writeSettings()
@@ -165,6 +187,48 @@ void DolphinItemListView::onVisibleRolesChanged(const QList<QByteArray> &current
 {
     KFileItemListView::onVisibleRolesChanged(current, previous);
     updateGridSize();
+}
+
+void DolphinItemListView::onModelChanged(KItemModelBase *current, KItemModelBase *previous)
+{
+    KFileItemListView::onModelChanged(current, previous);
+
+    if (auto previousFileItemModel = qobject_cast<KFileItemModel *>(previous)) {
+        disconnect(previousFileItemModel, &KFileItemModel::directoryLoadingStarted, this, nullptr);
+    }
+    if (auto fileItemModel = qobject_cast<KFileItemModel *>(current)) {
+        // File systems can be mounted and unmounted while the view exists.
+        connect(fileItemModel, &KFileItemModel::directoryLoadingStarted, this, [this]() {
+            if (m_fileNameHighlighter) {
+                m_fileNameHighlighter->clearFileSystemCache();
+            }
+        });
+    }
+}
+
+bool DolphinItemListView::itemSizeHintUpdateRequired(const QSet<QByteArray> &changedRoles) const
+{
+    if (KFileItemListView::itemSizeHintUpdateRequired(changedRoles)) {
+        return true;
+    }
+
+    if (!m_fileNameHighlighter || !m_fileNameHighlighter->affectsFont()) {
+        return false;
+    }
+
+    // A refreshed item whose permissions changed, which might change the font of its
+    // name, reports either no changed roles or only a changed icon name. The MIME type
+    // of an item is also determined together with its icon.
+    return changedRoles.isEmpty() || changedRoles.contains("iconName");
+}
+
+void DolphinItemListView::updatePalette()
+{
+    // Color scheme roles might resolve to different colors now.
+    if (m_fileNameHighlighter) {
+        m_fileNameHighlighter->clearColorCache();
+    }
+    KFileItemListView::updatePalette();
 }
 
 void DolphinItemListView::updateFont()

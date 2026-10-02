@@ -191,6 +191,23 @@ FileNameTextStyle FileNameHighlighter::styleFor(const KFileItem &item, Attribute
     return style;
 }
 
+QFont FileNameHighlighter::fontFor(const KFileItem &item, const QFont &baseFont) const
+{
+    QFont font(baseFont);
+    if (!affectsFont()) {
+        return font;
+    }
+
+    const FileNameTextStyle style = styleFor(item, Font);
+    if (style.bold.has_value()) {
+        font.setBold(*style.bold);
+    }
+    if (style.italic.has_value()) {
+        font.setItalic(*style.italic);
+    }
+    return font;
+}
+
 QColor FileNameHighlighter::nameColor(const FileNameColor &color, const QPalette &palette) const
 {
     if (!color.isSet()) {

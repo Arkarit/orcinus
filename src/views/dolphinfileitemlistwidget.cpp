@@ -8,8 +8,39 @@
 #include "../kitemviews/private/kitemviewsutils.h"
 
 #include "dolphindebug.h"
+#include "dolphinitemlistview.h"
+#include "filenamehighlighter.h"
+#include "kitemviews/kfileitemmodel.h"
 
 #include <KIconLoader>
+
+namespace
+{
+const FileNameHighlighter *enabledFileNameHighlighter(const KItemListView *view)
+{
+    const auto dolphinView = qobject_cast<const DolphinItemListView *>(view);
+    if (!dolphinView) {
+        return nullptr;
+    }
+    const FileNameHighlighter *highlighter = dolphinView->fileNameHighlighter();
+    return highlighter && highlighter->isEnabled() ? highlighter : nullptr;
+}
+
+KFileItem fileItemAt(const KItemListView *view, int index)
+{
+    const auto model = qobject_cast<const KFileItemModel *>(view ? view->model() : nullptr);
+    return model ? model->fileItem(index) : KFileItem();
+}
+}
+
+QFont DolphinFileItemListWidgetInformant::itemFont(int index, const KItemListView *view, const QFont &baseFont) const
+{
+    const FileNameHighlighter *highlighter = enabledFileNameHighlighter(view);
+    if (!highlighter) {
+        return KFileItemListWidgetInformant::itemFont(index, view, baseFont);
+    }
+    return highlighter->fontFor(fileItemAt(view, index), baseFont);
+}
 
 DolphinFileItemListWidget::DolphinFileItemListWidget(KItemListWidgetInformant *informant, QGraphicsItem *parent)
     : KFileItemListWidget(informant, parent)
@@ -18,15 +49,22 @@ DolphinFileItemListWidget::DolphinFileItemListWidget(KItemListWidgetInformant *i
 
 DolphinFileItemListWidget::~DolphinFileItemListWidget() = default;
 
+KItemListWidgetInformant *DolphinFileItemListWidget::createInformant()
+{
+    return new DolphinFileItemListWidgetInformant();
+}
+
 void DolphinFileItemListWidget::refreshCache()
 {
     QColor color;
+    bool hasVersionStateColor = false;
     const SmallHash values = data();
     QHash<Qt::Corner, QString> overlays;
     if (values.contains("version")) {
         // The item is under version control. Apply the text color corresponding
         // to its version state.
         const KVersionControlPlugin::ItemVersion version = static_cast<KVersionControlPlugin::ItemVersion>(values.value("version").toInt());
+        hasVersionStateColor = version != KVersionControlPlugin::NormalVersion && version != KVersionControlPlugin::UnversionedVersion;
         const QColor textColor = styleOption().palette.text().color();
         QColor tintColor = textColor;
 
@@ -87,7 +125,37 @@ void DolphinFileItemListWidget::refreshCache()
 
     setOverlays(overlays);
     setTextColor(color);
+
+    // A color of the file name highlighting rules only applies to the name, and
+    // must not hide a version control state.
+    QColor nameColor;
+    const FileNameHighlighter *highlighter = fileNameHighlighter();
+    if (highlighter && !hasVersionStateColor) {
+        const FileNameTextStyle style = highlighter->styleFor(fileItem(), FileNameHighlighter::Color);
+        nameColor = highlighter->nameColor(style.color, styleOption().palette);
+    }
+    setNameTextColor(nameColor);
+
     setProperty(QByteArrayLiteral("iconSize"), styleOption().iconSize);
+}
+
+QFont DolphinFileItemListWidget::customizedFont(const QFont &baseFont) const
+{
+    const FileNameHighlighter *highlighter = fileNameHighlighter();
+    if (!highlighter) {
+        return KFileItemListWidget::customizedFont(baseFont);
+    }
+    return highlighter->fontFor(fileItem(), baseFont);
+}
+
+const FileNameHighlighter *DolphinFileItemListWidget::fileNameHighlighter() const
+{
+    return enabledFileNameHighlighter(qobject_cast<const KItemListView *>(parentWidget()));
+}
+
+KFileItem DolphinFileItemListWidget::fileItem() const
+{
+    return fileItemAt(qobject_cast<const KItemListView *>(parentWidget()), index());
 }
 
 QString DolphinFileItemListWidget::overlayForState(KVersionControlPlugin::ItemVersion version) const

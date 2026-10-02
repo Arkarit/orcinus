@@ -15,6 +15,7 @@
 
 #include <QBitArray>
 #include <QColor>
+#include <QFont>
 #include <QHash>
 #include <QList>
 #include <QStringList>
@@ -143,6 +144,13 @@ public:
      *         Rules that set none of the wanted attributes are not evaluated.
      */
     FileNameTextStyle styleFor(const KFileItem &item, Attributes wanted = AllAttributes) const;
+
+    /**
+     * @return @p baseFont with the bold and italic attributes of the rules applied.
+     *         While highlighting is enabled, the rules are the only source of these
+     *         attributes; Dolphin's built-in italic font for symbolic links is not applied.
+     */
+    QFont fontFor(const KFileItem &item, const QFont &baseFont) const;
 
     /**
      * @return The color for @p color on a view using @p palette, or an invalid color
