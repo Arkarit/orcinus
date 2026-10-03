@@ -146,7 +146,9 @@ set_package_properties(KF6Baloo PROPERTIES DESCRIPTION "Baloo Core libraries"
                        PURPOSE "For adding desktop-wide search and tagging support to dolphin"
                       )
 
-find_package(KF6BalooWidgets ${RELEASE_SERVICE_VERSION})
+# Whale compatibility: build against the current Kubuntu/KDE release (25.12.3);
+# upstream/master already requires ${RELEASE_SERVICE_VERSION} (26.11.70).
+find_package(KF6BalooWidgets 25.12.3)
 set_package_properties(KF6BalooWidgets PROPERTIES DESCRIPTION "Baloos Widgets"
                        URL "https://www.kde.org"
                        TYPE OPTIONAL
