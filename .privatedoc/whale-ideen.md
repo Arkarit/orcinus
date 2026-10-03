@@ -41,3 +41,14 @@ die Sitzung wie bisher wiederherstellen und die Plasma-Sitzungswiederherstellung
 (`app.isSessionRestored()`) unverändert lassen. Vorher klären: Gibt es Upstream-Bugs oder
 Diskussionen dazu? Was soll ein so geöffnetes Fenster beim Schließen speichern? Wäre das ein
 Kandidat für einen Merge Request bei KDE?
+
+## 4. Nach dem Schließen eines Viewers die zuletzt angesehene Datei selektieren
+
+Wird eine Datei in einem Viewer geöffnet (z. B. Gwenview) und blättert man dort weiter, sollte Whale
+nach dem Schließen des Viewers die Datei selektieren, die zuletzt im Viewer angezeigt wurde. Heute
+bleibt die Selektion auf der ursprünglich geöffneten Datei.
+
+Offene Fragen, noch nicht geprüft: Whale erfährt von sich aus nicht, welche Datei der Viewer zuletzt
+gezeigt hat. Zu klären wäre, ob Gwenview das irgendwie mitteilt (z. B. über D-Bus) oder ob es einen
+anderen Weg gibt. Zum Beispiel könnte der Viewer beim Beenden `org.freedesktop.FileManager1.ShowItems`
+aufrufen; dann bräuchte es aber eine Änderung im Viewer selbst.
