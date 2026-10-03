@@ -304,6 +304,9 @@ private Q_SLOTS:
     /** Updates the 'Create New...' sub menu. */
     void updateNewMenu();
 
+    /** Shows the Whale variant of the "About" dialog. */
+    void showAboutDialog();
+
     void createDirectory(const QUrl &parent);
     void createFile();
 

@@ -40,6 +40,8 @@
 #include "views/draganddrophelper.h"
 #include "views/viewproperties.h"
 
+#include <KAboutApplicationDialog>
+#include <KAboutData>
 #include <KActionCollection>
 #include <KActionMenu>
 #include <KAuthorized>
@@ -84,6 +86,7 @@
 #include <QDialog>
 #include <QDomDocument>
 #include <QFileInfo>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QPushButton>
@@ -214,6 +217,12 @@ DolphinMainWindow::DolphinMainWindow()
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     stateChanged(QStringLiteral("new_file"));
+
+    if (QAction *aboutAction = actionCollection()->action(KStandardAction::name(KStandardAction::AboutApp))) {
+        // Replace KHelpMenu's default dialog to credit both Dolphin and the Whale fork
+        disconnect(aboutAction, &QAction::triggered, nullptr, nullptr);
+        connect(aboutAction, &QAction::triggered, this, &DolphinMainWindow::showAboutDialog);
+    }
 
     QClipboard *clipboard = QApplication::clipboard();
     connect(clipboard, &QClipboard::dataChanged, this, &DolphinMainWindow::updatePasteAction);
@@ -2986,6 +2995,52 @@ void DolphinMainWindow::createPanelAction(const QIcon &icon, const QKeySequence 
     QAction *panelAction = actionCollection()->addAction(actionName, dockAction);
     actionCollection()->setDefaultShortcut(panelAction, shortcut);
 }
+
+void DolphinMainWindow::showAboutDialog()
+{
+    // KAboutApplicationDialog renders shortDescription, otherText, copyright and homepage
+    // as one rich text label, followed by one separate label per license. Put everything,
+    // including the license links, into the short description of a copy so order and line
+    // spacing can be controlled, and hide the separate license label.
+    KAboutData aboutData = KAboutData::applicationData();
+    const QString dolphinUrl = QStringLiteral("https://invent.kde.org/system/dolphin");
+    const QString whaleUrl = QStringLiteral(WHALE_HOMEPAGE);
+    const QString gplUrl = QStringLiteral("https://www.gnu.org/licenses/old-licenses/gpl-2.0.html");
+    const QString link = QStringLiteral("<a href=\"%1\">%2</a>");
+    const QString licenseLink = link.arg(gplUrl, i18n("License: %1", aboutData.licenses().constFirst().name(KAboutLicense::FullName)));
+
+    const QStringList lines = {
+        QStringLiteral("<span style=\"font-size:large; font-weight:bold;\">%1<br />%2</span>")
+            .arg(i18nc("@info about dialog tagline, first line", "A Dolphin."), i18nc("@info about dialog tagline, second line", "Just bigger.")),
+        QString(),
+        i18nc("@title", "File Manager"),
+        QString(),
+        i18nc("@info:credit", "© 2006–%1 The Dolphin Developers", QStringLiteral("2026")),
+        link.arg(dolphinUrl, dolphinUrl),
+        licenseLink,
+        QString(),
+        i18nc("@info:credit", "Whale Fork: %1", QStringLiteral("Arkarit")),
+        link.arg(whaleUrl, whaleUrl),
+        licenseLink,
+    };
+    aboutData.setShortDescription(lines.join(QLatin1Char('\n')));
+    aboutData.setOtherText(QString());
+    aboutData.setCopyrightStatement(QString());
+    aboutData.setHomepage(QString());
+
+    auto *dialog = new KAboutApplicationDialog(aboutData, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+
+    // The separate label of the (only) license links to the license index "0"
+    const auto labels = dialog->findChildren<QLabel *>();
+    for (QLabel *label : labels) {
+        if (label->text().startsWith(QLatin1String("<a href=\"0\">"))) {
+            label->hide();
+        }
+    }
+    dialog->show();
+}
+
 // clang-format off
 void DolphinMainWindow::setupWhatsThis()
 {

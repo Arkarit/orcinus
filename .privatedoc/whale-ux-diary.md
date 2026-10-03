@@ -1,6 +1,6 @@
 # Whale UX Diary
 
-Stand: 2026-10-02
+Stand: 2026-10-03
 
 Dieses Dokument hält UX-Entscheidungen für Whale fest. Es soll nicht nur beschreiben, **was**
 geändert wurde, sondern vor allem, **warum** eine Änderung sinnvoll erschien, welche Nachteile
@@ -818,3 +818,61 @@ leichtesten vermittelbare Teil.
 > **Colored file names:** Whale can color file names by permissions and type. Executable files stand
 > out at a glance, and custom rules can highlight images, archives, source code or any other file
 > type. Colors adapt to light and dark color schemes. The feature is off by default.
+
+# UX-003 – „Über Whale“-Dialog mit Fork-Angaben
+
+## Metadaten
+
+- **Datum:** 2026-10-03
+- **Status:** Implementiert und visuell geprüft
+- **Bereich:** Hilfe-Menü, „Über Whale“-Dialog (Reiter „About“)
+- **Upstream-Bezug:** Whale-spezifisch, nicht für Upstream gedacht
+- **Betroffene Schicht:** `DolphinMainWindow::showAboutDialog()`
+
+## Ausgangslage
+
+Der Standarddialog zeigte nur „File Manager“, das Dolphin-Copyright, die Whale-Homepage und die
+Lizenz. Dass Whale ein Fork von Dolphin ist und wer den Fork betreibt, war nicht erkennbar; der
+Link auf die Whale-Homepage stand direkt unter dem Dolphin-Copyright und wirkte wie dessen Quelle.
+
+## Entscheidung
+
+Der Reiter „About“ zeigt nun zwei klar getrennte Blöcke unter einer Kopfzeile:
+
+```
+A Dolphin.            (fett, größer)
+Just bigger.
+
+File Manager
+
+© 2006–2026 The Dolphin Developers
+https://invent.kde.org/system/dolphin
+License: GNU General Public License Version 2
+
+Whale Fork: Arkarit
+https://github.com/Arkarit/whale
+License: GNU General Public License Version 2
+```
+
+## Technische Umsetzung
+
+- `KAboutApplicationDialog` (KXmlGui 6.24) setzt Kurzbeschreibung, `otherText`, Copyright und
+  Homepage zu **einem** Rich-Text-Label zusammen und hängt je Lizenz ein **eigenes** Label an.
+- Whale ersetzt deshalb die Verbindung der `AboutApp`-Aktion und zeigt den Dialog mit einer Kopie
+  der `KAboutData`: Der gesamte Text inklusive beider Lizenz-Links steht als HTML in der
+  Kurzbeschreibung; Copyright, `otherText` und Homepage sind in der Kopie leer.
+- Die globalen `KAboutData` bleiben unverändert, damit `whale --help` kein HTML ausgibt.
+- Das automatische Lizenz-Label wird ausgeblendet (erkannt am Link-Ziel `"0"`). Ein reines
+  Verkleinern des Layout-Abstands reichte nicht, die Lücke zum Textblock blieb sichtbar.
+
+## Bewusst akzeptierte Nachteile
+
+- Beide Lizenz-Links öffnen die GPL-2.0-Seite auf gnu.org im Browser statt KDEs eingebautem
+  Lizenzdialog.
+- Das Ausblenden des Lizenz-Labels hängt vom internen Aufbau des KXmlGui-Dialogs ab. Ändert KDE ihn,
+  erscheint im schlimmsten Fall eine zusätzliche, doppelte Lizenzzeile; der Dialog bleibt nutzbar.
+
+## Entwurf für ein späteres Changelog
+
+> **About dialog:** The About dialog now credits both the Dolphin developers and the Whale fork,
+> each with its own homepage and license.
