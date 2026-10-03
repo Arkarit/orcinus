@@ -189,10 +189,13 @@ void KStandardItemListWidgetTest::testNameTextColorOfSelectedItem()
     KStandardItemListWidget *widget = widgetForName(QStringLiteral("a"));
     QVERIFY(widget);
 
-    const QColor defaultName = widget->textColor(*m_container);
-    widget->setNameTextColor(Qt::red);
+    // Selected items use the style's color for the selection state (Text or HighlightedText,
+    // depending on the style) and ignore the name color.
     widget->setSelected(true);
-    QCOMPARE(widget->textColor(*m_container), defaultName);
+    const QColor selectedName = widget->textColor(*m_container);
+    widget->setNameTextColor(Qt::red);
+    QCOMPARE(widget->textColor(*m_container), selectedName);
+    QVERIFY(widget->textColor(*m_container) != QColor(Qt::red));
 }
 
 void KStandardItemListWidgetTest::testTextColorStillTintsAdditionalInformation()
