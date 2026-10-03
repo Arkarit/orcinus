@@ -50,6 +50,7 @@ private Q_SLOTS:
     void cleanup();
 
     void testDefaultRoles();
+    void testBackupFilesAreHidden();
     void testDefaultSortRole();
     void testDefaultGroupedSorting();
     void testNewItems();
@@ -64,6 +65,7 @@ private Q_SLOTS:
     void testItemRangeConsistencyWhenInsertingItems();
     void testExpandItems();
     void testExpandParentItems();
+    void testExpandParentItemsOfAFolderThatNeverArrives();
     void testMakeExpandedItemHidden();
     void testRemoveFilteredExpandedItems();
     void testSorting();
@@ -149,6 +151,27 @@ void KFileItemModelTest::testDefaultRoles()
     QVERIFY(roles.contains("isDir"));
     QVERIFY(roles.contains("isLink"));
     QVERIFY(roles.contains("isHidden"));
+}
+
+void KFileItemModelTest::testBackupFilesAreHidden()
+{
+    QSignalSpy itemsInsertedSpy(m_model, &KFileItemModel::itemsInserted);
+    QVERIFY(itemsInsertedSpy.isValid());
+
+    m_model->setRoles({"text", "isHidden"});
+    m_model->setShowHiddenFiles(true);
+    m_testDir->createFiles({"a.txt", "b.txt~", "c.bak"});
+    m_testDir->createDir("d~");
+
+    m_model->loadDirectory(m_testDir->url());
+    QVERIFY(itemsInsertedSpy.wait());
+
+    QCOMPARE(m_model->count(), 4);
+    // A folder is not a backup file, whatever its name ends with.
+    QCOMPARE(m_model->data(m_model->index(QUrl(m_testDir->url().url() + "/d~"))).value("isHidden").toBool(), false);
+    QCOMPARE(m_model->data(m_model->index(QUrl(m_testDir->url().url() + "/a.txt"))).value("isHidden").toBool(), false);
+    QCOMPARE(m_model->data(m_model->index(QUrl(m_testDir->url().url() + "/b.txt~"))).value("isHidden").toBool(), true);
+    QCOMPARE(m_model->data(m_model->index(QUrl(m_testDir->url().url() + "/c.bak"))).value("isHidden").toBool(), true);
 }
 
 void KFileItemModelTest::testDefaultSortRole()
@@ -668,6 +691,36 @@ void KFileItemModelTest::testExpandItems()
     QCOMPARE(itemsRemovedSpy.count(), 1);
     itemRangeList = itemsRemovedSpy.takeFirst().at(0).value<KItemRangeList>();
     QCOMPARE(itemRangeList, KItemRangeList() << KItemRange(1, 4)); // 4 items removed
+    QVERIFY(m_model->isConsistent());
+}
+
+// expandParentDirectories() waits for an item to be inserted before it expands it. A folder that
+// is not there is never inserted, so that wait never ends. The connection and the object that
+// holds it have to go away with the model regardless, which a leak checker is what catches.
+void KFileItemModelTest::testExpandParentItemsOfAFolderThatNeverArrives()
+{
+    QSignalSpy itemsInsertedSpy(m_model, &KFileItemModel::itemsInserted);
+    QVERIFY(itemsInsertedSpy.isValid());
+
+    QSet<QByteArray> modelRoles = m_model->roles();
+    modelRoles << "isExpanded"
+               << "isExpandable"
+               << "expandedParentsCount";
+    m_model->setRoles(modelRoles);
+
+    m_testDir->createFiles({"a/file.txt"});
+
+    m_model->loadDirectory(m_testDir->url());
+    QVERIFY(itemsInsertedSpy.wait());
+    QCOMPARE(m_model->count(), 1);
+
+    // "a/" is there and is expanded at once. Nothing will ever insert "a/missing", so the model
+    // keeps waiting for it until it is destroyed.
+    m_model->expandParentDirectories(QUrl::fromLocalFile(m_testDir->path() + "a/missing/deeper"));
+    QVERIFY(itemsInsertedSpy.wait());
+
+    QVERIFY(m_model->isExpanded(0));
+    QCOMPARE(m_model->index(QUrl::fromLocalFile(m_testDir->path() + "a/missing")), -1);
     QVERIFY(m_model->isConsistent());
 }
 

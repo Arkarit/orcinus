@@ -28,6 +28,7 @@
 #include <QElapsedTimer>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
+#include <QGuiApplication>
 #include <QPropertyAnimation>
 #include <QStyleOptionRubberBand>
 #include <QTimer>
@@ -387,9 +388,12 @@ void KItemListView::setGeometry(const QRectF &rect)
     // ends up somewhere else. What the user is looking at is the items, not the pixel the list
     // happens to be scrolled to, so hold on to the topmost visible one and put it back where it
     // was once the new layout is known. See bug 524143.
-    if (m_scrollAnchorIndex < 0 || m_layouter->scrollOffset() != m_scrollAnchorOffset) {
-        m_scrollAnchorIndex = m_layouter->firstVisibleIndex();
-        m_scrollAnchorDistance = m_scrollAnchorIndex < 0 ? 0 : m_layouter->itemScrollPosition(m_scrollAnchorIndex) - m_layouter->scrollOffset();
+    // Reused while offset, list length and visible selection are unchanged, as retaking it creeps.
+    const bool anchorHeld = m_scrollAnchor && m_layouter->scrollOffset() == m_scrollAnchor->restoredOffset
+        && maximumScrollOffset() == m_scrollAnchor->restoredMaximumOffset
+        && selectedItemOnScreen() == (m_scrollAnchor->keepVisible ? m_scrollAnchor->index : -1);
+    if (!anchorHeld) {
+        captureScrollAnchor();
     }
 
     const QSizeF newSize = rect.size();
@@ -406,16 +410,101 @@ void KItemListView::setGeometry(const QRectF &rect)
 
     m_layouter->setSize(newSize);
 
-    if (m_scrollAnchorIndex >= 0) {
-        const qreal visibleLength = (scrollOrientation() == Qt::Vertical) ? newSize.height() : newSize.width();
-        const qreal lastOffset = qMax(qreal(0), m_layouter->maximumScrollOffset() - visibleLength);
-        setScrollOffset(qBound(qreal(0), m_layouter->itemScrollPosition(m_scrollAnchorIndex) - m_scrollAnchorDistance, lastOffset));
-        m_scrollAnchorOffset = m_layouter->scrollOffset();
-    }
+    restoreScrollAnchor();
 
     // We don't animate the moving of the items here because
     // it would look like the items are slow to find their position.
     doLayout(NoAnimation);
+}
+
+void KItemListView::captureScrollAnchor()
+{
+    const int index = m_layouter->firstVisibleIndex();
+    if (index < 0) {
+        m_scrollAnchor.reset();
+        return;
+    }
+
+    // A visible selected item takes precedence over the topmost one and stays fully visible.
+    const int selectedIndex = selectedItemOnScreen();
+    const int anchorIndex = (selectedIndex >= 0) ? selectedIndex : index;
+    const qreal offset = m_layouter->scrollOffset();
+    m_scrollAnchor = ScrollAnchor{anchorIndex, m_layouter->itemScrollPosition(anchorIndex) - offset};
+    m_scrollAnchor->keepVisible = (selectedIndex >= 0);
+
+    // The layout still has the old size. Scroll bars move by whole pixels, hence the 1 px slack.
+    const QSizeF oldSize = m_layouter->size();
+    const qreal oldVisibleLength = (scrollOrientation() == Qt::Vertical) ? oldSize.height() : oldSize.width();
+    if (offset < 1) {
+        m_scrollAnchor->edge = ScrollAnchor::Edge::Start;
+    } else if (offset > maximumScrollOffset() - oldVisibleLength - 1) {
+        m_scrollAnchor->edge = ScrollAnchor::Edge::End;
+    }
+}
+
+void KItemListView::restoreScrollAnchor()
+{
+    if (!m_scrollAnchor) {
+        return;
+    }
+
+    qreal offset = 0;
+    switch (m_scrollAnchor->edge) {
+    case ScrollAnchor::Edge::Start:
+        break;
+    case ScrollAnchor::Edge::End:
+        offset = maximumVisibleScrollOffset();
+        break;
+    case ScrollAnchor::Edge::None:
+        offset = m_layouter->itemScrollPosition(m_scrollAnchor->index) - m_scrollAnchor->distance;
+        break;
+    }
+
+    const qreal lastOffset = maximumVisibleScrollOffset();
+    offset = qBound(qreal(0), offset, lastOffset);
+    if (m_scrollAnchor->keepVisible) {
+        // Showing the selected item wins over the edge or the position.
+        offset = qBound(qreal(0), offset + scrollDeltaToShowItem(m_scrollAnchor->index, Nearest, offset), lastOffset);
+    }
+
+    setScrollOffset(offset);
+    m_scrollAnchor->restoredOffset = m_layouter->scrollOffset();
+    m_scrollAnchor->restoredMaximumOffset = maximumScrollOffset();
+}
+
+int KItemListView::selectedItemOnScreen() const
+{
+    if (!m_controller) {
+        return -1;
+    }
+
+    const KItemListSelectionManager *selectionManager = m_controller->selectionManager();
+    if (!selectionManager->hasSelection()) {
+        return -1;
+    }
+
+    // Visible area of the current layout, minus header and statusbar.
+    QRectF itemArea(QPointF(0, 0), m_layouter->size());
+    if (m_headerWidget->isVisible()) {
+        itemArea.setTop(m_headerWidget->size().height());
+    }
+    itemArea.setBottom(itemArea.bottom() - m_statusBarOffset);
+    const auto isOnScreen = [this, &itemArea](int index) {
+        return itemRect(index).intersects(itemArea);
+    };
+
+    const int current = selectionManager->currentItem();
+    if (selectionManager->isSelected(current) && isOnScreen(current)) {
+        return current;
+    }
+
+    for (int index = m_layouter->firstVisibleIndex(); index <= m_layouter->lastVisibleIndex(); ++index) {
+        if (selectionManager->isSelected(index) && isOnScreen(index)) {
+            return index;
+        }
+    }
+
+    return -1;
 }
 
 qreal KItemListView::scrollSingleStep() const
@@ -615,6 +704,25 @@ bool KItemListView::isElided(int index) const
 
 void KItemListView::scrollToItem(int index, ViewItemPosition viewItemPosition)
 {
+    if (supportsItemExpanding() && !m_headerWidget->isVisible()) {
+        // A tree gives every item the width of the widest one, and without a header that width
+        // follows what the items hold, so the name of a deeply nested item can be the part left
+        // out of the view. What this moves is the item offset, which the delta below does not
+        // read.
+        scrollHorizontallyToShowItemAt(index);
+    }
+
+    const qreal offset = scrollDeltaToShowItem(index, viewItemPosition, scrollOffset());
+    if (!qFuzzyIsNull(offset)) {
+        Q_EMIT scrollTo(scrollOffset() + offset);
+        return;
+    }
+
+    Q_EMIT scrollingStopped();
+}
+
+qreal KItemListView::scrollDeltaToShowItem(int index, ViewItemPosition viewItemPosition, qreal atOffset) const
+{
     QRectF viewGeometry = geometry();
     if (m_headerWidget->isVisible()) {
         const qreal headerHeight = m_headerWidget->size().height();
@@ -624,6 +732,17 @@ void KItemListView::scrollToItem(int index, ViewItemPosition viewItemPosition)
         viewGeometry.adjust(0, 0, 0, -m_statusBarOffset);
     }
     QRectF currentRect = itemRect(index);
+
+    // Shift the rect to atOffset the way KItemListViewLayouter::itemRect() applies the offset.
+    qreal shift = scrollOffset() - atOffset;
+    if (scrollOrientation() == Qt::Vertical) {
+        currentRect.translate(0, shift);
+    } else {
+        if (QGuiApplication::isRightToLeft()) {
+            shift = -shift;
+        }
+        currentRect.translate(shift, 0);
+    }
 
     if (layoutDirection() == Qt::RightToLeft && scrollOrientation() == Qt::Horizontal) {
         currentRect.moveLeft(m_layouter->size().width() - currentRect.right());
@@ -705,12 +824,35 @@ void KItemListView::scrollToItem(int index, ViewItemPosition viewItemPosition)
         Q_UNREACHABLE();
     }
 
-    if (!qFuzzyIsNull(offset)) {
-        Q_EMIT scrollTo(scrollOffset() + offset);
+    return offset;
+}
+
+void KItemListView::scrollHorizontallyToShowItemAt(int index)
+{
+    if (scrollOrientation() != Qt::Vertical || m_visibleRoles.isEmpty() || index < 0 || index >= m_model->count()) {
         return;
     }
 
-    Q_EMIT scrollingStopped();
+    const qreal viewWidth = size().width();
+    if (maximumItemOffset() <= viewWidth) {
+        // Every item fits, so no part of one is out of view.
+        return;
+    }
+
+    // The first visible role holds the name, and in a tree it holds the indentation before it too.
+    const QByteArray &nameRole = m_visibleRoles.first();
+    const qreal nameEnd = widgetCreator()->preferredRoleColumnWidth(nameRole, index, this);
+    const qreal nameWidth = m_styleOption.fontMetrics.horizontalAdvance(m_model->data(index).value(nameRole).toString());
+
+    qreal offset = itemOffset();
+    if (nameEnd > offset + viewWidth) {
+        offset = nameEnd - viewWidth;
+    }
+    // A name wider than the view is shown from its beginning rather than from its end.
+    offset = qMin(offset, nameEnd - nameWidth);
+    offset = qBound(qreal(0), offset, maximumItemOffset() - viewWidth);
+
+    setItemOffset(offset);
 }
 
 void KItemListView::beginTransaction()
@@ -1023,7 +1165,7 @@ void KItemListView::setScrollOrientation(Qt::Orientation orientation)
         return;
     }
 
-    m_scrollAnchorIndex = -1;
+    m_scrollAnchor.reset();
 
     m_layouter->setScrollOrientation(orientation);
     m_animation->setScrollOrientation(orientation);
@@ -1285,7 +1427,7 @@ void KItemListView::invalidateItemAppearance()
 
 void KItemListView::slotItemsInserted(const KItemRangeList &itemRanges)
 {
-    m_scrollAnchorIndex = -1;
+    m_scrollAnchor.reset();
 
     if (m_itemSize.isEmpty()) {
         updatePreferredColumnWidths(itemRanges);
@@ -1396,7 +1538,7 @@ void KItemListView::slotItemsInserted(const KItemRangeList &itemRanges)
 
 void KItemListView::slotItemsRemoved(const KItemRangeList &itemRanges)
 {
-    m_scrollAnchorIndex = -1;
+    m_scrollAnchor.reset();
 
     if (m_itemSize.isEmpty()) {
         // Don't pass the item-range: The preferred column-widths of
@@ -1516,7 +1658,7 @@ void KItemListView::slotItemsRemoved(const KItemRangeList &itemRanges)
 
 void KItemListView::slotItemsMoved(const KItemRange &itemRange, const QList<int> &movedToIndexes)
 {
-    m_scrollAnchorIndex = -1;
+    m_scrollAnchor.reset();
 
     m_sizeHintResolver->itemsMoved(itemRange, movedToIndexes);
     m_layouter->markAsDirty();
@@ -1919,7 +2061,7 @@ void KItemListView::setModel(KItemModelBase *model)
         return;
     }
 
-    m_scrollAnchorIndex = -1;
+    m_scrollAnchor.reset();
 
     KItemModelBase *previous = m_model;
 
@@ -1990,10 +2132,9 @@ void KItemListView::doLayout(LayoutAnimationHint hint, int changedIndex, int cha
     // Do a sanity check of the scroll-offset property: When properties of the itemlist-view have been changed
     // it might be possible that the maximum offset got changed too. Assure that the full visible range
     // is still shown if the maximum offset got decreased.
-    const qreal visibleOffsetRange = (scrollOrientation() == Qt::Horizontal) ? size().width() : size().height();
-    const qreal maxOffsetToShowFullRange = maximumScrollOffset() - visibleOffsetRange;
+    const qreal maxOffsetToShowFullRange = maximumVisibleScrollOffset();
     if (scrollOffset() > maxOffsetToShowFullRange) {
-        m_layouter->setScrollOffset(qMax(qreal(0), maxOffsetToShowFullRange));
+        m_layouter->setScrollOffset(maxOffsetToShowFullRange);
         firstVisibleIndex = m_layouter->firstVisibleIndex();
     }
 
@@ -2266,6 +2407,12 @@ void KItemListView::emitOffsetChanges()
         Q_EMIT maximumItemOffsetChanged(newMaximumItemOffset, m_oldMaximumItemOffset);
         m_oldMaximumItemOffset = newMaximumItemOffset;
     }
+}
+
+qreal KItemListView::maximumVisibleScrollOffset() const
+{
+    const qreal visibleLength = (scrollOrientation() == Qt::Vertical) ? size().height() : size().width();
+    return qMax(qreal(0), maximumScrollOffset() - visibleLength);
 }
 
 KItemListWidget *KItemListView::createWidget(int index)

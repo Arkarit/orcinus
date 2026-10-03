@@ -261,9 +261,6 @@ set_target_properties(dolphinprivate PROPERTIES
 )
 
 install(TARGETS dolphinprivate ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} LIBRARY NAMELINK_SKIP)
-if(WHALE_INSTALL_DOLPHIN_EXTRAS)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dolphin_export.h DESTINATION ${KDE_INSTALL_INCLUDEDIR} COMPONENT Devel)
-endif()
 
 ##########################################
 configure_file(dolphinpart.json.in ${CMAKE_CURRENT_BINARY_DIR}/dolphinpart.json @ONLY)

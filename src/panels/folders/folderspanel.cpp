@@ -133,6 +133,7 @@ void FoldersPanel::showEvent(QShowEvent *event)
         KFileItemListView *view = new KFileItemListView();
         view->setWidgetCreator(new KItemListWidgetCreator<FoldersItemListWidget>());
         view->setSupportsItemExpanding(true);
+        view->setHighlightEntireRow(true);
         // Set the opacity to 0 initially. The opacity will be increased after the loading of the initial tree
         // has been finished in slotLoadingCompleted(). This prevents an unnecessary animation-mess when
         // opening the folders panel.
@@ -295,6 +296,11 @@ void FoldersPanel::slotLoadingCompleted()
     }
 
     const int index = m_model->index(url());
+    if (index < 0) {
+        // The tree is still expanding towards the url, and a later loading will complete with it.
+        return;
+    }
+
     updateCurrentItem(index);
     m_updateCurrentItem = false;
 }

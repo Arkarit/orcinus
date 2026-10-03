@@ -538,6 +538,22 @@ private:
 
     void emitOffsetChanges();
 
+    /** @return The scroll offset showing the end of the list, statusbar offset included. */
+    qreal maximumVisibleScrollOffset() const;
+
+    /**
+     * @return How far to scroll from \a atOffset, current or not, to show \a index as
+     *         scrollToItem() would.
+     */
+    qreal scrollDeltaToShowItem(int index, ViewItemPosition viewItemPosition, qreal atOffset) const;
+
+    /** Helpers for setGeometry(): keep what the user looks at in view across a resize. */
+    void captureScrollAnchor();
+    void restoreScrollAnchor();
+
+    /** @return A (partly) visible selected item, preferably the current one, or -1. */
+    int selectedItemOnScreen() const;
+
     KItemListWidget *createWidget(int index);
     void recycleWidget(KItemListWidget *widget);
 
@@ -689,6 +705,15 @@ private:
     bool animateChangedItemCount(int changedItemCount) const;
 
     /**
+     * Scrolls sideways until the name of the item with the index \a index is visible. Every item
+     * of a tree is as wide as the widest one, so the name of a deeply nested item can sit outside
+     * the view while its rect is inside it. Only a vertically scrolling view moves this way: the
+     * item offset is what the layouter takes off the x of an item rect, and it reads it nowhere
+     * else.
+     */
+    void scrollHorizontallyToShowItemAt(int index);
+
+    /**
      * @return True if a scrollbar for the given scroll-orientation is required
      *         when using a size of \p size for the view. Calling the method is rather
      *         expansive as a temporary relayout needs to be done.
@@ -765,15 +790,22 @@ private:
     int m_activeTransactions; // Counter for beginTransaction()/endTransaction()
     LayoutAnimationHint m_endTransactionAnimationHint;
 
-    /**
-     * The item a resize keeps the view scrolled to, its distance from the top of the visible area,
-     * and the scroll offset that put it there. An index of -1 means none is held, which is what a
-     * change to the items leaves behind, since their indexes shift, and a change of scrolling
-     * direction, since the distance is measured along it.
-     */
-    int m_scrollAnchorIndex = -1;
-    qreal m_scrollAnchorDistance = 0;
-    qreal m_scrollAnchorOffset = -1;
+    /** What a resize keeps in view. Reset when the items or the scroll orientation change. */
+    struct ScrollAnchor {
+        enum class Edge {
+            None,
+            Start,
+            End,
+        };
+
+        int index;
+        qreal distance;
+        Edge edge = Edge::None;
+        bool keepVisible = false; // Selected, so it must stay fully visible.
+        qreal restoredOffset = -1;
+        qreal restoredMaximumOffset = -1;
+    };
+    std::optional<ScrollAnchor> m_scrollAnchor;
 
     QSizeF m_itemSize;
     KItemListController *m_controller;

@@ -27,14 +27,61 @@
 #include <QElapsedTimer>
 #include <QMimeData>
 #include <QMimeDatabase>
-#include <QRecursiveMutex>
 #include <QTimer>
 #include <QWidget>
 #include <QtCore/qcompare.h>
 #include <algorithm>
 #include <klazylocalizedstring.h>
+#include <memory>
 
-Q_GLOBAL_STATIC(QRecursiveMutex, s_collatorMutex)
+namespace
+{
+/**
+ * A collator of this thread's own, set up like @p prototype.
+ *
+ * QCollator is not reentrant, and copying one shares what is inside it.
+ */
+const QCollator &collatorForThisThread(const QCollator &prototype)
+{
+    thread_local QCollator collator;
+    thread_local bool matchesPrototype = false;
+
+    if (!matchesPrototype || collator.locale() != prototype.locale() || collator.caseSensitivity() != prototype.caseSensitivity()
+        || collator.numericMode() != prototype.numericMode()) {
+        collator = QCollator(prototype.locale()); // a new one, rather than a copy that shares
+        collator.setNumericMode(prototype.numericMode());
+        collator.setCaseSensitivity(prototype.caseSensitivity());
+        matchesPrototype = true;
+    }
+
+    return collator;
+}
+
+/**
+ * Whether @p name is the name of a backup/trash file, matching application/x-trash mime-type.
+ *
+ * Every pattern that mime type carries ends the name, so the patterns are read once and cached.
+ */
+bool hasBackupName(const QString &name)
+{
+    static const QStringList endings = [] {
+        QStringList found;
+        const QStringList patterns = QMimeDatabase().mimeTypeForName(QStringLiteral("application/x-trash")).globPatterns();
+        for (const QString &pattern : patterns) {
+            const QStringView ending = QStringView(pattern).mid(1);
+            if (pattern.startsWith(QLatin1Char('*')) && !ending.contains(QLatin1Char('*')) && !ending.contains(QLatin1Char('?'))
+                && !ending.contains(QLatin1Char('['))) {
+                found.append(ending.toString());
+            }
+        }
+        return found;
+    }();
+
+    return std::any_of(endings.cbegin(), endings.cend(), [&name](const QString &ending) {
+        return name.endsWith(ending, Qt::CaseInsensitive);
+    });
+}
+}
 
 // #define KFILEITEMMODEL_DEBUG
 
@@ -71,7 +118,7 @@ int orderingToInt(Qt::strong_ordering ordering)
     return 0;
 }
 
-Qt::strong_ordering compareDigitStrings(const QString &a, const QString &b)
+Qt::strong_ordering compareDigitStrings(QStringView a, QStringView b)
 {
     int firstSignificantA = 0;
     while (firstSignificantA < a.length() && a.at(firstSignificantA) == QLatin1Char('0')) {
@@ -100,7 +147,7 @@ Qt::strong_ordering compareDigitStrings(const QString &a, const QString &b)
     return Qt::strong_ordering::equivalent;
 }
 
-Qt::strong_ordering compareFractionalDigitStrings(const QString &a, const QString &b)
+Qt::strong_ordering compareFractionalDigitStrings(QStringView a, QStringView b)
 {
     const int length = std::max(a.length(), b.length());
     for (int i = 0; i < length; ++i) {
@@ -114,7 +161,7 @@ Qt::strong_ordering compareFractionalDigitStrings(const QString &a, const QStrin
     return Qt::strong_ordering::equivalent;
 }
 
-int findDigitRunEnd(const QString &text, int start)
+int findDigitRunEnd(QStringView text, int start)
 {
     int end = start;
     while (end < text.length() && isAsciiDigit(text.at(end))) {
@@ -124,7 +171,7 @@ int findDigitRunEnd(const QString &text, int start)
     return end;
 }
 
-int countNumericChainSegments(const QString &text, int start, int *chainEnd)
+int countNumericChainSegments(QStringView text, int start, int *chainEnd)
 {
     int end = findDigitRunEnd(text, start);
     int segmentCount = 1;
@@ -141,7 +188,7 @@ int countNumericChainSegments(const QString &text, int start, int *chainEnd)
     return segmentCount;
 }
 
-Qt::strong_ordering compareNumericChains(const QString &a, int startA, int endA, int segmentCountA, const QString &b, int startB, int endB, int segmentCountB)
+Qt::strong_ordering compareNumericChains(QStringView a, int startA, int endA, int segmentCountA, QStringView b, int startB, int endB, int segmentCountB)
 {
     if (segmentCountA == 2 && segmentCountB == 2) {
         const int dotA = findDigitRunEnd(a, startA);
@@ -183,7 +230,7 @@ Qt::strong_ordering compareNumericChains(const QString &a, int startA, int endA,
     }
 }
 
-int findExtensionSeparator(const QString &text)
+int findExtensionSeparator(QStringView text)
 {
     for (int i = text.length() - 1; i > 0; --i) {
         if (text.at(i) != QLatin1Char('.')) {
@@ -200,7 +247,7 @@ int findExtensionSeparator(const QString &text)
     return -1;
 }
 
-Qt::strong_ordering decimalAwareNaturalCompare(const QString &a, const QString &b, const QCollator &collator)
+Qt::strong_ordering decimalAwareNaturalCompare(QStringView a, QStringView b, const QCollator &collator)
 {
     bool comparedNumericTokens = false;
     int indexA = 0;
@@ -252,12 +299,12 @@ Qt::strong_ordering decimalAwareNaturalCompare(const QString &a, const QString &
         return Qt::strong_ordering::equivalent;
     }
 
-    const Qt::strong_ordering result = orderingFromInt(QString::compare(a, b, collator.caseSensitivity()));
+    const Qt::strong_ordering result = orderingFromInt(a.compare(b, collator.caseSensitivity()));
     if (is_neq(result) || collator.caseSensitivity() == Qt::CaseSensitive) {
         return result;
     }
 
-    return orderingFromInt(QString::compare(a, b, Qt::CaseSensitive));
+    return orderingFromInt(a.compare(b, Qt::CaseSensitive));
 }
 }
 
@@ -1006,7 +1053,8 @@ void KFileItemModel::expandParentDirectories(const QUrl &url)
 
     auto expandUrlAfterInserted = [this](const QUrl &url) {
         // need to wait for the item to be added to the model
-        QMetaObject::Connection *connection = new QMetaObject::Connection;
+        // but the owning object might get deleted first
+        auto connection = std::make_shared<QMetaObject::Connection>();
         *connection = connect(this, &KFileItemModel::itemsInserted, this, [this, url, connection](const KItemRangeList &ranges) {
             int idx = -1;
             for (const KItemRange &it : ranges) {
@@ -1024,7 +1072,6 @@ void KFileItemModel::expandParentDirectories(const QUrl &url)
             if (idx != -1) {
                 setExpanded(idx, true);
                 disconnect(*connection);
-                delete connection;
             }
         });
     };
@@ -2246,8 +2293,9 @@ SmallHash KFileItemModel::retrieveData(const KFileItem &item, const ItemData *pa
     }
 
     if (m_requestRole[IsHiddenRole]) {
-        // all "temporary" file types are identified by glob, currentMimeType is therefore enough.
-        data.insert(sharedValue("isHidden"), item.isHidden() || item.currentMimeType().name() == QStringLiteral("application/x-trash"));
+        const bool isBackup =
+            item.isMimeTypeKnown() ? item.currentMimeType().name() == QLatin1String("application/x-trash") : !isDir && hasBackupName(item.name());
+        data.insert(sharedValue("isHidden"), item.isHidden() || isBackup);
     }
 
     if (m_requestRole[NameRole]) {
@@ -2656,23 +2704,25 @@ int KFileItemModel::sortRoleCompare(const ItemData *a, const ItemData *b, const 
     return QString::compare(itemA.url().url(), itemB.url().url(), Qt::CaseSensitive);
 }
 
-int KFileItemModel::stringCompare(const QString &a, const QString &b, const QCollator &collator) const
+int KFileItemModel::stringCompare(const QString &a, const QString &b, const QCollator &prototype) const
 {
-    QMutexLocker collatorLock(s_collatorMutex());
+    const QCollator &collator = collatorForThisThread(prototype);
 
     if (m_naturalSorting) {
-        const int aExtensionSeparator = findExtensionSeparator(a);
-        const int bExtensionSeparator = findExtensionSeparator(b);
-        const int aBaseNameLength = aExtensionSeparator < 0 ? a.length() : aExtensionSeparator;
-        const int bBaseNameLength = bExtensionSeparator < 0 ? b.length() : bExtensionSeparator;
+        const QStringView viewA(a);
+        const QStringView viewB(b);
+        const int aExtensionSeparator = findExtensionSeparator(viewA);
+        const int bExtensionSeparator = findExtensionSeparator(viewB);
+        const int aBaseNameLength = aExtensionSeparator < 0 ? viewA.length() : aExtensionSeparator;
+        const int bBaseNameLength = bExtensionSeparator < 0 ? viewB.length() : bExtensionSeparator;
 
-        const int res = orderingToInt(decimalAwareNaturalCompare(a.left(aBaseNameLength), b.left(bBaseNameLength), collator));
+        const int res = orderingToInt(decimalAwareNaturalCompare(viewA.left(aBaseNameLength), viewB.left(bBaseNameLength), collator));
         if (res != 0 || (aExtensionSeparator < 0 && bExtensionSeparator < 0)) {
             return res;
         }
 
         // baseNames were equal, sort by extension
-        return orderingToInt(decimalAwareNaturalCompare(a.mid(aBaseNameLength), b.mid(bBaseNameLength), collator));
+        return orderingToInt(decimalAwareNaturalCompare(viewA.mid(aBaseNameLength), viewB.mid(bBaseNameLength), collator));
     }
 
     const int result = QString::compare(a, b, collator.caseSensitivity());
