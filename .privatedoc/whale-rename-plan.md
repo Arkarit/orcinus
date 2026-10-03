@@ -292,16 +292,89 @@ Teil von Phase 1; die ID dort bei Bedarf später ändern).
    Systemeinstellungen → Standardanwendungen → Dateiverwaltung → **Whale**. Whale erscheint dort
    wegen `Categories=FileManager` + `MimeType=inode/directory`.
    CLI: `xdg-mime default io.github.arkarit.whale.desktop inode/directory`. Das schreibt
-   `~/.config/mimeapps.list`, heute steht dort `org.kde.dolphin.desktop`.
-   Zurück: `xdg-mime default org.kde.dolphin.desktop inode/directory`.
+   `~/.config/mimeapps.list`. Ohne Benutzereintrag gilt der System-Standard aus
+   `/usr/share/applications/kde-mimeapps.list` (`org.kde.dolphin.desktop`).
+   Zurück: die Zeile `inode/directory=…` aus `~/.config/mimeapps.list` entfernen.
+   **Umgesetzt am 2026-10-03** (systemweite Installation unter `/usr` aus `../build-whale-system`, siehe
+   Projektnotizen). Geprüft mit `xdg-mime`, `gio mime` und `KApplicationTrader::preferredService`.
 2. **„Im Ordner anzeigen“** (Browser, Mailprogramme → D-Bus `org.freedesktop.FileManager1`):
-   - Mit `WHALE_PROVIDE_FILEMANAGER1=ON` bauen.
-   - Eine Benutzer-Override-Datei `~/.local/share/dbus-1/services/org.freedesktop.FileManager1.service`
-     mit `Exec=<prefix>/bin/whale --daemon` anlegen. Das Benutzerverzeichnis hat Vorrang vor
-     `/usr/share/dbus-1/services`.
-   - Danach neu anmelden, weil ein laufender `dolphin --daemon` bzw. `plasma-dolphin.service` den
-     Namen sonst weiter hält.
-   - Zurück: Datei löschen und neu anmelden.
+   siehe Abschnitt 6.1. **Plan, noch nicht umgesetzt**: Whale soll vorher einige Tage im Alltag laufen.
+3. **Meta+E:** Systemeinstellungen → Kurzbefehle: bei Dolphin entfernen und Whale zuweisen.
+4. **Dolphin bleibt** über das Startmenü, `dolphin` und `org.kde.dolphin.desktop` normal benutzbar.
+   Konfiguration und Instanz sind getrennt.
+
+### 6.1 FileManager1 für Whale (Plan, Stand 2026-10-03)
+
+Dieser Abschnitt ersetzt den früheren Kurzplan (Override-Datei mit `Exec=` und neu anmelden). Dem
+fehlten die systemd-Aktivierung und die Warteschlange der GUI-Instanzen.
+
+**Mechanik, am System geprüft:**
+- Jede GUI-Instanz von Dolphin und Whale (bei `ON`) meldet `org.freedesktop.FileManager1` mit
+  `QueueService` an (`src/dbusinterface.cpp:26`). Wer zuerst läuft, hält den Namen, die anderen warten
+  in der Warteschlange. Am 2026-10-03 hielt ihn ein Dolphin-Fenster, drei weitere standen an.
+- Gestartet wird ein Dienst nur, wenn niemand den Namen hält. Der Session-Bus ist
+  `dbus-daemon --systemd-activation` (kein dbus-broker). Dolphins Datei
+  `/usr/share/dbus-1/services/org.kde.dolphin.FileManager1.service` enthält
+  `SystemdService=plasma-dolphin.service`, deshalb startet systemd `dolphin --daemon`.
+- `session.conf` nutzt `<standard_session_servicedirs/>`. Dabei steht `~/.local/share/dbus-1/services`
+  vor `/usr/share/dbus-1/services`.
+- Aufrufer sind KIO (`highlightInFileManager`), das KDE-Portal (Firefox, Snaps), Chrome und
+  Mailprogramme. Ohne FileManager1 öffnet KIO ersatzweise den Ordner über die MIME-Zuordnung, aber
+  ohne die Datei zu markieren.
+- In `ksmserverrc` steht `loginMode=emptySession`. Nach dem Login läuft also kein Dolphin automatisch.
+
+**Problem der heutigen Option:** Bei `WHALE_PROVIDE_FILEMANAGER1=ON` installiert `CMakeLists.txt`
+`io.github.arkarit.whale.FileManager1.service` nach `/usr/share/dbus-1/services`, also neben Dolphins
+Datei mit demselben `Name=`. Welche gewinnt, ist dann nicht festgelegt, und es gilt für alle Benutzer.
+
+**Schritt 1 – CMake** (ein Whale-spezifischer Commit):
+- Bei `ON`:
+  - Das Binary bekommt den `--daemon`-Modus und `DBusInterface`. Das ist im Code schon über `#if` vorgesehen.
+  - `plasma-whale.service` wird nach `${KDE_INSTALL_SYSTEMDUSERUNITDIR}` installiert. Das ist ein neuer
+    Name, und die Unit bleibt untätig, solange nichts auf sie verweist.
+  - Die D-Bus-Service-Datei (`Exec=/usr/bin/whale --daemon`, `SystemdService=plasma-whale.service`)
+    wird **nicht** in den D-Bus-Suchpfad installiert, sondern als Vorlage nach
+    `${KDE_INSTALL_DATADIR}/whale/dbus-1/io.github.arkarit.whale.FileManager1.service`.
+- `cmake/WhaleIdentityTest.cmake`: absichern, dass nichts in `${KDE_INSTALL_DBUSSERVICEDIR}` landet.
+- `../build-whale` (Dev) bleibt `OFF`, damit Dev-Instanzen sich nicht um den Namen bewerben.
+
+**Schritt 2 – System-Build:**
+- `cmake -DWHALE_PROVIDE_FILEMANAGER1=ON ../build-whale-system`, bauen.
+- DESTDIR-Probe mit Kollisionsprüfung (wie bei der Erstinstallation). Erwartet werden genau zwei neue
+  Dateien (Unit und Vorlage) sowie ein geändertes `whale` und `_whale`.
+- Danach führt der Benutzer `sudo cmake --install ../build-whale-system` aus.
+
+**Schritt 3 – Opt-in für den Benutzer:**
+- `mkdir -p ~/.local/share/dbus-1/services`
+- `ln -s /usr/share/whale/dbus-1/io.github.arkarit.whale.FileManager1.service ~/.local/share/dbus-1/services/`
+  (als Symlink folgt er Updates automatisch).
+- Den Bus neu einlesen lassen: `busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig`.
+- Alle Dolphin-Fenster schließen oder neu anmelden, erst dann wird der Name frei.
+
+**Schritt 4 – Prüfen:**
+- Ohne GUI: `SortOrderForUrl` über `org.freedesktop.FileManager1` aufrufen. Das ist eine Methode ohne
+  Fenster und löst die Aktivierung aus. Danach sollte `GetConnectionUnixProcessID` auf
+  `/usr/bin/whale --daemon` zeigen und `systemctl --user status plasma-whale.service` aktiv sein.
+- Gegenprobe: `dolphin` starten. Es darf sich nur hinten in die Warteschlange einreihen
+  (`ListQueuedOwners`).
+- Mit GUI: „Im Ordner anzeigen“ in Firefox und in einer KDE-App. Whale sollte sich mit markierter
+  Datei öffnen.
+
+**Rückweg:** Symlink löschen, `ReloadConfig`, `systemctl --user stop plasma-whale.service`. Dolphins
+Systemdateien werden in keinem Schritt angefasst.
+
+**Offen / Risiken:**
+1. **Wettlauf (Entscheidung offen):** Wird Dolphin in einer Sitzung vor dem ersten
+   FileManager1-Aufruf gestartet, hält Dolphin den Namen, bis alle Dolphin-Fenster zu sind. Abhilfe:
+   `plasma-whale.service` beim Login starten, per Symlink in
+   `~/.config/systemd/user/plasma-workspace.target.wants/` (dort liegt schon `krdpserver`). Kosten:
+   ein ruhender Whale-Prozess pro Sitzung. Empfehlung: ja, falls Dolphin weiter gelegentlich genutzt
+   wird.
+2. **Ungeprüft:** Dass `dbus-daemon` bei gleichem `Name=` die Datei im Benutzerverzeichnis bevorzugt
+   und Symlinks folgt, steht in der Spezifikation, wurde aber noch nicht am System getestet. Der
+   Owner-Test in Schritt 4 klärt das.
+3. **Upstream-Merges:** Die Daemon-Logik in `main.cpp` und `dbusinterface.cpp` ist Upstream-Code hinter
+   `#if WHALE_PROVIDE_FILEMANAGER1`. Bei Merges im Blick behalten.
 3. **Meta+E:** Systemeinstellungen → Kurzbefehle: bei Dolphin entfernen und Whale zuweisen.
 4. **Dolphin bleibt** über das Startmenü, `dolphin` und `org.kde.dolphin.desktop` normal benutzbar.
    Konfiguration und Instanz sind getrennt.
