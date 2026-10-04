@@ -611,12 +611,14 @@ void WhaleViewHostTest::testSplitView()
     QCOMPARE(QApplication::focusWidget(), hello);
     QVERIFY(switcherAction(helloId)->isChecked());
 
-    // Keyboard: switch the active side (DolphinView::toggleActiveViewRequested → DolphinTabPage::switchActiveView).
-    page->switchActiveView();
+    // Keyboard: "Focus Other View" (Ctrl+F3, DolphinTabWidget::focusInactiveSplitView).
+    QAction *focusOtherView = m_mainWindow->actionCollection()->action(QStringLiteral("focus_inactive_split_view"));
+    QVERIFY(focusOtherView);
+    focusOtherView->trigger();
     QTRY_VERIFY(dolphinSide->isActive());
     QVERIFY(!pluginSide->isActive());
     QTRY_VERIFY(hasFocusInside(dolphinSide->view()));
-    page->switchActiveView();
+    focusOtherView->trigger();
     QTRY_VERIFY(pluginSide->isActive());
     QVERIFY(!dolphinSide->isActive());
     QTRY_COMPARE(QApplication::focusWidget(), hello);
