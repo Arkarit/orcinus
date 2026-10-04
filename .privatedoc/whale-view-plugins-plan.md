@@ -3,7 +3,8 @@
 Stand: 2026-10-03 · Revision 1 · Status: Analyse und Vorschlag; **nichts implementiert**
 
 Nachtrag 2026-10-04: **M0-Spike durchgeführt**, Ergebnisse in Abschnitt 14. K5 ist in einem Punkt widerlegt
-(versteckte Widgets erhalten sehr wohl Fokus), die Architektur bleibt tragfähig.
+(versteckte Widgets erhalten sehr wohl Fokus), die Architektur bleibt tragfähig. In M2 korrigiert (14.9):
+Die `DolphinView` selbst wird im Plugin-Modus **nicht** deaktiviert.
 
 Grundlage: Whale `master` = `33359dda2` (Upstream-Stand `a5fa3c402` + Whale-Commits). Alle Aussagen über
 bestehenden Code wurden in diesem Stand geprüft. Zeilennummern beziehen sich auf diesen Stand. Pfade sind
@@ -165,8 +166,8 @@ prüfen, ob `setFocus()` auf das versteckte innere Widget keinen sichtbaren Effe
 Qt-Doku so: Versteckte Widgets erhalten keinen Fokus. Das gehört in einen Test (M2).
 
 > **M0 (14.2): widerlegt.** `setFocus()` auf ein verstecktes Widget macht es in Qt 6.10 zum Fokus-Widget,
-> und der `FocusIn` aktiviert die Split-Hälfte. Gegenmaßnahme: versteckte `DolphinView` zusätzlich
-> `setEnabled(false)` + Fokus-Umleitung im Host.
+> und der `FocusIn` aktiviert die Split-Hälfte. Gegenmaßnahme (in M2 korrigiert, siehe 14.9):
+> „DolphinView bleibt als Shell-Fokusziel aktiv; ihre interaktiven Kinder werden stillgelegt und ihr Fokus über den WhaleViewHost auf die sichtbare View umgeleitet.“
 
 ### K6 – Kein Platz für Plugin-State in den bestehenden Formaten  **[D]/[U]**
 
@@ -879,6 +880,10 @@ Beobachtungen:
    `isEnabled()`). Das schließt alle Quellen auf einmal, auch unbekannte und upstream neu
    hinzukommende. Programmatische Nutzung (Laden, Modell, Auswahl, Actions, Signale) funktioniert
    weiterhin. Getestet: Alle Prüfungen aus 14.3 und 14.5 laufen auch mit deaktivierter View.
+
+   > **In M2 korrigiert (14.9):** Diese Maßnahme kollidiert mit den acht direkten
+   > `view()->setFocus()`-Aufrufen der Shell, die M0 nicht betrachtet hat. Ersetzt durch:
+   > „DolphinView bleibt als Shell-Fokusziel aktiv; ihre interaktiven Kinder werden stillgelegt und ihr Fokus über den WhaleViewHost auf die sichtbare View umgeleitet.“
 4. `QStackedWidget` überträgt den Fokus beim Seitenwechsel selbst, wenn er auf der alten Seite lag.
 5. F2 bzw. Inline-Rename auf der versteckten View erzeugt einen unsichtbaren Editor. Das
    Capability-Gating `InlineRename` (→ `KIO::RenameFileDialog`) ist daher **Pflicht**, nicht optional.
@@ -995,20 +1000,21 @@ akzeptiert.
 
 - Die Shell arbeitet ohne Änderung mit derselben `DolphinView`. Kontextmenü, Info-Panel, Tabs,
   Navigation, Filter, Sortierung und Auswahl funktionieren mit versteckter (und deaktivierter) View.
-- Das Fokusproblem ist real, aber mit zwei kleinen, lokalen Maßnahmen im Host vollständig beherrschbar.
+- Das Fokusproblem ist real, aber mit zwei kleinen, lokalen Maßnahmen im Host vollständig beherrschbar
+  (in M2 präzisiert, siehe 14.9).
 - Die Kosten sind begrenzt (≤ 500 Items pro Ordnerwechsel) und im Leerlauf null. Für den Alltag ist
   das plausibel; für große Bilderordner oder Remote-Orte lohnt sich M11 später.
 
 ### 14.8 Empfohlene Änderungen am Plan
 
 1. **K5 / M2 – Fokus:** Der `WhaleViewHost` macht beim Umschalten auf eine Plugin-View **beides**:
-   - `dolphinView->setEnabled(false)`, beim Zurückschalten `true`. Das schließt alle
-     `setFocus()`-Quellen, auch künftige aus upstream.
+   - ~~`dolphinView->setEnabled(false)`, beim Zurückschalten `true`.~~ **In M2 ersetzt (14.9):**
+     „DolphinView bleibt als Shell-Fokusziel aktiv; ihre interaktiven Kinder werden stillgelegt und ihr Fokus über den WhaleViewHost auf die sichtbare View umgeleitet.“
    - Umleitung: `FocusIn` des Plugin-Widgets (Eventfilter, rekursiv für Kind-Widgets oder über
      `QApplication::focusChanged`) → `container->activate()`; `setActive(true)` und `requestFocus`
      fokussieren `currentWidget()`.
-   Da `setEnabled(false)` die übrigen `m_view->setFocus()`-Stellen entschärft, muss der Container nur
-   `setActive` und `requestFocus` umleiten. Der Umfang in `dolphinviewcontainer.cpp` sinkt damit eher
+   Durch den umgeleiteten Focus-Proxy landen alle `m_view->setFocus()`-Stellen (Container und Shell)
+   automatisch beim Plugin; der Container leitet nur `setActive` an den Host weiter. Der Umfang in `dolphinviewcontainer.cpp` sinkt damit eher
    (Spike: etwa 15 Zeilen Logik).
 2. **M2 – Test:** Die Szenarien A–L aus 14.2 werden zu `whaleviewhosttest`. Wichtig sind I (kein
    Fokus und keine Aktivierung über die versteckte View) und L (F2).
@@ -1029,5 +1035,37 @@ akzeptiert.
 6. **O2 (Modellzugriff):** `findChild` hat im Spike problemlos funktioniert. Die Empfehlung „Accessor“
    bleibt aus den genannten Gründen bestehen; `findChild` ist ein brauchbarer Fallback.
 7. **7.1:** Die Zeile zu `dolphinviewcontainer.cpp` ergänzen: Die „4× `setFocus`“ müssen nicht einzeln
-   umgeleitet werden, wenn die versteckte View deaktiviert wird. Nur `setActive` und `requestFocus`
-   brauchen die Umleitung auf das sichtbare Widget.
+   umgeleitet werden. In M2 genügt der Focus-Proxy der `DolphinView` (14.9); nur `setActive` geht an den Host.
+
+### 14.9 Korrektur aus M2: Focus-Proxy statt deaktivierter `DolphinView` (2026-10-04)
+
+**Neue Regel:** „DolphinView bleibt als Shell-Fokusziel aktiv; ihre interaktiven Kinder werden stillgelegt und ihr Fokus über den WhaleViewHost auf die sichtbare View umgeleitet.“
+
+Befund: Neben den vier Stellen im Container ruft die Shell an **acht** Stellen direkt
+`view()->setFocus()` auf:
+
+- `dolphinmainwindow.cpp`: `showEvent`, `replaceLocation`, `slotTerminalPanelVisibilityChanged`,
+  `slotPlacesPanelVisibilityChanged`, `slotPlaceActivated`, `toggleTerminalPanelFocus`,
+  `togglePlacesPanelFocus`
+- `dolphintabwidget.cpp`: `openNewActivatedTab`
+
+Auf einer per `setEnabled(false)` deaktivierten `DolphinView` bricht Qt `setFocus()` sofort ab. Der Fokus
+erreicht dann das Plugin nicht. Beim Ausblenden eines fokussierten Panels wandert er nach Qt-Regel ins
+nächste Widget, eventuell in die andere Split-Hälfte, die dadurch aktiv wird.
+
+Umsetzung im `WhaleViewHost`:
+
+1. Die `DolphinView` bleibt aktiviert und versteckt.
+2. Ihre direkten Kind-Widgets (u. a. `KItemListContainer`) werden deaktiviert. Interne `setFocus()`-Aufrufe
+   (`DolphinView::setActive`) und ein Inline-Editor können den Fokus so nicht übernehmen.
+3. Ihr Focus-Proxy zeigt auf das Plugin-Widget. Alle `view()->setFocus()`-Aufrufe der Shell und des
+   Containers landen damit ohne Änderung an MainWindow/TabWidget beim Plugin.
+4. Beim Zurückwechseln werden Kinder und ursprünglicher Focus-Proxy exakt wiederhergestellt.
+
+Wichtige Qt-Eigenheit (Gegenprobe in `whaleviewhosttest`): Ohne die Proxy-Umleitung setzt
+`view()->setFocus()` den Fokus sogar auf den **deaktivierten** versteckten `KItemListContainer`, weil
+Qt nur prüft, ob das aufgerufene Widget aktiviert ist, nicht das Proxy-Ziel. Die Umleitung ist also
+zwingend nötig.
+
+F2: Der Schutz prüft nicht `isEnabled()`, sondern ob die `DolphinView` die sichtbare View ist
+(`isVisibleTo(window())`).
