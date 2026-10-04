@@ -52,3 +52,16 @@ Offene Fragen, noch nicht geprüft: Whale erfährt von sich aus nicht, welche Da
 gezeigt hat. Zu klären wäre, ob Gwenview das irgendwie mitteilt (z. B. über D-Bus) oder ob es einen
 anderen Weg gibt. Zum Beispiel könnte der Viewer beim Beenden `org.freedesktop.FileManager1.ShowItems`
 aufrufen; dann bräuchte es aber eine Änderung im Viewer selbst.
+
+## 5. Docking verbessern
+
+Das Andocken der Panels (Orte, Ordner, Information, Terminal) ist kaum bedienbar: Die Einraststellen
+findet man beim Ziehen fast nicht.
+
+Erster Befund, noch nicht analysiert: Die Panels sind gewöhnliche `QDockWidget`s
+(`DolphinDockWidget` in `src/dolphindockwidget.*`). `DolphinMainWindow` setzt keine eigenen
+`QMainWindow::setDockOptions`. Das Einrastverhalten ist also das Standardverhalten von Qt.
+Denkbar wären passendere Dock-Optionen (z. B. `AnimatedDocks`, `AllowNestedDocks`,
+`AllowTabbedDocks`, `GroupedDragging`), sichtbare Drop-Indikatoren oder eine andere
+Docking-Bibliothek (etwa KDDockWidgets oder Qt Advanced Docking System). Vorher klären, wie stark
+das von Style und Plattform (Wayland/X11) abhängt.
