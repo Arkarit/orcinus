@@ -23,15 +23,19 @@
 #include "whaleviewplugin.h"
 
 #include <KActionCollection>
+#include <KActionMenu>
+#include <KHamburgerMenu>
 #include <KIO/RenameFileDialog>
 #include <KLocalizedString>
 #include <KSelectAction>
 #include <KUrlComboBox>
 #include <KUrlNavigator>
 
+#include <KToolBar>
 #include <QComboBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
@@ -122,6 +126,7 @@ private Q_SLOTS:
     void cleanup();
 
     void testSwitcherListsViewsById();
+    void testSwitcherIsReachable();
     void testSwitchBetweenDolphinAndHello();
     void testLifecycle();
     void testShellKeepsDolphinView();
@@ -259,6 +264,26 @@ void WhaleViewHostTest::testSwitcherListsViewsById()
     QCOMPARE(ids.removeDuplicates(), 0);
     QVERIFY(fileList->isChecked());
     QVERIFY(!hello->isChecked());
+}
+
+void WhaleViewHostTest::testSwitcherIsReachable()
+{
+    QVERIFY(showMainWindow(m_dir->url()));
+    KActionCollection *ac = m_mainWindow->actionCollection();
+    QAction *switcher = ac->action(QStringLiteral("whale_view_switcher"));
+
+    // In the toolbar's view settings dropdown, right after the view modes.
+    auto viewSettings = qobject_cast<KActionMenu *>(ac->action(QStringLiteral("view_settings")));
+    QVERIFY(viewSettings);
+    const auto entries = viewSettings->menu()->actions();
+    QCOMPARE(entries.indexOf(switcher), entries.indexOf(ac->action(QStringLiteral("details"))) + 1);
+
+    // In the hamburger menu when the view settings are not reachable from the toolbar.
+    auto hamburger = qobject_cast<KHamburgerMenu *>(ac->action(KStandardAction::name(KStandardAction::HamburgerMenu)));
+    QVERIFY(hamburger);
+    m_mainWindow->toolBar()->hide();
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "updateHamburgerMenu"));
+    QVERIFY(hamburger->menu()->actions().contains(switcher));
 }
 
 void WhaleViewHostTest::testSwitchBetweenDolphinAndHello()

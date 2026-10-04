@@ -10,8 +10,11 @@
 #include "whaleviewregistry.h"
 
 #include <KActionCollection>
+#include <KActionMenu>
 #include <KLocalizedString>
 #include <KSelectAction>
+
+#include <QMenu>
 
 WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, QObject *parent)
     : QObject(parent)
@@ -37,6 +40,15 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, QObject 
     m_switcher->setEnabled(false);
 
     connect(m_switcher, &KSelectAction::actionTriggered, this, &WhaleViewActions::slotViewSelected);
+
+    // The toolbar's view settings dropdown lists the view modes first; the view type follows them.
+    if (auto viewSettings = qobject_cast<KActionMenu *>(actionCollection->action(QStringLiteral("view_settings")))) {
+        const auto entries = viewSettings->menu()->actions();
+        const auto firstSeparator = std::find_if(entries.cbegin(), entries.cend(), [](const QAction *action) {
+            return action->isSeparator();
+        });
+        viewSettings->insertAction(firstSeparator != entries.cend() ? *firstSeparator : nullptr, m_switcher);
+    }
 }
 
 WhaleViewActions::~WhaleViewActions() = default;

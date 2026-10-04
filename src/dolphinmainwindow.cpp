@@ -186,9 +186,9 @@ DolphinMainWindow::DolphinMainWindow()
 
     m_actionTextHelper = new SelectionMode::ActionTextHelper(this);
     setupActions();
-    m_whaleViewActions = new WhaleViewActions(actionCollection(), this); // Whale: view plugins
 
     m_actionHandler = new DolphinViewActionHandler(actionCollection(), m_actionTextHelper, this);
+    m_whaleViewActions = new WhaleViewActions(actionCollection(), this); // Whale: view plugins
     connect(m_actionHandler, &DolphinViewActionHandler::createDirectoryTriggered, this, &DolphinMainWindow::createDirectory);
     connect(m_actionHandler, &DolphinViewActionHandler::createFileTriggered, this, &DolphinMainWindow::createFile);
     connect(m_actionHandler, &DolphinViewActionHandler::selectionModeChangeTriggered, this, &DolphinMainWindow::slotSetSelectionMode);
@@ -1629,6 +1629,7 @@ void DolphinMainWindow::updateHamburgerMenu()
         menu->addAction(ac->action(QStringLiteral("view_mode")));
     }
     if (!toolBar()->isVisible() || !toolbarActions.contains(ac->action(QStringLiteral("view_settings")))) {
+        menu->addAction(ac->action(QStringLiteral("whale_view_switcher"))); // Whale: view plugins
         menu->addAction(ac->action(QStringLiteral("show_hidden_files")));
         menu->addAction(ac->action(QStringLiteral("sort")));
         menu->addAction(ac->action(QStringLiteral("additional_info")));

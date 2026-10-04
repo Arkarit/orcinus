@@ -28,6 +28,10 @@ class WhaleViewActions : public QObject
     Q_OBJECT
 
 public:
+    /**
+     * Adds the view switcher to @p actionCollection and to its "view_settings" menu,
+     * so it must be created after the actions of the DolphinViewActionHandler.
+     */
     WhaleViewActions(KActionCollection *actionCollection, QObject *parent);
     ~WhaleViewActions() override;
 
