@@ -2,6 +2,9 @@
 
 Stand: 2026-10-03 · Revision 1 · Status: Analyse und Vorschlag; **nichts implementiert**
 
+Nachtrag 2026-10-04: **M0-Spike durchgeführt**, Ergebnisse in Abschnitt 14. K5 ist in einem Punkt widerlegt
+(versteckte Widgets erhalten sehr wohl Fokus), die Architektur bleibt tragfähig.
+
 Grundlage: Whale `master` = `33359dda2` (Upstream-Stand `a5fa3c402` + Whale-Commits). Alle Aussagen über
 bestehenden Code wurden in diesem Stand geprüft. Zeilennummern beziehen sich auf diesen Stand. Pfade sind
 relativ zu `src/`.
@@ -161,6 +164,10 @@ Empfehlung in 7.2.
 prüfen, ob `setFocus()` auf das versteckte innere Widget keinen sichtbaren Effekt hat. Das ist laut
 Qt-Doku so: Versteckte Widgets erhalten keinen Fokus. Das gehört in einen Test (M2).
 
+> **M0 (14.2): widerlegt.** `setFocus()` auf ein verstecktes Widget macht es in Qt 6.10 zum Fokus-Widget,
+> und der `FocusIn` aktiviert die Split-Hälfte. Gegenmaßnahme: versteckte `DolphinView` zusätzlich
+> `setEnabled(false)` + Fokus-Umleitung im Host.
+
 ### K6 – Kein Platz für Plugin-State in den bestehenden Formaten  **[D]/[U]**
 
 - Der History-State pro Ort ist `KUrlNavigator::locationState`. Dafür serialisiert
@@ -246,6 +253,9 @@ dient als Vorlage.
 Der RolesUpdater pausiert nur während Transaktionen und Timern (`kfileitemlistview.cpp:288–310`), aber
 nicht bei Unsichtbarkeit. Eine versteckte `DolphinView` erzeugt also weiterhin Icons und Previews für
 die erste Seite und Ordnergrößen. Der Aufwand ist begrenzt, aber unnötig.
+
+> **M0 (14.4): gemessen.** Unsichtbarkeit stoppt nichts; die Arbeit pro Ordnerwechsel ist praktisch
+> identisch zur sichtbaren View, im Leerlauf ist sie null. M11 bleibt optional.
 
 **Konsequenz:** Für M2 akzeptieren und messen. Falls nötig, gibt es später eine kleine,
 **upstreamfähige** Änderung („RolesUpdater pausieren, wenn die View nicht sichtbar ist“), siehe M11.
@@ -810,3 +820,214 @@ Whale-Integration kommen in getrennte Commits.
 | O5 | Tiefe Auswahl: T1 reicht vorerst? | Ja, T2 erst nach Praxis mit der Treemap |
 | O6 | Plugin-API vorerst nur für Plugins im eigenen Baum (exakte Version)? | Ja |
 | O7 | Soll M0 (Spike) wirklich vorgeschaltet werden? | Ja. Drei Annahmen (K5, 3.2, K12) sind kritisch und billig zu prüfen. |
+
+---
+
+## 14. Nachtrag: Ergebnisse des M0-Spikes (2026-10-04)
+
+Branch `feature/view-plugins-m0-spike` (von `master` = `1c897bdfc`, inhaltlich gleich `33359dda2` plus
+Doku-Commits). **Wegwerf-Code, kein Merge.** Umgebung: Qt 6.10.2, KF6, Ubuntu 26.04, Tests mit
+`QT_QPA_PLATFORM=offscreen` (echte Fokus- und Aktivierungslogik von Qt, aber ohne Compositor).
+
+### 14.1 Aufbau
+
+- `DolphinViewContainer`: `QStackedWidget` an der Layout-Position der View. Seite 0 ist die
+  unveränderte `DolphinView`, Seite 1 ein `QListWidget` als Ersatz-View. Schalter (nur Spike):
+  - `spikeSetAlternativeShown(bool)`: Ersatz-View zeigen, `DolphinView` läuft versteckt weiter.
+  - `spikeSetFocusRedirect(bool)`: Host-artige Umleitung. `FocusIn` der Ersatz-View → `activate()`;
+    `setActive(true)` und `requestFocus()` fokussieren das sichtbare Widget.
+  - `spikeSetDisableHiddenView(bool)`: versteckte `DolphinView` zusätzlich `setEnabled(false)`.
+  - Env `WHALE_M0_SPIKE_ALT=1` / `WHALE_M0_SPIKE_REDIRECT=1` für manuelles Ausprobieren in der App.
+- `src/tests/whalem0spiketest.cpp`: Mess- und Sondierungsprogramm (kein ctest-Test), Aufruf
+  `QT_QPA_PLATFORM=offscreen bin/whalem0spiketest [Funktion]`. Modellzugriff über
+  `findChild<KItemListContainer *>(…, Qt::FindDirectChildrenOnly)` (Weg (a) aus K4), funktioniert.
+
+### 14.2 Annahme 1 – Versteckte `DolphinView`, Fokus, Split-Aktivierung (K5)
+
+**Ergebnis: bestätigt mit Einschränkungen.** Der Host kann Fokus und Aktivierung zuverlässig auf das
+sichtbare Widget leiten, aber nur mit *beiden* Maßnahmen (Umleitung + versteckte View deaktivieren).
+Die Annahme „versteckte Widgets erhalten keinen Fokus“ aus K5 ist **falsch**.
+
+Szenario: Split-View, links Ersatz-View (DolphinView versteckt), rechts normale DolphinView.
+
+| Schritt | naiv (nur Stack) | + Umleitung | + Umleitung + `setEnabled(false)` |
+|---|---|---|---|
+| A Klick in linke Ersatz-View (rechts aktiv) | Fokus links, **links bleibt inaktiv** | links aktiv ✔ | links aktiv ✔ |
+| B Klick in rechte View | rechts aktiv ✔ | rechts aktiv ✔ | rechts aktiv ✔ |
+| C `switchActiveView` (Tastatur) → links | links aktiv, **Fokus in versteckter View** | Fokus Ersatz-View ✔ | Fokus Ersatz-View ✔ |
+| D `requestFocus()` (Filterleiste u. a.) | **Fokus in versteckter View** | ✔ | ✔ |
+| E Navigation links (`setUrl`, verzögertes `requestFocus`) | **Fokus in versteckter View** | ✔ | ✔ |
+| F zurück zur DolphinView (links aktiv) | ✔ (Fokus in DolphinView) | ✔ | ✔ |
+| G zur Ersatz-View, während DolphinView fokussiert | ✔ (`QStackedWidget` übergibt Fokus) | ✔ | ✔ |
+| I `setFocus()` auf versteckten `KItemListContainer`, rechts aktiv | **versteckte View bekommt Fokus + `FocusIn` → links wird aktiv** | **links wird aktiv** (Fokus danach Ersatz-View) | **keine Wirkung** ✔ |
+| L Aktion „Umbenennen“ (F2), 1 Item ausgewählt | **Inline-Editor in versteckter View hat Fokus** | **dito** | Fokus bleibt in Ersatz-View; Editor wird unsichtbar erzeugt |
+| `FocusIn` auf versteckter View (gesamt) | 4 | 6 (transient bei jeder Aktivierung) | 0 (nur wenn sichtbar) |
+
+Beobachtungen:
+
+1. Qt 6.10: `QWidget::setFocus()` auf ein verstecktes, aber aktiviertes Widget im aktiven Fenster
+   macht es zu `QApplication::focusWidget()` und liefert `FocusIn`. Tastatureingaben landen dann in
+   der unsichtbaren View.
+2. Über `DolphinView::eventFilter` (`FocusIn` → `setActive(true)` → `activated`) wird daraus eine
+   **Aktivierung der Split-Hälfte**. Jeder `setFocus()`-Aufruf auf die versteckte View ist damit ein
+   versteckter Aktivierungs-Trigger. Bekannte Quellen: `DolphinView::setActive`
+   (`m_container->setFocus()`) und die vier `m_view->setFocus()`-Stellen im Container (Lambda
+   `requestToLoseFocus` in `connectUrlNavigator`, Ende des Selection-Mode, `closeFilterBar`,
+   `requestFocus`). `requestFocus` wird zusätzlich indirekt bei jedem URL-Wechsel aufgerufen
+   (`slotUrlNavigatorLocationChanged`, verzögert) und von der Filterleiste (`focusViewRequest`).
+3. `setEnabled(false)` auf die versteckte `DolphinView` macht `setFocus()` zum No-op (Qt prüft
+   `isEnabled()`). Das schließt alle Quellen auf einmal, auch unbekannte und upstream neu
+   hinzukommende. Programmatische Nutzung (Laden, Modell, Auswahl, Actions, Signale) funktioniert
+   weiterhin. Getestet: Alle Prüfungen aus 14.3 und 14.5 laufen auch mit deaktivierter View.
+4. `QStackedWidget` überträgt den Fokus beim Seitenwechsel selbst, wenn er auf der alten Seite lag.
+5. F2 bzw. Inline-Rename auf der versteckten View erzeugt einen unsichtbaren Editor. Das
+   Capability-Gating `InlineRename` (→ `KIO::RenameFileDialog`) ist daher **Pflicht**, nicht optional.
+6. Die Datei-Actions (Entf, F2, Strg+C …) sind fensterweite Shortcuts und wirken unabhängig vom Fokus
+   auf `view()->selectedItems()`. Das ist wie geplant (gespiegelte Auswahl).
+
+### 14.3 Annahme 2 – `DolphinView`-Signale von außen auslösen (3.2)
+
+**Ergebnis: bestätigt mit Einschränkungen.** Bei versteckter View (auch deaktiviert) getestet:
+
+| Signal | Ergebnis |
+|---|---|
+| `requestContextMenu(pos, item, {item}, url)` | volles Dolphin-Item-Menü (20 Einträge: Öffnen mit, Ausschneiden, Kopieren, Umbenennen, Papierkorb, Service-Menüs, Eigenschaften …) ✔ |
+| `requestContextMenu(pos, KFileItem(), {}, url)` | Viewport-Menü (Neu, Sortierung, Ansichtsmodus, Terminal …) ✔ |
+| `requestItemInfo(item)` | kommt unverändert bei `DolphinMainWindow::requestItemInfo` an ✔ (2× ausgelöst, weil das Hauptfenster schon heute doppelt verbunden ist; unabhängig vom Auslöser) |
+| `tabRequested(url)` | Hintergrund-Tab mit der URL ✔ |
+| `itemActivated(dirItem)` | Container navigiert hinein ✔ |
+| `goUpRequested()` | aktiver Container geht nach oben ✔ |
+
+- Die Parameter werden unverändert durchgereicht. `sender()` ist die `DolphinView`, auch bei Emission
+  von außen. `DolphinTabPage::slotViewActivated` ist der einzige relevante `sender()`-Nutzer und
+  funktioniert deshalb.
+- **Einschränkung 1:** `DolphinMainWindow::connectViewSignals` verbindet nur die View der **aktiven**
+  Hälfte (außer `requestItemInfo`). Ein `requestContextMenu` der inaktiven Hälfte bewirkt nichts
+  (gemessen: kein Menü). Die Bridge muss den Container vorher aktivieren (`setActive(true)`). Das passt
+  ohnehin, weil ein Rechtsklick in die Plugin-View `FocusIn` und damit Aktivierung auslöst.
+- **Einschränkung 2:** `goUp/Back/ForwardRequested`, `urlActivated` und `tabRequested` wirken auf den
+  *aktiven* Container bzw. das Hauptfenster, nicht auf den Sender. Gleiche Konsequenz.
+- **Gefährlich: Zustandssignale.** `Q_EMIT view->activated()` von außen lässt `DolphinView::m_active`
+  unverändert. Im Test blieb der Zustand nur zufällig konsistent, weil nachgelagerter Code den Fokus
+  setzt. Regel für die Bridge: **Zustandsänderungen nur über Methoden** (`setActive`,
+  Selection-Manager), **nur „Anfrage“-Signale emittieren** (`requestContextMenu`, `requestItemInfo`,
+  `tabRequested`, `activeTabRequested`, `windowRequested`, `goUp/Back/ForwardRequested`,
+  `urlActivated`). `itemActivated` wie geplant direkt an den Container-Slot.
+- **Bekannt (K11), bestätigt:** Die Standard-Actions im Menü (Umbenennen, Papierkorb …) wirken auf die
+  Auswahl der `DolphinView`, nicht auf die übergebene Liste. Mit leerer Auswahl sind sie trotzdem
+  aktiviert. Die Auswahl muss vor dem Menü gespiegelt sein (M4/M5), und für tiefe Items bleibt T1
+  zwingend.
+
+### 14.4 Annahme 3 – Kosten der unsichtbaren `DolphinView` (K12)
+
+**Ergebnis: bestätigt mit Einschränkungen.** Die Kosten sind für den Alltag plausibel, aber nicht
+null: Die versteckte View verrichtet beim Laden eines Ordners **dieselbe** Arbeit wie die sichtbare.
+Im Leerlauf kostet sie nichts.
+
+Messung: Hauptfenster 1200×800, je Zeile ein frischer Ordner (kein Thumbnail- und kein
+KDirLister-Cache), Ende = 2 s ohne Rollen-Änderung am Modell. CPU = eigener Prozess; die
+Thumbnail-Erzeugung lief messbar im Prozess (Kind-Prozess-CPU ≈ 0). `hiddenFromStart` = Ersatz-View
+vor dem ersten Anzeigen (Plugin als Standard-View), `hiddenAfterVisible` = erst sichtbar, dann
+umgeschaltet, dann navigiert.
+
+| Ordner | Zustand | Previews | View-Größe | Dauer bis Ruhe | CPU | Previews erzeugt | Ordnergrößen gezählt | Timer-Events | Leerlauf 3 s |
+|---|---|---|---|---|---|---|---|---|---|
+| normal (40 txt, 10 png, 10 Ordner) | sichtbar | an | 1063×733 | 533 ms | 159 ms¹ | 60 | – | 357 | 7 ms, 0 Timer |
+| | hiddenFromStart | an | **100×30** | 373 ms | 61 ms | 60 | – | 227 | 7 ms, 0 |
+| | hiddenAfterVisible | an | 1063×737 | 173 ms | 50 ms | 60 | – | 185 | 7 ms, 0 |
+| | sichtbar / hidden | aus | | 125–325 ms | 28–49 ms | 0 | – | 41–75 | 7 ms, 0 |
+| 2000 PNG | sichtbar | an | 1063×733 | 1554 ms | 795 ms | 500 | – | 1876 | 8 ms, 0 |
+| | hiddenFromStart | an | 100×30 | 1602 ms | 748 ms | 500 | – | 1823 | 7 ms, 0 |
+| | hiddenAfterVisible | an | 1063×737 | 1399 ms | 759 ms | 500 | – | 1806 | 7 ms, 0 |
+| | sichtbar | aus | | 339 ms | 132 ms | 0 | – | 58 | 6 ms, 0 |
+| | hidden (beide) | aus | | 86–340 ms | 77–89 ms | 0 | – | 40–80 | 7–8 ms, 0 |
+| 300 Ordner à 20 Dateien, Details | sichtbar | an | | 1741 ms | 421 ms | 300 Ordner-Icons | **300** | 1256 | 8 ms, 0 |
+| | hiddenFromStart | an | 100×30 | 1645 ms | 371 ms | 300 | **300** | 1273 | 8 ms, 0 |
+| | hiddenAfterVisible | an | | 1488 ms | 361 ms | 300 | **300** | 1231 | 7 ms, 0 |
+
+¹ erster Lauf im Prozess, enthält Start-Overhead (Plugin-Laden, Worker-Start).
+
+Beobachtungen:
+
+1. **Unsichtbarkeit stoppt nichts automatisch.** `KFileItemModelRolesUpdater` ist nie pausiert;
+   `DolphinView::hideEvent` versteckt nur den Tooltip.
+2. Die Arbeit ist **nach oben begrenzt** durch `ResolveAllItemsLimit = 500`
+   (`kfileitemmodelrolesupdater.cpp:56`). Auch eine nie angezeigte View (100×30, keine sichtbaren
+   Items) löst Rollen und Previews für bis zu 500 Items auf. Bei kleinen Ordnern sind das alle Items.
+3. Ordnergrößen (`KDirectoryContentsCounter`) laufen in der versteckten Details-View vollständig mit.
+4. Die Kosten fallen **pro Ordnerwechsel** an, maximal etwa 0,8 s CPU und 1,6 s Laufzeit bei 2000
+   Bildern. Danach herrscht Ruhe: im Leerlauf 0 Timer-Events und etwa 2 ms CPU pro Sekunde, gleich
+   wie bei sichtbarer View.
+5. **Doppelte Arbeit** entsteht nur, wenn die Plugin-View selbst Previews oder Ordnergrößen erzeugt.
+   Die Previews teilen sich den KIO-Thumbnail-Disk-Cache (zweiter Zugriff = Cache-Treffer). Bei einer
+   Treemap ist das Hauptduplikat nicht der RolesUpdater, sondern ihr eigener rekursiver Scan.
+6. Grenzen der Messung: offscreen-Plattform, ein Lauf pro Zeile, lokales SSD-Dateisystem; Remote-Orte
+   (sftp, smb) nicht gemessen. Dort ist die versteckte Preview-Arbeit teurer (Netzwerk).
+
+### 14.5 Zusatzprüfungen (versteckte View, auch deaktiviert)
+
+- **Laden:** Navigation mit versteckter View lädt normal; `directoryLoadingCompleted` und Items sind
+  korrekt ✔.
+- **Hidden Files** (`setHiddenFilesShown`), **Namensfilter** (Container-Slot `setNameFilter`, also der
+  Filterleisten-Pfad), **Sortierung** (`setSortOrder`) wirken sofort auf `items()` ✔.
+- **Auswahl:** `KItemListSelectionManager::setSelectedItems` und `setCurrentItem` sind sofort über
+  `selectedItems()` lesbar. Das entprellte `DolphinView::selectionChanged` und
+  `DolphinMainWindow::selectionChanged` kommen an. „Alles auswählen“ wirkt auf die versteckte View. Die
+  Auswahl überlebt das Umsortieren (URL-basiert) ✔.
+
+### 14.6 Geänderte Dateien (nur Spike-Branch)
+
+| Datei | Änderung |
+|---|---|
+| `src/dolphinviewcontainer.h` | +21 Zeilen: Spike-Methoden und -Member, Markierung `WHALE-M0-SPIKE` |
+| `src/dolphinviewcontainer.cpp` | +71/−1: Stack statt direkter View im Layout; Umleitung in `setActive`, `requestFocus`, `eventFilter`; Spike-Methoden |
+| `src/tests/CMakeLists.txt` | +4: eigenes Executable `whalem0spiketest` (nicht in ctest) |
+| `src/tests/whalem0spiketest.cpp` | neu (875 Zeilen): Mess- und Sondierungsprogramm |
+
+Regression: `dolphinmainwindowtest` mit und ohne Spike identisch (47 bestanden, 1 fehlgeschlagen).
+Der Fehler `testAccessibilityTree` tritt unter `offscreen` auch auf `master` auf. Der ctest-Lint
+`no_bare_qwait_in_tests` schlägt wegen der `qWait`s im Spike-Programm an; das ist für Wegwerf-Code
+akzeptiert.
+
+### 14.7 Bewertung der Architektur
+
+**Die Architektur mit dauerhaft vorhandener, versteckter `DolphinView` bleibt tragfähig.**
+
+- Die Shell arbeitet ohne Änderung mit derselben `DolphinView`. Kontextmenü, Info-Panel, Tabs,
+  Navigation, Filter, Sortierung und Auswahl funktionieren mit versteckter (und deaktivierter) View.
+- Das Fokusproblem ist real, aber mit zwei kleinen, lokalen Maßnahmen im Host vollständig beherrschbar.
+- Die Kosten sind begrenzt (≤ 500 Items pro Ordnerwechsel) und im Leerlauf null. Für den Alltag ist
+  das plausibel; für große Bilderordner oder Remote-Orte lohnt sich M11 später.
+
+### 14.8 Empfohlene Änderungen am Plan
+
+1. **K5 / M2 – Fokus:** Der `WhaleViewHost` macht beim Umschalten auf eine Plugin-View **beides**:
+   - `dolphinView->setEnabled(false)`, beim Zurückschalten `true`. Das schließt alle
+     `setFocus()`-Quellen, auch künftige aus upstream.
+   - Umleitung: `FocusIn` des Plugin-Widgets (Eventfilter, rekursiv für Kind-Widgets oder über
+     `QApplication::focusChanged`) → `container->activate()`; `setActive(true)` und `requestFocus`
+     fokussieren `currentWidget()`.
+   Da `setEnabled(false)` die übrigen `m_view->setFocus()`-Stellen entschärft, muss der Container nur
+   `setActive` und `requestFocus` umleiten. Der Umfang in `dolphinviewcontainer.cpp` sinkt damit eher
+   (Spike: etwa 15 Zeilen Logik).
+2. **M2 – Test:** Die Szenarien A–L aus 14.2 werden zu `whaleviewhosttest`. Wichtig sind I (kein
+   Fokus und keine Aktivierung über die versteckte View) und L (F2).
+3. **M5 – Gating:** `InlineRename` ist Pflicht-Gating. Ohne Capability wird
+   `KIO::RenameFileDialog` erzwungen, sonst entsteht ein unsichtbarer Editor. Prüfen, ob weitere
+   View-interne UI ebenfalls in der versteckten View aufgeht (Selection-Mode-Leisten liegen im
+   Container und sind sichtbar; der Platzhalter „Ordner ist leer“ liegt in der View und ist unsichtbar,
+   das ist gewollt).
+4. **3.2 – Bridge-Regeln präzisieren:** nur Anfrage-Signale emittieren, nie Zustandssignale
+   (`activated`, `selectionChanged`, `urlChanged` …). Vor jedem Emit den Container aktivieren, weil das
+   Hauptfenster nur die aktive View verbindet.
+5. **K12 / M11:** Die Priorität bleibt „optional“. Die Begründung wird ergänzt: Die versteckte View
+   verursacht pro Ordnerwechsel bis zu 500 Previews und alle Ordnergrößen. Der kleinste sinnvolle
+   Eingriff wäre ohne Upstream-Änderung möglich: Die Bridge schaltet bei aktiver Plugin-View die
+   Previews der versteckten View ab. Das geht aber nicht über `setPreviewsShown()`, weil das die
+   `[Dolphin]`-ViewProperties schreibt. Deshalb besser upstreamfähig: RolesUpdater pausieren, wenn die
+   View nicht sichtbar ist (M11).
+6. **O2 (Modellzugriff):** `findChild` hat im Spike problemlos funktioniert. Die Empfehlung „Accessor“
+   bleibt aus den genannten Gründen bestehen; `findChild` ist ein brauchbarer Fallback.
+7. **7.1:** Die Zeile zu `dolphinviewcontainer.cpp` ergänzen: Die „4× `setFocus`“ müssen nicht einzeln
+   umgeleitet werden, wenn die versteckte View deaktiviert wird. Nur `setActive` und `requestFocus`
+   brauchen die Umleitung auf das sichtbare Widget.
