@@ -49,6 +49,7 @@ class KToolBarPopupAction;
 class QToolButton;
 class PlacesPanel;
 class TerminalPanel;
+class WhaleViewActions; // Whale: view plugins
 class ServiceMenuShortcutManager;
 
 /** Used to identify that a custom command should be triggered on a view background double-click.*/
@@ -790,6 +791,7 @@ private:
     DolphinBookmarkHandler *m_bookmarkHandler;
     SelectionMode::ActionTextHelper *m_actionTextHelper;
     DisabledActionNotifier *m_disabledActionNotifier;
+    WhaleViewActions *m_whaleViewActions = nullptr; // Whale: view plugins
 
     KIO::OpenUrlJob *m_lastHandleUrlOpenJob;
 

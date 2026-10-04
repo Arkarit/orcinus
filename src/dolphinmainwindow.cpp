@@ -39,6 +39,7 @@
 #include "views/dolphinviewactionhandler.h"
 #include "views/draganddrophelper.h"
 #include "views/viewproperties.h"
+#include "whaleviewactions.h"
 
 #include <KAboutApplicationDialog>
 #include <KAboutData>
@@ -185,6 +186,7 @@ DolphinMainWindow::DolphinMainWindow()
 
     m_actionTextHelper = new SelectionMode::ActionTextHelper(this);
     setupActions();
+    m_whaleViewActions = new WhaleViewActions(actionCollection(), this); // Whale: view plugins
 
     m_actionHandler = new DolphinViewActionHandler(actionCollection(), m_actionTextHelper, this);
     connect(m_actionHandler, &DolphinViewActionHandler::createDirectoryTriggered, this, &DolphinMainWindow::createDirectory);
@@ -1707,6 +1709,7 @@ void DolphinMainWindow::activeViewChanged(DolphinViewContainer *viewContainer)
     connectViewSignals(viewContainer);
 
     m_actionHandler->setCurrentView(viewContainer->view());
+    m_whaleViewActions->setCurrentHost(viewContainer->viewHost()); // Whale: view plugins
 
     updateHistory();
     updateFileAndEditActions();

@@ -21,6 +21,7 @@
 #include "search/bar.h"
 #include "selectionmode/topbar.h"
 #include "statusbar/dolphinstatusbar.h"
+#include "whaleviewhost.h"
 
 #include <KActionCollection>
 #include <KApplicationTrader>
@@ -177,7 +178,10 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
     connect(undoManager, &KIO::FileUndoManager::jobRecordingFinished, this, &DolphinViewContainer::delayedStatusBarUpdate);
 
     m_topLayout->addWidget(m_messageWidget, positionFor.messageWidget, 0);
-    m_topLayout->addWidget(m_view, positionFor.view, 0);
+    // Whale: view plugins. The host shows m_view or a plugin view in its place.
+    m_viewHost = new WhaleViewHost(m_view, this);
+    connect(m_viewHost, &WhaleViewHost::activationRequested, this, &DolphinViewContainer::activate);
+    m_topLayout->addWidget(m_viewHost, positionFor.view, 0);
     m_topLayout->addWidget(m_filterBar, positionFor.filterBar, 0);
     if (GeneralSettings::showStatusBar() == GeneralSettings::EnumShowStatusBar::FullWidth) {
         m_topLayout->addWidget(m_statusBar, positionFor.statusBar, 0);
@@ -235,6 +239,7 @@ void DolphinViewContainer::setActive(bool active)
         m_urlNavigatorConnected->setActive(active);
     }
     m_view->setActive(active);
+    m_viewHost->setActive(active); // Whale: view plugins
 }
 
 bool DolphinViewContainer::isActive() const
@@ -275,6 +280,11 @@ const DolphinView *DolphinViewContainer::view() const
 DolphinView *DolphinViewContainer::view()
 {
     return m_view;
+}
+
+WhaleViewHost *DolphinViewContainer::viewHost() const
+{
+    return m_viewHost;
 }
 
 void DolphinViewContainer::connectUrlNavigator(DolphinUrlNavigator *urlNavigator)

@@ -1,7 +1,6 @@
 {
     "KPlugin": {
         "Description": "Test plugin built for a view API version Whale does not provide",
-        "Id": "whale_test_wrongapi",
         "License": "GPL-2.0-or-later",
         "Name": "Wrong API test plugin"
     },

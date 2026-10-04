@@ -26,6 +26,8 @@ public:
         , m_label(new QLabel)
     {
         m_label->setAlignment(Qt::AlignCenter);
+        // Clicking the view must give it the focus, which activates its view area.
+        m_label->setFocusPolicy(Qt::StrongFocus);
         updateText();
         connect(context, &WhaleViewContext::urlChanged, this, &WhaleHelloView::updateText);
     }

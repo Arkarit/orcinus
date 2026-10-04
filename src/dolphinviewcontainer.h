@@ -43,6 +43,7 @@ namespace SelectionMode
 {
 class TopBar;
 }
+class WhaleViewHost; // Whale: view plugins
 
 /**
  * @return True if the URL protocol is a search URL (e. g. baloosearch:// or filenamesearch://).
@@ -124,6 +125,11 @@ public:
 
     const DolphinView *view() const;
     DolphinView *view();
+
+    /**
+     * Whale: view plugins. @return The host that shows view() or a plugin view in its place.
+     */
+    WhaleViewHost *viewHost() const;
 
     /**
      * @param urlNavigator  The UrlNavigator that is supposed to control
@@ -548,6 +554,8 @@ private:
      * connected to this ViewContainer.
      */
     std::unique_ptr<DolphinUrlNavigator::VisualState> m_urlNavigatorVisualState;
+
+    WhaleViewHost *m_viewHost = nullptr; // Whale: view plugins
 };
 
 #endif // DOLPHINVIEWCONTAINER_H

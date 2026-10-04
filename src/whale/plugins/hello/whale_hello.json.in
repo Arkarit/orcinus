@@ -2,7 +2,6 @@
     "KPlugin": {
         "Description": "Minimal example of a Whale view plugin",
         "Icon": "face-smile",
-        "Id": "whale_hello",
         "License": "GPL-2.0-or-later",
         "Name": "Hello",
         "Version": "0.1"

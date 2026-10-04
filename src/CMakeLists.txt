@@ -730,3 +730,4 @@ endif()
 
 # Whale: view plugins
 add_subdirectory(whale)
+target_link_libraries(dolphinstatic whaleviewhost)

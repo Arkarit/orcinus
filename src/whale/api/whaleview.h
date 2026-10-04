@@ -44,6 +44,10 @@ public:
      *         for the lifetime of the view. The view owns it: Whale embeds it
      *         into its layout, takes it out again before destroying the view,
      *         and expects the view to delete the widget in its destructor.
+     *
+     *         The widget should accept focus (e.g. Qt::StrongFocus): Whale activates
+     *         the view area, for example the half of a split view, when the focus
+     *         enters the widget, and gives it the focus when the view area is activated.
      */
     virtual QWidget *widget() = 0;
 
