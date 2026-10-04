@@ -727,3 +727,6 @@ endif()
 if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     add_subdirectory(itemactions)
 endif()
+
+# Whale: view plugins
+add_subdirectory(whale)

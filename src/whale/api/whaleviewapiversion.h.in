@@ -1,0 +1,23 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Whale contributors
+ *
+ * SPDX-License-Identifier: LGPL-2.0-or-later
+ */
+
+#ifndef WHALEVIEWAPIVERSION_H
+#define WHALEVIEWAPIVERSION_H
+
+/**
+ * Version of the Whale view plugin API (headers and ABI of libwhaleviewapi).
+ *
+ * The API is not stable yet: a plugin is only accepted if the version in its metadata
+ * matches this value exactly. There is no backward compatibility between versions.
+ */
+#define WHALE_VIEW_API_VERSION @WHALE_VIEW_API_VERSION@
+
+/**
+ * Key of the integer API version in the JSON metadata of a view plugin.
+ */
+#define WHALE_VIEW_API_VERSION_KEY "X-Whale-ViewApiVersion"
+
+#endif

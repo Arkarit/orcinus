@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Whale contributors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+find_package(Qt6Test CONFIG REQUIRED)
+include(ECMAddTests)
+
+# A view plugin whose metadata claims a wrong API version. It lives in its own
+# plugin directory so that it never shows up when Whale runs from the build tree.
+math(EXPR WHALE_VIEW_API_WRONG_VERSION "${WHALE_VIEW_API_VERSION} + 1")
+configure_file(whale_test_wrongapi.json.in ${CMAKE_CURRENT_BINARY_DIR}/whale_test_wrongapi.json @ONLY)
+kcoreaddons_add_plugin(whale_test_wrongapi SOURCES whaletestwrongapiplugin.cpp INSTALL_NAMESPACE "whale/views")
+target_link_libraries(whale_test_wrongapi PRIVATE whaleviewapi KF6::CoreAddons)
+set(WHALE_TEST_EXTRA_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins)
+set_target_properties(whale_test_wrongapi PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_EXTRA_PLUGIN_DIR}/whale/views)
+
+ecm_add_test(whaleviewregistrytest.cpp
+    TEST_NAME whaleviewregistrytest
+    LINK_LIBRARIES whaleviewhost Qt6::Test)
+target_compile_definitions(whaleviewregistrytest PRIVATE
+    WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
+    WHALE_TEST_EXTRA_PLUGIN_DIR="${WHALE_TEST_EXTRA_PLUGIN_DIR}")
+add_dependencies(whaleviewregistrytest whale_hello whale_test_wrongapi)
+
+# Lint: the public plugin API and the plugins must not use Whale/Dolphin internals.
+if(NOT WIN32)
+add_test(
+    NAME whale_view_api_boundary
+    COMMAND bash -c
+        "result=\$(grep -rnE '#include [<\"](dolphin|kitemviews|views/|settings/|kfileitemmodel|kitemlist|dolphinview)' '${CMAKE_CURRENT_SOURCE_DIR}/../api' '${CMAKE_CURRENT_SOURCE_DIR}/../plugins'); \
+         if [ -n \"\$result\" ]; then \
+             echo 'The Whale view plugin API and the view plugins must only use Qt, KDE Frameworks and the API itself:'; \
+             echo \"\$result\"; \
+             exit 1; \
+         fi"
+)
+endif()
