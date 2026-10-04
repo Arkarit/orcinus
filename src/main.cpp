@@ -92,9 +92,16 @@ int main(int argc, char **argv)
 
     KLocalizedString::setApplicationDomain(whaleTranslationDomain);
 
+    QString displayName = i18n(WHALE_DISPLAY_NAME);
+    if (WHALE_DEV_BUILD) {
+        // Tells a development build apart from the regular Whale in window titles. Only the
+        // display name changes: D-Bus paths, configuration and sessions stay the same.
+        displayName += QStringLiteral("-Dev");
+    }
+
     KAboutData aboutData(
         QStringLiteral(WHALE_COMPONENT),
-        i18n(WHALE_DISPLAY_NAME),
+        displayName,
         QStringLiteral(DOLPHIN_VERSION_STRING),
         i18nc("@title", "File Manager"),
         KAboutLicense::GPL,

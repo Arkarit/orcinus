@@ -23,6 +23,7 @@ set(WHALE_HOMEPAGE "https://github.com/Arkarit/whale")
 
 option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Whale" OFF)
 option(WHALE_INSTALL_DOLPHIN_EXTRAS "Install Dolphin-named compatibility artifacts (may conflict with Dolphin)" OFF)
+option(WHALE_DEV_BUILD "Development build: shows \"Whale-Dev\" in window titles to tell it apart from the regular Whale" OFF)
 
 set(QT_MIN_VERSION "6.4.0")
 set(KF6_MIN_VERSION "6.23.0")
