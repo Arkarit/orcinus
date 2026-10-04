@@ -65,3 +65,16 @@ Denkbar wären passendere Dock-Optionen (z. B. `AnimatedDocks`, `AllowNestedDock
 `AllowTabbedDocks`, `GroupedDragging`), sichtbare Drop-Indikatoren oder eine andere
 Docking-Bibliothek (etwa KDDockWidgets oder Qt Advanced Docking System). Vorher klären, wie stark
 das von Style und Plattform (Wayland/X11) abhängt.
+
+Vorschlag (von Desktop-Elfie, gefällt dem Nutzer sehr): Das schwer treffbare Ziehen muss gar nicht
+der einzige Weg sein. Im Kontextmenü eines Panels gäbe es zusätzlich **„Panel positionieren →
+Links | Rechts“** (ggf. auch Oben/Unten). Seit Qt 6.9 gibt es dafür
+`QDockWidget::setDockLocation(Qt::DockWidgetArea)` mit `dockLocation()` und
+`dockLocationChanged()`. Geprüft: Die installierten Qt-6.10.2-Header enthalten die Funktion.
+Ältere Qt-Versionen bieten `QMainWindow::addDockWidget(area, dock)` an. Zu beachten:
+- Dolphin verlangt nur Qt 6.4 (`QT_MIN_VERSION` in `CMakeLists.txt`). Für `setDockLocation()`
+  braucht es also eine Versionsprüfung oder den Weg über `addDockWidget()`.
+- Panels haben bereits ein Kontextmenü mit „Panels sperren“ (`lock_panels`,
+  `DolphinMainWindow`). Das Positionieren gehört dorthin, sollte bei gesperrten Panels aber
+  ebenfalls funktionieren oder klar deaktiviert sein.
+- Ein guter Kandidat für einen Merge Request bei KDE, weil die Änderung klein und unabhängig ist.
