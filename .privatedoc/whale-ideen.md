@@ -78,3 +78,23 @@ Links | Rechts“** (ggf. auch Oben/Unten). Seit Qt 6.9 gibt es dafür
   `DolphinMainWindow`). Das Positionieren gehört dorthin, sollte bei gesperrten Panels aber
   ebenfalls funktionieren oder klar deaktiviert sein.
 - Ein guter Kandidat für einen Merge Request bei KDE, weil die Änderung klein und unabhängig ist.
+
+## 6. Information-Panel: Höhe von Vorschau und Infotext einstellbar
+
+Im Information-Panel (F11) nimmt die Vorschau oft so viel Höhe ein, dass für die Metadaten nur ein
+kleiner Bereich mit einer nutzlosen Scrollleiste bleibt (Screenshot vom 2026-10-04: Vorschau eines
+Shell-Skripts, darunter Typ, Größe, Datum usw. mit Scrollbalken). Die Aufteilung zwischen Vorschau
+und Infotext sollte einstellbar sein.
+
+Erster Befund, noch nicht analysiert (`src/panels/information/informationpanelcontent.cpp`):
+- Vorschau, Name, Metadaten-Bereich (`QScrollArea m_metaDataArea`) usw. liegen in einem einfachen
+  vertikalen Layout (`:134–140`), ohne Splitter.
+- Die Vorschau wird quadratisch so groß wie die Panelbreite (`m_preview->setSizeHint(QSize(maxWidth, maxWidth))`,
+  `:495`) und mindestens `KIconLoader::SizeEnormous` hoch (`:66`). Bei einem breiten Panel frisst sie
+  deshalb die Höhe. Das Video-Widget folgt derselben Größe (`:498`).
+
+Mögliche Richtungen: ein `QSplitter` zwischen Vorschau und Metadaten (Position in
+`dolphin_informationpanelsettings.kcfg` speichern), eine einstellbare maximale Vorschauhöhe, oder
+eine automatische Begrenzung, damit die Metadaten ohne Scrollleiste passen, solange das Panel hoch
+genug ist. Ein Splitter wäre der direkteste Weg und ebenfalls ein Kandidat für einen Merge Request
+bei KDE.
