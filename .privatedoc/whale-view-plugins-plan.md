@@ -1536,3 +1536,127 @@ auf Wayland weiter grün. Volle Suite offscreen: 47/48; der Rest ist der bekannt
 - Remote-Abnahme.
 
 **Weiter offen:** O3 (View pro Ordner) und T1/T2 unverändert.
+
+### 14.15 Ergebnisse aus M8a: lokaler `WhaleTreeScanner` (2026-10-05)
+
+Commit `fa219d6d1`. **Keine Änderung an Dolphin-Dateien.** M8 wurde geteilt: M8a ist der lokale Scanner,
+M8b bringt Cache, Invalidierung und ggf. Remote.
+
+**API-Version 5:** öffentlicher Service, weil die Treemap (M9) ihn direkt nutzen soll. Neu sind
+`WhaleTreeScanner`, `WhaleTreeScanOptions` und `WhaleTreeNode` sowie `WhaleViewContext::treeScanner()`.
+
+**Lebensdauer:** **ein Scanner pro Context**, beim ersten Aufruf erzeugt, Kind des Contexts (wie
+`items()`, `previews()`, `fileOperations()`). Er führt einen Scan zur Zeit aus. Verschwindet der Context
+während eines Scans, wird dieser still abgebrochen. Mehrere Contexts scannen parallel. Der Scanner ist
+abstrakt mit Host-Implementierung, damit M8b den Cache host-seitig einbauen kann, ohne die API zu ändern.
+
+**API:**
+
+| | |
+|---|---|
+| `scan(QUrl, WhaleTreeScanOptions)` | startet, sendet sofort `started()`; `false` (ohne Wirkung), solange ein Scan läuft |
+| `cancel()` | sendet `canceled()` noch im Aufruf; danach kommt für diesen Scan nichts mehr, `isRunning()` ist `false`, ein neuer Scan darf sofort folgen |
+| `isRunning()` | |
+| Signale | `started(url)`, `progress(besuchte Einträge)` (höchstens alle 100 ms), `finished(WhaleTreeNode)`, `canceled()`, `failed(Error, Meldung)` |
+| Optionen | `maxDepth` (−1 = unbegrenzt), `stayOnFilesystem` (Vorgabe an), `includeHidden` (Vorgabe an) |
+| `Error` | `InvalidUrl`, `NotLocal`, `NotFound`, `NotAFolder`, `AccessDenied` (nur für die Wurzel) |
+
+Jeder Scan endet mit genau einem von `finished`, `canceled` oder `failed`. **Ein Teilbaum wird nie
+geliefert.** Auch Fehler der Wurzel und abgelehnte URLs kommen asynchron.
+
+**`WhaleTreeNode`:** implizit geteilter, **unveränderlicher Snapshot** (`QExplicitlySharedDataPointer`
+auf konstante Daten). Er ist in jedem Thread lesbar, Kopien sind billig, und ein Teilbaum lebt, solange
+eine Kopie existiert. Es gibt keine rohen Zeiger. Felder:
+
+| Feld | Bedeutung |
+|---|---|
+| `path()`, `url()`, `name()` | lokaler Pfad ohne abschließenden Slash |
+| `type()` | `File`, `Directory`, `Symlink` (auch kaputte Links), `Other` (Gerät, Pipe, Socket) |
+| `depth()` | Wurzel 0 |
+| `size()` | eigene Größe: Dateiinhalt (scheinbare Größe, `st_size`); 0 für Ordner, Links und Dateien ohne Blöcke (wie Dolphins Zähler, z. B. `/proc/kcore`) |
+| `totalSize()` | `size()` plus alles darunter, **auch jenseits von `maxDepth`** |
+| `fileCount()`, `directoryCount()` | alle Nicht-Ordner bzw. Ordner darunter, in jeder Tiefe |
+| `isComplete()` | `false`, wenn darunter ein unlesbarer oder verschwundener Ordner oder ein nicht betretener Mount-Punkt liegt |
+| `children()` | nach Namen sortiert (Byte-Reihenfolge); leer jenseits von `maxDepth` |
+
+Ein Node speichert den vollen Pfad. Das ist einfach und sicher, kostet aber Speicher; siehe Performance.
+Die private Datenklasse liegt in `api/whaletreenode_p.h` und ist nur für Whale gedacht.
+
+**Threading:** Die öffentliche API läuft im GUI-Thread. Jeder Scan ist ein Task eines **eigenen**
+Thread-Pools (höchstens 4 Threads, damit Qts globaler Pool nicht blockiert wird), umgesetzt mit
+`QtConcurrent::run` und `QPromise`. Ergebnisse und Fortschritt kommen über `QFutureWatcher` im GUI-Thread
+an (Test: `finished` und `progress` im GUI-Thread, kein Eintrag im GUI-Thread besucht; ein 10-ms-Timer tickt
+während eines Scans von 1,1 s etwa 105-mal).
+
+**Abbruch:** `cancel()` bricht die `QFuture` ab. Der Worker prüft nach jedem Eintrag und schließt `fts`;
+sein Ergebnis wird verworfen. Der Scanner wartet nie auf einen Worker. Der Watcher wird gelöst und
+entsorgt, und der Destruktor bricht still ab. Gemessen liegt die Latenz unter 50 ms (Abtastintervall des
+Tests) bei einem künstlich gebremsten Scan nach rund 390 von 6660 Einträgen. 25 Abbrüche direkt nach dem
+Start: alle Worker sind sofort fertig, danach ist der Baum korrekt. Zehnfach wiederholt stabil.
+
+**Symlinks:** `FTS_PHYSICAL`. Ein Link ist ein eigener Node vom Typ `Symlink` mit Größe 0, ohne Kinder,
+und wird nie verfolgt. Es gibt keine Schleifen (getestet mit einem Link auf die Wurzel) und keine doppelte
+Zählung. Kaputte Links (`FTS_SLNONE`) sind ebenfalls `Symlink`. **Nur ein Link als Wurzel** wird verfolgt
+(`FTS_COMFOLLOW`, wie Dolphins Zähler). `FTS_DC` (nur über Bind-Mounts möglich) wird als unvollständiger
+Ordner ohne Kinder geführt. Harte Links zählen pro Link.
+
+**Hidden:** Ein Name, der mit einem Punkt beginnt, gilt als versteckt. Standardmäßig wird alles gescannt.
+Mit `includeHidden=false` fehlen versteckte Einträge in jeder Tiefe; versteckte Ordner werden nicht
+betreten. Eine versteckte Wurzel wird trotzdem gescannt. Das ist **eine eigene Option des Scanners**
+und nicht an Dolphins Einstellung gekoppelt.
+
+**Dateisystem-Grenzen:** `stayOnFilesystem` (Vorgabe an) setzt `FTS_XDEV` und vergleicht zusätzlich
+`st_dev` mit der Wurzel. Ein Mount-Punkt erscheint als Ordner ohne Kinder mit `isComplete()=false`.
+Getestet ohne Mount-Manipulation an der echten Grenze `/sys/fs/cgroup` unter `/sys/fs` (nur lesend; der
+Test wird übersprungen, wenn das kein Mount-Punkt ist). Mit `stayOnFilesystem=false` wird hineingegangen.
+
+**Fehler:**
+
+| Fall | Verhalten |
+|---|---|
+| leere/ungültige URL | `failed(InvalidUrl)` |
+| nicht lokal (sftp, smb, trash, zip, …) | `failed(NotLocal)`, „Only local folders can be scanned, not …“ |
+| Wurzel fehlt oder verschwindet | `failed(NotFound)` |
+| Wurzel ist kein Ordner | `failed(NotAFolder)` |
+| Wurzel unlesbar | `failed(AccessDenied)` |
+| unlesbarer Unterordner (Rechte) | Node ohne Kinder, unvollständig; der Rest wird gescannt |
+| Ordner verschwindet während des Scans | wie unlesbar (Node ohne Kinder, unvollständig) |
+| Datei verschwindet, bevor ihr Ordner gelesen ist | fehlt im Baum |
+| Datei verschwindet oder ändert sich, nachdem ihr Ordner gelesen ist | bleibt mit den Daten zum Lesezeitpunkt |
+| neue Datei in einem noch nicht gelesenen Ordner | erscheint |
+
+**Performance (offscreen, lokale SSD, Seiten-Cache warm):**
+
+| Baum | Scan | Speicher mit gehaltenem Baum |
+|---|---|---|
+| klein (2 Einträge) | < 1 ms | – |
+| 6000 Dateien, 330 Ordner | ca. 11 ms | ca. 1,7 MB (frischer Prozess, ca. 270 B pro Node) |
+| 100 000 Dateien, 2100 Ordner, lange Namen | ca. 205 ms | ca. 47 MB (ca. 470 B pro Node, vor allem der volle Pfad als QString) |
+
+Die Arbeit wächst linear. Der GUI-Thread bleibt frei.
+
+**Dev-MCP:** Es gibt bewusst **kein** neues Tool. Der Scanner hat keine UI, und die Abnahme läuft über
+`whaletreescannertest`. Ein `scan_tree` kann mit M9 kommen, wenn eine View den Scanner zeigt.
+
+**Tests:** `whaletreescannertest` (17 Funktionen, 25 Fälle): einfacher Baum, `maxDepth`, Symlinks (Datei,
+Ordner, Schleife, kaputt, Link als Wurzel), Hidden, Abbruch sofort (25×) und während des Scans, Dateien und
+Ordner ändern sich oder verschwinden während des Scans (über einen Test-Haken im Worker), fehlende Rechte,
+abgelehnte Wurzeln (8 Fälle), ein Scan zur Zeit und paralleles Scannen zweier Scanner, Threads, Wiederholbarkeit
+(viermal identischer Baum), großer Baum, echter Mount-Punkt, Scanner des Contexts (Lebensdauer, Abbruch
+beim Zerstören). Volle Suite offscreen 48/49 (bekannter `testAccessibilityTree`), auf Wayland ist der
+Scanner-Test grün.
+
+**Bewusste Grenzen von M8a:** kein Cache, keine Wiederverwendung alter Scans, keine Überwachung, keine
+Persistenz, nur `file:`-URLs, keine Teilbäume bei Abbruch, keine inkrementellen Node-Signale, harte Links
+nicht dedupliziert, scheinbare statt belegter Größe.
+
+**Plan für M8b:**
+
+- Cache pro Wurzel im Host, gemeinsam für alle Contexts: einen Scan wiederverwenden, Teilbäume aus dem
+  Baum einer Oberwurzel liefern.
+- Invalidierung über `KDirWatch` bzw. die Änderungen des `KCoreDirLister`, verbunden mit dem Listing.
+- Ein Speicherbudget, ggf. kompaktere Nodes (Name statt vollem Pfad, Pfad aus dem Elternknoten).
+- Optional ein `KIO::listRecursive`-Fallback für Remote-Orte (Plan 4.6), getrennt vom `fts`-Pfad.
+- Optional inkrementelle Signale, falls die Treemap sie braucht.
+
+**Weiter offen:** M9 (Treemap), T1/T2 (tiefe Auswahl) und O3 (View pro Ordner) unverändert.
