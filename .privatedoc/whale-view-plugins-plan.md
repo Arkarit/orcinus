@@ -808,7 +808,7 @@ Whale-Integration kommen in getrennte Commits.
 | **M6** | Persistenz: History-Umschlag, Session-Key, globale Plugin-Konfiguration, Standard-View | `dolphinviewcontainer.cpp`, `dolphintabwidget.cpp` | Back/Forward stellt die View und ihren State wieder her; Neustart mit „Tabs merken“ stellt sie wieder her; alte Sessions ohne Whale-Daten laden fehlerfrei |
 | **M7** | `WhalePreviewProvider` + Drag/Drop über `WhaleFileOperations` | – | Test-View zeigt Thumbnails; Drag aus der Test-View in die Dolphin-View (Split) und Drop in die Test-View kopieren bzw. verschieben korrekt |
 | **M8** | `WhaleTreeScanner` (lokal, `fts`, Thread, Abbruch, inkrementell, Cache; `KIO`-Fallback später) | – | `whaletreescannertest` mit `QTemporaryDir`-Bäumen: Größen, Symlinks (nicht folgen), Abbruch, keine Grenzen von Dateisystemen überschreiten (`FTS_XDEV`) |
-| **M9** | Treemap-Plugin: Squarified-Layout + Cushion-Rendering, Hover → Info-Panel, Doppelklick auf Ordner → `openUrl` oder internes Hineinzoomen (State), T1-Kontextmenü, eigener State (Wurzel, Tiefe, Farbmodus) | – | `whaletreemaplayouttest` (deterministisches Layout); manuelle Abnahme: keine Datei-Action trifft ein falsches Ziel |
+| **M9** | Treemap-Plugin: Squarified-Layout + Cushion-Rendering, Hover → Info-Panel, Doppelklick auf Ordner → `openUrl` oder internes Hineinzoomen (State), T1-Kontextmenü, eigener State (Wurzel, Tiefe, Farbmodus) **(umgesetzt ohne T1-Kontextmenü, siehe 14.17)** | – | `whaletreemaplayouttest` (deterministisches Layout); manuelle Abnahme: keine Datei-Action trifft ein falsches Ziel |
 | **M10** | *Optional:* T2 Command-Routing, falls T1 nicht reicht | `dolphinviewactionhandler.cpp`, `dolphinmainwindow.cpp`, `dolphintabpage.cpp` | Papierkorb, Kopieren usw. per Shortcut auf tiefen Treemap-Items |
 | **M11** | *Optional, upstreamfähig:* RolesUpdater einer unsichtbaren View pausieren | `kitemviews/kfileitemlistview.cpp` | nur bei messbarer Last aus M0; als eigener, upstream-tauglicher Commit |
 
@@ -1773,3 +1773,171 @@ zehnfach stabil. `whaletreescannertest` (M8a) bleibt unverändert grün. Volle S
 - feinere Ereignisfilter (z. B. versteckte Dateien bei `includeHidden=false`)
 
 **Weiter offen:** M9 (Treemap), T1/T2 und O3 unverändert.
+
+### 14.17 Ergebnisse aus M9: Treemap-View `whale_treemap` (2026-10-05)
+
+Commits `93f1e63f0` (API v6, Host), `3fd59b085` (Plugin, Tests), `a89e24122` (Dev-MCP).
+**Keine Änderung an Dolphin-Dateien.** Das Plugin nutzt nur die öffentliche API, Qt und KF6
+(Boundary-Lint der Includes plus neuer Test `whale_view_plugin_dependencies`, der die gelinkten
+Bibliotheken der gebauten Plugins prüft). Der Stresstest der Architektur ist bestanden: Für eine
+View, die keine Dateiliste ist, waren keine Dolphin- oder kitemviews-Interna nötig, wohl aber
+**zwei kleine Erweiterungen der Context-API**.
+
+**API-Version 6** (öffentliche API erweitert):
+
+| Erweiterung | Warum | Umsetzung (Host) |
+|---|---|---|
+| `WhaleViewContext::openFolder(url)` | `activateItems()` kennt nur das Listing; ein tiefer Ordner ließ sich nicht öffnen | Bridge aktiviert die View-Fläche und löst `DolphinView::urlActivated` aus (3.2) → `DolphinMainWindow::handleUrl()` → `setUrl` mit History-Eintrag. Lokale Nicht-Ordner werden ignoriert, andere URLs gehen wie ein Link an die Shell |
+| `requestItemInfo(url)` auch für tiefe Einträge | bisher Null-Item für alles außerhalb des Listings | Bridge erzeugt `KFileItem(url)` aus dem Dateisystem für existierende lokale Einträge; fehlende und nicht-lokale URLs gelten als „keins“ |
+| `supportsUrl()` wird jetzt genutzt | stand seit M1 in der API, wurde aber nie gefragt | `showPluginView()` verweigert nicht unterstützte Orte; beim Ortswechsel dorthin ersetzt der Host die View durch die Dateiliste (`lastRestore.source = "location"`), die History bringt sie zurück. Der Umschalter deaktiviert Views mit `X-Whale-RequiresLocal` für nicht-lokale Orte (aus den Metadaten, ohne Laden) |
+
+**Plugin und Metadaten:** ID `whale_treemap`, Name „Treemap“, Icon `folder-chart`,
+`X-Whale-Capabilities` `Selection`, `RecursiveContent`, `KeyboardNavigation`,
+`X-Whale-RequiresLocal: true`; `supportsUrl()` nur `file:`.
+
+**Capabilities:** `Selection | RecursiveContent | KeyboardNavigation`.
+
+- **Kein `Zoom`:** Die Zoom-Actions des Hosts gehen an die `DolphinView`; die API hat keinen
+  Zoom-Request an Plugins. Das Gating sperrt sie also zu Recht; die Treemap zoomt mit eigener
+  Bedienung (Rad, +/−, Knopf).
+- **Kein `MultiSelection`:** Es gibt genau ein ausgewähltes Element („Alles auswählen“ bleibt gesperrt).
+- Nicht gesetzt: `HostOrder`, `Grouping`, `Previews`, `Drag`, `Drop`, `InlineRename`.
+- Wirkung (unverändertes M5-Gating): Sortieren/Gruppieren/Zusatzinfo, Zoom, Vorschau, Auswahlmodus
+  und **alle Actions auf ausgewählten Elementen** sind gesperrt, Letztere mit dem Grund
+  `RecursiveContent`, und zwar auch dann, wenn ein Element des Listings ausgewählt ist.
+
+**Aufbau (alles im Plugin):**
+
+| Klasse | Aufgabe |
+|---|---|
+| `TreemapLayout` | reines Layout, ohne Widgets; testbar ohne View (statische Hilfsbibliothek `whaletreemapcore`) |
+| `TreemapRenderer` | Cushion-Bild eines Layouts, Farben, Labels |
+| `TreemapCanvas` | `QWidget` + `QPainter`: Zeichnen, Eingabe, Hit-Test |
+| `TreemapWidget` | Leiste (Zoom-Knopf, Pfad, Info, Farbmodus, Namen) + Canvas; `Q_INVOKABLE`-Beschreibung für Dev-Tools |
+| `TreemapView` | `WhaleView`: Scan, Auswahl, Navigation, Zoom, State |
+
+**Datenquelle:** nur `context->treeScanner()` (Optionen: Vorgaben; versteckte Einträge zählen
+immer, weil es um Platz geht, unabhängig von Dolphins Einstellung; keine fremden Dateisysteme).
+Ortswechsel bricht den alten Scan ab und startet einen neuen; der alte Baum verschwindet sofort.
+`loadingStarted` am selben Ort (F5, Dolphins Reload nach Änderungen) scannt erneut und behält Zoom und
+Auswahl. Keine eigene Rekursion, kein eigener Cache.
+
+**Layout:** Squarified (Bruls, Huizing, van Wijk 2000).
+
+- Flächen exakt proportional zu `totalSize()` (relativer Fehler < 1e-6 im Test).
+- Deterministisch: absteigend nach Größe, Gleichstand in der Namensreihenfolge des Scanners
+  (`stable_sort`), Positionen aus Größenanteilen akkumuliert.
+- Lückenlos und überlappungsfrei: Nachbarn teilen sich Kanten, das letzte Element einer Reihe und die
+  letzte Reihe enden exakt am Rand. Getestet bis auf das Pixel (jedes Pixel genau einmal per
+  Pixelmitte).
+- Einträge der Größe 0 bekommen keine Zelle; eine Wurzel ohne Größe zeigt „Nichts belegt Platz“.
+- Kleine Einträge: Die kleinsten Kinder eines Ordners, deren Fläche unter 12 px² läge, werden zu
+  **einer Rest-Zelle** mit ihrer Gesamtgröße zusammengefasst; ein einzelnes kleines Kind bleibt
+  einzeln. Ordner unter 3 px Seitenlänge werden nicht weiter geteilt. So hängt die Zahl der Zellen
+  von der Fläche ab, nicht von der Baumgröße, und Proportionen und Hierarchie stimmen trotzdem.
+- Zellen in Breitensuche-Reihenfolge mit Eltern-/Kind-Indizes; Hit-Test halboffen (ein Punkt auf
+  einer Kante gehört genau einer Zelle).
+
+**Rendering:** `QWidget` + `QPainter`, kein OpenGL, kein QML.
+
+- Echtes Cushion-Shading (van Wijk, van de Wetering 1999): parabolische Grate pro Zelle in beide
+  Richtungen (Höhe 0,5, Faktor 0,75 pro Ebene), Licht von oben links, pro Pixel der Blätter in ein
+  `QImage` (Gerätepixel, DPR-fähig). Rahmen für die obersten zwei Ordnerebenen.
+- Namen, wo sie passen: Ordner der ersten zwei Ebenen oben links, Blätter mittig; Namen überlappen
+  nie (Ordner zuerst), zu stark gekürzte Namen entfallen.
+- Farben: nach Dateityp (MIME per Endung, Cache pro Endung) oder nach Top-Ordner (Goldener Winkel;
+  beim Hineinzoomen bleibt die Farbe des Top-Ordners).
+- Das Bild entsteht nur bei neuem Layout, Option, Palette, Schrift oder DPR neu. Hover und Auswahl
+  zeichnen nur Umrisse auf das gecachte Bild. Layout lazy vor Paint oder Hit-Test.
+
+**Hover / Info:** Hover hebt die Zelle hervor und meldet sie über `requestItemInfo` (auch tiefe
+Einträge, Info-Panel und Statusleiste reagieren). Ohne Hover wird eine **tiefe Auswahl** gemeldet, eine
+Auswahl im Listing kennt das Info-Panel ohnehin. Rest-Zellen melden nichts. Die Leiste zeigt den
+Eintrag unter dem Zeiger (sonst den ausgewählten) mit Gesamtgröße und Dateizahl.
+
+**Auswahl:** genau ein Element, view-lokal, URL-basiert.
+
+| Fall | Treemap | Whales Auswahl (`DolphinView`) |
+|---|---|---|
+| Element des Listings | ausgewählt | genau dieses Element (Statusleiste, Info-Panel, Dateiliste nach View-Wechsel) |
+| tiefes Element | ausgewählt | **leer** (der Host ignoriert URLs außerhalb des Listings), damit keine unsichtbare Auswahl bleibt |
+| Whales Auswahl ändert sich (z. B. neuer Ordner) | übernimmt das erste Element | – |
+| Whales Auswahl wird leer | eine Listing-Auswahl verschwindet, eine tiefe bleibt | – |
+
+Keine Datei-Action wird freigeschaltet (siehe Capabilities). Shortcuts wie Entf, Umschalt+Entf,
+F2, Strg+X/C/D laufen ins Leere (getestet mit echter Shortcut-Verarbeitung; die Dateien bleiben).
+
+**Navigation / Drilldown:** bewusst getrennte Eingaben.
+
+| Eingabe | Wirkung |
+|---|---|
+| Klick | wählt das tiefste Element unter dem Zeiger |
+| Pfeil links/rechts | Nachbar in der Layout-Reihenfolge |
+| Pfeil hoch / runter | übergeordneter Ordner / größtes Kind |
+| Enter | öffnet den ausgewählten Ordner bzw. den Ordner der ausgewählten Datei als **Whale-Ort** (`openFolder`) |
+| Doppelklick | öffnet den Ordner des Elements unter dem Zeiger als Whale-Ort (Dateien direkt im Ort: nichts) |
+| Rad hoch / `+` | zoomt **innerhalb** der Treemap eine Ebene zum Zeiger bzw. zur Auswahl hin (Ort bleibt) |
+| Rad runter / `−` / Knopf | zoomt eine Ebene heraus |
+| Esc | hebt die Auswahl auf |
+
+Zurück, Vor und Hoch sind Whales normale Navigation. Dateien werden nicht geöffnet (kein Aktivieren
+tiefer Elemente vor T1).
+
+**View-State** (`saveState`, Format 1, `QDataStream`): Zoom-Pfad (Namen relativ zum Ort), ausgewähltes
+Element (relativ), Farbmodus, Namen an/aus. Über die M6-Infrastruktur: View-Wechsel, History und
+Sitzung. Kommt der State vor dem Baum (Ortswechsel, Cache-Miss), wartet er und wird beim Ergebnis
+angewendet; nicht mehr existierende Pfade werden so weit wie möglich aufgelöst. Eine inzwischen in
+der Dateiliste getroffene Auswahl hat Vorrang vor der gespeicherten.
+
+**Cache-Verhalten:** automatisch über M8b, keine Treemap-Schicht. Zweiter Besuch: Hit (3–4 ms bis
+zur Anzeige). Änderung unter dem Ort → Invalidierung → beim nächsten Besuch echter Scan mit neuem
+Ergebnis. Eine angezeigte Treemap aktualisiert sich nicht live (Ausnahme: Dolphins Reload des
+Listings bzw. F5); Live-Updates bleiben M8c.
+
+**Performance** (Plasma/Wayland, Canvas 1459 × 916, warmer Seiten-Cache):
+
+| Baum | Scan (Worker) | Zellen | Layout | Render | Hover-Repaint | Cache-Hit | Resize (Layout + Render) |
+|---|---|---|---|---|---|---|---|
+| 1k Dateien | 13 ms | 1.693 | 0,3 ms | 10 ms | ~10 µs | 3 ms | 0,3 + 7 ms |
+| 10k | 30 ms | 11.110 | 1,3 ms | 11 ms | ~10 µs | 3 ms | 1,2 + 7 ms |
+| 100k | 199 ms | 17.598 (1.111 Rest) | 8,5 ms | 12 ms | ~10 µs | 4 ms | 8 + 7 ms |
+| 100k in einem Ordner (Layout-Test, 1600 × 1000) | – | 22.076 | 24 ms | 12 ms | – | – | – |
+
+Normale Bäume sind interaktiv; große degradieren über die Rest-Zellen. Der GUI-Thread scannt nie; Layout
+und Render liegen auch bei 100k unter 40 ms. Die Ladeanzeige erscheint nach 150 ms (bei 300k Dateien
+sichtbar, Cache-Hits flackern nicht).
+
+**Dev-MCP:** `panes.N.treemap` (Selbstbeschreibung über `treemapState()` des Widgets per Meta-Objekt,
+ohne Plugin-Header), `treeCache`, `shell.itemInfoUrl/itemInfoIsDir`, `window.width/height`. Tools
+`treemap_hover`, `treemap_select`, `treemap_activate`, `treemap_zoom`, `treemap_key`,
+`treemap_set_options` mit **echter Eingabe** (Maus über das Fenster wie QTest, also Klick-Fokus und
+Doppelklick-Erkennung; Tasten über die Shortcuts des Fensters zuerst), dazu `set_split_ratio`,
+`set_window_size`, `trigger_action reload/show_information_panel`. Ein `hit_test`-Tool war nicht nötig.
+
+**MCP-Abnahme** `test_m9_acceptance.py` (54 Schritte, privater Session-Bus, Dateioperationen erlaubt):
+A Grundansicht, B Hover/Info, C Navigation, D View-State, E History, F Split (Fokus, Aktivität, Resize
+beider Hälften), G Neustart, H Cache, I Sicherheit der tiefen Auswahl, L Laden/Fehler/`trash:/`.
+Grün offscreen (ctest `whale_dev_mcp_m9_e2e`) und auf **echtem Plasma/Wayland** (zweimal), Screenshots
+geprüft.
+
+**Tests:** `whaletreemaplayouttest` (18 Fälle), `whaletreemaptest` (22 Funktionen), drei neue Fälle in
+`whaleactionstest` (API v6). Volle Suite offscreen seriell 53/54 (bekannter `testAccessibilityTree`).
+M3–M6 und M9 auf Wayland grün. **M7 auf Wayland ist flaky** (Schritt C, Drop nicht akzeptiert): auf dem
+unveränderten Stand M8b 1 von 6 Läufen, mit M9 3 von 10; offscreen stabil. Vorbestehend, nicht M9.
+
+**Abweichungen vom Plan:**
+
+- API-Version 6 statt 5 (zwei Context-Erweiterungen, `supportsUrl` im Host).
+- **Kein T1-Kontextmenü**, überhaupt kein Kontextmenü in der Treemap (Vorgabe: T1/T2 nicht in M9).
+- Doppelklick = echte Navigation, Drilldown separat (Rad, +/−); beides nie auf derselben Eingabe.
+- Capability `Zoom` nicht gesetzt (s. o.); der State enthält keine „Tiefe“, sondern den Zoom-Pfad.
+- Die Treemap folgt nicht Dolphins Hidden-Files-Einstellung und Filterleiste (zeigt immer alles, was
+  Platz belegt).
+
+**Offen für T1/T2:** Kontextmenü für tiefe Elemente mit reduzierten Operationen über
+`WhaleFileOperations` auf expliziten Listen; „Im Ordner anzeigen“; Datei-Shortcuts in der Treemap;
+Öffnen tiefer Dateien; Mehrfachauswahl.
+
+**Weiter offen:** O3 (View pro Ordner), M8c (Teilbäume aus Oberwurzeln, Live-Updates, Remote), M10 (T2),
+M11 (RolesUpdater pausieren). Ideen für später: Live-Aktualisierung der angezeigten Treemap über ein
+Invalidierungssignal, animiertes Zoomen, Tooltip, Layout im Worker bei sehr großen Flächen.
