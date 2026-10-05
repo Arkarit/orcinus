@@ -93,6 +93,16 @@ QString WhaleDevAutomationDBus::TriggerAction(const QString &actionId)
     return toJson(m_automation->triggerAction(actionId));
 }
 
+QString WhaleDevAutomationDBus::SetSelection(int pane, const QStringList &urls, const QString &current)
+{
+    return toJson(m_automation->setSelection(pane, urls, current));
+}
+
+QString WhaleDevAutomationDBus::ActivateItems(int pane, const QStringList &urls)
+{
+    return toJson(m_automation->activateItems(pane, urls));
+}
+
 QString WhaleDevAutomationDBus::WaitForState(const QString &conditions, int timeoutMs)
 {
     QJsonParseError parseError;

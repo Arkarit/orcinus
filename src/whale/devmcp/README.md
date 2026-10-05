@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation, end-to-end M3 acceptance through the MCP. |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3 and M4 acceptance through the MCP (`test_m3_acceptance.py`, `test_m4_acceptance.py`, shared `mcp_test_support.py`). |
 
 ## Activation
 
@@ -54,11 +54,13 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `get_focus_state` | Only the focus part |
 | `set_view` | `dolphin` or a view plugin ID in a pane |
 | `activate_pane` | Make a pane the active view area |
-| `set_split_view` | Open/close split view (setter) |
+| `set_split_view` | Open/close split view (setter); closing closes the active side, like the Close button |
 | `set_location` | Navigate a pane through the location bar |
 | `set_filter_text` / `clear_filter` | Filter bar of a pane |
 | `set_hidden_files` | Setter, not a toggle |
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
+| `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
+| `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
 | `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`. No file operations. |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
@@ -76,7 +78,9 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
     "viewId": "whale_testlist", "dolphinViewVisible": false, "pluginWidgetVisible": true,
     "viewMode": "icons", "loading": false, "itemCount": 4,
     "items": ["sub", "a.txt"], "pluginRows": ["sub", "a.txt"],
-    "selectionCount": 0, "selection": [],
+    "selectionCount": 1, "selection": ["file:///…/a.txt"], "selectedNames": ["a.txt"],
+    "current": "file:///…/c.txt", "currentName": "c.txt",
+    "pluginSelection": ["a.txt"], "pluginCurrent": "c.txt", "statusText": "1 file selected (300 B)",
     "hiddenFiles": false, "sort": {"field": "name", "order": "ascending", "foldersFirst": true},
     "filter": {"text": "", "barVisible": false},
     "focusProxy": "plugin-widget", "hiddenDolphinViewHasFocus": false
@@ -84,6 +88,7 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   "focus": {"role": "plugin:whale_testlist", "pane": 0, "activePane": 0, "widgetClass": "QListView",
             "windowActive": true, "keyboardFocus": true, "anomalies": []},
   "activations": {"count": 3, "recent": [{"seq": 3, "tab": 0, "pane": 0, "focusRole": "…"}]},
+  "shell": {"selectedNames": ["a.txt"], "selectionSignals": 4},
   "tabs": {"count": 1, "current": 0}, "window": {"visible": true, "active": true}
 }
 ```
@@ -98,11 +103,21 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   really has the keyboard focus (false while the window is not active).
 - Anomalies: `focus-in-hidden-dolphin-view`, `focus-in-inactive-pane`,
   `pane-<n>-focus-proxy-not-plugin`.
+- Selection: `selection`/`selectedNames`/`current` are the host's (the DolphinView's)
+  selection; `pluginSelection`/`pluginCurrent` what a plugin item view shows;
+  `shell.selectedNames` what the main window last sent to the information panel;
+  `statusText` the status bar (it follows the DolphinView's debounced selection signal).
 - `activations` counts pane activations, so a test can prove that an operation did
   not activate the other half of a split view.
 
 `wait_for_state` conditions map dotted paths into this state to expected JSON
 values, e.g. `{"panes.1.viewId": "whale_testlist", "focus.role": "plugin:whale_testlist"}`.
+Instead of a value, `{"$contains": x}` matches a string containing `x` or an array
+containing `x`, e.g. `{"panes.0.statusText": {"$contains": "2 files selected"}}`.
+
+`activate_items` opens files with their real default application. The acceptance
+tests (`tests/mcp_test_support.py`) therefore start Whale in a profile in which text
+files open with a test "opener" that only logs the path.
 
 ## Limits
 

@@ -25,110 +25,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import time
 
 FORBIDDEN_ACTIONS = {"delete", "trash", "move_to_trash", "cut", "copy", "paste", "duplicate", "create_dir"}
 
 
-class Failure(Exception):
-    pass
-
-
-class McpClient:
-    def __init__(self, adapter, env):
-        self.process = subprocess.Popen([sys.executable, adapter], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                        env=env, text=True)
-        self.next_id = 0
-
-    def request(self, method, params=None):
-        self.next_id += 1
-        message = {"jsonrpc": "2.0", "id": self.next_id, "method": method}
-        if params is not None:
-            message["params"] = params
-        self.process.stdin.write(json.dumps(message) + "\n")
-        self.process.stdin.flush()
-        response = json.loads(self.process.stdout.readline())
-        if "error" in response:
-            raise Failure(f"{method}: {response['error']}")
-        return response["result"]
-
-    def notify(self, method):
-        self.process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method}) + "\n")
-        self.process.stdin.flush()
-
-    def tool(self, name, **arguments):
-        result = self.request("tools/call", {"name": name, "arguments": arguments})
-        if result["isError"]:
-            raise Failure(f"{name}{arguments}: {result['content'][0]['text']}")
-        return result["content"]
-
-    def tool_error(self, name, **arguments):
-        result = self.request("tools/call", {"name": name, "arguments": arguments})
-        return result["content"][0]["text"] if result["isError"] else None
-
-    def state(self):
-        return json.loads(self.tool("get_ui_state")[0]["text"])
-
-    def close(self):
-        self.process.stdin.close()
-        self.process.wait(timeout=10)
-
-
-class Scenario:
-    def __init__(self, client, screenshots):
-        self.client = client
-        self.screenshots = screenshots
-        self.step_count = 0
-
-    def expect(self, title, conditions, timeout_ms=10000):
-        """Waits inside Whale until the conditions hold. No focus anomaly is ever allowed."""
-        self.step_count += 1
-        conditions = dict(conditions)
-        conditions.setdefault("focus.anomalies", [])
-        # The focus must be real keyboard focus, not only the focus widget of an inactive window.
-        conditions.setdefault("focus.keyboardFocus", True)
-        result = json.loads(self.client.tool("wait_for_state", conditions=conditions, timeout_ms=timeout_ms)[0]["text"])
-        if not result["matched"]:
-            raise Failure(f"step {self.step_count} '{title}': " + json.dumps(result["mismatches"], indent=1))
-        print(f"ok {self.step_count:2} {title} ({result['elapsedMs']} ms)")
-        if self.screenshots:
-            path = os.path.join(self.screenshots, f"{self.step_count:02}.png")
-            self.client.tool("screenshot", save_path=path)
-        return result["state"]
-
-
-def start_whale(binary, folder, profile, plugin_dir, platform, automation):
-    env = dict(os.environ)
-    for name in ("config", "data", "cache", "state"):
-        (profile / name).mkdir(parents=True, exist_ok=True)
-    env.update({
-        "XDG_CONFIG_HOME": str(profile / "config"),
-        "XDG_DATA_HOME": str(profile / "data"),
-        "XDG_CACHE_HOME": str(profile / "cache"),
-        "XDG_STATE_HOME": str(profile / "state"),
-        "QT_PLUGIN_PATH": plugin_dir + os.pathsep + env.get("QT_PLUGIN_PATH", ""),
-    })
-    if platform:
-        env["QT_QPA_PLATFORM"] = platform
-    if automation:
-        env["WHALE_DEV_MCP"] = "1"
-    else:
-        env.pop("WHALE_DEV_MCP", None)
-    log = open(profile / "whale.log", "w")
-    return subprocess.Popen([binary, "--new-window", str(folder)], env=env, stdout=log, stderr=subprocess.STDOUT)
-
-
-def wait_for_instance(client, whale, timeout=30):
-    """Process start-up only: retries until the new Whale offers the automation."""
-    deadline = time.monotonic() + timeout
-    while True:
-        if whale.poll() is not None:
-            raise Failure(f"Whale exited with {whale.returncode}")
-        if client.tool_error("get_focus_state") is None:
-            return
-        if time.monotonic() > deadline:
-            raise Failure("Whale did not offer the automation in time")
-        time.sleep(0.2)
+sys.dont_write_bytecode = True  # no __pycache__ next to the sources
+from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
 
 
 def run(args, work):
@@ -158,7 +60,7 @@ def run(args, work):
         # Exactly this small set; anything new must be a deliberate decision (see README.md).
         expected_tools = {"get_ui_state", "get_focus_state", "set_view", "activate_pane", "set_split_view",
                           "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_sort",
-                          "trigger_action", "wait_for_state", "screenshot"}
+                          "set_selection", "activate_items", "trigger_action", "wait_for_state", "screenshot"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)

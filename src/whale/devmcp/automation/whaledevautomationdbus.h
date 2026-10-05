@@ -40,6 +40,9 @@ public Q_SLOTS:
     /// @p foldersFirst is "true", "false" or "" (unchanged); empty @p field or @p order are unchanged too.
     Q_SCRIPTABLE QString SetSort(int pane, const QString &field, const QString &order, const QString &foldersFirst);
     Q_SCRIPTABLE QString TriggerAction(const QString &actionId);
+    /// @p current may be empty (keep the current item).
+    Q_SCRIPTABLE QString SetSelection(int pane, const QStringList &urls, const QString &current);
+    Q_SCRIPTABLE QString ActivateItems(int pane, const QStringList &urls);
     /// Replies when the conditions (a JSON object) hold or after @p timeoutMs (at most 60000).
     Q_SCRIPTABLE QString WaitForState(const QString &conditions, int timeoutMs);
     Q_SCRIPTABLE QByteArray Screenshot();

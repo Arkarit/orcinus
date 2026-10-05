@@ -42,7 +42,9 @@ TOOLS = [
         "name": "get_ui_state",
         "description": "Semantic UI state of Whale: panes, active pane, view per pane, visibility of the DolphinView, "
         "focus (semantic role, anomalies), URL, items (Dolphin model order) and rows of a plugin item view, "
-        "selection, hidden files, sorting, filter, loading, recent pane activations, available view IDs.",
+        "selection per pane (selection URLs, selectedNames, current/currentName: the host's; pluginSelection/"
+        "pluginCurrent: what a plugin item view shows), statusText, shell.selectedNames (what the information "
+        "panel got last), hidden files, sorting, filter, loading, recent pane activations, available view IDs.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -71,7 +73,8 @@ TOOLS = [
     },
     {
         "name": "set_split_view",
-        "description": "Opens or closes the split view of the current tab (a setter, not a toggle).",
+        "description": "Opens or closes the split view of the current tab (a setter, not a toggle). Closing "
+        "closes the active side, like Whale's Close button.",
         "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}}, "required": ["enabled"]},
     },
     {
@@ -110,6 +113,29 @@ TOOLS = [
         },
     },
     {
+        "name": "set_selection",
+        "description": "Sets the selection of a pane through the host API that plugin views use (the DolphinView "
+        "stays the store). Only items of the pane's listing; others are returned as ignored. 'current' (optional) "
+        "sets the current item, otherwise it stays.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"pane": PANE, "urls": {"type": "array", "items": {"type": "string"}},
+                           "current": {"type": "string"}},
+            "required": ["urls"],
+        },
+    },
+    {
+        "name": "activate_items",
+        "description": "Opens items of a pane like Enter or a double click, through the host API that plugin "
+        "views use: folders are entered, files open with their default application (careful: real applications "
+        "unless the profile maps the type to a test opener).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"pane": PANE, "urls": {"type": "array", "items": {"type": "string"}, "minItems": 1}},
+            "required": ["urls"],
+        },
+    },
+    {
         "name": "trigger_action",
         "description": "Triggers one of a fixed set of non-destructive Whale actions on the active pane. "
         "File operations (delete, trash, cut, copy, paste, ...) are deliberately not available.",
@@ -130,6 +156,7 @@ TOOLS = [
         "description": "Waits inside Whale until all conditions hold or the timeout ends; use it instead of sleeps. "
         "Conditions map a dotted path into get_ui_state (array indexes as numbers) to the expected JSON value, e.g. "
         "{\"panes.1.viewId\": \"whale_testlist\", \"focus.role\": \"plugin:whale_testlist\", \"panes.0.loading\": false}. "
+        "Instead of a value, {\"$contains\": x} matches a string containing x or an array containing x. "
         "Returns matched, timedOut, mismatches (path, expected, actual), elapsedMs and the final state.",
         "inputSchema": {
             "type": "object",
@@ -235,6 +262,12 @@ class Whale:
             folders = args.get("folders_first")
             folders = "" if folders is None else ("true" if folders else "false")
             return result(iface.SetSort(pane, args.get("field", ""), args.get("order", ""), folders))
+        if tool == "set_selection":
+            urls = dbus.Array([str(url) for url in args["urls"]], signature="s")
+            return result(iface.SetSelection(pane, urls, args.get("current", "")))
+        if tool == "activate_items":
+            urls = dbus.Array([str(url) for url in args["urls"]], signature="s")
+            return result(iface.ActivateItems(pane, urls))
         if tool == "trigger_action":
             return result(iface.TriggerAction(args["action"]))
         if tool == "wait_for_state":

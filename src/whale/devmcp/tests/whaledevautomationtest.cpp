@@ -67,6 +67,7 @@ private Q_SLOTS:
     void testLocation();
     void testFocusMatchesVisibleWidget();
     void testOnlyNonDestructiveActions();
+    void testSetSelection();
     void testWaitForState();
     void testScreenshot();
 
@@ -373,6 +374,36 @@ void WhaleDevAutomationTest::testOnlyNonDestructiveActions()
         QVERIFY(!result.value(QStringLiteral("ok")).toBool());
         QVERIFY(result.value(QStringLiteral("error")).toString().contains(QStringLiteral("not allowed")));
     }
+}
+
+void WhaleDevAutomationTest::testSetSelection()
+{
+    const QString a = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/a.txt")).toString();
+    const QString b = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/b.txt")).toString();
+    const QString inner = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub/inner.txt")).toString();
+    QVERIFY(m_automation->setView(0, QStringLiteral("whale_testlist")).value(QStringLiteral("ok")).toBool());
+
+    const QJsonObject reply = m_automation->setSelection(0, {a, inner, b}, b);
+    QVERIFY(reply.value(QStringLiteral("ok")).toBool());
+    QCOMPARE(strings(reply.value(QStringLiteral("selection"))), QStringList({a, b}));
+    QCOMPARE(strings(reply.value(QStringLiteral("ignored"))), QStringList({inner}));
+    QVERIFY(reaches(expect({
+        {QStringLiteral("panes.0.selectedNames"), QJsonArray{QStringLiteral("a.txt"), QStringLiteral("b.txt")}},
+        {QStringLiteral("panes.0.currentName"), QStringLiteral("b.txt")},
+        {QStringLiteral("panes.0.pluginSelection"), QJsonArray{QStringLiteral("a.txt"), QStringLiteral("b.txt")}},
+        {QStringLiteral("panes.0.pluginCurrent"), QStringLiteral("b.txt")},
+        {QStringLiteral("shell.selectedNames"), QJsonArray{QStringLiteral("a.txt"), QStringLiteral("b.txt")}},
+        {QStringLiteral("panes.0.statusText"), QJsonObject{{QStringLiteral("$contains"), QStringLiteral("2")}}},
+        {QStringLiteral("panes.0.selection"), QJsonObject{{QStringLiteral("$contains"), a}}},
+    })));
+    QVERIFY(!m_automation->evaluate(expect({{QStringLiteral("panes.0.selection"), QJsonObject{{QStringLiteral("$contains"), inner}}}}))
+                 .value(QStringLiteral("matched"))
+                 .toBool());
+
+    // Activation through the same host API: entering a folder.
+    const QString sub = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub")).toString();
+    QVERIFY(m_automation->activateItems(0, {sub}).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({{QStringLiteral("url"), sub}, {QStringLiteral("panes.0.viewId"), QStringLiteral("whale_testlist")}})));
 }
 
 void WhaleDevAutomationTest::testWaitForState()

@@ -10,10 +10,12 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinurlnavigator.h"
+#include "dolphinviewbridge.h"
 #include "dolphinviewcontainer.h"
 #include "filterbar/filterbar.h"
 #include "kitemviews/private/kitemlistroleeditor.h"
 #include "search/bar.h"
+#include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
 #include "whaledevautomationdbus.h"
 #include "whaleview.h"
@@ -25,6 +27,7 @@
 #include <KActionCollection>
 #include <KCoreDirLister>
 #include <KSelectAction>
+#include <KSqueezedTextLabel>
 #include <KStandardAction>
 #include <KToolBar>
 
@@ -112,6 +115,21 @@ QString viewModeName(DolphinView::Mode mode)
     return QStringLiteral("unknown");
 }
 
+// A condition is the expected value, or {"$contains": x}: a string containing the
+// string x, or an array containing the value x.
+bool holds(const QJsonValue &expected, const QJsonValue &actual)
+{
+    const QJsonObject object = expected.toObject();
+    if (expected.isObject() && object.size() == 1 && object.contains(QStringLiteral("$contains"))) {
+        const QJsonValue part = object.value(QStringLiteral("$contains"));
+        if (actual.isString()) {
+            return actual.toString().contains(part.toString());
+        }
+        return actual.isArray() && actual.toArray().contains(part);
+    }
+    return actual == expected;
+}
+
 QJsonValue valueAt(const QJsonValue &root, const QString &path)
 {
     QJsonValue value = root;
@@ -166,6 +184,14 @@ WhaleDevAutomation::WhaleDevAutomation(DolphinMainWindow *window)
     , m_window(window)
 {
     connect(tabWidget(), &DolphinTabWidget::activeViewChanged, this, &WhaleDevAutomation::recordActivation);
+    // The information panel listens to exactly this signal.
+    connect(window, &DolphinMainWindow::selectionChanged, this, [this](const KFileItemList &selection) {
+        m_shellSelection.clear();
+        for (const KFileItem &item : selection) {
+            m_shellSelection.append(item.text());
+        }
+        ++m_shellSelectionSignals;
+    });
 }
 
 WhaleDevAutomation::~WhaleDevAutomation() = default;
@@ -231,9 +257,33 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
     }
 
     QJsonArray selection;
+    QJsonArray selectedNames;
     const KFileItemList selected = view->selectedItems();
     for (int i = 0; i < selected.count() && i < MaxListedItems; ++i) {
         selection.append(selected.at(i).url().toString());
+        selectedNames.append(selected.at(i).text());
+    }
+    const QUrl currentUrl = host->bridge()->selection().current();
+
+    // What a plugin item view shows as selected and current.
+    QJsonValue pluginSelection = QJsonValue::Null;
+    QJsonValue pluginCurrent = QJsonValue::Null;
+    if (auto itemView = qobject_cast<QAbstractItemView *>(pluginWidget); itemView && itemView->selectionModel()) {
+        QModelIndexList indexes = itemView->selectionModel()->selectedIndexes();
+        std::sort(indexes.begin(), indexes.end());
+        QJsonArray names;
+        for (const QModelIndex &index : std::as_const(indexes)) {
+            names.append(index.data().toString());
+        }
+        pluginSelection = names;
+        pluginCurrent = itemView->currentIndex().isValid() ? QJsonValue(itemView->currentIndex().data().toString()) : QJsonValue::Null;
+    }
+
+    QString statusText;
+    if (auto statusBar = container->findChild<DolphinStatusBar *>()) {
+        if (auto label = statusBar->findChild<KSqueezedTextLabel *>()) {
+            statusText = label->fullText();
+        }
     }
 
     QString sortField = QStringLiteral("role:") + QString::fromLatin1(view->sortRole());
@@ -275,6 +325,12 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("pluginRows"), pluginRows},
         {QStringLiteral("selectionCount"), selected.count()},
         {QStringLiteral("selection"), selection},
+        {QStringLiteral("selectedNames"), selectedNames},
+        {QStringLiteral("current"), currentUrl.toString()},
+        {QStringLiteral("currentName"), currentUrl.fileName()},
+        {QStringLiteral("pluginSelection"), pluginSelection},
+        {QStringLiteral("pluginCurrent"), pluginCurrent},
+        {QStringLiteral("statusText"), statusText},
         {QStringLiteral("hiddenFiles"), view->hiddenFilesShown()},
         {QStringLiteral("sort"),
          QJsonObject{
@@ -337,6 +393,11 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("panes"), paneStates},
         {QStringLiteral("focus"), focusState()},
         {QStringLiteral("activations"), QJsonObject{{QStringLiteral("count"), m_activationCount}, {QStringLiteral("recent"), recent}}},
+        {QStringLiteral("shell"),
+         QJsonObject{
+             {QStringLiteral("selectedNames"), QJsonArray::fromStringList(m_shellSelection)},
+             {QStringLiteral("selectionSignals"), m_shellSelectionSignals},
+         }},
     };
 }
 
@@ -593,6 +654,56 @@ QJsonObject WhaleDevAutomation::setSort(int paneIndexArg, const QString &field, 
     return ok();
 }
 
+QJsonObject WhaleDevAutomation::setSelection(int paneIndexArg, const QStringList &urls, const QString &current)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    QList<QUrl> selected;
+    for (const QString &url : urls) {
+        selected.append(QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile));
+    }
+    const QUrl currentUrl = current.isEmpty() ? QUrl() : QUrl::fromUserInput(current, QString(), QUrl::AssumeLocalFile);
+    const WhaleSelection result = container->viewHost()->bridge()->setSelection(WhaleSelection(selected, currentUrl));
+
+    QJsonArray applied;
+    const QList<QUrl> resultUrls = result.selected();
+    for (const QUrl &url : resultUrls) {
+        applied.append(url.toString());
+    }
+    QJsonArray ignored;
+    for (const QUrl &url : std::as_const(selected)) {
+        if (!result.contains(url)) {
+            ignored.append(url.toString());
+        }
+    }
+    if (!currentUrl.isEmpty() && result.current() != currentUrl) {
+        ignored.append(currentUrl.toString());
+    }
+    QJsonObject reply = ok();
+    reply.insert(QStringLiteral("selection"), applied);
+    reply.insert(QStringLiteral("current"), result.current().toString());
+    reply.insert(QStringLiteral("ignored"), ignored);
+    return reply;
+}
+
+QJsonObject WhaleDevAutomation::activateItems(int paneIndexArg, const QStringList &urls)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    QList<QUrl> items;
+    for (const QString &url : urls) {
+        items.append(QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile));
+    }
+    container->viewHost()->bridge()->activateItems(items);
+    return ok();
+}
+
 QStringList WhaleDevAutomation::actionIds()
 {
     QStringList ids;
@@ -627,7 +738,7 @@ QJsonObject WhaleDevAutomation::evaluate(const QJsonObject &conditions) const
     QJsonArray mismatches;
     for (auto it = conditions.begin(); it != conditions.end(); ++it) {
         const QJsonValue actual = valueAt(state, it.key());
-        if (actual != it.value()) {
+        if (!holds(it.value(), actual)) {
             mismatches.append(QJsonObject{
                 {QStringLiteral("path"), it.key()},
                 {QStringLiteral("expected"), it.value()},

@@ -76,13 +76,26 @@ public:
     QJsonObject triggerAction(const QString &actionId);
 
     /**
+     * Sets the selection of a pane through the same host API as plugin views
+     * (DolphinViewBridge::setSelection). URLs outside the listing are ignored and
+     * reported in "ignored"; an empty @p current keeps the current item.
+     */
+    QJsonObject setSelection(int pane, const QStringList &urls, const QString &current);
+
+    /**
+     * Opens items of a pane through the same host API as plugin views, like Enter.
+     */
+    QJsonObject activateItems(int pane, const QStringList &urls);
+
+    /**
      * @return The IDs accepted by triggerAction(). None of them changes files.
      */
     static QStringList actionIds();
 
     /**
      * Compares @p conditions, a map from a path into uiState() (for example
-     * "panes.1.viewId" or "focus.role") to the expected JSON value.
+     * "panes.1.viewId" or "focus.role") to the expected JSON value, or to
+     * {"$contains": x} for a string containing x or an array containing x.
      * @return {"matched": bool, "mismatches": [{"path", "expected", "actual"}]}
      */
     QJsonObject evaluate(const QJsonObject &conditions) const;
@@ -117,6 +130,10 @@ private:
     };
     int m_activationCount = 0;
     QList<Activation> m_recentActivations;
+
+    // What the shell (information panel, KFileItemActions) last got as selection.
+    QStringList m_shellSelection;
+    int m_shellSelectionSignals = 0;
 };
 
 #endif
