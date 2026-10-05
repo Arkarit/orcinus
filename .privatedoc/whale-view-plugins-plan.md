@@ -525,6 +525,9 @@ des Modells und keine Leistung der View (K8).
 | Kontextmenü | `DolphinContextMenu` über `requestContextMenu` | — |
 | Metadaten | `KFileItem`, `KFileMetaData` | zunächst kein eigener Service |
 
+**Umgesetzt in M7:** `WhalePreviewProvider` und der Drag-&-Drop-Teil von `WhaleFileOperations`, siehe
+14.14. Die übrigen Dateioperationen (explizite `KFileItemList`s für T1) fehlen noch.
+
 ---
 
 ## 5. Auswahl heute und der gemeinsame Selection-State
@@ -1415,3 +1418,121 @@ echtem Wayland inklusive vier Neustarts; M3–M5-Abnahmen auf Wayland weiter gr�
 
 **Weiter offen:** O3 (View pro Ordner) bleibt offen; keine `.directory`/xattr-Lösung. T1/T2
 unverändert offen.
+
+### 14.14 Ergebnisse aus M7: Previews und Drag & Drop (2026-10-05)
+
+Commits: `bfd7621c4` (M7), `72eda5fe0` (Dev-MCP). **Keine Änderung an Dolphin-Dateien.**
+
+**API-Version 4:** neue Klassen `WhalePreviewProvider` und `WhaleFileOperations`, dazu die
+pure-virtuellen Context-Methoden `previews()` und `fileOperations()`. Beide Objekte gehören dem
+Context und entstehen beim ersten Aufruf (wie `items()`). Über die Grenze gehen nur `KFileItem`,
+`QUrl`, `QPixmap`, `QSize` und Qt-Drag-Events, keine Indizes und keine kitemviews-Typen. Die
+Capabilities `Previews` wirkt jetzt (siehe unten), `Drag` und `Drop` bleiben informativ.
+
+**`WhalePreviewProvider`:**
+
+| Methode/Signal | Bedeutung |
+|---|---|
+| `requestPreviews(KFileItemList, QSize, dpr)` | asynchron, je Item genau eine Antwort; schon angefragte Items mit gleicher Größe werden nicht doppelt angefragt, eine andere Größe ersetzt die alte Anfrage |
+| `cancel(QList<QUrl>)`, `cancelAll()` | danach kommt für diese Items kein Signal mehr |
+| `isPending(QUrl)`, `isEnabled()` | Zustand |
+| `previewAvailable(item, pixmap)`, `previewFailed(item)`, `enabledChanged(bool)` | Antworten bzw. Schalter |
+
+Umsetzung (`WhalePreviewProviderImpl`): pro `requestPreviews()` ein `KIO::PreviewJob` mit den
+Thumbnail-Plugins aus `[PreviewSettings] Plugins` (wie `KFileItemModelRolesUpdater`), Skalierung
+`ScaledAndCached`. Der KIO-Thumbnail-Cache wird damit automatisch genutzt; es gibt keinen eigenen Cache.
+
+**Lifecycle/Abbruch:** Jede Anfrage merkt sich ihren Job. Sobald für einen Job niemand mehr wartet (alles
+beantwortet oder abgebrochen), wird er nach Rückkehr in die Event-Loop gestoppt, sofern er nicht schon von
+selbst fertig ist. Nie wird er in seinem eigenen Signal gestoppt. Items, die ein Job ohne Antwort beendet,
+melden `previewFailed`. Ortswechsel und Deaktivierung brechen alles ab. Beim Zerstören (View-Wechsel,
+Fenster zu) werden alle Jobs gestoppt. Mehrere Anfragen und Jobs laufen parallel, nichts blockiert.
+**Aktiv** ist der Provider nur, wenn Dolphins „Vorschau anzeigen“ am Ort an ist
+(`DolphinView::previewsShown()`, über die Bridge) **und** die View `Previews` deklariert. Der Host
+meldet die Capabilities nach dem Erzeugen und bei `capabilitiesChanged()` an den Context. Ohne
+Capability bleibt `show_preview` gesperrt (M5), und der Provider macht keine Arbeit, auch wenn eine
+View anfragt (getestet mit Hello).
+
+**Sichtbarer Bereich/Priorisierung (Test-List):** Angefragt werden die sichtbaren Zeilen plus eine
+Seite darüber und darunter. Beim Scrollen, Größenänderung und Item-Änderungen wird gesammelt (0-ms-Timer)
+neu berechnet: Neue Zeilen werden angefragt, Anfragen außerhalb des Bereichs abgebrochen und deren
+Thumbnails verworfen. Geänderte Dateien bekommen neue Previews; Items ohne Preview werden bis zur
+nächsten Änderung nicht erneut angefragt. Gemessen (E2E B, 400 Bilder, 9 sichtbare Zeilen, offscreen): beim Laden
+18 Anfragen (sichtbare Seite plus eine darunter); nach Scrollen zu fünf Stellen insgesamt 150 Anfragen,
+davon 81 abgebrochen, höchstens 27 gleichzeitig offen (drei Seiten). Eine eigene Scheduling-Engine gibt es nicht.
+
+**Test-List:** Bei aktiven Previews 48-px-Zeilen mit Thumbnail (`QPixmap` statt `QIcon` in der
+`DecorationRole`), sonst die bisherigen Icons in Standardgröße. Capabilities zusätzlich `Previews | Drag | Drop`.
+
+**`WhaleFileOperations` (Drag & Drop):**
+
+| Methode | Wiederverwendet |
+|---|---|
+| `startDrag(QList<QUrl>, pixmap = {})` | Drag-Daten exakt wie `KItemListController::startDragging()`: `KFileItemModel::createMimeData()` (URL + `mostLocalUrl` über `KUrlMimeData`) + `KUrlMimeData::exportUrlsToPortal()`, `QDrag` am aktiven Fenster, Move/Copy/Link mit Copy als Vorgabe. Bild: das übergebene oder das Icon des ersten Items |
+| `updateDropAction(QDragMoveEvent*, QUrl)` | Regeln aus `KItemListController::dragEnter/MoveEvent`: Cache-Reset bei DragEnter, nie auf sich selbst (`DragAndDropHelper::urlListMatchesUrl`), `KFileItemModel::supportsDropping` (beschreibbarer Ordner, Desktop-Datei, lokales Programm). Wie in Dolphin wird ein Drag über eine normale Datei abgelehnt |
+| `drop(QDropEvent*, QUrl, QWidget*)` | Zielregeln aus `DolphinView::slotItemDropEvent()` (Ordner/Desktop-Datei/Programm empfängt, sonst der Ort), dann **`DolphinView::dropUrls()`**, also `DragAndDropHelper::dropUrls()` → `KIO::drop` (Modifier oder Drop-Menü, Ark-Extraktion, Places-Ausnahme), Fehlermeldungen und Auswahl der in den Ort gedroppten Items, danach `setActive(true)`. Das Menü erscheint an der Event-Position im übergebenen Widget |
+
+Copy/Move/Link entscheidet allein KIO aus den Modifiern: Strg = Kopieren, Umschalt = Verschieben,
+Strg+Umschalt = Verknüpfen, ohne Modifier fragt KDEs Drop-Menü („Hierher verschieben/kopieren/verknüpfen“,
+„In neuen Ordner verschieben“, Abbrechen). Whale rät nichts. Nur Items des aktuellen Listings nehmen teil:
+Fremde URLs werden beim Drag ignoriert, ein Drop-Ziel außerhalb des Listings wird abgelehnt. Tiefe
+Auswahl (`RecursiveContent`) bleibt ausgeschlossen.
+
+**Split:** Die Quellseite wird wie bei einem echten Klick durch das Drücken aktiv; der Drop aktiviert die
+Zielseite (wie Dolphins Drop). Die Auswahl der Quelle bleibt erhalten, verschobene Items fallen heraus.
+Die gedroppten Items sind die Auswahl des Ziels. Der Fokus liegt danach in der Ziel-View (Plugin-Widget
+bzw. Dateiliste), nie in einer versteckten `DolphinView`. Das Gating folgt der aktiven Hälfte. Getestet sind
+Test-List → Dateiliste, Dateiliste → Test-List, Test-List → Test-List und der Drop auf einen Unterordner.
+
+**Dev-MCP:** Neu in Pane-State: `previews` (shown, capability, provider, enabled, pending, runningJobs,
+requested/generated/failed/canceled, jobsStarted/jobsKilled, maxPending), `pluginPreviewRows` und
+`pluginVisibleRows`. Neue Tools: `get_preview_state`, `request_preview`, `perform_drag_drop`,
+`choose_popup_entry`; `trigger_action show_preview`. `perform_drag_drop` macht **keine eigene
+Dateioperation**: Eine Plugin-Quelle bekommt die echte Geste (Press, Moves), die View ruft selbst
+`startDrag()`. Nur `QDrag::exec()` wird für diesen einen Drag durch einen Runner ersetzt
+(`WhaleFileOperationsImpl::setDragRunner`, statischer Entwicklungs-Haken), der dem Ziel-Widget
+DragEnter/DragMove/Drop schickt. Bei der Dateiliste als Quelle kommen die Daten aus derselben Funktion wie
+ihre eigenen Drags. Das Ziel behandelt die Events selbst (Plugin-Viewport bzw. der Viewport der
+`QGraphicsView` der Dateiliste). Dateiänderungen nur mit `WHALE_DEV_MCP_FILE_OPERATIONS=1`.
+
+**Remote-URLs:**
+
+| Weg | Verhalten |
+|---|---|
+| Drag-Daten | wie Dolphin: KIO-URL plus `mostLocalUrl`. KDE-Anwendungen bekommen sftp/smb-URLs, andere Anwendungen können damit oft nichts anfangen. Der Portal-Export betrifft nur lokale Dateien |
+| Drop | `KIO::drop`/`CopyJob` können jedes beschreibbare KIO-Ziel; die Zielregeln nutzen die Rechte aus dem Listing |
+| Previews | `KIO::PreviewJob` mit den Remote-Grenzen aus `[PreviewSettings]` (wie die Dateiliste). Die versteckte `DolphinView` macht weiter ihre eigene Preview-Arbeit (M0, K12), bei Remote-Orten über das Netz |
+
+Getestet wurde **nur lokal** (`file://` in `/tmp`). Nicht getestet: sftp, smb, mtp, Archive (`zip:/`
+usw.), `trash:/`, Suchergebnisse und der Portal-Pfad in einer Sandbox. Eine eigene Remote-Übertragung
+gibt es nicht.
+
+**Befunde:**
+
+1. Ein laufender Drag gehört dem Zeiger: Nach dem Start des Drags bekommt die View weder Moves noch das
+   Loslassen. Simulierte Gesten müssen danach aufhören. Sonst fällt `QAbstractItemView` in DragSelecting
+   bzw. löst die verschobene Auswahl beim Release auf genau ein Item auf.
+2. Die Events der Dateiliste gehen an den Viewport der `QGraphicsView`, die selbst der Viewport von
+   `KItemListContainer` ist.
+3. Einträge im Drop-Menü tragen ihren Shortcut nach einem Tab („Copy Here\tCtrl“).
+4. `whaleactionstest::testItemInfo` scheitert auf echtem Wayland auch mit dem M6-Stand (QTest-Hover);
+   offscreen ist er grün. Vorbestehend, nicht M7.
+5. Doppelte Preview-Arbeit: Die versteckte `DolphinView` erzeugt bei aktiver Vorschau weiter Previews
+   (bis 500 Items, K12); der KIO-Cache teilt die Ergebnisse. Das Pausieren bleibt optionaler Kandidat M11.
+
+**Tests:** `whalepreviewtest` (10 Fälle), `whaledragdroptest` (11 Fälle) und
+`whale_dev_mcp_m7_e2e` (A–H, 34 Schritte, Dateisystem nach jedem Drop geprüft). Offscreen ist alles
+grün; auf echtem Plasma/Wayland ebenfalls, nur das Drop-Menü (G) wird dort übersprungen. M3–M6-Abnahmen
+auf Wayland weiter grün. Volle Suite offscreen: 47/48; der Rest ist der bekannte
+`DolphinMainWindowTest::testAccessibilityTree`.
+
+**Offen für M8 und später:**
+
+- `WhaleTreeScanner` (M8) ist unabhängig davon.
+- Für die Treemap fehlen noch Drag & Drop auf tiefe Items und Previews außerhalb des Listings. Der
+  Provider kann zwar beliebige `KFileItem`s, Drag und Drop sind aber auf das Listing begrenzt (T1).
+- `WhaleFileOperations` für explizite `KFileItemList`s (T1).
+- Auto-Aktivierung beim Überfahren eines Ordners während eines Drags (Dolphin hat sie, die Test-List nicht).
+- Remote-Abnahme.
+
+**Weiter offen:** O3 (View pro Ordner) und T1/T2 unverändert.
