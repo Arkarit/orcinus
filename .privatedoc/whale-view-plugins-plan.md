@@ -426,7 +426,7 @@ Der Context ist eine abstrakte Klasse in der API-Bibliothek. Implementiert wird 
 | Gruppe | API (Skizze) | Implementierung Stufe 1 |
 |---|---|---|
 | Ort | `url()`, `rootItem()`, `isWritable()`; Signale `urlChanged`, `loadingStarted/Completed/Canceled` | Bridge ← `DolphinView`-Signale |
-| Items | `WhaleItemList *items()`: geordnete `KFileItem`-Liste in Host-Reihenfolge (sortiert/gefiltert); Signale `reset`, `itemsInserted(int, KFileItemList)`, `itemsRemoved(KFileItemList)`, `itemsMoved`, `itemsChanged(KFileItemList)` | Bridge spiegelt `KFileItemModel`-Ranges |
+| Items | `WhaleItemList *items()`: geordnete `KFileItem`-Liste in Host-Reihenfolge (sortiert/gefiltert); Signale `reset`, `itemsInserted(int, KFileItemList)`, `itemsRemoved(KFileItemList)`, `itemsMoved`, `itemsChanged(KFileItemList)` **(umgesetzt in M3 mit leicht anderen Signalen, siehe 14.10)** | Bridge spiegelt `KFileItemModel`-Ranges |
 | Auswahl | `selection()` → `WhaleSelection{urls, current}`; `setSelection(...)`; Signal `selectionChanged` | Bridge ⇄ `KItemListSelectionManager` |
 | Aktionen anfordern | `activate(items)`, `openUrl(url)`, `openInNewTab/Window(url)`, `goUp/Back/Forward()`, `requestContextMenu(globalPos, item, items)`, `requestItemInfo(item)`, `setActive()` | Container-Slot bzw. ausgelöste `DolphinView`-Signale |
 | Meldungen | `showInfo/Error(text)` | Statusleiste/`showMessage` |
@@ -627,6 +627,10 @@ Ich empfehle den **Accessor**. Er ist explizit, er fällt beim Kompilieren auf, 
 und er erzeugt nur eine winzige, konfliktarme Diff. Mit `findChild` gibt es kein Diff, dafür bricht es
 still. Das ist **offene Entscheidung O2**. In beiden Fällen nutzt nur `DolphinViewBridge` den Zugriff.
 
+**Entschieden in M3:** Accessor `KItemListContainer *DolphinView::itemListContainer() const`, inline im
+Header, markiert mit `// Whale: view plugins` (6 Zeilen). Das Modell holt die Bridge über
+`itemListContainer()->controller()->model()`. Details in 14.10.
+
 ---
 
 ## 8. Plugin-Mechanismus
@@ -815,7 +819,7 @@ Whale-Integration kommen in getrennte Commits.
 | | Frage | Empfehlung |
 |---|---|---|
 | O1 | `WhaleView : QObject` + `widget()` oder `: QWidget`? | `QObject` + `widget()` |
-| O2 | Modellzugriff: Accessor in `DolphinView` (2 Zeilen) oder `findChild` (0 Zeilen)? | Accessor |
+| O2 | Modellzugriff: Accessor in `DolphinView` (2 Zeilen) oder `findChild` (0 Zeilen)? | Accessor **(umgesetzt in M3)** |
 | O3 | Wo wird die View pro Ordner gespeichert (später)? | eigene Whale-KConfig mit URL-Keys; nie `[Dolphin]` |
 | O4 | Umschalter: Icons/Compact/Details als drei Einträge neben den Plugins oder ein Eintrag „Dolphin“? | Ein Eintrag „Dateiliste (Dolphin)“; die Modi bleiben in der bestehenden `view_mode`-Action. Später ggf. visuell zusammenführen. |
 | O5 | Tiefe Auswahl: T1 reicht vorerst? | Ja, T2 erst nach Praxis mit der Treemap |
@@ -1069,3 +1073,92 @@ zwingend nötig.
 
 F2: Der Schutz prüft nicht `isEnabled()`, sondern ob die `DolphinView` die sichtbare View ist
 (`isVisibleTo(window())`).
+
+### 14.10 Ergebnisse aus M3: Bridge, `WhaleItemList`, Test-Liste (2026-10-05)
+
+**Modellzugriff (O2):** `DolphinView::itemListContainer()` als Inline-Accessor im Header
+(`views/dolphinview.h`, Whale-Block, 6 Zeilen, keine `.cpp`-Änderung). Einziger Produktivnutzer ist
+`DolphinViewBridge`. Die Bridge holt das Modell über `controller()->model()` und folgt
+`KItemListController::modelChanged`, obwohl `DolphinView` das Modell heute nie austauscht.
+
+**Aufbau:**
+
+- `DolphinViewBridge` (Host, eine pro `WhaleViewHost`): `url()`, Signale `urlChanged`,
+  `loadingStarted/Completed/Canceled` (von den `DolphinView`-Signalen) und
+  `createItemList(parent)`. Die gespiegelte Liste (`MirroredItemList`, intern in
+  `dolphinviewbridge.cpp`) ist die einzige Stelle mit `kitemviews`-Includes.
+- `WhaleViewContextImpl` kennt nur noch die Bridge, nicht mehr `DolphinView`.
+  `items()` legt die Liste **beim ersten Aufruf** an, als Kind des Contexts. Der Context der
+  `DolphinView` selbst ruft `items()` nie auf, eine Spiegelung entsteht also nur für Plugin-Views und
+  endet mit deren Context (Qt-Ownership, keine hängenden Verbindungen).
+
+**Tatsächliche `WhaleItemList`-API (Abweichung von 4.2):**
+
+| Signal | Bedeutung |
+|---|---|
+| `itemsReset()` | ganzer Inhalt ersetzt, neu lesen |
+| `itemsInserted(int index, KFileItemList)` | neue Items ab `index` |
+| `itemsRemoved(int index, KFileItemList)` | entfernte Items, die ab `index` standen (mit Index, nicht nur Liste) |
+| `itemsMoved(int index, QList<int> movedToIndexes)` | Permutation des Bereichs ab `index`, absolute Zielindizes |
+| `itemsChanged(int index, KFileItemList)` | Items ab `index` durch geänderte Fassungen ersetzt |
+
+Lesend: `count()`, `isEmpty()`, `item(int)`, `items()`. Jeder Schritt wird **nach** der Änderung
+gemeldet, Indizes beziehen sich auf die Liste direkt davor. Mehrere Model-Ranges werden zu mehreren
+Einzelschritten. Grund für den Index bei `itemsRemoved`: Ein Plugin-Modell (`QAbstractListModel`)
+braucht ihn für `beginRemoveRows`. Die Modifikatoren sind `protected`; nur der Host füllt Listen.
+
+**Range-Spiegelung und eine wichtige Vereinfachung:** Insert, Remove und Move werden inkrementell
+gespiegelt (Insert-/Remove-Ranges beziehen sich auf das Modell *vor* der Änderung, Move liefert
+absolute Zielindizes). Befund aus den Tests: Die Liste wird **nach** `DolphinView`/RolesUpdater mit dem
+Modell verbunden. `KFileItemModelRolesUpdater::slotItemsInserted` und `slotItemsMoved` rufen
+synchron `setData()` auf. Dadurch erreicht ein `itemsChanged` die Liste, **bevor** sie das auslösende
+`itemsInserted`/`itemsMoved` gesehen hat, und dessen Indizes beziehen sich schon auf den neuen Stand.
+Regel der Bridge:
+
+- `itemsChanged` meldet nur Items, deren `KFileItem` sich wirklich unterscheidet (`KFileItem::cmp`).
+  Reine Rollenänderungen (Previews, Ordnergrößen) erzeugen kein Signal.
+- Stimmt die Anzahl nicht (Insert/Remove ausstehend) oder steht am Index ein anderes Item, das noch im
+  Modell ist (Move ausstehend), wird die Änderung übersprungen. Solche verschachtelten Änderungen
+  betreffen nur Rollen, und der ausstehende Schritt liest seine Items ohnehin aus dem Modell.
+- Steht am Index ein anderes Item, das **nicht** mehr im Modell ist, wurde es dort ersetzt. So meldet
+  das Modell ein Umbenennen.
+- Passt ein Schritt sonst nicht (Bereichsprüfung, Permutation, Anzahl, URL-Abgleich nach Move), lädt
+  die Liste alles neu (`itemsReset`) und warnt. Die Tests schlagen bei dieser Warnung fehl; in allen
+  Testszenarien tritt kein Reset auf.
+
+**Test-View:** Plugin `whale_testlist` („Test List“): `QListView` über ein eigenes
+`QAbstractListModel`, das eine Kopie der Items führt (die Liste meldet nachträglich, ein Qt-Modell
+muss vorher ankündigen). Anzeige: Name und Ordner-/Datei-Icon. Capability `HostOrder`. Keine eigene
+Sortierung. Bewusst ohne Auswahl (`NoSelection`), ohne Editieren, Drag/Drop, Aktivierung und
+Kontextmenü (`Qt::PreventContextMenu`, auch nicht an den Parent weitergereicht).
+
+**Verhalten:** Sortierung, Hidden Files, Namensfilter und Ordnerwechsel kommen ohne Plugin-Logik
+über die Host-Reihenfolge. Im Details-Modus aufgeklappte Unterordner stehen als flache Einträge mit in
+der Liste, weil die Liste exakt das Modell spiegelt (`testExpandedFolders`).
+
+**Tests:** `dolphinviewbridgetest` (16 Fälle: Laden, Erstellen, Löschen, Umbenennen per KIO und extern,
+Änderung, Sortierung, Hidden, Filter, Navigation, aufgeklappte Ordner, Lebensdauer, Test-View,
+Read-only). Löschen läuft im Test über `KIO::del`, weil KDirWatch Löschungen im Test nicht zuverlässig
+meldet (Dolphins eigene Tests rufen dafür `updateDirectory()` auf). Die M2-Fokus- und Split-Tests laufen
+zusätzlich mit der Test-Liste. Testisolation: Whale nutzt standardmäßig gemeinsame
+Ansichtseinstellungen, deshalb setzt der Test Sortierung/Hidden in `init()` zurück.
+
+**Offene Risiken für M4/M5:**
+
+1. **Unverändert (aus M2):** Im Plugin-Modus wirken Entf, Umschalt+Entf, Strg+X/C/V und weitere
+   Datei-Shortcuts auf die **unsichtbare Auswahl der `DolphinView`**. M3 ändert daran nichts und
+   kaschiert es nicht. Die Test-Liste zeigt deshalb absichtlich keine eigene Auswahl, damit nichts wie
+   ein Ziel der Datei-Actions aussieht. Lösung: Auswahl-Spiegelung (M4) und Capability-Gating (M5).
+2. Für M4 fehlt der Liste ein schneller URL→Index-Zugriff (heute linear über `items()`); erst mit
+   der Auswahl-Spiegelung einbauen.
+3. Die API-Version bleibt 1, obwohl `WhaleViewContext` eine neue pure-virtuelle Methode hat. Das ist
+   unkritisch, solange es nur In-Tree-Plugins gibt (O6). Vor einer Veröffentlichung oder bei
+   installierten Fremd-Plugins muss jede ABI-Änderung die Version erhöhen.
+4. Die Robustheitsregel für verschachtelte `itemsChanged` beruht darauf, dass nur
+   `setData()`-Rollenänderungen verschachtelt ankommen. Ändert upstream das (z. B. synchrones Resort
+   statt Timer), greift der Reset-Fallback mit Warnung; dann die Bridge anpassen.
+5. Aufgeklappte Details-Ordner erscheinen flach in `HostOrder`-Views. Für eine Baum-Darstellung bräuchte
+   die API später Tiefe/Eltern (wie Gruppen, vgl. 7).
+6. Vorbestehend, nicht durch M3: `filenamehighlightingviewtest` stürzt auf der echten
+   Wayland-Plattform in `KItemListViewAccessible::slotAnnounceCurrentItemTimerTimeout` ab (gleich im
+   M2-Stand `7997f1893` geprüft). Unter `offscreen` ist er grün.
