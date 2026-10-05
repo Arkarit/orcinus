@@ -1,0 +1,51 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Whale contributors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef WHALEDEVAUTOMATIONDBUS_H
+#define WHALEDEVAUTOMATIONDBUS_H
+
+#include <QDBusContext>
+#include <QObject>
+
+class WhaleDevAutomation;
+
+/**
+ * @brief The D-Bus face of WhaleDevAutomation.
+ *
+ * Exactly the methods below are exported, nothing else of Whale. Results are JSON
+ * strings in the format of WhaleDevAutomation. A pane of -1 means the active pane.
+ */
+class WhaleDevAutomationDBus : public QObject, protected QDBusContext
+{
+    Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "io.github.arkarit.whale.DevAutomation")
+
+public:
+    explicit WhaleDevAutomationDBus(WhaleDevAutomation *automation);
+
+public Q_SLOTS:
+    Q_SCRIPTABLE QString UiState();
+    Q_SCRIPTABLE QString FocusState();
+    Q_SCRIPTABLE QStringList ActionIds();
+    Q_SCRIPTABLE QString SetView(int pane, const QString &viewId);
+    Q_SCRIPTABLE QString ActivatePane(int pane);
+    Q_SCRIPTABLE QString SetSplitView(bool enabled);
+    Q_SCRIPTABLE QString SetLocation(int pane, const QString &url);
+    Q_SCRIPTABLE QString SetFilterText(int pane, const QString &text);
+    Q_SCRIPTABLE QString ClearFilter(int pane);
+    Q_SCRIPTABLE QString SetHiddenFiles(int pane, bool shown);
+    /// @p foldersFirst is "true", "false" or "" (unchanged); empty @p field or @p order are unchanged too.
+    Q_SCRIPTABLE QString SetSort(int pane, const QString &field, const QString &order, const QString &foldersFirst);
+    Q_SCRIPTABLE QString TriggerAction(const QString &actionId);
+    /// Replies when the conditions (a JSON object) hold or after @p timeoutMs (at most 60000).
+    Q_SCRIPTABLE QString WaitForState(const QString &conditions, int timeoutMs);
+    Q_SCRIPTABLE QByteArray Screenshot();
+
+private:
+    WhaleDevAutomation *const m_automation;
+};
+
+#endif

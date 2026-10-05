@@ -40,6 +40,14 @@ target_include_directories(dolphinviewbridgetest PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_compile_definitions(dolphinviewbridgetest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(dolphinviewbridgetest whale_testlist)
 
+# The development automation must stay out of regular builds (see src/whale/devmcp).
+add_test(NAME whale_dev_mcp_default_off
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+        -DOPTION_VALUE=${WHALE_ENABLE_DEV_MCP}
+        -DWHALE_BINARY=$<TARGET_FILE:dolphin>
+        -P ${CMAKE_SOURCE_DIR}/cmake/WhaleDevMcpOffTest.cmake)
+
 # Lint: the public plugin API and the plugins must not use Whale/Dolphin internals.
 if(NOT WIN32)
 add_test(

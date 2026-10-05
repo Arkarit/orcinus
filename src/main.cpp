@@ -17,6 +17,9 @@
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #endif
+#if WHALE_ENABLE_DEV_MCP
+#include "whaledevautomation.h" // Whale: development automation
+#endif
 
 #include <KAboutData>
 #include <KConfigGui>
@@ -249,6 +252,9 @@ int main(int argc, char **argv)
     KDBusService dolphinDBusService(serviceOptions);
 #if WHALE_PROVIDE_FILEMANAGER1
     DBusInterface interface;
+#endif
+#if WHALE_ENABLE_DEV_MCP
+    WhaleDevAutomation::startIfRequested(mainWindow); // Whale: development automation, only with WHALE_DEV_MCP=1
 #endif
 
     if (!app.isSessionRestored()) {

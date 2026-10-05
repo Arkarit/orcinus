@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 Whale contributors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+find_package(Qt6Test CONFIG REQUIRED)
+include(ECMAddTests)
+
+ecm_add_test(whaledevautomationtest.cpp ${CMAKE_SOURCE_DIR}/src/tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaledevautomationtest
+    LINK_LIBRARIES whaledevautomation Qt6::Test)
+target_include_directories(whaledevautomationtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaledevautomationtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whaledevautomationtest whale_hello whale_testlist)
+
+# End to end: a real Whale process, driven only through the MCP adapter.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND AND NOT WIN32)
+    add_test(NAME whale_dev_mcp_e2e
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_m3_acceptance.py
+            --whale $<TARGET_FILE:dolphin>
+            --adapter ${CMAKE_CURRENT_SOURCE_DIR}/../adapter/whale_dev_mcp.py
+            --plugin-dir ${WHALE_VIEW_PLUGIN_BUILD_DIR}
+            --platform offscreen)
+    # 77: no D-Bus session bus available.
+    set_tests_properties(whale_dev_mcp_e2e PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+endif()

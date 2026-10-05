@@ -94,3 +94,8 @@ add_subdirectory(plugins/testlist)
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()
+
+# Development only: UI test automation, never part of a regular build.
+if(WHALE_ENABLE_DEV_MCP)
+    add_subdirectory(devmcp)
+endif()
