@@ -27,6 +27,7 @@
 #include <KLocalizedString>
 #include <KUrlMimeData>
 
+#include <QActionGroup>
 #include <QClipboard>
 #include <QLineEdit>
 #include <QListView>
@@ -151,6 +152,7 @@ private Q_SLOTS:
     void init();
     void cleanup();
 
+    void testGateableActionsExist();
     void testCapabilityMatrix_data();
     void testCapabilityMatrix();
     void testGateFollowsSelection();
@@ -309,6 +311,22 @@ void WhaleActionsTest::click(QListView *listView, const QString &itemName, Qt::K
         }
     }
     QFAIL(qPrintable(QStringLiteral("no row ") + itemName));
+}
+
+void WhaleActionsTest::testGateableActionsExist()
+{
+    // The gating finds Dolphin's actions by name. If upstream renames or removes one, its
+    // gate would silently do nothing; this turns that into a failure. Same list as production.
+    QVERIFY(showMainWindow());
+    const QStringList names = WhaleViewActions::gateableActions();
+    QVERIFY(!names.isEmpty());
+    for (const QString &actionName : names) {
+        QAction *gated = action(actionName);
+        QVERIFY2(gated, qPrintable(QStringLiteral("Dolphin has no action \"%1\" any more; update WhaleViewActions::gateableActions()").arg(actionName)));
+        // The gate is an action group of its own; an action in another group cannot be gated.
+        QVERIFY2(gated->actionGroup() && gated->actionGroup()->actions() == QList<QAction *>({gated}),
+                 qPrintable(QStringLiteral("\"%1\" is not gated by its own action group").arg(actionName)));
+    }
 }
 
 void WhaleActionsTest::testCapabilityMatrix_data()
