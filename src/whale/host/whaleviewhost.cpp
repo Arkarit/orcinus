@@ -124,12 +124,15 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     m_pluginId = pluginId;
     m_pluginContext = std::move(context);
     m_pluginView = std::move(view);
+    m_pluginContext->setViewCapabilities(m_pluginView->capabilities());
     const QByteArray state = m_views.states.value(pluginId);
     if (!state.isEmpty()) {
         m_pluginView->restoreState(state);
     }
     connect(m_pluginView.get(), &WhaleView::capabilitiesChanged, this, [this]() {
-        if (!(m_pluginView->capabilities() & WhaleViewCapability::Selection)) {
+        const WhaleViewCapabilities capabilities = m_pluginView->capabilities();
+        m_pluginContext->setViewCapabilities(capabilities);
+        if (!(capabilities & WhaleViewCapability::Selection)) {
             m_bridge->setSelection(WhaleSelection());
         }
         Q_EMIT capabilitiesChanged();
@@ -162,6 +165,11 @@ void WhaleViewHost::setActive(bool active)
 DolphinViewBridge *WhaleViewHost::bridge() const
 {
     return m_bridge;
+}
+
+WhaleViewContextImpl *WhaleViewHost::pluginContext() const
+{
+    return m_pluginContext.get();
 }
 
 void WhaleViewHost::notifyWindow()

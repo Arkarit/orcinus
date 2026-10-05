@@ -65,7 +65,7 @@ def run(args, work):
         client.tool("set_view", pane=0, view="whale_testlist")
         s.expect("A: test list gates what it cannot honor", {
             "actions.view_zoom_in.gate": "no Zoom capability", "actions.view_zoom_in.enabled": False,
-            "actions.show_preview.gate": "no Previews capability",
+            "actions.show_preview.gate": None,
             "actions.toggle_selection_mode.enabled": False,
             "actions.sort.gate": None, "actions.edit_select_all.gate": None,
             "actions.movetotrash.gate": "nothing selected", "actions.movetotrash.enabled": False,
@@ -73,6 +73,7 @@ def run(args, work):
         client.tool("set_view", pane=0, view="whale_hello")
         s.expect("A: a view without capabilities", {
             "actions.sort.gate": "no HostOrder capability", "actions.sort.enabled": False,
+            "actions.show_preview.gate": "no Previews capability",
             "actions.edit_select_all.gate": "no Selection capability",
             "actions.movetotrash.gate": "no Selection capability", "actions.properties.enabled": True})
         client.tool("set_view", pane=0, view="whale_testlist")

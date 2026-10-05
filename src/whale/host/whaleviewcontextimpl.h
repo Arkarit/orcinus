@@ -7,11 +7,14 @@
 #ifndef WHALEVIEWCONTEXTIMPL_H
 #define WHALEVIEWCONTEXTIMPL_H
 
+#include "whaleviewcapabilities.h"
 #include "whaleviewcontext.h"
 
 #include <optional>
 
 class DolphinViewBridge;
+class WhaleFileOperationsImpl;
+class WhalePreviewProviderImpl;
 
 /**
  * @brief The WhaleViewContext of one view, backed by the DolphinView of its view area.
@@ -34,6 +37,19 @@ public:
     void activateItems(const QList<QUrl> &urls) override;
     void requestContextMenu(const QPoint &globalPos, const QUrl &url) override;
     void requestItemInfo(const QUrl &url) override;
+    WhalePreviewProvider *previews() const override;
+    WhaleFileOperations *fileOperations() const override;
+
+    /**
+     * Tells the context the capabilities of its view (set by the host after creating
+     * the view and whenever they change): the previews follow WhaleViewCapability::Previews.
+     */
+    void setViewCapabilities(WhaleViewCapabilities capabilities);
+
+    /**
+     * @return The preview provider if the view has asked for it; for development tools.
+     */
+    WhalePreviewProviderImpl *previewProviderIfCreated() const;
 
 private:
     void slotSelectionChanged(const WhaleSelection &selection);
@@ -42,6 +58,9 @@ private:
     // The selection this context's view has just set, so its echo is not sent back.
     std::optional<WhaleSelection> m_ownSelection;
     mutable WhaleItemList *m_items = nullptr;
+    mutable WhalePreviewProviderImpl *m_previews = nullptr;
+    mutable WhaleFileOperationsImpl *m_fileOperations = nullptr;
+    WhaleViewCapabilities m_viewCapabilities;
 };
 
 #endif

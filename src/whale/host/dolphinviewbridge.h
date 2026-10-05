@@ -9,6 +9,8 @@
 
 #include "whaleselection.h"
 
+#include <KFileItem>
+
 #include <QObject>
 #include <QUrl>
 
@@ -17,6 +19,9 @@
 class DolphinView;
 class KFileItemModel;
 class KItemListController;
+class QDragMoveEvent;
+class QDropEvent;
+class QMimeData;
 class QTimer;
 class WhaleItemList;
 
@@ -106,6 +111,42 @@ public:
      */
     void renameSelectedItemsWithDialog();
 
+    /**
+     * @return The item @p url of the listing, or a null item if it is not listed.
+     */
+    KFileItem item(const QUrl &url) const;
+
+    /**
+     * @return True if the user wants previews at the location ("Show Previews", a view
+     *         property of the DolphinView).
+     */
+    bool previewsShown() const;
+
+    /**
+     * @return The drag data of the listed items among @p urls, exactly as the
+     *         DolphinView puts it into its own drags (KFileItemModel::createMimeData(),
+     *         exported to the desktop portal); null if none of them is listed. The
+     *         caller owns it.
+     */
+    QMimeData *createDragMimeData(const QList<QUrl> &urls) const;
+
+    /**
+     * Accepts or ignores a drag over the item @p url (the location if empty) with the
+     * rules of the DolphinView's controller, and sets the event's drop action.
+     * @return True if accepted.
+     */
+    bool updateDropAction(QDragMoveEvent *event, const QUrl &url) const;
+
+    /**
+     * Drops @p event onto the item @p url (the location if empty) as a drop onto the
+     * DolphinView: its target rules, then DolphinView::dropUrls() (KIO::drop with the
+     * drop menu, error messages, selecting the items dropped into the location), then
+     * the view area becomes active. The drop menu shows up at the event's position in
+     * @p widget.
+     * @return False if @p url is neither empty nor listed.
+     */
+    bool drop(QDropEvent *event, const QUrl &url, QWidget *widget);
+
 Q_SIGNALS:
     void urlChanged(const QUrl &url);
     void loadingStarted();
@@ -123,6 +164,12 @@ Q_SIGNALS:
      * enabling actions before the next key press.
      */
     void hasSelectionChanged(bool hasSelection);
+
+    /**
+     * previewsShown() has changed, by the action or by entering a location with other
+     * view properties.
+     */
+    void previewsShownChanged(bool shown);
 
 private:
     KItemListController *controller() const;

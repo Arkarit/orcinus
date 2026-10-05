@@ -5,7 +5,9 @@
  */
 
 #include "whaleviewregistry.h"
+#include "whalefileoperations.h"
 #include "whaleitemlist.h"
+#include "whalepreviewprovider.h"
 #include "whaleview.h"
 #include "whaleviewapiversion.h"
 #include "whaleviewcontext.h"
@@ -28,6 +30,53 @@ public:
     explicit EmptyItemList(QObject *parent)
         : WhaleItemList(parent)
     {
+    }
+};
+
+class NoPreviews : public WhalePreviewProvider
+{
+public:
+    explicit NoPreviews(QObject *parent)
+        : WhalePreviewProvider(parent)
+    {
+    }
+    bool isEnabled() const override
+    {
+        return false;
+    }
+    void requestPreviews(const KFileItemList &, const QSize &, qreal) override
+    {
+    }
+    void cancel(const QList<QUrl> &) override
+    {
+    }
+    void cancelAll() override
+    {
+    }
+    bool isPending(const QUrl &) const override
+    {
+        return false;
+    }
+};
+
+class NoFileOperations : public WhaleFileOperations
+{
+public:
+    explicit NoFileOperations(QObject *parent)
+        : WhaleFileOperations(parent)
+    {
+    }
+    Qt::DropAction startDrag(const QList<QUrl> &, const QPixmap &) override
+    {
+        return Qt::IgnoreAction;
+    }
+    bool updateDropAction(QDragMoveEvent *, const QUrl &) override
+    {
+        return false;
+    }
+    bool drop(QDropEvent *, const QUrl &, QWidget *) override
+    {
+        return false;
     }
 };
 
@@ -75,6 +124,16 @@ public:
         Q_UNUSED(url)
     }
 
+    WhalePreviewProvider *previews() const override
+    {
+        return m_previews;
+    }
+
+    WhaleFileOperations *fileOperations() const override
+    {
+        return m_fileOperations;
+    }
+
     void setUrl(const QUrl &url)
     {
         m_url = url;
@@ -84,6 +143,8 @@ public:
 private:
     QUrl m_url = QUrl::fromLocalFile(QStringLiteral("/tmp"));
     EmptyItemList *const m_items = new EmptyItemList(this);
+    NoPreviews *const m_previews = new NoPreviews(this);
+    NoFileOperations *const m_fileOperations = new NoFileOperations(this);
     WhaleSelection m_selection;
 };
 

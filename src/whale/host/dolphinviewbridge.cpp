@@ -12,11 +12,15 @@
 #include "kitemviews/kitemlistcontroller.h"
 #include "kitemviews/kitemlistselectionmanager.h"
 #include "views/dolphinview.h"
+#include "views/draganddrophelper.h"
 #include "whaleitemlist.h"
 #include "whaleviewdebug.h"
 
 #include <KCoreDirLister>
+#include <KUrlMimeData>
 
+#include <QDropEvent>
+#include <QMimeData>
 #include <QPoint>
 #include <QPointer>
 #include <QTimer>
@@ -207,6 +211,7 @@ DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     connect(dolphinView, &DolphinView::directoryLoadingStarted, this, &DolphinViewBridge::loadingStarted);
     connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::loadingCompleted);
     connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, &DolphinViewBridge::loadingCanceled);
+    connect(dolphinView, &DolphinView::previewsShownChanged, this, &DolphinViewBridge::previewsShownChanged);
 
     // The selection manager reports every step (a rubber band, the index shifts of an
     // insertion, ...). They are collected and compared by URL once the event loop is
@@ -299,6 +304,88 @@ void DolphinViewBridge::renameSelectedItemsWithDialog()
     GeneralSettings::setRenameInline(false);
     m_dolphinView->renameSelectedItems();
     GeneralSettings::setRenameInline(renameInline);
+}
+
+KFileItem DolphinViewBridge::item(const QUrl &url) const
+{
+    const KFileItemModel *fileItemModel = model();
+    const int index = url.isEmpty() ? -1 : fileItemModel->index(url);
+    return index >= 0 ? fileItemModel->fileItem(index) : KFileItem();
+}
+
+bool DolphinViewBridge::previewsShown() const
+{
+    return m_dolphinView->previewsShown();
+}
+
+QMimeData *DolphinViewBridge::createDragMimeData(const QList<QUrl> &urls) const
+{
+    const KFileItemModel *fileItemModel = model();
+    KItemSet indexes;
+    for (const QUrl &url : urls) {
+        const int index = fileItemModel->index(url);
+        if (index >= 0) {
+            indexes.insert(index);
+        }
+    }
+    if (indexes.isEmpty()) {
+        return nullptr;
+    }
+    // The data of KItemListController::startDragging().
+    QMimeData *data = fileItemModel->createMimeData(indexes);
+    if (data) {
+        KUrlMimeData::exportUrlsToPortal(data);
+    }
+    return data;
+}
+
+bool DolphinViewBridge::updateDropAction(QDragMoveEvent *event, const QUrl &url) const
+{
+    // The rules of KItemListController::dragEnterEvent() and dragMoveEvent().
+    if (event->type() == QEvent::DragEnter) {
+        DragAndDropHelper::clearUrlListMatchesUrlCache();
+    }
+    const KFileItemModel *fileItemModel = model();
+    const int index = url.isEmpty() ? -1 : fileItemModel->index(url);
+    bool accept = url.isEmpty() || index >= 0;
+    if (accept) {
+        QUrl hoveredDir = fileItemModel->directory();
+        if (index >= 0 && fileItemModel->fileItem(index).isDir()) {
+            hoveredDir = fileItemModel->url(index);
+        }
+        accept = !DragAndDropHelper::urlListMatchesUrl(event->mimeData()->urls(), hoveredDir) && fileItemModel->supportsDropping(index);
+    }
+    if (accept) {
+        event->setDropAction(event->proposedAction());
+        event->accept();
+    } else {
+        event->setDropAction(Qt::IgnoreAction);
+        event->ignore();
+    }
+    return accept;
+}
+
+bool DolphinViewBridge::drop(QDropEvent *event, const QUrl &url, QWidget *widget)
+{
+    const KFileItemModel *fileItemModel = model();
+    const int index = url.isEmpty() ? -1 : fileItemModel->index(url);
+    if (!url.isEmpty() && index < 0) {
+        return false;
+    }
+
+    // The target rules of DolphinView::slotItemDropEvent(): a folder, desktop file or
+    // program receives the drop, any other item stands for the location.
+    QUrl destUrl = m_dolphinView->url();
+    const KFileItem destItem = index >= 0 ? fileItemModel->fileItem(index) : KFileItem();
+    if (!destItem.isNull() && (destItem.isDir() || destItem.isDesktopFile() || destItem.isExecutable())) {
+        destUrl = destItem.mostLocalUrl();
+    }
+    // The DolphinView's own drop handling (DragAndDropHelper::dropUrls(): KIO::drop with
+    // modifiers or drop menu), with the widget that got the event for the menu.
+    m_dolphinView->dropUrls(destUrl, event, widget);
+    event->accept();
+    m_dolphinView->setActive(true);
+    return true;
 }
 
 KItemListController *DolphinViewBridge::controller() const

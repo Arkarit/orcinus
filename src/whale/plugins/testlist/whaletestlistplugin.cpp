@@ -4,7 +4,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include "whalefileoperations.h"
 #include "whaleitemlist.h"
+#include "whalepreviewprovider.h"
 #include "whaleview.h"
 #include "whaleviewcontext.h"
 #include "whaleviewplugin.h"
@@ -13,6 +15,8 @@
 
 #include <QAbstractListModel>
 #include <QDataStream>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QHash>
 #include <QIODevice>
@@ -21,7 +25,11 @@
 #include <QListView>
 #include <QPointer>
 #include <QScopedValueRollback>
+#include <QScrollBar>
+#include <QSet>
 #include <QTimer>
+
+#include <functional>
 
 namespace
 {
@@ -59,6 +67,61 @@ public:
         return m_items.value(row).url();
     }
 
+    KFileItem item(int row) const
+    {
+        return m_items.value(row);
+    }
+
+    /**
+     * Shows @p preview instead of the icon of the item @p url; a null pixmap shows the
+     * icon again.
+     */
+    void setPreview(const QUrl &url, const QPixmap &preview)
+    {
+        if (preview.isNull()) {
+            if (!m_previews.remove(url)) {
+                return;
+            }
+        } else {
+            m_previews.insert(url, preview);
+        }
+        const int row = rowOf(url);
+        if (row >= 0) {
+            Q_EMIT dataChanged(index(row), index(row), {Qt::DecorationRole});
+        }
+    }
+
+    bool hasPreview(const QUrl &url) const
+    {
+        return m_previews.contains(url);
+    }
+
+    QList<QUrl> previewUrls() const
+    {
+        return m_previews.keys();
+    }
+
+    void clearPreviews()
+    {
+        if (m_previews.isEmpty()) {
+            return;
+        }
+        m_previews.clear();
+        if (!m_items.isEmpty()) {
+            Q_EMIT dataChanged(index(0), index(m_items.count() - 1), {Qt::DecorationRole});
+        }
+    }
+
+    int rowOf(const QUrl &url) const
+    {
+        for (int row = 0; row < m_items.count(); ++row) {
+            if (m_items.at(row).url() == url) {
+                return row;
+            }
+        }
+        return -1;
+    }
+
     QHash<QUrl, int> rowsByUrl() const
     {
         QHash<QUrl, int> rows;
@@ -83,11 +146,23 @@ public:
         switch (role) {
         case Qt::DisplayRole:
             return item.text();
-        case Qt::DecorationRole:
+        case Qt::DecorationRole: {
+            // A preview is a QPixmap, the icon a QIcon (development tools tell them apart).
+            const auto preview = m_previews.constFind(item.url());
+            if (preview != m_previews.constEnd()) {
+                return *preview;
+            }
             return QIcon::fromTheme(item.isDir() ? QStringLiteral("folder") : QStringLiteral("text-x-generic"));
+        }
         default:
             return {};
         }
+    }
+
+    Qt::ItemFlags flags(const QModelIndex &index) const override
+    {
+        // Lets QAbstractItemView recognize the drag gesture; the drag itself is Whale's.
+        return QAbstractListModel::flags(index) | (index.isValid() ? Qt::ItemIsDragEnabled : Qt::NoItemFlags);
     }
 
 private:
@@ -96,6 +171,7 @@ private:
         QScopedValueRollback updating(m_updating, true);
         beginResetModel();
         m_items = m_list->items();
+        m_previews.clear();
         endResetModel();
     }
 
@@ -118,6 +194,9 @@ private:
             return;
         }
         beginRemoveRows(QModelIndex(), index, index + items.count() - 1);
+        for (const KFileItem &item : items) {
+            m_previews.remove(item.url());
+        }
         m_items.remove(index, items.count());
         endRemoveRows();
     }
@@ -147,13 +226,57 @@ private:
         if (items.isEmpty()) {
             return;
         }
+        // A changed file (or a renamed one) needs a new preview.
+        for (int i = 0; i < items.count(); ++i) {
+            m_previews.remove(m_items.at(index + i).url());
+        }
         std::copy(items.begin(), items.end(), m_items.begin() + index);
         Q_EMIT dataChanged(this->index(index), this->index(index + items.count() - 1));
     }
 
     WhaleItemList *const m_list;
     KFileItemList m_items;
+    QHash<QUrl, QPixmap> m_previews;
     bool m_updating = false;
+};
+
+/**
+ * The list view of the test list. Drag and drop are handed to the view's callbacks:
+ * QListView's own handling would move rows of the model.
+ */
+class TestListWidget : public QListView
+{
+public:
+    std::function<void()> dragStarted;
+    std::function<void(QDragMoveEvent *)> dragMoved;
+    std::function<void(QDropEvent *)> dropped;
+
+protected:
+    void startDrag(Qt::DropActions supportedActions) override
+    {
+        Q_UNUSED(supportedActions)
+        dragStarted();
+    }
+
+    void dragEnterEvent(QDragEnterEvent *event) override
+    {
+        dragMoved(event);
+    }
+
+    void dragMoveEvent(QDragMoveEvent *event) override
+    {
+        dragMoved(event);
+    }
+
+    void dragLeaveEvent(QDragLeaveEvent *event) override
+    {
+        event->accept();
+    }
+
+    void dropEvent(QDropEvent *event) override
+    {
+        dropped(event);
+    }
 };
 
 /**
@@ -165,7 +288,15 @@ private:
  * see it, and it survives switching views. Enter and a double click open items,
  * a right click shows the host's context menu, and hovering an item describes it in
  * the information panel, all through the context. Renaming (F2) is the host's
- * dialog: the view does not declare InlineRename. No drag and drop, no previews.
+ * dialog: the view does not declare InlineRename.
+ *
+ * Previews: while the context's preview provider is enabled ("Show Previews"), the
+ * rows are larger and show thumbnails. Only the visible rows and one page above and
+ * below them are requested; rows that leave that range are canceled and lose their
+ * thumbnail, so scrolling through a large folder never piles up work.
+ *
+ * Drag and drop go through the context's file operations: dragging the selection,
+ * and dropping onto a folder row or onto the location (any other row, the background).
  *
  * Its state (saveState()) is the item scrolled to the top, so the history, view
  * switches and the session bring the user back to the same place.
@@ -175,16 +306,28 @@ class WhaleTestListView : public WhaleView
 public:
     WhaleTestListView(WhaleViewContext *context, QObject *parent)
         : WhaleView(context, parent)
-        , m_listView(new QListView)
+        , m_listView(new TestListWidget)
         , m_model(new ItemListModel(context->items(), m_listView))
+        , m_previews(context->previews())
+        , m_previewTimer(new QTimer(this))
     {
         m_listView->setObjectName(QStringLiteral("whaleTestListView"));
         m_listView->setModel(m_model);
         m_listView->setUniformItemSizes(true);
         m_listView->setEditTriggers(QAbstractItemView::NoEditTriggers);
         m_listView->setSelectionMode(QAbstractItemView::ExtendedSelection);
-        m_listView->setDragEnabled(false);
-        m_listView->setAcceptDrops(false);
+        m_listView->setDragEnabled(true);
+        m_listView->setAcceptDrops(true);
+        m_listView->setDragDropMode(QAbstractItemView::DragDrop);
+        m_listView->dragStarted = [this]() {
+            startDrag();
+        };
+        m_listView->dragMoved = [this](QDragMoveEvent *event) {
+            this->context()->fileOperations()->updateDropAction(event, dropTarget(event->position().toPoint()));
+        };
+        m_listView->dropped = [this](QDropEvent *event) {
+            this->context()->fileOperations()->drop(event, dropTarget(event->position().toPoint()), m_listView->viewport());
+        };
         m_listView->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(m_listView, &QWidget::customContextMenuRequested, this, &WhaleTestListView::requestContextMenu);
         m_listView->setMouseTracking(true);
@@ -213,6 +356,37 @@ public:
         connect(m_model, &QAbstractItemModel::rowsInserted, this, &WhaleTestListView::schedulePendingTopItem);
         connect(m_model, &QAbstractItemModel::modelReset, this, &WhaleTestListView::schedulePendingTopItem);
         connect(context, &WhaleViewContext::loadingCompleted, this, &WhaleTestListView::schedulePendingTopItem);
+
+        // Previews of the rows in sight, updated once the event loop is idle after
+        // scrolling, resizing or changes of the items.
+        m_previewTimer->setSingleShot(true);
+        m_previewTimer->setInterval(0);
+        connect(m_previewTimer, &QTimer::timeout, this, &WhaleTestListView::updatePreviews);
+        connect(m_previews, &WhalePreviewProvider::previewAvailable, this, &WhaleTestListView::slotPreviewAvailable);
+        connect(m_previews, &WhalePreviewProvider::previewFailed, this, &WhaleTestListView::slotPreviewFailed);
+        connect(m_previews, &WhalePreviewProvider::enabledChanged, this, &WhaleTestListView::applyPreviewsEnabled);
+        connect(m_listView->verticalScrollBar(), &QScrollBar::valueChanged, this, &WhaleTestListView::schedulePreviews);
+        connect(m_model, &QAbstractItemModel::rowsInserted, this, &WhaleTestListView::schedulePreviews);
+        connect(m_model, &QAbstractItemModel::rowsRemoved, this, &WhaleTestListView::schedulePreviews);
+        connect(m_model, &QAbstractItemModel::modelReset, this, &WhaleTestListView::schedulePreviews);
+        connect(m_model, &QAbstractItemModel::layoutChanged, this, &WhaleTestListView::schedulePreviews);
+        connect(context->items(), &WhaleItemList::itemsChanged, this, [this](int index, const KFileItemList &items) {
+            Q_UNUSED(index)
+            // Changed files need new previews; the model has dropped the old ones.
+            QList<QUrl> urls;
+            for (const KFileItem &item : items) {
+                urls.append(item.url());
+                m_noPreview.remove(item.url());
+            }
+            m_previews->cancel(urls);
+            schedulePreviews();
+        });
+        connect(context, &WhaleViewContext::urlChanged, this, [this]() {
+            // The provider has canceled the requests of the previous location.
+            m_requested.clear();
+            m_noPreview.clear();
+        });
+        applyPreviewsEnabled(m_previews->isEnabled());
     }
 
     QByteArray saveState() const override
@@ -253,7 +427,7 @@ public:
     WhaleViewCapabilities capabilities() const override
     {
         using C = WhaleViewCapability;
-        return C::HostOrder | C::Selection | C::MultiSelection | C::KeyboardNavigation;
+        return C::HostOrder | C::Selection | C::MultiSelection | C::KeyboardNavigation | C::Previews | C::Drag | C::Drop;
     }
 
 protected:
@@ -264,6 +438,7 @@ protected:
         }
         if (watched == m_listView->viewport() && event->type() == QEvent::Resize) {
             schedulePendingTopItem(); // a list without a size cannot scroll yet
+            schedulePreviews();
         }
         if (watched == m_listView && event->type() == QEvent::KeyPress) {
             const int key = static_cast<QKeyEvent *>(event)->key();
@@ -359,8 +534,117 @@ private:
         context()->setSelection(WhaleSelection(urls, current.isValid() ? m_model->url(current.row()) : QUrl()));
     }
 
-    QPointer<QListView> m_listView;
+    void startDrag()
+    {
+        const QList<QUrl> urls = context()->selection().selected();
+        if (!urls.isEmpty()) {
+            context()->fileOperations()->startDrag(urls);
+        }
+    }
+
+    /// The item under @p position for a drop, empty for the background.
+    QUrl dropTarget(const QPoint &position) const
+    {
+        const QModelIndex index = m_listView->indexAt(position);
+        return index.isValid() ? m_model->url(index.row()) : QUrl();
+    }
+
+    void applyPreviewsEnabled(bool enabled)
+    {
+        m_noPreview.clear();
+        if (!enabled) {
+            m_requested.clear();
+            m_model->clearPreviews();
+        }
+        // Thumbnails need larger rows than icons.
+        m_listView->setIconSize(enabled ? QSize(PreviewSize, PreviewSize) : QSize());
+        schedulePreviews();
+    }
+
+    void schedulePreviews()
+    {
+        if (m_previews->isEnabled()) {
+            m_previewTimer->start();
+        }
+    }
+
+    /**
+     * Requests the previews of the rows in sight and one page above and below them,
+     * and cancels (and forgets) those of all other rows.
+     */
+    void updatePreviews()
+    {
+        if (!m_previews->isEnabled()) {
+            return;
+        }
+        const int rows = m_model->rowCount();
+        QSet<QUrl> wanted;
+        KFileItemList toRequest;
+        if (rows > 0 && m_listView->viewport()->height() > 0) {
+            const QRect area = m_listView->viewport()->rect();
+            const QModelIndex first = m_listView->indexAt(area.topLeft() + QPoint(1, 1));
+            const QModelIndex last = m_listView->indexAt(QPoint(1, area.bottom() - 1));
+            const int firstRow = first.isValid() ? first.row() : 0;
+            const int lastRow = last.isValid() ? last.row() : rows - 1;
+            const int page = lastRow - firstRow + 1;
+            for (int row = std::max(0, firstRow - page); row <= std::min(rows - 1, lastRow + page); ++row) {
+                const KFileItem item = m_model->item(row);
+                wanted.insert(item.url());
+                if (!m_model->hasPreview(item.url()) && !m_noPreview.contains(item.url()) && !m_previews->isPending(item.url())) {
+                    toRequest.append(item);
+                }
+            }
+        }
+
+        QList<QUrl> outOfSight;
+        for (const QUrl &url : std::as_const(m_requested)) {
+            if (!wanted.contains(url)) {
+                outOfSight.append(url);
+            }
+        }
+        m_previews->cancel(outOfSight);
+        for (const QUrl &url : std::as_const(outOfSight)) {
+            m_requested.remove(url);
+        }
+        const QList<QUrl> shown = m_model->previewUrls();
+        for (const QUrl &url : shown) {
+            if (!wanted.contains(url)) {
+                m_model->setPreview(url, QPixmap());
+            }
+        }
+
+        if (!toRequest.isEmpty()) {
+            for (const KFileItem &item : std::as_const(toRequest)) {
+                m_requested.insert(item.url());
+            }
+            m_previews->requestPreviews(toRequest, QSize(PreviewSize, PreviewSize), m_listView->devicePixelRatioF());
+        }
+    }
+
+    void slotPreviewAvailable(const KFileItem &item, const QPixmap &preview)
+    {
+        if (m_requested.remove(item.url())) {
+            m_model->setPreview(item.url(), preview);
+        }
+    }
+
+    void slotPreviewFailed(const KFileItem &item)
+    {
+        if (m_requested.remove(item.url())) {
+            m_noPreview.insert(item.url()); // keeps its icon; not asked again until it changes
+        }
+    }
+
+    static constexpr int PreviewSize = 48;
+
+    QPointer<TestListWidget> m_listView;
     ItemListModel *const m_model;
+    WhalePreviewProvider *const m_previews;
+    QTimer *const m_previewTimer;
+    // Previews requested by this view and not answered yet.
+    QSet<QUrl> m_requested;
+    // Items without a preview (unsupported type, error).
+    QSet<QUrl> m_noPreview;
     bool m_applying = false;
     QUrl m_infoUrl;
     QUrl m_pendingTopItem;

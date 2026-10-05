@@ -7,6 +7,8 @@
 #include "whaleviewcontextimpl.h"
 
 #include "dolphinviewbridge.h"
+#include "whalefileoperationsimpl.h"
+#include "whalepreviewproviderimpl.h"
 
 WhaleViewContextImpl::WhaleViewContextImpl(DolphinViewBridge *bridge, QObject *parent)
     : WhaleViewContext(parent)
@@ -88,6 +90,36 @@ void WhaleViewContextImpl::requestContextMenu(const QPoint &globalPos, const QUr
 void WhaleViewContextImpl::requestItemInfo(const QUrl &url)
 {
     m_bridge->requestItemInfo(url);
+}
+
+WhalePreviewProvider *WhaleViewContextImpl::previews() const
+{
+    if (!m_previews) {
+        m_previews = new WhalePreviewProviderImpl(m_bridge, const_cast<WhaleViewContextImpl *>(this));
+        m_previews->setViewSupportsPreviews(m_viewCapabilities & WhaleViewCapability::Previews);
+    }
+    return m_previews;
+}
+
+WhaleFileOperations *WhaleViewContextImpl::fileOperations() const
+{
+    if (!m_fileOperations) {
+        m_fileOperations = new WhaleFileOperationsImpl(m_bridge, const_cast<WhaleViewContextImpl *>(this));
+    }
+    return m_fileOperations;
+}
+
+void WhaleViewContextImpl::setViewCapabilities(WhaleViewCapabilities capabilities)
+{
+    m_viewCapabilities = capabilities;
+    if (m_previews) {
+        m_previews->setViewSupportsPreviews(capabilities & WhaleViewCapability::Previews);
+    }
+}
+
+WhalePreviewProviderImpl *WhaleViewContextImpl::previewProviderIfCreated() const
+{
+    return m_previews;
 }
 
 #include "moc_whaleviewcontextimpl.cpp"

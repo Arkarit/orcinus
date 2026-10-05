@@ -75,6 +75,20 @@ target_compile_definitions(whalepersistencetest PRIVATE
     WHALE_TEST_DYNAMIC_PLUGIN_DIR="${WHALE_TEST_DYNAMIC_PLUGIN_DIR}")
 add_dependencies(whalepersistencetest whale_testlist whale_hello whale_test_dynamic)
 
+ecm_add_test(whalepreviewtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalepreviewtest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalepreviewtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalepreviewtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalepreviewtest whale_testlist whale_hello)
+
+ecm_add_test(whaledragdroptest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaledragdroptest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaledragdroptest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaledragdroptest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whaledragdroptest whale_testlist)
+
 # The development automation must stay out of regular builds (see src/whale/devmcp).
 add_test(NAME whale_dev_mcp_default_off
     COMMAND ${CMAKE_COMMAND}

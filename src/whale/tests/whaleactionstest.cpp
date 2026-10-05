@@ -352,8 +352,8 @@ void WhaleActionsTest::testCapabilityMatrix_data()
     const QStringList always = {QStringLiteral("properties"), QStringLiteral("show_hidden_files")};
 
     QTest::newRow("file list") << QStringLiteral("dolphin") << 0 << QStringList() << (zoom + order + selecting + onSelection + selectionMode + always);
-    QTest::newRow("test list") << testListId << 0 << (zoom + QStringList{QStringLiteral("show_preview"), QStringLiteral("group_by")} + selectionMode)
-                               << (order + selecting + onSelection + always);
+    QTest::newRow("test list") << testListId << 0 << (zoom + QStringList{QStringLiteral("group_by")} + selectionMode)
+                               << (order + selecting + onSelection + always + QStringList{QStringLiteral("show_preview")});
     QTest::newRow("hello: no capabilities") << helloId << 0 << (zoom + order + selecting + onSelection + selectionMode) << always;
     QTest::newRow("zoom, previews, grouping") << capsId << int(C::Selection | C::MultiSelection | C::HostOrder | C::Zoom | C::Previews | C::Grouping)
                                               << selectionMode

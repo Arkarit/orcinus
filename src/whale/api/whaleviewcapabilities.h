@@ -30,10 +30,13 @@ enum class WhaleViewCapability : quint32 {
     Grouping = 1 << 3,
     /// The view reacts to zoom requests. Without it, the zoom actions are disabled.
     Zoom = 1 << 4,
-    /// The view reacts to the "show previews" setting. Without it, the action is disabled.
+    /// The view shows previews (WhalePreviewProvider) and follows the "Show Previews"
+    /// setting. Without it, the action is disabled and the view gets no previews.
     Previews = 1 << 5,
-    Drag = 1 << 6, ///< Items can be dragged out of the view. (Not used by the host yet.)
-    Drop = 1 << 7, ///< Items can be dropped onto the view. (Not used by the host yet.)
+    /// Items can be dragged out of the view (WhaleFileOperations::startDrag()). (Informative.)
+    Drag = 1 << 6,
+    /// Items can be dropped onto the view (WhaleFileOperations::drop()). (Informative.)
+    Drop = 1 << 7,
     /// The view can rename an item inline: F2 on one selected item calls
     /// WhaleView::startRename(). Without it, Whale renames with a dialog.
     InlineRename = 1 << 8,

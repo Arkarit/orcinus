@@ -131,6 +131,12 @@ public:
      */
     DolphinViewBridge *bridge() const;
 
+    /**
+     * @return The context of the shown plugin view, or null while the DolphinView is
+     *         shown. For Whale's own development tools.
+     */
+    WhaleViewContextImpl *pluginContext() const;
+
 Q_SIGNALS:
     void currentViewChanged(const QString &viewId);
 

@@ -16,7 +16,9 @@
 
 #include <memory>
 
+class WhaleFileOperations;
 class WhaleItemList;
+class WhalePreviewProvider;
 class WhaleViewContextPrivate;
 
 /**
@@ -87,6 +89,18 @@ public:
      * and the status bar can describe it. An empty @p url means none any more.
      */
     virtual void requestItemInfo(const QUrl &url) = 0;
+
+    /**
+     * @return The thumbnails of files for this view. The provider belongs to the
+     *         context and lives as long as it. It is created on the first call.
+     */
+    virtual WhalePreviewProvider *previews() const = 0;
+
+    /**
+     * @return The file operations of this view (drag and drop). They belong to the
+     *         context and live as long as it.
+     */
+    virtual WhaleFileOperations *fileOperations() const = 0;
 
 Q_SIGNALS:
     /**
