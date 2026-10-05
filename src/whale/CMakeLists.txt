@@ -26,6 +26,7 @@ add_library(whaleviewapi SHARED)
 
 target_sources(whaleviewapi PRIVATE
     api/whaleitemlist.cpp
+    api/whaleselection.cpp
     api/whaleview.cpp
     api/whaleviewcontext.cpp
     api/whaleviewplugin.cpp

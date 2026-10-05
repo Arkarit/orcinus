@@ -136,6 +136,11 @@ void WhaleViewHost::setActive(bool active)
     }
 }
 
+DolphinViewBridge *WhaleViewHost::bridge() const
+{
+    return m_bridge;
+}
+
 void WhaleViewHost::destroyPluginView()
 {
     if (!m_pluginView) {

@@ -9,11 +9,13 @@
 #include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
+#include "kitemviews/kitemlistselectionmanager.h"
 #include "views/dolphinview.h"
 #include "whaleitemlist.h"
 #include "whaleviewdebug.h"
 
 #include <QPointer>
+#include <QTimer>
 
 namespace
 {
@@ -195,11 +197,28 @@ private:
 DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     : QObject(parent)
     , m_dolphinView(dolphinView)
+    , m_selectionTimer(new QTimer(this))
 {
     connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::urlChanged);
     connect(dolphinView, &DolphinView::directoryLoadingStarted, this, &DolphinViewBridge::loadingStarted);
     connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::loadingCompleted);
     connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, &DolphinViewBridge::loadingCanceled);
+
+    // The selection manager reports every step (a rubber band, the index shifts of an
+    // insertion, ...). They are collected and compared by URL once the event loop is
+    // idle; by then the item lists have followed the model as well. Renaming changes
+    // a selected URL without any selection signal, hence itemsChanged too.
+    m_selectionTimer->setSingleShot(true);
+    m_selectionTimer->setInterval(0);
+    connect(m_selectionTimer, &QTimer::timeout, this, &DolphinViewBridge::reportSelection);
+    auto schedule = [this]() {
+        m_selectionTimer->start();
+    };
+    KItemListSelectionManager *selectionManager = controller()->selectionManager();
+    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, schedule);
+    connect(selectionManager, &KItemListSelectionManager::currentChanged, this, schedule);
+    connect(model(), &KFileItemModel::itemsChanged, this, schedule);
+    m_reportedSelection = selection();
 }
 
 DolphinViewBridge::~DolphinViewBridge() = default;
@@ -211,7 +230,95 @@ QUrl DolphinViewBridge::url() const
 
 WhaleItemList *DolphinViewBridge::createItemList(QObject *parent) const
 {
-    return new MirroredItemList(m_dolphinView->itemListContainer()->controller(), parent);
+    return new MirroredItemList(controller(), parent);
+}
+
+KItemListController *DolphinViewBridge::controller() const
+{
+    return m_dolphinView->itemListContainer()->controller();
+}
+
+KFileItemModel *DolphinViewBridge::model() const
+{
+    return qobject_cast<KFileItemModel *>(controller()->model());
+}
+
+WhaleSelection DolphinViewBridge::selection() const
+{
+    const KFileItemModel *fileItemModel = model();
+    const KItemListSelectionManager *selectionManager = controller()->selectionManager();
+    QList<QUrl> urls;
+    const KItemSet selected = selectionManager->selectedItems();
+    urls.reserve(selected.count());
+    for (int index : selected) {
+        urls.append(fileItemModel->fileItem(index).url());
+    }
+    const int current = selectionManager->currentItem();
+    return WhaleSelection(urls, current >= 0 ? fileItemModel->fileItem(current).url() : QUrl());
+}
+
+WhaleSelection DolphinViewBridge::setSelection(const WhaleSelection &selection)
+{
+    const KFileItemModel *fileItemModel = model();
+    KItemListSelectionManager *selectionManager = controller()->selectionManager();
+
+    KItemSet indexes;
+    const QList<QUrl> urls = selection.selected();
+    for (const QUrl &url : urls) {
+        const int index = fileItemModel->index(url);
+        if (index >= 0) {
+            indexes.insert(index);
+        }
+    }
+    const int current = selection.current().isEmpty() ? -1 : fileItemModel->index(selection.current());
+
+    // A shift selection in progress would add its range to selectedItems().
+    selectionManager->endAnchoredSelection();
+    if (current >= 0) {
+        selectionManager->setCurrentItem(current);
+    }
+    selectionManager->setSelectedItems(indexes);
+
+    // The selection manager has emitted its signals: the DolphinView follows as usual,
+    // and reportSelection() tells all views (the caller's context skips its own echo).
+    return this->selection();
+}
+
+void DolphinViewBridge::reportSelection()
+{
+    const WhaleSelection current = selection();
+    if (m_reportedSelection && *m_reportedSelection == current) {
+        return;
+    }
+    m_reportedSelection = current;
+    Q_EMIT selectionChanged(current);
+}
+
+void DolphinViewBridge::activateItems(const QList<QUrl> &urls)
+{
+    const KFileItemModel *fileItemModel = model();
+    KItemSet indexes;
+    for (const QUrl &url : urls) {
+        const int index = fileItemModel->index(url);
+        if (index >= 0) {
+            indexes.insert(index);
+        }
+    }
+    if (indexes.isEmpty()) {
+        return;
+    }
+
+    // The main window only listens to the active view area (plan 14.8).
+    m_dolphinView->setActive(true);
+    // Request signals of the controller, see plan 3.2: the DolphinView handles them
+    // exactly as a double click or Enter in its own view (archives, folders, files,
+    // Alt for properties, confirmation for many items).
+    KItemListController *itemListController = controller();
+    if (indexes.count() == 1) {
+        Q_EMIT itemListController->itemActivated(indexes.first());
+    } else {
+        Q_EMIT itemListController->itemsActivated(indexes);
+    }
 }
 
 #include "moc_dolphinviewbridge.cpp"

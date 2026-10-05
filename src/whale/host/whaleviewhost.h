@@ -81,6 +81,12 @@ public:
      */
     void setActive(bool active);
 
+    /**
+     * @return The bridge to the DolphinView of this view area. For Whale's own
+     *         development tools; views use their WhaleViewContext.
+     */
+    DolphinViewBridge *bridge() const;
+
 Q_SIGNALS:
     void currentViewChanged(const QString &viewId);
 

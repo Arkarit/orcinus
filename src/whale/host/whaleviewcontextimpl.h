@@ -9,6 +9,8 @@
 
 #include "whaleviewcontext.h"
 
+#include <optional>
+
 class DolphinViewBridge;
 
 /**
@@ -26,9 +28,16 @@ public:
 
     QUrl url() const override;
     WhaleItemList *items() const override;
+    WhaleSelection selection() const override;
+    void setSelection(const WhaleSelection &selection) override;
+    void activateItems(const QList<QUrl> &urls) override;
 
 private:
+    void slotSelectionChanged(const WhaleSelection &selection);
+
     DolphinViewBridge *const m_bridge;
+    // The selection this context's view has just set, so its echo is not sent back.
+    std::optional<WhaleSelection> m_ownSelection;
     mutable WhaleItemList *m_items = nullptr;
 };
 

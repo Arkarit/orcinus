@@ -467,7 +467,7 @@ void DolphinViewBridgeTest::testTestListView()
     QVERIFY(listView);
     QVERIFY(listView->isVisible());
     QVERIFY(!m_view->isVisible());
-    QCOMPARE(m_host->currentView()->capabilities(), WhaleViewCapabilities(WhaleViewCapability::HostOrder));
+    QVERIFY(m_host->currentView()->capabilities() & WhaleViewCapability::HostOrder);
     QCOMPARE(rows(listView), names(m_view->items()));
 
     // Host order: sorting, hidden files and the name filter of the DolphinView apply.
@@ -515,22 +515,12 @@ void DolphinViewBridgeTest::testTestListViewIsReadOnly()
     QVERIFY(listView);
     QTRY_COMPARE(rows(listView).count(), 4);
 
-    // Nothing in the test view may look like a target of the host's file actions.
-    QCOMPARE(listView->selectionMode(), QAbstractItemView::NoSelection);
+    // The test view changes no files: no inline editing, no drag and drop, no context
+    // menu. (Selection and activation are the host's, see whaleselectiontest.)
     QCOMPARE(listView->editTriggers(), QAbstractItemView::NoEditTriggers);
     QVERIFY(!listView->dragEnabled());
     QVERIFY(!listView->acceptDrops());
     QCOMPARE(listView->contextMenuPolicy(), Qt::PreventContextMenu);
-
-    // Clicking and double clicking an item neither selects nor opens it, and leaves
-    // the selection of the hidden DolphinView alone.
-    const QRect rect = listView->visualRect(listView->model()->index(1, 0));
-    QTest::mouseClick(listView->viewport(), Qt::LeftButton, {}, rect.center());
-    QTest::mouseDClick(listView->viewport(), Qt::LeftButton, {}, rect.center());
-    QVERIFY(listView->selectionModel()->selectedIndexes().isEmpty());
-    QCOMPARE(m_view->selectedItemsCount(), 0);
-    QCOMPARE(m_view->url(), m_dir->url());
-    QCOMPARE(listView->model()->rowCount(), 4);
 }
 
 QTEST_MAIN(DolphinViewBridgeTest)

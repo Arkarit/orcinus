@@ -44,6 +44,21 @@ public:
         return m_items;
     }
 
+    WhaleSelection selection() const override
+    {
+        return m_selection;
+    }
+
+    void setSelection(const WhaleSelection &selection) override
+    {
+        m_selection = selection;
+    }
+
+    void activateItems(const QList<QUrl> &urls) override
+    {
+        Q_UNUSED(urls)
+    }
+
     void setUrl(const QUrl &url)
     {
         m_url = url;
@@ -53,6 +68,7 @@ public:
 private:
     QUrl m_url = QUrl::fromLocalFile(QStringLiteral("/tmp"));
     EmptyItemList *const m_items = new EmptyItemList(this);
+    WhaleSelection m_selection;
 };
 
 bool containsPlugin(const QList<KPluginMetaData> &plugins, const QString &pluginId)

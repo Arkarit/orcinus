@@ -16,6 +16,7 @@ WhaleViewContextImpl::WhaleViewContextImpl(DolphinViewBridge *bridge, QObject *p
     connect(bridge, &DolphinViewBridge::loadingStarted, this, &WhaleViewContext::loadingStarted);
     connect(bridge, &DolphinViewBridge::loadingCompleted, this, &WhaleViewContext::loadingCompleted);
     connect(bridge, &DolphinViewBridge::loadingCanceled, this, &WhaleViewContext::loadingCanceled);
+    connect(bridge, &DolphinViewBridge::selectionChanged, this, &WhaleViewContextImpl::slotSelectionChanged);
 }
 
 WhaleViewContextImpl::~WhaleViewContextImpl() = default;
@@ -32,6 +33,46 @@ WhaleItemList *WhaleViewContextImpl::items() const
         m_items = m_bridge->createItemList(const_cast<WhaleViewContextImpl *>(this));
     }
     return m_items;
+}
+
+WhaleSelection WhaleViewContextImpl::selection() const
+{
+    return m_bridge->selection();
+}
+
+void WhaleViewContextImpl::setSelection(const WhaleSelection &selection)
+{
+    const WhaleSelection before = m_bridge->selection();
+    const WhaleSelection result = m_bridge->setSelection(selection);
+
+    // The view shows what it asked for. Unless the result differs from that (URLs
+    // outside the listing, an unknown current item), the bridge's report of this
+    // change is not sent back to it; other contexts get it as usual.
+    QList<QUrl> asked = selection.selected();
+    QList<QUrl> applied = result.selected();
+    std::sort(asked.begin(), asked.end());
+    std::sort(applied.begin(), applied.end());
+    asked.erase(std::unique(asked.begin(), asked.end()), asked.end());
+    const bool asAsked = asked == applied && (selection.current().isEmpty() || selection.current() == result.current());
+    if (asAsked && result != before) {
+        m_ownSelection = result;
+    } else {
+        m_ownSelection.reset();
+    }
+}
+
+void WhaleViewContextImpl::slotSelectionChanged(const WhaleSelection &selection)
+{
+    const bool echo = m_ownSelection && *m_ownSelection == selection;
+    m_ownSelection.reset();
+    if (!echo) {
+        Q_EMIT selectionChanged(selection);
+    }
+}
+
+void WhaleViewContextImpl::activateItems(const QList<QUrl> &urls)
+{
+    m_bridge->activateItems(urls);
 }
 
 #include "moc_whaleviewcontextimpl.cpp"

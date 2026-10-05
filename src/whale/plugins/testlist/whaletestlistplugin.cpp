@@ -12,9 +12,13 @@
 #include <KPluginFactory>
 
 #include <QAbstractListModel>
+#include <QEvent>
+#include <QHash>
 #include <QIcon>
+#include <QKeyEvent>
 #include <QListView>
 #include <QPointer>
+#include <QScopedValueRollback>
 
 namespace
 {
@@ -36,6 +40,30 @@ public:
         connect(list, &WhaleItemList::itemsRemoved, this, &ItemListModel::slotItemsRemoved);
         connect(list, &WhaleItemList::itemsMoved, this, &ItemListModel::slotItemsMoved);
         connect(list, &WhaleItemList::itemsChanged, this, &ItemListModel::slotItemsChanged);
+    }
+
+    /**
+     * @return True while the model follows a change of the item list. Selection
+     *         changes of the list view in that time are consequences, not user input.
+     */
+    bool isUpdating() const
+    {
+        return m_updating;
+    }
+
+    QUrl url(int row) const
+    {
+        return m_items.value(row).url();
+    }
+
+    QHash<QUrl, int> rowsByUrl() const
+    {
+        QHash<QUrl, int> rows;
+        rows.reserve(m_items.count());
+        for (int row = 0; row < m_items.count(); ++row) {
+            rows.insert(m_items.at(row).url(), row);
+        }
+        return rows;
     }
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override
@@ -62,6 +90,7 @@ public:
 private:
     void slotItemsReset()
     {
+        QScopedValueRollback updating(m_updating, true);
         beginResetModel();
         m_items = m_list->items();
         endResetModel();
@@ -69,6 +98,7 @@ private:
 
     void slotItemsInserted(int index, const KFileItemList &items)
     {
+        QScopedValueRollback updating(m_updating, true);
         if (items.isEmpty()) {
             return;
         }
@@ -80,6 +110,7 @@ private:
 
     void slotItemsRemoved(int index, const KFileItemList &items)
     {
+        QScopedValueRollback updating(m_updating, true);
         if (items.isEmpty()) {
             return;
         }
@@ -90,6 +121,7 @@ private:
 
     void slotItemsMoved(int index, const QList<int> &movedToIndexes)
     {
+        QScopedValueRollback updating(m_updating, true);
         Q_EMIT layoutAboutToBeChanged();
         const KFileItemList old = m_items.mid(index, movedToIndexes.count());
         for (int i = 0; i < old.count(); ++i) {
@@ -108,6 +140,7 @@ private:
 
     void slotItemsChanged(int index, const KFileItemList &items)
     {
+        QScopedValueRollback updating(m_updating, true);
         if (items.isEmpty()) {
             return;
         }
@@ -117,16 +150,18 @@ private:
 
     WhaleItemList *const m_list;
     KFileItemList m_items;
+    bool m_updating = false;
 };
 
 /**
  * Shows the names of the items of the location in the host's order, so the
  * host's sorting, hidden files and name filter apply.
  *
- * The view only displays the items. It has no selection of its own, and it does
- * not open, rename, drag or delete items or offer a context menu: until views
- * can share the host's selection, such a selection or action could not tell the
- * user which items the host's file actions would affect.
+ * The selection is the host's: the view shows the context's selection and reports
+ * the user's changes back, so the host's actions, status bar and information panel
+ * see it, and it survives switching views. Enter and a double click open items
+ * through the host. The view does not rename, drag or delete items and offers no
+ * context menu.
  */
 class WhaleTestListView : public WhaleView
 {
@@ -134,16 +169,27 @@ public:
     WhaleTestListView(WhaleViewContext *context, QObject *parent)
         : WhaleView(context, parent)
         , m_listView(new QListView)
+        , m_model(new ItemListModel(context->items(), m_listView))
     {
         m_listView->setObjectName(QStringLiteral("whaleTestListView"));
-        m_listView->setModel(new ItemListModel(context->items(), m_listView));
+        m_listView->setModel(m_model);
         m_listView->setUniformItemSizes(true);
         m_listView->setEditTriggers(QAbstractItemView::NoEditTriggers);
-        m_listView->setSelectionMode(QAbstractItemView::NoSelection);
+        m_listView->setSelectionMode(QAbstractItemView::ExtendedSelection);
         m_listView->setDragEnabled(false);
         m_listView->setAcceptDrops(false);
         // No menu, and none from a parent widget either.
         m_listView->setContextMenuPolicy(Qt::PreventContextMenu);
+        m_listView->installEventFilter(this);
+
+        applySelection(context->selection());
+        connect(context, &WhaleViewContext::selectionChanged, this, &WhaleTestListView::applySelection);
+        QItemSelectionModel *selectionModel = m_listView->selectionModel();
+        connect(selectionModel, &QItemSelectionModel::selectionChanged, this, &WhaleTestListView::reportSelection);
+        connect(selectionModel, &QItemSelectionModel::currentChanged, this, &WhaleTestListView::reportSelection);
+        connect(m_listView, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
+            this->context()->activateItems({m_model->url(index.row())});
+        });
     }
 
     ~WhaleTestListView() override
@@ -158,11 +204,66 @@ public:
 
     WhaleViewCapabilities capabilities() const override
     {
-        return WhaleViewCapability::HostOrder;
+        using C = WhaleViewCapability;
+        return C::HostOrder | C::Selection | C::MultiSelection | C::KeyboardNavigation;
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (watched == m_listView && event->type() == QEvent::KeyPress) {
+            const int key = static_cast<QKeyEvent *>(event)->key();
+            if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+                // Like the file list: Enter opens the selected items, or the current one.
+                QList<QUrl> urls = context()->selection().selected();
+                if (urls.isEmpty() && m_listView->currentIndex().isValid()) {
+                    urls.append(m_model->url(m_listView->currentIndex().row()));
+                }
+                context()->activateItems(urls);
+                return true;
+            }
+        }
+        return WhaleView::eventFilter(watched, event);
     }
 
 private:
+    void applySelection(const WhaleSelection &selection)
+    {
+        QScopedValueRollback applying(m_applying, true);
+        const QHash<QUrl, int> rows = m_model->rowsByUrl();
+        QItemSelection itemSelection;
+        const QList<QUrl> urls = selection.selected();
+        for (const QUrl &url : urls) {
+            const int row = rows.value(url, -1);
+            if (row >= 0) {
+                itemSelection.select(m_model->index(row), m_model->index(row));
+            }
+        }
+        QItemSelectionModel *selectionModel = m_listView->selectionModel();
+        selectionModel->select(itemSelection, QItemSelectionModel::ClearAndSelect);
+        const int currentRow = rows.value(selection.current(), -1);
+        selectionModel->setCurrentIndex(currentRow >= 0 ? m_model->index(currentRow) : QModelIndex(), QItemSelectionModel::NoUpdate);
+    }
+
+    void reportSelection()
+    {
+        // Changes made by applySelection() or by rows coming and going are not the user's.
+        if (m_applying || m_model->isUpdating()) {
+            return;
+        }
+        QModelIndexList selectedRows = m_listView->selectionModel()->selectedIndexes();
+        std::sort(selectedRows.begin(), selectedRows.end());
+        QList<QUrl> urls;
+        for (const QModelIndex &index : std::as_const(selectedRows)) {
+            urls.append(m_model->url(index.row()));
+        }
+        const QModelIndex current = m_listView->currentIndex();
+        context()->setSelection(WhaleSelection(urls, current.isValid() ? m_model->url(current.row()) : QUrl()));
+    }
+
     QPointer<QListView> m_listView;
+    ItemListModel *const m_model;
+    bool m_applying = false;
 };
 }
 
