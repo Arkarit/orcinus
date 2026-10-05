@@ -9,6 +9,7 @@
 #include "dolphinviewbridge.h"
 #include "whalefileoperationsimpl.h"
 #include "whalepreviewproviderimpl.h"
+#include "whaletreecache.h"
 #include "whaletreescannerimpl.h"
 
 WhaleViewContextImpl::WhaleViewContextImpl(DolphinViewBridge *bridge, QObject *parent)
@@ -113,9 +114,14 @@ WhaleFileOperations *WhaleViewContextImpl::fileOperations() const
 WhaleTreeScanner *WhaleViewContextImpl::treeScanner() const
 {
     if (!m_treeScanner) {
-        m_treeScanner = new WhaleTreeScannerImpl(const_cast<WhaleViewContextImpl *>(this));
+        m_treeScanner = new WhaleTreeScannerImpl(m_treeCache, const_cast<WhaleViewContextImpl *>(this));
     }
     return m_treeScanner;
+}
+
+void WhaleViewContextImpl::setTreeCache(WhaleTreeCache *cache)
+{
+    m_treeCache = cache;
 }
 
 void WhaleViewContextImpl::setViewCapabilities(WhaleViewCapabilities capabilities)

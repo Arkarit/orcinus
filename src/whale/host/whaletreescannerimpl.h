@@ -9,37 +9,38 @@
 
 #include "whaletreescanner.h"
 
+#include <QPointer>
+
 #include <functional>
 
-template<typename T>
-class QFutureWatcher;
-
-namespace WhaleTreeScan
+class WhaleTreeCache;
+class WhaleTreeScanJob;
+namespace WhaleTreeWalker
 {
-/// What a worker reports: the tree, or why there is none.
-struct Outcome {
-    WhaleTreeNode root;
-    bool failed = false;
-    WhaleTreeScanner::Error error = WhaleTreeScanner::Error::InvalidUrl;
-    QString path;
-};
+struct Outcome;
 }
 
 /**
- * @brief The WhaleTreeScanner of a view: fts(3) in a worker thread.
+ * @brief The WhaleTreeScanner of a view: a consumer of the scans of a WhaleTreeCache.
  *
- * Each scan runs as one task of a thread pool of the scanners (QtConcurrent with a
- * QPromise). The worker walks the tree with fts_read(), so there is no recursion of
- * its own, and builds the nodes bottom-up with an explicit stack of open folders.
- * cancel() cancels the task's future; the worker checks it after every entry and
- * stops, and its outcome is never delivered. The scanner never waits for a worker.
+ * With a cache, scan() hands out a kept tree, or joins a running scan for the same root
+ * and options, or starts one; cancel() only leaves that scan, which goes on for its
+ * other consumers. Without a cache, every scan runs on its own (WhaleTreeScanJob).
+ *
+ * Signals are the same in all cases: started() within scan(), then exactly one of
+ * finished(), failed() or canceled() later; finished() and failed() never come within
+ * scan() (a kept tree is delivered once the event loop runs), canceled() comes within
+ * cancel(). progress() only comes while a scan really runs.
  */
 class WhaleTreeScannerImpl : public WhaleTreeScanner
 {
     Q_OBJECT
 
 public:
-    explicit WhaleTreeScannerImpl(QObject *parent = nullptr);
+    /**
+     * @param cache The shared scans; null to scan on its own.
+     */
+    explicit WhaleTreeScannerImpl(WhaleTreeCache *cache = nullptr, QObject *parent = nullptr);
     ~WhaleTreeScannerImpl() override;
 
     bool scan(const QUrl &root, const Options &options = Options()) override;
@@ -47,7 +48,7 @@ public:
     bool isRunning() const override;
 
     /**
-     * @return The number of workers still running in this process, also those of
+     * @return The number of scan workers still running in this process, also those of
      *         canceled scans; for tests.
      */
     static int runningWorkers();
@@ -59,9 +60,13 @@ public:
     static void setVisitHookForTesting(const std::function<void(const QString &path)> &hook);
 
 private:
-    void slotWorkerFinished();
+    void leaveJob();
+    void deliver(const WhaleTreeWalker::Outcome &outcome);
 
-    QFutureWatcher<WhaleTreeScan::Outcome> *m_watcher = nullptr;
+    QPointer<WhaleTreeCache> m_cache;
+    QPointer<WhaleTreeScanJob> m_job;
+    bool m_running = false;
+    quint64 m_scan = 0; // the current scan, so a late delivery of an old one is dropped
 };
 
 #endif

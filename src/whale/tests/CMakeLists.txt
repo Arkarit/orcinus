@@ -93,6 +93,13 @@ ecm_add_test(whaletreescannertest.cpp
     TEST_NAME whaletreescannertest
     LINK_LIBRARIES whaleviewhost Qt6::Test)
 
+ecm_add_test(whaletreecachetest.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaletreecachetest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaletreecachetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaletreecachetest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whaletreecachetest whale_testlist)
+
 # The development automation must stay out of regular builds (see src/whale/devmcp).
 add_test(NAME whale_dev_mcp_default_off
     COMMAND ${CMAKE_COMMAND}

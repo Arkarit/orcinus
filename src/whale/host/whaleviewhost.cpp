@@ -89,6 +89,9 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     }
 
     auto context = std::make_unique<WhaleViewContextImpl>(m_bridge);
+    if (auto actions = window()->findChild<WhaleViewActions *>()) {
+        context->setTreeCache(actions->treeCache());
+    }
     std::unique_ptr<WhaleView> view(plugin->createView(context.get(), nullptr));
     QWidget *widget = view ? view->widget() : nullptr;
     if (!widget) {

@@ -7,6 +7,8 @@
 #include "whaletreenode.h"
 #include "whaletreenode_p.h"
 
+#include <QFile>
+
 WhaleTreeNode::WhaleTreeNode() = default;
 WhaleTreeNode::~WhaleTreeNode() = default;
 WhaleTreeNode::WhaleTreeNode(const WhaleTreeNode &other) = default;
@@ -24,12 +26,12 @@ bool WhaleTreeNode::isNull() const
 
 QUrl WhaleTreeNode::url() const
 {
-    return d ? QUrl::fromLocalFile(d->path) : QUrl();
+    return d ? QUrl::fromLocalFile(path()) : QUrl();
 }
 
 QString WhaleTreeNode::path() const
 {
-    return d ? d->path : QString();
+    return d ? QFile::decodeName(d->encodedPath()) : QString();
 }
 
 QString WhaleTreeNode::name() const
@@ -37,8 +39,13 @@ QString WhaleTreeNode::name() const
     if (!d) {
         return {};
     }
-    const qsizetype slash = d->path.lastIndexOf(QLatin1Char('/'));
-    return slash < 0 || d->path.size() == 1 ? d->path : d->path.mid(slash + 1);
+    if (!d->parentPath.isEmpty()) {
+        return QFile::decodeName(d->name);
+    }
+    // The root: the last part of its path.
+    const QString path = QFile::decodeName(d->name);
+    const qsizetype slash = path.lastIndexOf(QLatin1Char('/'));
+    return slash < 0 || path.size() == 1 ? path : path.mid(slash + 1);
 }
 
 WhaleTreeNode::Type WhaleTreeNode::type() const

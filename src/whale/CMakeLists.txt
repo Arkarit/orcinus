@@ -68,7 +68,10 @@ target_sources(whaleviewhost PRIVATE
     host/dolphinviewbridge.cpp
     host/whalefileoperationsimpl.cpp
     host/whalepreviewproviderimpl.cpp
+    host/whaletreecache.cpp
     host/whaletreescannerimpl.cpp
+    host/whaletreewalker.cpp
+    host/whaletreewatch.cpp
     host/whaleviewactions.cpp
     host/whaleviewcontextimpl.cpp
     host/whaleviewhost.cpp
@@ -92,6 +95,7 @@ target_link_libraries(whaleviewhost PUBLIC
     KF6::CoreAddons
     KF6::I18n
     KF6::KIOGui
+    KF6::ConfigCore
     Qt6::Concurrent
     KF6::WidgetsAddons
     KF6::XmlGui

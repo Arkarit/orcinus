@@ -6,6 +6,8 @@
 
 #include "whaleviewactions.h"
 
+#include "whaletreecache.h"
+
 #include "dolphin_generalsettings.h"
 #include "dolphinviewbridge.h"
 #include "whaleview.h"
@@ -26,6 +28,7 @@
 WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, QObject *parent)
     : QObject(parent)
     , m_registry(new WhaleViewRegistry(this))
+    , m_treeCache(new WhaleTreeCache(WhaleTreeCache::configuredLimits(), this))
     , m_switcher(actionCollection->add<KSelectAction>(QStringLiteral("whale_view_switcher")))
     , m_actionCollection(actionCollection)
 {
@@ -242,6 +245,11 @@ void WhaleViewActions::slotViewModeTriggered()
 WhaleViewRegistry *WhaleViewActions::registry() const
 {
     return m_registry;
+}
+
+WhaleTreeCache *WhaleViewActions::treeCache() const
+{
+    return m_treeCache;
 }
 
 void WhaleViewActions::slotViewSelected(QAction *action)

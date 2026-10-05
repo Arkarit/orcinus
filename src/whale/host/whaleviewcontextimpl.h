@@ -10,11 +10,14 @@
 #include "whaleviewcapabilities.h"
 #include "whaleviewcontext.h"
 
+#include <QPointer>
+
 #include <optional>
 
 class DolphinViewBridge;
 class WhaleFileOperationsImpl;
 class WhalePreviewProviderImpl;
+class WhaleTreeCache;
 class WhaleTreeScannerImpl;
 
 /**
@@ -49,6 +52,12 @@ public:
     void setViewCapabilities(WhaleViewCapabilities capabilities);
 
     /**
+     * Lets the context's tree scanner share the scans of @p cache (set by the host before
+     * the view is created). Without it the scanner scans on its own.
+     */
+    void setTreeCache(WhaleTreeCache *cache);
+
+    /**
      * @return The preview provider if the view has asked for it; for development tools.
      */
     WhalePreviewProviderImpl *previewProviderIfCreated() const;
@@ -63,6 +72,7 @@ private:
     mutable WhalePreviewProviderImpl *m_previews = nullptr;
     mutable WhaleFileOperationsImpl *m_fileOperations = nullptr;
     mutable WhaleTreeScannerImpl *m_treeScanner = nullptr;
+    QPointer<WhaleTreeCache> m_treeCache;
     WhaleViewCapabilities m_viewCapabilities;
 };
 

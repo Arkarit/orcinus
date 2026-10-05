@@ -17,6 +17,7 @@ class KSelectAction;
 class QAction;
 class QActionGroup;
 class WhaleViewHost;
+class WhaleTreeCache;
 class WhaleViewRegistry;
 
 /**
@@ -58,6 +59,11 @@ public:
     WhaleViewRegistry *registry() const;
 
     /**
+     * @return The tree scans shared by the views of this window.
+     */
+    WhaleTreeCache *treeCache() const;
+
+    /**
      * @return Why the gating disables the action @p actionName for the shown view, or
      *         an empty string if it does not. For tests and development tools.
      */
@@ -89,6 +95,7 @@ private:
     void slotViewModeTriggered();
 
     WhaleViewRegistry *m_registry;
+    WhaleTreeCache *m_treeCache;
     KSelectAction *m_switcher;
     KActionCollection *const m_actionCollection;
     QPointer<WhaleViewHost> m_host;
