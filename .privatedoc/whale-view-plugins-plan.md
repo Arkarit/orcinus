@@ -1660,3 +1660,116 @@ nicht dedupliziert, scheinbare statt belegter Größe.
 - Optional inkrementelle Signale, falls die Treemap sie braucht.
 
 **Weiter offen:** M9 (Treemap), T1/T2 (tiefe Auswahl) und O3 (View pro Ordner) unverändert.
+
+### 14.16 Ergebnisse aus M8b: geteilter Cache, Invalidierung, Budgets, kompakte Nodes (2026-10-05)
+
+Commit `ac8ea65b4`. **Keine Änderung an Dolphin-Dateien. API-Version bleibt 5:** Die öffentlichen
+Header (`WhaleTreeScanner`, `WhaleTreeNode`) sind unverändert. Geändert haben sich nur die interne
+Datenklasse und die Host-Seite.
+
+**Aufbau (Host):**
+
+| Klasse | Aufgabe |
+|---|---|
+| `WhaleTreeWalker` | der `fts`-Lauf aus M8a, herausgelöst, mit Rückrufen (abgebrochen?, Fortschritt, Ordner beobachten) |
+| `WhaleTreeScanJob` | ein laufender Scan (Worker im eigenen Pool) mit Consumern |
+| `WhaleTreeWatch` | inotify-Watches pro Ordner mit Besitzern und Budget |
+| `WhaleTreeCache` | Schlüssel, gehaltene Bäume, laufende Scans, Budgets, LRU |
+| `WhaleTreeScannerImpl` | der Scanner eines Contexts, jetzt Consumer des Caches |
+
+**Ownership:** ein `WhaleTreeCache` **pro Hauptfenster**, Kind von `WhaleViewActions` (wie die
+View-Registry). Es gibt kein Singleton. `WhaleViewHost` gibt den Cache beim Erzeugen eines Plugin-Contexts
+mit (`setTreeCache`). Alle Views eines Fensters (Tabs, Split) teilen also die Scans; mehrere Fenster haben
+getrennte Caches. Ein Scanner ohne Cache (z. B. ein Context außerhalb eines Fensters) scannt selbst wie in M8a.
+
+**Schlüssel:** bereinigter lokaler Pfad (Slash am Ende egal), `maxDepth` (negativ = unbegrenzt),
+`stayOnFilesystem`, `includeHidden`. Sonst nichts, keine View-Parameter.
+
+**Hit/Miss-Semantik (für alle drei Fälle gleich):** `started()` kommt noch in `scan()`, danach genau eines
+von `finished`/`failed`/`canceled`; `finished` und `failed` nie innerhalb von `scan()`.
+
+- **Hit:** gehaltener Baum, zugestellt per Queued-Aufruf, ohne `progress()`.
+- **Join:** Läuft für den Schlüssel schon ein Scan, hängt sich der Aufrufer an. Es läuft ein Worker,
+  und beide bekommen denselben Baum.
+- **Miss:** neuer Scan.
+
+**Invalidierung:** Jeder Ordner bekommt eine inotify-Watch (Erstellen, Löschen, Umbenennen, Inhalt,
+Attribute, Ordner selbst), **und zwar aus dem Worker, bevor `fts` die Einträge des Ordners liest.**
+Jede Änderung unter der Wurzel verwirft den ganzen Baum. Teilbäume werden nicht repariert, Nodes nicht
+verändert. Ein Überlauf der Kernel-Queue verwirft alles.
+
+- **Warum nicht `KDirWatch`:** geprüft per Prototyp. Es kostet ebenfalls eine Watch pro Ordner und
+  meldet Inhaltsänderungen. Es lebt aber im GUI-Thread, Watches gäbe es also erst nach dem Scan, und
+  Änderungen in der Lücke gingen verloren. `WatchSubDirs` listet den Baum außerdem synchron im GUI-Thread
+  neu (20.000 Ordner: 242 ms gegenüber 109 ms beim Hinzufügen einzelner Ordner).
+- **Kosten:** eine Watch pro Ordner (= `directoryCount()+1`). 2.101 Watches für den 100k-Baum kosten
+  rund 7 ms im Worker; laut Prototyp ca. 0,5 KB Speicher pro Watch.
+
+**Race-Semantik:**
+
+| Fall | Verhalten |
+|---|---|
+| Änderung während des Scans | Der Baum wird ausgeliefert (gleiche Semantik wie M8a), aber nicht gehalten |
+| Änderung zwischen Scan-Ende und Aufnahme | Kommt das Ereignis vor der Aufnahme, wird nicht gehalten; danach wird der Eintrag sofort verworfen. Getestet in 20 Runden: Der nächste Scan sieht die Änderung immer |
+| zwei Contexts, gleicher Schlüssel | ein Worker, beide bekommen denselben Baum |
+| ein Consumer bricht ab | Der Scan läuft für die anderen weiter |
+| alle Consumer brechen ab | Der Worker stoppt (unter 60 ms), es wird nichts gehalten, die Watches sind frei |
+| gleicher Scanner, zweiter `scan()` | `false` wie in M8a, auch während ein gehaltener Baum zugestellt wird |
+
+**Nicht gehalten werden:** fehlgeschlagene Scans, nicht-lokale Wurzeln, Bäume, die sich während des Scans
+geändert haben, Bäume, deren Ordner nicht alle beobachtet werden konnten (Watch-Budget), und Bäume, die
+allein das Speicherbudget sprengen. Diese werden zugestellt, aber nicht gehalten.
+
+**Budgets und Eviction:**
+
+- Konfiguration: Gruppe `TreeScanCache` in Whales Konfiguration, ohne GUI.
+  - `MemoryBudgetMiB`: Vorgabe **128**
+  - `WatchBudget`: Vorgabe **10.000** Ordner, höchstens ein Viertel von `max_user_watches`
+- Speicher wird pro Node geschätzt (Daten, Name, Listenplatz, Allokator, geteilter Ordnerpfad). Geschätzt
+  189 B/Node, gemessen rund 200 B/Node.
+- Beim Aufnehmen eines Baums gehen die am längsten nicht benutzten Bäume, bis Speicher und Watches
+  passen. Nur fertige Bäume werden verdrängt, nie laufende Scans.
+- Ein Scan darf höchstens das Watch-Budget nutzen; alle zusammen kurzzeitig das Doppelte, solange ein neuer
+  Scan neben gehaltenen Bäumen läuft.
+- Ausgelieferte Bäume leben unabhängig vom Cache weiter (implizit geteilte, unveränderliche Nodes).
+
+**Kompakte Nodes:** Eine Node speichert ihren Namen und den Pfad ihres Ordners als `QByteArray` (lokale
+Kodierung). Alle Einträge eines Ordners teilen sich diesen Pfad per implizitem Sharing. Einen vollen Pfad
+gibt es also einmal pro Ordner statt pro Eintrag, und es gibt keine Parent-Zeiger. `path()`, `url()` und
+`name()` werden bei Bedarf berechnet. Kinderlisten werden nach dem Ordner auf die nötige Größe gekürzt
+(`squeeze`).
+
+**Messwerte (offscreen, SSD, warmer Seiten-Cache):**
+
+| | M8a | M8b |
+|---|---|---|
+| 6.000 Dateien / 330 Ordner: Scan | 11 ms | 11–12 ms (mit 331 Watches) |
+| 6.000: Speicher des Baums (frischer Prozess) | 1,7 MB | 1,3 MB |
+| 6.000: Cache-Hit | – | ca. 21 µs |
+| 100.000 Dateien / 2.100 Ordner: Scan | 205 ms | 190 ms ohne, 197 ms mit Watches |
+| 100.000: Speicher des Baums | 47 MB | **20 MB** (Schätzung 21,6 MB) |
+| 100.000: Hit / Hit aus zweitem Scanner | – | 24 µs / 11 µs |
+| 100.000: Scan nach Änderung | – | 197 ms (echter Scan) |
+
+**Tests:** `whaletreecachetest` (17 Funktionen, 24 Fälle plus eine optionale Messung): Hit, Optionen als
+Schlüssel, zwei Scanner und zwei Contexts eines Fensters teilen einen Scan, Abbruch eines und aller
+Consumer, Invalidierung (Datei erstellt, gelöscht, umbenannt, gewachsen, tief geändert, Ordner erstellt,
+gelöscht, umbenannt), Eviction (LRU), Snapshot überlebt den Cache, Änderung während und direkt nach dem
+Scan, Watch-Budget, nicht gehaltene Fehlschläge, Speicherschätzung und -budget. Race- und Cancel-Tests sind
+zehnfach stabil. `whaletreescannertest` (M8a) bleibt unverändert grün. Volle Suite offscreen 49/50 (bekannter
+`testAccessibilityTree`); Scanner- und Cache-Tests auch auf Wayland grün.
+
+**Dev-MCP:** kein Ausbau. Die Statistik (`WhaleTreeCache::statistics()`) reicht für die Tests.
+
+**Bewusste Grenzen / vertagt auf M8c oder später:**
+
+- Teilbäume aus dem Baum einer Oberwurzel liefern (Schlüssel nur exakt)
+- Reparatur einzelner Teilbäume nach Änderungen, Live-Updates
+- Remote (`KIO::listRecursive`)
+- Dedup harter Links, belegte statt scheinbarer Größe
+- Persistenz auf Disk
+- gemeinsamer Cache über mehrere Fenster
+- Optional nicht gehaltene große Bäume trotzdem kurz halten (TTL)
+- feinere Ereignisfilter (z. B. versteckte Dateien bei `includeHidden=false`)
+
+**Weiter offen:** M9 (Treemap), T1/T2 und O3 unverändert.
