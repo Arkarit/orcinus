@@ -59,6 +59,11 @@ public:
     WhaleSelection selection() const;
 
     /**
+     * @return True if at least one item is selected. Cheaper than selection().
+     */
+    bool hasSelection() const;
+
+    /**
      * Sets the selection of the DolphinView directly in its selection manager, so the
      * usual DolphinView signals follow (status bar, information panel, actions).
      * URLs that are not in the listing are ignored; an empty current URL keeps the
@@ -74,6 +79,28 @@ public:
      */
     void activateItems(const QList<QUrl> &urls);
 
+    /**
+     * Opens the DolphinView's context menu (DolphinContextMenu, KFileItemActions,
+     * service menus) at @p globalPos for @p url and the selection, or for the location
+     * if @p url is empty. An item outside the selection becomes the selection first,
+     * as on a right click in the DolphinView. Activates the view area.
+     */
+    void requestContextMenu(const QPoint &globalPos, const QUrl &url);
+
+    /**
+     * Reports the item under the pointer to the shell (information panel, status
+     * bar); an empty @p url clears it. Does not activate the view area, as hovering
+     * does not in the DolphinView either.
+     */
+    void requestItemInfo(const QUrl &url);
+
+    /**
+     * Renames the selected items with Dolphin's rename dialog (KIO::RenameFileDialog,
+     * also for several items), never with the inline editor of the DolphinView,
+     * which is hidden while a plugin view is shown. Does nothing without a selection.
+     */
+    void renameSelectedItemsWithDialog();
+
 Q_SIGNALS:
     void urlChanged(const QUrl &url);
     void loadingStarted();
@@ -86,6 +113,12 @@ Q_SIGNALS:
      */
     void selectionChanged(const WhaleSelection &selection);
 
+    /**
+     * Is emitted immediately when the selection becomes empty or not empty, e.g. for
+     * enabling actions before the next key press.
+     */
+    void hasSelectionChanged(bool hasSelection);
+
 private:
     KItemListController *controller() const;
     KFileItemModel *model() const;
@@ -94,6 +127,7 @@ private:
     DolphinView *const m_dolphinView;
     QTimer *m_selectionTimer;
     std::optional<WhaleSelection> m_reportedSelection;
+    bool m_hasSelection = false;
 };
 
 #endif

@@ -116,6 +116,10 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     m_pluginId = pluginId;
     m_pluginContext = std::move(context);
     m_pluginView = std::move(view);
+    // A view without a selection must not leave an invisible one for the shell's actions.
+    if (!(m_pluginView->capabilities() & WhaleViewCapability::Selection)) {
+        m_bridge->setSelection(WhaleSelection());
+    }
     if (m_active) {
         widget->setFocus();
     }

@@ -75,4 +75,14 @@ void WhaleViewContextImpl::activateItems(const QList<QUrl> &urls)
     m_bridge->activateItems(urls);
 }
 
+void WhaleViewContextImpl::requestContextMenu(const QPoint &globalPos, const QUrl &url)
+{
+    m_bridge->requestContextMenu(globalPos, url);
+}
+
+void WhaleViewContextImpl::requestItemInfo(const QUrl &url)
+{
+    m_bridge->requestItemInfo(url);
+}
+
 #include "moc_whaleviewcontextimpl.cpp"

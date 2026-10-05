@@ -31,6 +31,8 @@ public:
     WhaleSelection selection() const override;
     void setSelection(const WhaleSelection &selection) override;
     void activateItems(const QList<QUrl> &urls) override;
+    void requestContextMenu(const QPoint &globalPos, const QUrl &url) override;
+    void requestItemInfo(const QUrl &url) override;
 
 private:
     void slotSelectionChanged(const WhaleSelection &selection);

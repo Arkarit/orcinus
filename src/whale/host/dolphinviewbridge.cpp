@@ -6,6 +6,7 @@
 
 #include "dolphinviewbridge.h"
 
+#include "dolphin_generalsettings.h"
 #include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
@@ -14,6 +15,7 @@
 #include "whaleitemlist.h"
 #include "whaleviewdebug.h"
 
+#include <QPoint>
 #include <QPointer>
 #include <QTimer>
 
@@ -216,9 +218,16 @@ DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     };
     KItemListSelectionManager *selectionManager = controller()->selectionManager();
     connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, schedule);
+    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, [this]() {
+        if (hasSelection() != m_hasSelection) {
+            m_hasSelection = !m_hasSelection;
+            Q_EMIT hasSelectionChanged(m_hasSelection);
+        }
+    });
     connect(selectionManager, &KItemListSelectionManager::currentChanged, this, schedule);
     connect(model(), &KFileItemModel::itemsChanged, this, schedule);
     m_reportedSelection = selection();
+    m_hasSelection = hasSelection();
 }
 
 DolphinViewBridge::~DolphinViewBridge() = default;
@@ -231,6 +240,53 @@ QUrl DolphinViewBridge::url() const
 WhaleItemList *DolphinViewBridge::createItemList(QObject *parent) const
 {
     return new MirroredItemList(controller(), parent);
+}
+
+void DolphinViewBridge::requestContextMenu(const QPoint &globalPos, const QUrl &url)
+{
+    int index = -1;
+    if (!url.isEmpty()) {
+        index = model()->index(url);
+        if (index < 0) {
+            return;
+        }
+    }
+
+    m_dolphinView->setActive(true);
+    KItemListController *itemListController = controller();
+    if (index >= 0) {
+        KItemListSelectionManager *selectionManager = itemListController->selectionManager();
+        if (!selectionManager->isSelected(index)) {
+            setSelection(WhaleSelection({url}, url));
+        }
+        // Request signals of the controller (plan 3.2): the DolphinView first sends a
+        // pending selection change, so the actions in the menu are up to date, then
+        // asks the main window for the menu.
+        Q_EMIT itemListController->itemContextMenuRequested(index, globalPos);
+    } else {
+        Q_EMIT itemListController->viewContextMenuRequested(globalPos);
+    }
+}
+
+void DolphinViewBridge::requestItemInfo(const QUrl &url)
+{
+    const KFileItemModel *fileItemModel = model();
+    const int index = url.isEmpty() ? -1 : fileItemModel->index(url);
+    // The DolphinView's request signal itself: its hover handling would also show a
+    // tooltip at the position of the hidden view.
+    Q_EMIT m_dolphinView->requestItemInfo(index >= 0 ? fileItemModel->fileItem(index) : KFileItem());
+}
+
+void DolphinViewBridge::renameSelectedItemsWithDialog()
+{
+    // DolphinView::renameSelectedItems() renames a single item inline when the user
+    // prefers that, otherwise with the dialog, and afterwards selects the renamed
+    // items. Its dialog path is used as it is: the setting is a plain value without
+    // notifications and is only read synchronously here.
+    const bool renameInline = GeneralSettings::renameInline();
+    GeneralSettings::setRenameInline(false);
+    m_dolphinView->renameSelectedItems();
+    GeneralSettings::setRenameInline(renameInline);
 }
 
 KItemListController *DolphinViewBridge::controller() const
@@ -255,6 +311,11 @@ WhaleSelection DolphinViewBridge::selection() const
     }
     const int current = selectionManager->currentItem();
     return WhaleSelection(urls, current >= 0 ? fileItemModel->fileItem(current).url() : QUrl());
+}
+
+bool DolphinViewBridge::hasSelection() const
+{
+    return controller()->selectionManager()->hasSelection();
 }
 
 WhaleSelection DolphinViewBridge::setSelection(const WhaleSelection &selection)

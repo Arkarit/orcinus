@@ -11,6 +11,7 @@
 #include "whaleviewapi_export.h"
 
 #include <QObject>
+#include <QPoint>
 #include <QUrl>
 
 #include <memory>
@@ -66,6 +67,20 @@ public:
      * that are not in items() are ignored.
      */
     virtual void activateItems(const QList<QUrl> &urls) = 0;
+
+    /**
+     * Shows Whale's context menu at @p globalPos, as for a right click in the file
+     * list: for the item @p url together with the rest of the selection, or for the
+     * location itself if @p url is empty. An item that is not selected becomes the
+     * selection first, as a right click does in the file list.
+     */
+    virtual void requestContextMenu(const QPoint &globalPos, const QUrl &url) = 0;
+
+    /**
+     * Tells Whale which item the user points at (hover), so the information panel
+     * and the status bar can describe it. An empty @p url means none any more.
+     */
+    virtual void requestItemInfo(const QUrl &url) = 0;
 
 Q_SIGNALS:
     /**

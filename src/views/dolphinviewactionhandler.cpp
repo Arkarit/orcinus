@@ -526,9 +526,8 @@ void DolphinViewActionHandler::slotViewModeActionTriggered(QAction *action)
 
 void DolphinViewActionHandler::slotRename()
 {
-    // Whale: view plugins. While a plugin view is shown instead of the DolphinView, an inline
-    // rename would open an invisible editor in it. Do nothing until the rename action is
-    // routed to the shown view (capability gating, milestone M5).
+    // Whale: view plugins. While a plugin view is shown instead of the DolphinView, WhaleViewActions
+    // renames (inline in the plugin view or with the dialog); the inline editor here would be invisible.
     if (!m_currentView->isVisibleTo(m_currentView->window())) {
         return;
     }

@@ -12,6 +12,7 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QUrl>
 
 #include <memory>
 
@@ -79,6 +80,14 @@ public:
      * Restores a state returned by saveState(). The default implementation does nothing.
      */
     virtual void restoreState(const QByteArray &state);
+
+    /**
+     * Starts renaming @p url inside the view. Only called if capabilities() contain
+     * WhaleViewCapability::InlineRename, when the user renames exactly one selected
+     * item (F2). Without that capability Whale renames with a dialog instead.
+     * The default implementation does nothing.
+     */
+    virtual void startRename(const QUrl &url);
 
 protected:
     WhaleViewContext *context() const;

@@ -59,6 +59,17 @@ public:
         Q_UNUSED(urls)
     }
 
+    void requestContextMenu(const QPoint &globalPos, const QUrl &url) override
+    {
+        Q_UNUSED(globalPos)
+        Q_UNUSED(url)
+    }
+
+    void requestItemInfo(const QUrl &url) override
+    {
+        Q_UNUSED(url)
+    }
+
     void setUrl(const QUrl &url)
     {
         m_url = url;

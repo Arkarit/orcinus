@@ -159,9 +159,10 @@ private:
  *
  * The selection is the host's: the view shows the context's selection and reports
  * the user's changes back, so the host's actions, status bar and information panel
- * see it, and it survives switching views. Enter and a double click open items
- * through the host. The view does not rename, drag or delete items and offers no
- * context menu.
+ * see it, and it survives switching views. Enter and a double click open items,
+ * a right click shows the host's context menu, and hovering an item describes it in
+ * the information panel, all through the context. Renaming (F2) is the host's
+ * dialog: the view does not declare InlineRename. No drag and drop, no previews.
  */
 class WhaleTestListView : public WhaleView
 {
@@ -178,9 +179,17 @@ public:
         m_listView->setSelectionMode(QAbstractItemView::ExtendedSelection);
         m_listView->setDragEnabled(false);
         m_listView->setAcceptDrops(false);
-        // No menu, and none from a parent widget either.
-        m_listView->setContextMenuPolicy(Qt::PreventContextMenu);
+        m_listView->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(m_listView, &QWidget::customContextMenuRequested, this, &WhaleTestListView::requestContextMenu);
+        m_listView->setMouseTracking(true);
+        connect(m_listView, &QAbstractItemView::entered, this, [this](const QModelIndex &index) {
+            requestItemInfo(m_model->url(index.row()));
+        });
+        connect(m_listView, &QAbstractItemView::viewportEntered, this, [this]() {
+            requestItemInfo(QUrl());
+        });
         m_listView->installEventFilter(this);
+        m_listView->viewport()->installEventFilter(this);
 
         applySelection(context->selection());
         connect(context, &WhaleViewContext::selectionChanged, this, &WhaleTestListView::applySelection);
@@ -211,6 +220,9 @@ public:
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override
     {
+        if (watched == m_listView->viewport() && event->type() == QEvent::Leave) {
+            requestItemInfo(QUrl());
+        }
         if (watched == m_listView && event->type() == QEvent::KeyPress) {
             const int key = static_cast<QKeyEvent *>(event)->key();
             if (key == Qt::Key_Return || key == Qt::Key_Enter) {
@@ -245,6 +257,24 @@ private:
         selectionModel->setCurrentIndex(currentRow >= 0 ? m_model->index(currentRow) : QModelIndex(), QItemSelectionModel::NoUpdate);
     }
 
+    void requestContextMenu(const QPoint &position)
+    {
+        const QModelIndex index = m_listView->indexAt(position);
+        if (!index.isValid()) {
+            // As in the file list, a right click on the background is about the folder.
+            m_listView->selectionModel()->clearSelection();
+        }
+        context()->requestContextMenu(m_listView->viewport()->mapToGlobal(position), index.isValid() ? m_model->url(index.row()) : QUrl());
+    }
+
+    void requestItemInfo(const QUrl &url)
+    {
+        if (url != m_infoUrl) {
+            m_infoUrl = url;
+            context()->requestItemInfo(url);
+        }
+    }
+
     void reportSelection()
     {
         // Changes made by applySelection() or by rows coming and going are not the user's.
@@ -264,6 +294,7 @@ private:
     QPointer<QListView> m_listView;
     ItemListModel *const m_model;
     bool m_applying = false;
+    QUrl m_infoUrl;
 };
 }
 

@@ -43,6 +43,11 @@ void WhaleView::restoreState(const QByteArray &state)
     Q_UNUSED(state)
 }
 
+void WhaleView::startRename(const QUrl &url)
+{
+    Q_UNUSED(url)
+}
+
 WhaleViewContext *WhaleView::context() const
 {
     return d->context;

@@ -515,12 +515,12 @@ void DolphinViewBridgeTest::testTestListViewIsReadOnly()
     QVERIFY(listView);
     QTRY_COMPARE(rows(listView).count(), 4);
 
-    // The test view changes no files: no inline editing, no drag and drop, no context
-    // menu. (Selection and activation are the host's, see whaleselectiontest.)
+    // The test view changes no files itself: no inline editing, no drag and drop.
+    // (Selection, activation, context menu and renaming are the host's, see
+    // whaleselectiontest and whaleactionstest.)
     QCOMPARE(listView->editTriggers(), QAbstractItemView::NoEditTriggers);
     QVERIFY(!listView->dragEnabled());
     QVERIFY(!listView->acceptDrops());
-    QCOMPARE(listView->contextMenuPolicy(), Qt::PreventContextMenu);
 }
 
 QTEST_MAIN(DolphinViewBridgeTest)
