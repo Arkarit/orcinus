@@ -5,6 +5,7 @@
  */
 
 #include "whaleviewregistry.h"
+#include "whaleitemlist.h"
 #include "whaleview.h"
 #include "whaleviewapiversion.h"
 #include "whaleviewcontext.h"
@@ -21,12 +22,26 @@ namespace
 const QString helloId = QStringLiteral("whale_hello");
 const QString wrongApiId = QStringLiteral("whale_test_wrongapi");
 
+class EmptyItemList : public WhaleItemList
+{
+public:
+    explicit EmptyItemList(QObject *parent)
+        : WhaleItemList(parent)
+    {
+    }
+};
+
 class TestContext : public WhaleViewContext
 {
 public:
     QUrl url() const override
     {
         return m_url;
+    }
+
+    WhaleItemList *items() const override
+    {
+        return m_items;
     }
 
     void setUrl(const QUrl &url)
@@ -37,6 +52,7 @@ public:
 
 private:
     QUrl m_url = QUrl::fromLocalFile(QStringLiteral("/tmp"));
+    EmptyItemList *const m_items = new EmptyItemList(this);
 };
 
 bool containsPlugin(const QList<KPluginMetaData> &plugins, const QString &pluginId)

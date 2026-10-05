@@ -415,6 +415,12 @@ public:
      */
     void expandToUrl(const QUrl &directory);
 
+    // Whale: view plugins. Only used by DolphinViewBridge (src/whale/host).
+    KItemListContainer *itemListContainer() const
+    {
+        return m_container;
+    }
+
 public Q_SLOTS:
 
     void reload();

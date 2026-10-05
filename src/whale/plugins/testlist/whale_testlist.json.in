@@ -1,0 +1,10 @@
+{
+    "KPlugin": {
+        "Description": "Plain list of the folder's items for testing view plugins",
+        "Icon": "view-list-text",
+        "License": "GPL-2.0-or-later",
+        "Name": "Test List",
+        "Version": "0.1"
+    },
+    "X-Whale-ViewApiVersion": @WHALE_VIEW_API_VERSION@
+}

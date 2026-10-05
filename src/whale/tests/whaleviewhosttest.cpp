@@ -43,6 +43,7 @@
 namespace
 {
 const QString helloId = QStringLiteral("whale_hello");
+const QString testListId = QStringLiteral("whale_testlist");
 const QString recordingId = QStringLiteral("whale_test_recording");
 
 /// A view that counts its lifecycle calls and shows a focusable line edit.
@@ -112,6 +113,10 @@ bool hasFocusInside(QWidget *widget)
 
 void clickInto(QWidget *widget)
 {
+    // Scroll areas such as the test list get mouse events on their viewport.
+    if (auto area = qobject_cast<QAbstractScrollArea *>(widget)) {
+        widget = area->viewport();
+    }
     QTest::mouseClick(widget, Qt::LeftButton, {}, widget->rect().center());
 }
 }
@@ -130,9 +135,11 @@ private Q_SLOTS:
     void testSwitchBetweenDolphinAndHello();
     void testLifecycle();
     void testShellKeepsDolphinView();
+    void testFocusAfterSwitching_data();
     void testFocusAfterSwitching();
     void testShellFocusPathsReachPluginView();
     void testFocusAfterNavigation();
+    void testHiddenDolphinViewNeverGetsFocus_data();
     void testHiddenDolphinViewNeverGetsFocus();
     void testSplitView_data();
     void testSplitView();
@@ -384,8 +391,16 @@ void WhaleViewHostTest::testShellKeepsDolphinView()
     QTRY_COMPARE(view->itemsCount(), 3);
 }
 
+void WhaleViewHostTest::testFocusAfterSwitching_data()
+{
+    QTest::addColumn<QString>("pluginId");
+    QTest::newRow("hello") << helloId;
+    QTest::newRow("test list") << testListId;
+}
+
 void WhaleViewHostTest::testFocusAfterSwitching()
 {
+    QFETCH(QString, pluginId);
     DolphinViewContainer *container = showMainWindow(m_dir->url());
     QVERIFY(container);
     DolphinView *view = container->view();
@@ -393,7 +408,7 @@ void WhaleViewHostTest::testFocusAfterSwitching()
     QTRY_VERIFY(hasFocusInside(view));
 
     // Dolphin → plugin while the DolphinView has the focus.
-    switcherAction(helloId)->trigger();
+    switcherAction(pluginId)->trigger();
     QTRY_COMPARE(QApplication::focusWidget(), pluginWidget(container));
     QVERIFY(container->isActive());
 
@@ -405,7 +420,7 @@ void WhaleViewHostTest::testFocusAfterSwitching()
     // Switching while the focus is elsewhere (location bar) still focuses the new view of the active area.
     m_mainWindow->actionCollection()->action(QStringLiteral("replace_location"))->trigger();
     QTRY_VERIFY(container->urlNavigator()->editor()->lineEdit()->hasFocus());
-    switcherAction(helloId)->trigger();
+    switcherAction(pluginId)->trigger();
     QTRY_COMPARE(QApplication::focusWidget(), pluginWidget(container));
 }
 
@@ -530,27 +545,35 @@ void WhaleViewHostTest::testFocusAfterNavigation()
     QTRY_COMPARE(container->view()->itemsCount(), 3);
 }
 
+void WhaleViewHostTest::testHiddenDolphinViewNeverGetsFocus_data()
+{
+    QTest::addColumn<QString>("pluginId");
+    QTest::newRow("hello") << helloId;
+    QTest::newRow("test list") << testListId;
+}
+
 void WhaleViewHostTest::testHiddenDolphinViewNeverGetsFocus()
 {
+    QFETCH(QString, pluginId);
     DolphinViewContainer *container = showMainWindow(m_dir->url());
     QVERIFY(container);
     DolphinView *view = container->view();
-    switcherAction(helloId)->trigger();
-    QWidget *hello = pluginWidget(container);
-    QTRY_COMPARE(QApplication::focusWidget(), hello);
+    switcherAction(pluginId)->trigger();
+    QWidget *plugin = pluginWidget(container);
+    QTRY_COMPARE(QApplication::focusWidget(), plugin);
 
     // What DolphinView::setActive() does internally: focus its item list container.
     itemListContainer(view)->setFocus();
-    QCOMPARE(QApplication::focusWidget(), hello);
+    QCOMPARE(QApplication::focusWidget(), plugin);
 
     // What the shell does: focus the DolphinView. The focus proxy forwards it.
     view->setFocus();
-    QCOMPARE(QApplication::focusWidget(), hello);
+    QCOMPARE(QApplication::focusWidget(), plugin);
 
     // Deactivating and activating the view area.
     container->setActive(false);
     container->setActive(true);
-    QTRY_COMPARE(QApplication::focusWidget(), hello);
+    QTRY_COMPARE(QApplication::focusWidget(), plugin);
 
     // Tab key focus chain: never into the hidden view. (Checked for every focus change in cleanup().)
     for (int i = 0; i < 15; ++i) {
@@ -563,13 +586,17 @@ void WhaleViewHostTest::testHiddenDolphinViewNeverGetsFocus()
 
 void WhaleViewHostTest::testSplitView_data()
 {
+    QTest::addColumn<QString>("pluginId");
     QTest::addColumn<bool>("pluginLeft");
-    QTest::newRow("plugin left") << true;
-    QTest::newRow("plugin right") << false;
+    QTest::newRow("hello left") << helloId << true;
+    QTest::newRow("hello right") << helloId << false;
+    QTest::newRow("test list left") << testListId << true;
+    QTest::newRow("test list right") << testListId << false;
 }
 
 void WhaleViewHostTest::testSplitView()
 {
+    QFETCH(QString, pluginId);
     QFETCH(bool, pluginLeft);
 
     QVERIFY(showMainWindow(m_dir->url()));
@@ -589,11 +616,11 @@ void WhaleViewHostTest::testSplitView()
     // Activate the side that gets the plugin and switch it via the view switcher.
     pluginSide->setActive(true);
     QTRY_VERIFY(pluginSide->isActive());
-    switcherAction(helloId)->trigger();
-    QCOMPARE(pluginSide->viewHost()->currentViewId(), helloId);
+    switcherAction(pluginId)->trigger();
+    QCOMPARE(pluginSide->viewHost()->currentViewId(), pluginId);
     QCOMPARE(dolphinSide->viewHost()->currentViewId(), WhaleViewHost::dolphinViewId());
-    QWidget *hello = pluginWidget(pluginSide);
-    QTRY_COMPARE(QApplication::focusWidget(), hello);
+    QWidget *plugin = pluginWidget(pluginSide);
+    QTRY_COMPARE(QApplication::focusWidget(), plugin);
 
     // Mouse into the file list on the other side: that side becomes active.
     clickInto(itemListContainer(dolphinSide->view())->viewport());
@@ -604,12 +631,12 @@ void WhaleViewHostTest::testSplitView()
     QVERIFY(switcherAction(WhaleViewHost::dolphinViewId())->isChecked()); // the switcher follows the active side
 
     // Mouse into the plugin view: the plugin side becomes active (FocusIn → activation).
-    clickInto(hello);
+    clickInto(plugin);
     QTRY_VERIFY(pluginSide->isActive());
     QVERIFY(!dolphinSide->isActive());
     QCOMPARE(page->activeViewContainer(), pluginSide);
-    QCOMPARE(QApplication::focusWidget(), hello);
-    QVERIFY(switcherAction(helloId)->isChecked());
+    QCOMPARE(QApplication::focusWidget(), plugin);
+    QVERIFY(switcherAction(pluginId)->isChecked());
 
     // Keyboard: "Focus Other View" (Ctrl+F3, DolphinTabWidget::focusInactiveSplitView).
     QAction *focusOtherView = m_mainWindow->actionCollection()->action(QStringLiteral("focus_inactive_split_view"));
@@ -621,7 +648,7 @@ void WhaleViewHostTest::testSplitView()
     focusOtherView->trigger();
     QTRY_VERIFY(pluginSide->isActive());
     QVERIFY(!dolphinSide->isActive());
-    QTRY_COMPARE(QApplication::focusWidget(), hello);
+    QTRY_COMPARE(QApplication::focusWidget(), plugin);
 
     // The shell focuses the active view; the inactive plugin side must not take over.
     dolphinSide->setActive(true);
@@ -633,13 +660,13 @@ void WhaleViewHostTest::testSplitView()
     // Both sides can show different views independently.
     RecordingPlugin recording;
     QVERIFY(dolphinSide->viewHost()->showPluginView(recordingId, &recording));
-    QCOMPARE(pluginSide->viewHost()->currentViewId(), helloId);
+    QCOMPARE(pluginSide->viewHost()->currentViewId(), pluginId);
     QCOMPARE(dolphinSide->viewHost()->currentViewId(), recordingId);
     clickInto(pluginWidget(dolphinSide));
     QTRY_VERIFY(dolphinSide->isActive());
     QVERIFY(!pluginSide->isActive());
     QCOMPARE(QApplication::focusWidget(), pluginWidget(dolphinSide));
-    clickInto(hello);
+    clickInto(plugin);
     QTRY_VERIFY(pluginSide->isActive());
     QVERIFY(!dolphinSide->isActive());
 

@@ -15,6 +15,7 @@
 
 class DolphinView;
 class DolphinViewAdapter;
+class DolphinViewBridge;
 class QStackedLayout;
 class WhaleView;
 class WhaleViewContextImpl;
@@ -98,6 +99,7 @@ private:
     QStackedLayout *m_stack;
     bool m_active = false;
 
+    DolphinViewBridge *m_bridge; // outlives the contexts, which use it
     WhaleViewContextImpl *m_dolphinViewContext;
     DolphinViewAdapter *m_dolphinViewAdapter;
 

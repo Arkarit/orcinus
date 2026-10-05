@@ -9,23 +9,27 @@
 
 #include "whaleviewcontext.h"
 
-class DolphinView;
+class DolphinViewBridge;
 
 /**
  * @brief The WhaleViewContext of one view, backed by the DolphinView of its view area.
+ *
+ * All DolphinView state comes through the DolphinViewBridge, which must outlive the context.
  */
 class WhaleViewContextImpl : public WhaleViewContext
 {
     Q_OBJECT
 
 public:
-    explicit WhaleViewContextImpl(DolphinView *dolphinView, QObject *parent = nullptr);
+    explicit WhaleViewContextImpl(DolphinViewBridge *bridge, QObject *parent = nullptr);
     ~WhaleViewContextImpl() override;
 
     QUrl url() const override;
+    WhaleItemList *items() const override;
 
 private:
-    DolphinView *const m_dolphinView;
+    DolphinViewBridge *const m_bridge;
+    mutable WhaleItemList *m_items = nullptr;
 };
 
 #endif

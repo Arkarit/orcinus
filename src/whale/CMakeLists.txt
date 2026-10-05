@@ -25,6 +25,7 @@ endif()
 add_library(whaleviewapi SHARED)
 
 target_sources(whaleviewapi PRIVATE
+    api/whaleitemlist.cpp
     api/whaleview.cpp
     api/whaleviewcontext.cpp
     api/whaleviewplugin.cpp
@@ -41,6 +42,7 @@ target_include_directories(whaleviewapi PUBLIC
 # The API may only depend on Qt and KDE Frameworks, never on Whale/Dolphin internals.
 target_link_libraries(whaleviewapi PUBLIC
     Qt6::Widgets
+    KF6::KIOCore
 )
 
 set_target_properties(whaleviewapi PROPERTIES
@@ -58,6 +60,7 @@ add_library(whaleviewhost STATIC)
 
 target_sources(whaleviewhost PRIVATE
     host/dolphinviewadapter.cpp
+    host/dolphinviewbridge.cpp
     host/whaleviewactions.cpp
     host/whaleviewcontextimpl.cpp
     host/whaleviewhost.cpp
@@ -86,6 +89,7 @@ target_link_libraries(whaleviewhost PUBLIC
 ########### plugins ###############
 
 add_subdirectory(plugins/hello)
+add_subdirectory(plugins/testlist)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)

@@ -31,7 +31,14 @@ ecm_add_test(whaleviewhosttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/s
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whaleviewhosttest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaleviewhosttest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whaleviewhosttest whale_hello)
+add_dependencies(whaleviewhosttest whale_hello whale_testlist)
+
+ecm_add_test(dolphinviewbridgetest.cpp ../../tests/testdir.cpp
+    TEST_NAME dolphinviewbridgetest
+    LINK_LIBRARIES whaleviewhost Qt6::Test)
+target_include_directories(dolphinviewbridgetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(dolphinviewbridgetest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(dolphinviewbridgetest whale_testlist)
 
 # Lint: the public plugin API and the plugins must not use Whale/Dolphin internals.
 if(NOT WIN32)

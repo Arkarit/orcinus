@@ -7,6 +7,7 @@
 #include "whaleviewhost.h"
 
 #include "dolphinviewadapter.h"
+#include "dolphinviewbridge.h"
 #include "views/dolphinview.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
@@ -25,7 +26,8 @@ WhaleViewHost::WhaleViewHost(DolphinView *dolphinView, QWidget *parent)
     , m_dolphinView(dolphinView)
     , m_stack(new QStackedLayout(this))
     , m_active(dolphinView->isActive())
-    , m_dolphinViewContext(new WhaleViewContextImpl(dolphinView, this))
+    , m_bridge(new DolphinViewBridge(dolphinView, this))
+    , m_dolphinViewContext(new WhaleViewContextImpl(m_bridge, this))
     , m_dolphinViewAdapter(new DolphinViewAdapter(dolphinView, m_dolphinViewContext, this))
 {
     m_stack->setContentsMargins(0, 0, 0, 0);
@@ -82,7 +84,7 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
         return true;
     }
 
-    auto context = std::make_unique<WhaleViewContextImpl>(m_dolphinView);
+    auto context = std::make_unique<WhaleViewContextImpl>(m_bridge);
     std::unique_ptr<WhaleView> view(plugin->createView(context.get(), nullptr));
     QWidget *widget = view ? view->widget() : nullptr;
     if (!widget) {

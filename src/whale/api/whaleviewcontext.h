@@ -14,6 +14,7 @@
 
 #include <memory>
 
+class WhaleItemList;
 class WhaleViewContextPrivate;
 
 /**
@@ -37,11 +38,35 @@ public:
      */
     virtual QUrl url() const = 0;
 
+    /**
+     * @return The items of the location, in the host's order. The list belongs to
+     *         the context and lives as long as it. It is created on the first call,
+     *         so a view that does not need the items does not cost their upkeep.
+     */
+    virtual WhaleItemList *items() const = 0;
+
 Q_SIGNALS:
     /**
-     * Is emitted when the location of the view area has changed.
+     * Is emitted when the location of the view area has changed. The items of the
+     * new location follow while it is loaded.
      */
     void urlChanged(const QUrl &url);
+
+    /**
+     * Is emitted when the host starts loading the location. Until loadingCompleted()
+     * or loadingCanceled() the items may still be incomplete.
+     */
+    void loadingStarted();
+
+    /**
+     * Is emitted when the location has been loaded completely.
+     */
+    void loadingCompleted();
+
+    /**
+     * Is emitted when loading the location has been canceled.
+     */
+    void loadingCanceled();
 
 protected:
     explicit WhaleViewContext(QObject *parent = nullptr);
