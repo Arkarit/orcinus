@@ -42,6 +42,8 @@ TOOLS = [
         "name": "get_ui_state",
         "description": "Semantic UI state of Whale: panes, active pane, view per pane, visibility of the DolphinView, "
         "focus (semantic role, anomalies), URL, items (Dolphin model order) and rows of a plugin item view, "
+        "pluginTopItem (scroll position of a plugin item view), storedViewStates (views with a stored state at "
+        "the location), restore (source history/session, requested and shown view, fallback), "
         "selection per pane (selection URLs, selectedNames, current/currentName: the host's; pluginSelection/"
         "pluginCurrent: what a plugin item view shows), statusText, shell.selectedNames (what the information "
         "panel got last), hidden files, sorting, filter, loading, recent pane activations, available view IDs.",
@@ -147,7 +149,8 @@ TOOLS = [
                 "action": {
                     "type": "string",
                     "enum": ["focus_other_view", "go_up", "go_back", "go_forward", "edit_location", "select_all",
-                             "invert_selection", "rename", "properties", "copy", "cut", "paste", "trash", "delete"],
+                             "invert_selection", "rename", "properties", "new_tab", "activate_next_tab",
+                             "activate_prev_tab", "copy", "cut", "paste", "trash", "delete"],
                 }
             },
             "required": ["action"],
@@ -166,6 +169,18 @@ TOOLS = [
         "item of the listing (url; it becomes the selection if it is not selected) or, without url, for the "
         "location. Returns at once; the menu shows up as popupMenu in get_ui_state until close_popup.",
         "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}},
+    },
+    {
+        "name": "scroll_to_item",
+        "description": "Scrolls a plugin item view (e.g. whale_testlist) so that the item url is at its top; "
+        "panes.N.pluginTopItem in get_ui_state shows it. A view state that the view saves and restores.",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}, "required": ["url"]},
+    },
+    {
+        "name": "quit",
+        "description": "Closes the Whale window like the user does: Whale saves its session (with 'remember open "
+        "tabs') and quits. Start it again in the same profile (shell) to test the session restore.",
+        "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "close_popup",
@@ -311,6 +326,10 @@ class Whale:
             return result(iface.ActionState())
         if tool == "open_context_menu":
             return result(iface.OpenContextMenu(pane, args.get("url", "")))
+        if tool == "scroll_to_item":
+            return result(iface.ScrollToItem(pane, args["url"]))
+        if tool == "quit":
+            return result(iface.Quit())
         if tool == "close_popup":
             return result(iface.ClosePopups())
         if tool == "request_item_info":

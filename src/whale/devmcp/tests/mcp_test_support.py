@@ -96,8 +96,11 @@ def install_test_opener(profile, log):
     (profile / "config" / "mimeapps.list").write_text("[Default Applications]\ntext/plain=whale-test-opener.desktop\n")
 
 
-def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False):
+def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False,
+                extra_plugin_dirs=()):
     """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
+    Without @p folder Whale restores its session (if it is the only Whale on the bus).
+    @p plugin_dir may be None: then Whale finds no plugins of the build tree.
     With @p file_operations the dev MCP may change files and the clipboard, and deleting
     needs no confirmation; only for throwaway test folders."""
     env = dict(os.environ)
@@ -119,7 +122,7 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
         "XDG_DATA_HOME": str(profile / "data"),
         "XDG_CACHE_HOME": str(profile / "cache"),
         "XDG_STATE_HOME": str(profile / "state"),
-        "QT_PLUGIN_PATH": plugin_dir + os.pathsep + env.get("QT_PLUGIN_PATH", ""),
+        "QT_PLUGIN_PATH": os.pathsep.join([d for d in (plugin_dir, *extra_plugin_dirs) if d] + [env.get("QT_PLUGIN_PATH", "")]),
     })
     if platform:
         env["QT_QPA_PLATFORM"] = platform
@@ -127,8 +130,9 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
         env["WHALE_DEV_MCP"] = "1"
     else:
         env.pop("WHALE_DEV_MCP", None)
-    log = open(profile / "whale.log", "w")
-    return subprocess.Popen([binary, "--new-window", str(folder)], env=env, stdout=log, stderr=subprocess.STDOUT)
+    log = open(profile / "whale.log", "a")
+    args = [binary, "--new-window"] + ([str(folder)] if folder else [])
+    return subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
 
 def wait_for_instance(client, whale, timeout=30):

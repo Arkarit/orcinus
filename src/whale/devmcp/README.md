@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3 and M4 acceptance through the MCP (`test_m3_acceptance.py`, `test_m4_acceptance.py`, shared `mcp_test_support.py`). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M6 acceptance through the MCP (`test_m3_acceptance.py` … `test_m6_acceptance.py`, shared `mcp_test_support.py`). |
 
 ## Activation
 
@@ -61,10 +61,12 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
+| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
 | `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
 | `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
 | `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
+| `scroll_to_item` | Scroll a plugin item view so an item is at its top (a view state; `pluginTopItem`) |
+| `quit` | Close the window as the user does: Whale saves its session and quits (restart tests) |
 | `rename_dialog` / `close_dialogs` | Answer the rename dialog (file operation) / cancel open dialogs; open dialogs are `dialogs` in the state |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
@@ -111,6 +113,10 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   selection; `pluginSelection`/`pluginCurrent` what a plugin item view shows;
   `shell.selectedNames` what the main window last sent to the information panel;
   `statusText` the status bar (it follows the DolphinView's debounced selection signal).
+- Persistence (M6): `pluginTopItem` (the item at the top of a plugin item view),
+  `storedViewStates` (view IDs with a state at the location, including the shown
+  view's current one), `restore` (`source` history/session, `requested`, `shown`,
+  `fallback`) of the last restore in the pane.
 - `activations` counts pane activations, so a test can prove that an operation did
   not activate the other half of a split view.
 
@@ -141,5 +147,9 @@ the user's own otherwise.
 - Navigation, view switching and pane activation go through the same functions as
   the UI, but not through simulated mouse or keyboard input.
 - Only the current tab's panes are addressed.
+- The automation answers before Dolphin restores its session at start-up; wait for
+  the restored state (e.g. `tabs.count`) before acting.
+- Restart tests need a private session bus (`test_m6_acceptance.py` starts one with
+  `dbus-run-session`): Dolphin restores its session only as the only instance.
 - Without a window manager (offscreen) the main window is not activated again after
   a dialog closes; only the logical focus (`focus.role`) can be checked then.

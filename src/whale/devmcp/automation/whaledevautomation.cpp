@@ -93,6 +93,9 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("invert_selection"), QStringLiteral("invert_selection")},
         {QStringLiteral("rename"), KStandardAction::name(KStandardAction::RenameFile)},
         {QStringLiteral("properties"), QStringLiteral("properties")},
+        {QStringLiteral("new_tab"), QStringLiteral("new_tab")},
+        {QStringLiteral("activate_next_tab"), QStringLiteral("activate_next_tab")},
+        {QStringLiteral("activate_prev_tab"), QStringLiteral("activate_prev_tab")},
         // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
         {QStringLiteral("copy"), KStandardAction::name(KStandardAction::Copy)},
         {QStringLiteral("cut"), KStandardAction::name(KStandardAction::Cut)},
@@ -319,6 +322,31 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         pluginCurrent = itemView->currentIndex().isValid() ? QJsonValue(itemView->currentIndex().data().toString()) : QJsonValue::Null;
     }
 
+    // The item a plugin item view shows at its top (its scroll position).
+    QJsonValue pluginTopItem = QJsonValue::Null;
+    if (auto itemView = qobject_cast<QAbstractItemView *>(pluginWidget)) {
+        const QModelIndex top = itemView->indexAt(QPoint(1, 1));
+        if (top.isValid()) {
+            pluginTopItem = top.data().toString();
+        }
+    }
+    // Which views have a stored state at this location (the states themselves are the
+    // views' own business), and how the last restore went.
+    const WhaleViewsState views = host->viewsState();
+    QStringList storedStates = views.states.keys();
+    storedStates.sort();
+    for (QString &id : storedStates) {
+        id = semanticViewId(id);
+    }
+    const WhaleViewHost::RestoreInfo restore = host->lastRestore();
+    const QJsonValue restoreState = restore.source.isEmpty() ? QJsonValue(QJsonValue::Null)
+                                                             : QJsonObject{
+                                                                   {QStringLiteral("source"), restore.source},
+                                                                   {QStringLiteral("requested"), semanticViewId(restore.requestedViewId)},
+                                                                   {QStringLiteral("shown"), semanticViewId(restore.shownViewId)},
+                                                                   {QStringLiteral("fallback"), restore.fallback},
+                                                               };
+
     QString statusText;
     if (auto statusBar = container->findChild<DolphinStatusBar *>()) {
         if (auto label = statusBar->findChild<KSqueezedTextLabel *>()) {
@@ -363,6 +391,9 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("itemCount"), fileItems.count()},
         {QStringLiteral("items"), items},
         {QStringLiteral("pluginRows"), pluginRows},
+        {QStringLiteral("pluginTopItem"), pluginTopItem},
+        {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
+        {QStringLiteral("restore"), restoreState},
         {QStringLiteral("selectionCount"), selected.count()},
         {QStringLiteral("selection"), selection},
         {QStringLiteral("selectedNames"), selectedNames},
@@ -859,6 +890,37 @@ QJsonObject WhaleDevAutomation::openContextMenu(int paneIndexArg, const QString 
     QTimer::singleShot(0, host, [host, position, item]() {
         host->bridge()->requestContextMenu(position, item);
     });
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::scrollToItem(int paneIndexArg, const QString &url)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    WhaleViewHost *host = container->viewHost();
+    auto itemView = host->isDolphinViewShown() ? nullptr : qobject_cast<QAbstractItemView *>(host->currentView()->widget());
+    if (!itemView) {
+        return failure(QStringLiteral("the pane does not show a plugin item view"));
+    }
+    const QAbstractItemModel *model = itemView->model();
+    const QString name = QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile).fileName();
+    for (int row = 0; row < model->rowCount(); ++row) {
+        if (model->index(row, 0).data().toString() == name) {
+            itemView->scrollTo(model->index(row, 0), QAbstractItemView::PositionAtTop);
+            return ok();
+        }
+    }
+    return failure(QStringLiteral("\"%1\" is not shown in the pane").arg(url));
+}
+
+QJsonObject WhaleDevAutomation::quit()
+{
+    // Like closing the window: Whale saves its session ("remember open tabs") and quits.
+    // Deferred, so that this call is answered first.
+    QTimer::singleShot(0, m_window, &QWidget::close);
     return ok();
 }
 

@@ -46,6 +46,8 @@ public Q_SLOTS:
     /// @p url may be empty (the location's menu). Returns before the menu closes.
     Q_SCRIPTABLE QString OpenContextMenu(int pane, const QString &url);
     Q_SCRIPTABLE QString ClosePopups();
+    Q_SCRIPTABLE QString ScrollToItem(int pane, const QString &url);
+    Q_SCRIPTABLE QString Quit();
     Q_SCRIPTABLE QString RequestItemInfo(int pane, const QString &url);
     Q_SCRIPTABLE QString AnswerRenameDialog(const QString &newName);
     Q_SCRIPTABLE QString CloseDialogs();

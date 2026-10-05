@@ -97,6 +97,18 @@ public:
     QJsonObject closePopups();
 
     /**
+     * Scrolls a plugin item view so that the item @p url is at its top (a view state
+     * that the view saves with saveState()).
+     */
+    QJsonObject scrollToItem(int pane, const QString &url);
+
+    /**
+     * Closes the main window as the user does, after answering: Whale saves its session
+     * and quits. For restart tests.
+     */
+    QJsonObject quit();
+
+    /**
      * Reports @p url (or none, if empty) as the item under the pointer, through the
      * host API that plugin views use for hovering.
      */

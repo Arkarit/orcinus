@@ -108,6 +108,16 @@ QString WhaleDevAutomationDBus::OpenContextMenu(int pane, const QString &url)
     return toJson(m_automation->openContextMenu(pane, url));
 }
 
+QString WhaleDevAutomationDBus::ScrollToItem(int pane, const QString &url)
+{
+    return toJson(m_automation->scrollToItem(pane, url));
+}
+
+QString WhaleDevAutomationDBus::Quit()
+{
+    return toJson(m_automation->quit());
+}
+
 QString WhaleDevAutomationDBus::ClosePopups()
 {
     return toJson(m_automation->closePopups());

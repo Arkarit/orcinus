@@ -62,8 +62,8 @@ def run(args, work):
         expected_tools = {"get_ui_state", "get_focus_state", "set_view", "activate_pane", "set_split_view",
                           "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_sort",
                           "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
-                          "request_item_info", "rename_dialog", "close_dialogs", "trigger_action", "wait_for_state",
-                          "screenshot"}
+                          "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "quit",
+                          "trigger_action", "wait_for_state", "screenshot"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)
