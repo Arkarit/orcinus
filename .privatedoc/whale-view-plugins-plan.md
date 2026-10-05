@@ -512,6 +512,8 @@ des Modells und keine Leistung der View (K8).
 | `InlineRename` | „Umbenennen“ öffnet `KIO::RenameFileDialog` |
 | `Selection` | Datei-Actions gelten für den Ordner selbst bzw. sind deaktiviert |
 
+**Umgesetzt in M5 mit präzisierter Semantik, siehe 14.12.**
+
 ### 4.6 Allgemeine Services  [W]
 
 | Service | Basis (wiederverwendet) | Neu |
@@ -1237,3 +1239,95 @@ den aktuellen Ordner. Das ist eine Folge der Architektur, keine Lösung. Offen f
 und auf echtem Plasma/Wayland grün. Dateien öffnen in Tests mit einem Test-Öffner (`.desktop` im
 Test- bzw. Whale-Profil), der nur den Pfad protokolliert; der In-Process-Test prüft vorher, dass er
 wirklich zuständig ist.
+
+### 14.12 Ergebnisse aus M5: Capability-Gating, Umbenennen, Kontextmenü, Item-Info (2026-10-05)
+
+Commits `88042e655` (API-Version 2), `f0fd2cbab` (M5), `100844dde` (Dev-MCP). Dolphin-Dateien:
+nur der Kommentar am F2-Schutz in `dolphinviewactionhandler.cpp` (Code unverändert).
+
+**API-Version 2:** wegen M3/M4/M5 (`WhaleItemList`, `WhaleSelection`, neue pure-virtuelle
+Context-Methoden, `WhaleView::startRename`). Exakte Übereinstimmung bleibt Pflicht; Plugins für
+Version 1 werden abgelehnt (Test `whaleviewregistrytest` rechnet relativ zur Version).
+
+**Gating-Mechanismus (`WhaleViewActions`):** Jede sperrbare Action bekommt eine **eigene,
+nicht-exklusive `QActionGroup` als Sperre**. Dolphin setzt `setEnabled()` weiter wie gewohnt
+(`updateFileAndEditActions`, `updateViewActions`, XMLGUI-States). Eine deaktivierte Gruppe hält die
+Action aus; beim Öffnen stellt Qt exakt Dolphins letzten Wunsch wieder her. Verworfen wurde ein
+Ansatz über `QAction::enabledChanged`: Setzt Dolphin eine schon gesperrte Action auf „aus“, kommt
+kein Signal, und der gemerkte Zustand wäre veraltet (Test `testGateRestoresDolphinState`: Zoom am
+Maximum). Vorbedingung: Die Action steckt in keiner anderen Gruppe; das gilt für alle gesperrten
+Actions. Gruppierte Untereinträge (Sortierrollen, auf-/absteigend, Gruppieren nach …) werden über
+ihr Menü (`sort`, `group_by`, `additional_info`) gesperrt. Die Sperren folgen der aktiven Hälfte
+(`setCurrentHost`), dem View-Wechsel und **sofort** der Leer/Nicht-leer-Änderung der Auswahl
+(`DolphinViewBridge::hasSelectionChanged`, synchron). Ein Shortcut direkt nach einem Klick findet
+also den richtigen Zustand vor; der gesammelte 0-ms-Bericht wäre dafür zu spät gewesen.
+
+**Capability-Matrix (gilt nur, solange eine Plugin-View sichtbar ist; die Dateiliste sperrt nichts):**
+
+| Bedingung | gesperrt |
+|---|---|
+| immer in Plugin-Views | `toggle_selection_mode`, `toggle_selection_mode_tool_bar` (Auswahlmodus der Dateiliste) |
+| ohne `Zoom` | `view_zoom_in`, `view_zoom_out`, `view_zoom_reset` |
+| ohne `Previews` | `show_preview` |
+| ohne `HostOrder` | `sort`, `folders_first`, `hidden_last`, `additional_info`, `group_by` |
+| ohne `Grouping` | `group_by` |
+| ohne `Selection` oder ohne `MultiSelection` | `edit_select_all`, `invert_selection` |
+| ohne `Selection` / mit `RecursiveContent` / Auswahl leer | `renamefile`, `movetotrash`, `deletefile`, `delete_shortcut`, `edit_cut`, `edit_copy`, `duplicate`, `copy_location`, `show_target`, `copy/move_to_inactive_split_view`, `compare_files` |
+
+Nicht gesperrt (arbeiten korrekt auf gespiegelter Auswahl bzw. Ort): `edit_paste` (aktueller Ordner),
+`properties` (Auswahl, ohne Auswahl der Ordner), `show_hidden_files`, Filter, `add_to_places`.
+`Drag`, `Drop`, `KeyboardNavigation` haben noch keine Wirkung. Test-List: `HostOrder | Selection |
+MultiSelection | KeyboardNavigation`.
+
+Zusätzlich: Eine View ohne `Selection` bekommt beim Anzeigen die versteckte Auswahl geleert; sonst
+gäbe es eine unsichtbare Auswahl für die Shell. Die View-Modus-Actions (Symbole/Kompakt/Details)
+schalten auf die Dateiliste um, statt die unsichtbare Ansicht zu ändern.
+
+**Ohne Auswahl (Plugin-View):** Umbenennen, Papierkorb, Löschen, Umschalt+Entf, Ausschneiden und
+Kopieren sind deaktiviert; es öffnet sich kein Auswahlmodus. Eigenschaften zeigen den Ordner,
+Einfügen geht in den Ordner. Das ist Dolphins Semantik ohne den Auswahlmodus.
+
+**Umbenennen (F2):** `WhaleViewActions` übernimmt die Rename-Action; der M2-Schutz in
+`DolphinViewActionHandler::slotRename` bleibt als Delegationsgrenze. Bei genau einem ausgewählten
+Item, Dolphin-Einstellung „inline umbenennen“ und Capability `InlineRename` wird
+`WhaleView::startRename(url)` aufgerufen. Sonst läuft **Dolphins eigener Dialogpfad**
+(`DolphinView::renameSelectedItems()` mit kurz abgeschaltetem `RenameInline`; die Einstellung hat
+keine Notifier und wird synchron gelesen). Damit gelten Dolphins Mehrfach-Umbenennung
+(`KIO::RenameFileDialog` mit Nummerierung) und das Neu-Auswählen der umbenannten Items. Ein
+unsichtbarer Inline-Editor entsteht nie.
+
+**Kontextmenü:** `context->requestContextMenu(globalPos, url)` → Bridge: Hälfte aktivieren; ein nicht
+ausgewähltes Item wird zur Auswahl (wie ein Rechtsklick in Dolphin); dann die Anfrage-Signale
+`KItemListController::itemContextMenuRequested` / `viewContextMenuRequested` (3.2). Dolphins Slots
+senden ein noch anstehendes `selectionChanged` (Bug 294013) und fordern über
+`requestContextMenu` → `DolphinMainWindow::openContextMenu` → `DolphinContextMenu` mit
+`KFileItemActions` und Service-Menüs an. Die Test-List leert bei Rechtsklick auf den Hintergrund
+die Auswahl (wie Dolphin).
+
+**Item-Info:** `context->requestItemInfo(url)` → Bridge löst direkt `DolphinView::requestItemInfo`
+aus. Bewusst nicht über `itemHovered`: Dolphins Hover-Slot würde einen Tooltip an der Position der
+versteckten Ansicht zeigen. Das Hauptfenster hört `requestItemInfo` auch für die inaktive Hälfte
+(Dolphin-Verhalten). Die Test-List meldet Hover und Verlassen (leere URL).
+
+**Split:** Sperren und Actions gelten nur für die aktive Hälfte. Getestet: Papierkorb trifft nur die
+Auswahl der aktiven Hälfte; die Auswahl der inaktiven bleibt unberührt.
+
+**Befunde:**
+
+1. Papierkorb in Tests: KIO nutzt den Home-Papierkorb (`XDG_DATA_HOME/Trash`) nur für Dateien auf
+   dem Gerät von `$HOME`. Sonst bietet es „Endgültig löschen“ an. Testprofile mit Dateioperationen
+   bekommen deshalb ein eigenes `HOME` im Profil.
+2. Wayland zeigt Popups (Kontextmenüs) nur als Antwort auf echte Eingabe („Failed to create
+   grabbing popup“). Automatisch geöffnete Menüs sind auf echtem Wayland nicht prüfbar; offscreen
+   und im In-Process-Test schon. Echte Rechtsklicks liefern die nötige Eingabe.
+3. Offscreen aktiviert nach einem Dialog niemand das Hauptfenster wieder; dort ist nur der logische
+   Fokus prüfbar. Auf Wayland reaktiviert KWin korrekt (geprüft).
+
+**Grenzen vor T1/T2:** M5 gilt nur für Items des aktuellen Listings. Keine Auswahl außerhalb des
+Listings, kein Command-Routing, nichts wird in `DolphinView::selectedItems()` eingeschleust. Eine View
+mit `RecursiveContent` bekommt alle Actions auf ausgewählten Items gesperrt, bis T1
+(View-eigene tiefe Auswahl + eigenes reduziertes Menü) kommt.
+
+**Tests:** `whaleactionstest` (22 Fälle). Dev-MCP `whale_dev_mcp_m5_e2e`: Szenarien A–G offscreen;
+auf echtem Wayland A, B, D, F, G (C wegen deiner Zwischenablage und E wegen Wayland-Popups
+übersprungen). M3/M4-Abnahmen als Regression auf Wayland grün.

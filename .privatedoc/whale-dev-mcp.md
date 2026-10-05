@@ -102,3 +102,16 @@ echtem Plasma/Wayland grün, mit Screenshots. Dateien öffnen mit einem Test-Öf
 als Regression weiterhin grün.
 
 Hinweis: `set_split_view(false)` schließt wie der Schließen-Knopf die **aktive** Hälfte.
+
+## M5-Erweiterung (2026-10-05)
+
+- `trigger_action`: zusätzlich `properties` sowie die Dateioperationen `copy`, `cut`, `paste`,
+  `trash`, `delete`. Gesperrte Actions werden abgewiesen.
+- **Dateioperationen** (inklusive `rename_dialog`) nur mit `WHALE_DEV_MCP_FILE_OPERATIONS=1`
+  (`whale-dev-session.sh --file-operations` bzw. `start_whale(file_operations=True)`): eigenes `HOME`
+  und Papierkorb im Profil, keine Lösch-Rückfrage. Die Zwischenablage erscheint nur dann im Zustand.
+- Neue Tools: `get_action_state`, `open_context_menu`/`close_popup`, `request_item_info`,
+  `rename_dialog`, `close_dialogs`. Zustand: `actions` (enabled + gate), `popupMenu`
+  (`names`/`texts`/`entries`), `dialogs`, `shell.itemInfo`, `panes.N.selectionMode`, `clipboard`.
+- `test_m5_acceptance.py` (A–G, 40 Schritte offscreen). Grenzen auf echtem Wayland: Kontextmenüs
+  brauchen echte Eingabe; Zwischenablage-Schritte nur mit `--clipboard`.
