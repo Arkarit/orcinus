@@ -357,17 +357,23 @@ void WhaleDevAutomationTest::testOnlyNonDestructiveActions()
     QVERIFY(ids.contains(QStringLiteral("go_up")));
     QVERIFY(ids.contains(QStringLiteral("rename")));
 
-    const QStringList forbidden = {QStringLiteral("delete"),
-                                   QStringLiteral("trash"),
-                                   QStringLiteral("move_to_trash"),
-                                   QStringLiteral("cut"),
-                                   QStringLiteral("copy"),
-                                   QStringLiteral("paste"),
+    // File operations are offered, but refused unless Whale runs for a test profile.
+    qunsetenv("WHALE_DEV_MCP_FILE_OPERATIONS");
+    for (const QString &id : {QStringLiteral("copy"), QStringLiteral("cut"), QStringLiteral("paste"), QStringLiteral("trash"), QStringLiteral("delete")}) {
+        QVERIFY(ids.contains(id));
+        const QJsonObject result = m_automation->triggerAction(id);
+        QVERIFY(!result.value(QStringLiteral("ok")).toBool());
+        QVERIFY2(result.value(QStringLiteral("error")).toString().contains(QStringLiteral("WHALE_DEV_MCP_FILE_OPERATIONS")), qPrintable(id));
+    }
+    QVERIFY(!m_automation->answerRenameDialog(QStringLiteral("x")).value(QStringLiteral("ok")).toBool());
+
+    const QStringList forbidden = {QStringLiteral("move_to_trash"),
                                    QStringLiteral("duplicate"),
                                    QStringLiteral("create_dir"),
                                    QStringLiteral("edit_cut"),
                                    QStringLiteral("edit_paste"),
-                                   QStringLiteral("deletefile")};
+                                   QStringLiteral("deletefile"),
+                                   QStringLiteral("compress")};
     for (const QString &id : forbidden) {
         QVERIFY2(!ids.contains(id), qPrintable(id));
         const QJsonObject result = m_automation->triggerAction(id);

@@ -103,6 +103,36 @@ QString WhaleDevAutomationDBus::ActivateItems(int pane, const QStringList &urls)
     return toJson(m_automation->activateItems(pane, urls));
 }
 
+QString WhaleDevAutomationDBus::OpenContextMenu(int pane, const QString &url)
+{
+    return toJson(m_automation->openContextMenu(pane, url));
+}
+
+QString WhaleDevAutomationDBus::ClosePopups()
+{
+    return toJson(m_automation->closePopups());
+}
+
+QString WhaleDevAutomationDBus::RequestItemInfo(int pane, const QString &url)
+{
+    return toJson(m_automation->requestItemInfo(pane, url));
+}
+
+QString WhaleDevAutomationDBus::AnswerRenameDialog(const QString &newName)
+{
+    return toJson(m_automation->answerRenameDialog(newName));
+}
+
+QString WhaleDevAutomationDBus::CloseDialogs()
+{
+    return toJson(m_automation->closeDialogs());
+}
+
+QString WhaleDevAutomationDBus::ActionState()
+{
+    return toJson(m_automation->actionState());
+}
+
 QString WhaleDevAutomationDBus::WaitForState(const QString &conditions, int timeoutMs)
 {
     QJsonParseError parseError;

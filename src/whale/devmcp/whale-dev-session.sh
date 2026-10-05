@@ -6,11 +6,16 @@
 # Starts the Whale of a build tree with the development automation, in a profile of
 # its own, so test runs never change the settings of the Whale used every day.
 #
-#   whale-dev-session.sh [--build DIR] [--profile DIR] [--offscreen] [URL...]
+#   whale-dev-session.sh [--build DIR] [--profile DIR] [--offscreen] [--file-operations] [URL...]
 #
 # Defaults: --build ../build-whale (relative to the source tree), --profile
 # <build>/whale-dev-profile. The look (colors, fonts, icons) is copied from the
 # user's kdeglobals. Prints the PID; stop Whale with "kill <pid>".
+#
+# --file-operations lets the dev MCP copy, cut, paste, trash, delete and rename
+# (WHALE_DEV_MCP_FILE_OPERATIONS=1). It also gives Whale a home inside the profile, so
+# its trash is the profile's, and turns off the delete confirmation. Only for
+# throwaway test folders inside the profile's device (e.g. /tmp).
 
 set -euo pipefail
 
@@ -18,6 +23,7 @@ src_dir=$(cd "$(dirname "$0")/../../.." && pwd)
 build_dir="$src_dir/../build-whale"
 profile=""
 platform=""
+file_operations=""
 urls=()
 
 while [ $# -gt 0 ]; do
@@ -25,6 +31,7 @@ while [ $# -gt 0 ]; do
         --build) build_dir=$2; shift 2 ;;
         --profile) profile=$2; shift 2 ;;
         --offscreen) platform=offscreen; shift ;;
+        --file-operations) file_operations=1; shift ;;
         *) urls+=("$1"); shift ;;
     esac
 done
@@ -43,6 +50,11 @@ source "$build_dir/prefix.sh"
 set -u
 export XDG_CONFIG_HOME=$profile/config XDG_DATA_HOME=$profile/data XDG_CACHE_HOME=$profile/cache XDG_STATE_HOME=$profile/state
 export WHALE_DEV_MCP=1
+if [ -n "$file_operations" ]; then
+    mkdir -p "$profile/home"
+    printf '[Confirmations]\nConfirmDelete=false\nConfirmTrash=false\n' > "$profile/config/kiorc"
+    export WHALE_DEV_MCP_FILE_OPERATIONS=1 HOME=$profile/home
+fi
 if [ -n "$platform" ]; then
     export QT_QPA_PLATFORM=$platform
 fi

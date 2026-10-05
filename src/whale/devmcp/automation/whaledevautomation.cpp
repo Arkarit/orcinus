@@ -26,21 +26,30 @@
 
 #include <KActionCollection>
 #include <KCoreDirLister>
+#include <KIO/Paste>
+#include <KIO/RenameFileDialog>
+#include <KPropertiesDialog>
 #include <KSelectAction>
 #include <KSqueezedTextLabel>
 #include <KStandardAction>
 #include <KToolBar>
+#include <KUrlMimeData>
 
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QBuffer>
+#include <QClipboard>
 #include <QDBusConnection>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDockWidget>
 #include <QElapsedTimer>
 #include <QJsonArray>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMimeData>
+#include <QPushButton>
 #include <QTimer>
 
 namespace
@@ -83,8 +92,34 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("select_all"), KStandardAction::name(KStandardAction::SelectAll)},
         {QStringLiteral("invert_selection"), QStringLiteral("invert_selection")},
         {QStringLiteral("rename"), KStandardAction::name(KStandardAction::RenameFile)},
+        {QStringLiteral("properties"), QStringLiteral("properties")},
+        // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
+        {QStringLiteral("copy"), KStandardAction::name(KStandardAction::Copy)},
+        {QStringLiteral("cut"), KStandardAction::name(KStandardAction::Cut)},
+        {QStringLiteral("paste"), KStandardAction::name(KStandardAction::Paste)},
+        {QStringLiteral("trash"), KStandardAction::name(KStandardAction::MoveToTrash)},
+        {QStringLiteral("delete"), KStandardAction::name(KStandardAction::DeleteFile)},
     };
     return list;
+}
+
+// Actions that change files or the user's clipboard. They are refused unless the
+// Whale process was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1.
+const QStringList &fileOperations()
+{
+    static const QStringList ids = {QStringLiteral("copy"), QStringLiteral("cut"), QStringLiteral("paste"), QStringLiteral("trash"), QStringLiteral("delete")};
+    return ids;
+}
+
+bool fileOperationsAllowed()
+{
+    return qgetenv("WHALE_DEV_MCP_FILE_OPERATIONS") == "1";
+}
+
+QString fileOperationsRefusal(const QString &what)
+{
+    return QStringLiteral("\"%1\" changes files or the clipboard and needs a Whale started with WHALE_DEV_MCP_FILE_OPERATIONS=1 (test profiles only)")
+        .arg(what);
 }
 
 QJsonObject ok()
@@ -185,6 +220,11 @@ WhaleDevAutomation::WhaleDevAutomation(DolphinMainWindow *window)
 {
     connect(tabWidget(), &DolphinTabWidget::activeViewChanged, this, &WhaleDevAutomation::recordActivation);
     // The information panel listens to exactly this signal.
+    // ... and to this one.
+    connect(window, &DolphinMainWindow::requestItemInfo, this, [this](const KFileItem &item) {
+        m_itemInfo = item.isNull() ? QString() : item.text();
+        ++m_itemInfoSignals;
+    });
     connect(window, &DolphinMainWindow::selectionChanged, this, [this](const KFileItemList &selection) {
         m_shellSelection.clear();
         for (const KFileItem &item : selection) {
@@ -343,6 +383,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
              {QStringLiteral("text"), view->nameFilter()},
              {QStringLiteral("barVisible"), container->isFilterBarVisible()},
          }},
+        {QStringLiteral("selectionMode"), container->isSelectionModeEnabled()},
         {QStringLiteral("focusProxy"), focusProxy},
         {QStringLiteral("hiddenDolphinViewHasFocus"), pluginWidget != nullptr && contains(view, focus)},
     };
@@ -397,7 +438,13 @@ QJsonObject WhaleDevAutomation::uiState() const
          QJsonObject{
              {QStringLiteral("selectedNames"), QJsonArray::fromStringList(m_shellSelection)},
              {QStringLiteral("selectionSignals"), m_shellSelectionSignals},
+             {QStringLiteral("itemInfo"), m_itemInfo.isNull() ? QJsonValue::Null : QJsonValue(m_itemInfo)},
+             {QStringLiteral("itemInfoSignals"), m_itemInfoSignals},
          }},
+        {QStringLiteral("actions"), actionState()},
+        {QStringLiteral("clipboard"), clipboardState()},
+        {QStringLiteral("popupMenu"), popupMenu()},
+        {QStringLiteral("dialogs"), dialogs()},
     };
 }
 
@@ -704,6 +751,171 @@ QJsonObject WhaleDevAutomation::activateItems(int paneIndexArg, const QStringLis
     return ok();
 }
 
+QJsonObject WhaleDevAutomation::actionState() const
+{
+    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    QStringList names = WhaleViewActions::gateableActions();
+    names << KStandardAction::name(KStandardAction::Paste) << QStringLiteral("properties") << QStringLiteral("show_hidden_files");
+    QJsonObject state;
+    for (const QString &name : std::as_const(names)) {
+        if (QAction *action = m_window->actionCollection()->action(name)) {
+            const QString gate = viewActions ? viewActions->gateReason(name) : QString();
+            state.insert(name,
+                         QJsonObject{
+                             {QStringLiteral("enabled"), action->isEnabled()},
+                             {QStringLiteral("gate"), gate.isEmpty() ? QJsonValue::Null : QJsonValue(gate)},
+                         });
+        }
+    }
+    return state;
+}
+
+QJsonValue WhaleDevAutomation::clipboardState() const
+{
+    // Outside of test profiles the clipboard is the user's own; it stays private.
+    if (!fileOperationsAllowed()) {
+        return QJsonValue::Null;
+    }
+    const QMimeData *mimeData = QApplication::clipboard()->mimeData();
+    QJsonArray urls;
+    if (mimeData) {
+        const QList<QUrl> clipboardUrls = KUrlMimeData::urlsFromMimeData(mimeData);
+        for (const QUrl &url : clipboardUrls) {
+            urls.append(url.toString());
+        }
+    }
+    return QJsonObject{{QStringLiteral("urls"), urls}, {QStringLiteral("cut"), mimeData && KIO::isClipboardDataCut(mimeData)}};
+}
+
+QJsonValue WhaleDevAutomation::popupMenu() const
+{
+    auto menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+    if (!menu || !menu->isVisible()) {
+        return QJsonValue::Null;
+    }
+    QJsonArray entries;
+    QJsonArray names;
+    QJsonArray texts;
+    const auto actions = menu->actions();
+    for (QAction *action : actions) {
+        if (action->isSeparator()) {
+            continue;
+        }
+        const QString text = action->text().remove(QLatin1Char('&'));
+        entries.append(QJsonObject{
+            {QStringLiteral("name"), action->objectName()},
+            {QStringLiteral("text"), text},
+            {QStringLiteral("enabled"), action->isEnabled()},
+        });
+        if (!action->objectName().isEmpty()) {
+            names.append(action->objectName());
+        }
+        texts.append(text);
+    }
+    return QJsonObject{{QStringLiteral("entries"), entries}, {QStringLiteral("names"), names}, {QStringLiteral("texts"), texts}};
+}
+
+QJsonArray WhaleDevAutomation::dialogs() const
+{
+    QJsonArray result;
+    const auto windows = QApplication::topLevelWidgets();
+    for (QWidget *window : windows) {
+        auto dialog = qobject_cast<QDialog *>(window);
+        if (!dialog || !dialog->isVisible()) {
+            continue;
+        }
+        QString type = QStringLiteral("other");
+        if (qobject_cast<KIO::RenameFileDialog *>(dialog)) {
+            type = QStringLiteral("rename");
+        } else if (qobject_cast<KPropertiesDialog *>(dialog)) {
+            type = QStringLiteral("properties");
+        }
+        result.append(QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("title"), dialog->windowTitle()}});
+    }
+    return result;
+}
+
+QJsonObject WhaleDevAutomation::openContextMenu(int paneIndexArg, const QString &url)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    const QUrl item = url.isEmpty() ? QUrl() : QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile);
+    if (!item.isEmpty()) {
+        const KFileItemList items = container->view()->items();
+        const bool listed = std::any_of(items.cbegin(), items.cend(), [&item](const KFileItem &fileItem) {
+            return fileItem.url() == item;
+        });
+        if (!listed) {
+            return failure(QStringLiteral("\"%1\" is not in the listing of the pane").arg(url));
+        }
+    }
+    WhaleViewHost *host = container->viewHost();
+    QWidget *shown = host->isDolphinViewShown() ? static_cast<QWidget *>(container->view()) : host->currentView()->widget();
+    const QPoint position = shown->mapToGlobal(shown->rect().center());
+    // The menu runs its own event loop until it closes; this call must answer first.
+    QTimer::singleShot(0, host, [host, position, item]() {
+        host->bridge()->requestContextMenu(position, item);
+    });
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::closePopups()
+{
+    while (QWidget *popup = QApplication::activePopupWidget()) {
+        popup->close();
+    }
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::requestItemInfo(int paneIndexArg, const QString &url)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    container->viewHost()->bridge()->requestItemInfo(url.isEmpty() ? QUrl() : QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile));
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::answerRenameDialog(const QString &newName)
+{
+    if (!fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(QStringLiteral("rename_dialog")));
+    }
+    const auto windows = QApplication::topLevelWidgets();
+    for (QWidget *window : windows) {
+        auto dialog = qobject_cast<KIO::RenameFileDialog *>(window);
+        if (!dialog || !dialog->isVisible()) {
+            continue;
+        }
+        auto edit = dialog->findChild<QLineEdit *>();
+        auto buttons = dialog->findChild<QDialogButtonBox *>();
+        QPushButton *accept = buttons ? buttons->button(QDialogButtonBox::Ok) : nullptr;
+        if (!edit || !accept) {
+            return failure(QStringLiteral("unexpected layout of the rename dialog"));
+        }
+        edit->setText(newName);
+        accept->click();
+        return ok();
+    }
+    return failure(QStringLiteral("no rename dialog is open"));
+}
+
+QJsonObject WhaleDevAutomation::closeDialogs()
+{
+    const auto windows = QApplication::topLevelWidgets();
+    for (QWidget *window : windows) {
+        if (auto dialog = qobject_cast<QDialog *>(window); dialog && dialog->isVisible()) {
+            dialog->reject();
+        }
+    }
+    return ok();
+}
+
 QStringList WhaleDevAutomation::actionIds()
 {
     QStringList ids;
@@ -718,6 +930,9 @@ QJsonObject WhaleDevAutomation::triggerAction(const QString &actionId)
     for (const auto &[id, name] : actions()) {
         if (id != actionId) {
             continue;
+        }
+        if (fileOperations().contains(id) && !fileOperationsAllowed()) {
+            return failure(fileOperationsRefusal(id));
         }
         QAction *action = m_window->actionCollection()->action(name);
         if (!action) {

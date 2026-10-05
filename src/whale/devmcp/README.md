@@ -61,7 +61,11 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`. No file operations. |
+| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
+| `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
+| `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
+| `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
+| `rename_dialog` / `close_dialogs` | Answer the rename dialog (file operation) / cancel open dialogs; open dialogs are `dialogs` in the state |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
 
@@ -119,6 +123,17 @@ containing `x`, e.g. `{"panes.0.statusText": {"$contains": "2 files selected"}}`
 tests (`tests/mcp_test_support.py`) therefore start Whale in a profile in which text
 files open with a test "opener" that only logs the path.
 
+## File operations
+
+`copy`, `cut`, `paste`, `trash`, `delete` and `rename_dialog` change files or the
+clipboard. Whale refuses them unless it was started with
+`WHALE_DEV_MCP_FILE_OPERATIONS=1` (`whale-dev-session.sh --file-operations`,
+`mcp_test_support.start_whale(file_operations=True)`), which is meant for throwaway
+test folders only. Such a Whale gets a home inside its profile, so the trash is the
+profile's (KIO only uses the home trash for files on the device of `$HOME`), and no
+delete confirmation. The state shows the clipboard (`clipboard`) only then, as it is
+the user's own otherwise.
+
 ## Limits
 
 - The state is semantic and immediate; pixels may lag behind: a screenshot taken
@@ -126,3 +141,5 @@ files open with a test "opener" that only logs the path.
 - Navigation, view switching and pane activation go through the same functions as
   the UI, but not through simulated mouse or keyboard input.
 - Only the current tab's panes are addressed.
+- Without a window manager (offscreen) the main window is not activated again after
+  a dialog closes; only the logical focus (`focus.role`) can be checked then.

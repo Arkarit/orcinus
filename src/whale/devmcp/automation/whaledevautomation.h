@@ -8,6 +8,7 @@
 #define WHALEDEVAUTOMATION_H
 
 #include <QHash>
+#include <QJsonArray>
 #include <QJsonObject>
 #include <QList>
 #include <QObject>
@@ -88,6 +89,37 @@ public:
     QJsonObject activateItems(int pane, const QStringList &urls);
 
     /**
+     * Opens the context menu of a pane through the host API that plugin views use,
+     * for @p url (an item of the listing) or, if empty, for the location. Returns at
+     * once; the menu is part of the state ("popupMenu") until closePopups().
+     */
+    QJsonObject openContextMenu(int pane, const QString &url);
+    QJsonObject closePopups();
+
+    /**
+     * Reports @p url (or none, if empty) as the item under the pointer, through the
+     * host API that plugin views use for hovering.
+     */
+    QJsonObject requestItemInfo(int pane, const QString &url);
+
+    /**
+     * Enters @p newName in the open rename dialog and confirms it. Only with
+     * WHALE_DEV_MCP_FILE_OPERATIONS=1.
+     */
+    QJsonObject answerRenameDialog(const QString &newName);
+
+    /**
+     * Rejects all open dialogs (rename, properties, ...).
+     */
+    QJsonObject closeDialogs();
+
+    /**
+     * @return Enabled state and gating reason of the actions the view gating may
+     *         change, plus Paste, Properties and Show Hidden Files.
+     */
+    QJsonObject actionState() const;
+
+    /**
      * @return The IDs accepted by triggerAction(). None of them changes files.
      */
     static QStringList actionIds();
@@ -116,6 +148,9 @@ private:
     QList<DolphinViewContainer *> panes() const;
     DolphinViewContainer *pane(int index, QString *error) const;
     int paneIndex(const DolphinViewContainer *container) const;
+    QJsonValue popupMenu() const;
+    QJsonValue clipboardState() const;
+    QJsonArray dialogs() const;
     QJsonObject paneState(DolphinViewContainer *container, int index) const;
     QString focusRole(QWidget *focus, int *paneIndex) const;
     void recordActivation(DolphinViewContainer *container);
@@ -134,6 +169,8 @@ private:
     // What the shell (information panel, KFileItemActions) last got as selection.
     QStringList m_shellSelection;
     int m_shellSelectionSignals = 0;
+    QString m_itemInfo;
+    int m_itemInfoSignals = 0;
 };
 
 #endif

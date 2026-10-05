@@ -27,6 +27,12 @@ if(Python3_FOUND AND NOT WIN32)
             --adapter ${CMAKE_CURRENT_SOURCE_DIR}/../adapter/whale_dev_mcp.py
             --plugin-dir ${WHALE_VIEW_PLUGIN_BUILD_DIR}
             --platform offscreen)
+    add_test(NAME whale_dev_mcp_m5_e2e
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_m5_acceptance.py
+            --whale $<TARGET_FILE:dolphin>
+            --adapter ${CMAKE_CURRENT_SOURCE_DIR}/../adapter/whale_dev_mcp.py
+            --plugin-dir ${WHALE_VIEW_PLUGIN_BUILD_DIR}
+            --platform offscreen)
     # 77: no D-Bus session bus available.
-    set_tests_properties(whale_dev_mcp_e2e whale_dev_mcp_m4_e2e PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(whale_dev_mcp_e2e whale_dev_mcp_m4_e2e whale_dev_mcp_m5_e2e PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 endif()

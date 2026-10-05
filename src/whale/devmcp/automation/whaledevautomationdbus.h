@@ -43,6 +43,13 @@ public Q_SLOTS:
     /// @p current may be empty (keep the current item).
     Q_SCRIPTABLE QString SetSelection(int pane, const QStringList &urls, const QString &current);
     Q_SCRIPTABLE QString ActivateItems(int pane, const QStringList &urls);
+    /// @p url may be empty (the location's menu). Returns before the menu closes.
+    Q_SCRIPTABLE QString OpenContextMenu(int pane, const QString &url);
+    Q_SCRIPTABLE QString ClosePopups();
+    Q_SCRIPTABLE QString RequestItemInfo(int pane, const QString &url);
+    Q_SCRIPTABLE QString AnswerRenameDialog(const QString &newName);
+    Q_SCRIPTABLE QString CloseDialogs();
+    Q_SCRIPTABLE QString ActionState();
     /// Replies when the conditions (a JSON object) hold or after @p timeoutMs (at most 60000).
     Q_SCRIPTABLE QString WaitForState(const QString &conditions, int timeoutMs);
     Q_SCRIPTABLE QByteArray Screenshot();

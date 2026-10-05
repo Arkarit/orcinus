@@ -61,14 +61,19 @@ class Scenario:
         self.client = client
         self.screenshots = screenshots
         self.step_count = 0
+        # Without a window manager (offscreen) nothing activates the main window again
+        # after a dialog closed; then only the logical focus (focus.role) can be checked.
+        self.require_keyboard_focus = True
 
-    def expect(self, title, conditions, timeout_ms=10000):
-        """Waits inside Whale until the conditions hold. No focus anomaly is ever allowed."""
+    def expect(self, title, conditions, timeout_ms=10000, focus=True):
+        """Waits inside Whale until the conditions hold. No focus anomaly is ever allowed.
+        With @p focus False (a popup menu or dialog is open), the keyboard focus is elsewhere."""
         self.step_count += 1
         conditions = dict(conditions)
         conditions.setdefault("focus.anomalies", [])
-        # The focus must be real keyboard focus, not only the focus widget of an inactive window.
-        conditions.setdefault("focus.keyboardFocus", True)
+        if focus and self.require_keyboard_focus:
+            # The focus must be real keyboard focus, not only the focus widget of an inactive window.
+            conditions.setdefault("focus.keyboardFocus", True)
         result = json.loads(self.client.tool("wait_for_state", conditions=conditions, timeout_ms=timeout_ms)[0]["text"])
         if not result["matched"]:
             raise Failure(f"step {self.step_count} '{title}': " + json.dumps(result["mismatches"], indent=1))
@@ -91,12 +96,24 @@ def install_test_opener(profile, log):
     (profile / "config" / "mimeapps.list").write_text("[Default Applications]\ntext/plain=whale-test-opener.desktop\n")
 
 
-def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None):
+def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False):
+    """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
+    With @p file_operations the dev MCP may change files and the clipboard, and deleting
+    needs no confirmation; only for throwaway test folders."""
     env = dict(os.environ)
+    env.pop("WHALE_DEV_MCP_FILE_OPERATIONS", None)
     for name in ("config", "data", "cache", "state"):
         (profile / name).mkdir(parents=True, exist_ok=True)
     if opener_log:
         install_test_opener(profile, opener_log)
+    if file_operations:
+        env["WHALE_DEV_MCP_FILE_OPERATIONS"] = "1"
+        # KIO uses the home trash (XDG_DATA_HOME/Trash) only for files on the device of
+        # $HOME; elsewhere it offers to delete permanently. A home in the profile keeps
+        # trash and test files on one device and the trash inside the profile.
+        (profile / "home").mkdir(exist_ok=True)
+        env["HOME"] = str(profile / "home")
+        (profile / "config" / "kiorc").write_text("[Confirmations]\nConfirmDelete=false\nConfirmTrash=false\n")
     env.update({
         "XDG_CONFIG_HOME": str(profile / "config"),
         "XDG_DATA_HOME": str(profile / "data"),

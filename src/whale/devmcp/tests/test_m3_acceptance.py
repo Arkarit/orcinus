@@ -26,7 +26,8 @@ import subprocess
 import sys
 import tempfile
 
-FORBIDDEN_ACTIONS = {"delete", "trash", "move_to_trash", "cut", "copy", "paste", "duplicate", "create_dir"}
+# Never offered; file operations that are offered (copy, trash, ...) are refused without a test profile.
+FORBIDDEN_ACTIONS = {"move_to_trash", "deletefile", "edit_paste", "duplicate", "create_dir", "compress"}
 
 
 sys.dont_write_bytecode = True  # no __pycache__ next to the sources
@@ -60,7 +61,9 @@ def run(args, work):
         # Exactly this small set; anything new must be a deliberate decision (see README.md).
         expected_tools = {"get_ui_state", "get_focus_state", "set_view", "activate_pane", "set_split_view",
                           "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_sort",
-                          "set_selection", "activate_items", "trigger_action", "wait_for_state", "screenshot"}
+                          "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
+                          "request_item_info", "rename_dialog", "close_dialogs", "trigger_action", "wait_for_state",
+                          "screenshot"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)
@@ -85,7 +88,9 @@ def run(args, work):
         for tool, arguments in (("trigger_action", {"action": "delete"}), ("trigger_action", {"action": "paste"})):
             if client.tool_error(tool, **arguments) is None:
                 raise Failure(f"{tool}{arguments} was accepted")
-        print("ok    destructive actions are refused")
+        if "WHALE_DEV_MCP_FILE_OPERATIONS" not in (client.tool_error("trigger_action", action="trash") or ""):
+            raise Failure("trash was not refused for lack of a test profile")
+        print("ok    file operations are refused without a test profile")
 
         s = Scenario(client, args.screenshots)
         # Start from defaults; Whale shares the view properties of all folders.

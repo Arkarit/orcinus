@@ -137,19 +137,58 @@ TOOLS = [
     },
     {
         "name": "trigger_action",
-        "description": "Triggers one of a fixed set of non-destructive Whale actions on the active pane. "
-        "File operations (delete, trash, cut, copy, paste, ...) are deliberately not available.",
+        "description": "Triggers one of a fixed set of Whale actions on the active pane, only if Whale has it "
+        "enabled (view gating). copy, cut, paste, trash and delete change files or the clipboard and are refused "
+        "unless Whale was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1. rename opens Whale's "
+        "rename path (inline in views that can, else the dialog: see rename_dialog); properties opens a dialog.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "action": {
                     "type": "string",
                     "enum": ["focus_other_view", "go_up", "go_back", "go_forward", "edit_location", "select_all",
-                             "invert_selection", "rename"],
+                             "invert_selection", "rename", "properties", "copy", "cut", "paste", "trash", "delete"],
                 }
             },
             "required": ["action"],
         },
+    },
+    {
+        "name": "get_action_state",
+        "description": "Enabled state of Whale's file and view actions and why the view gating disables them "
+        "(gate: null if not gated), keyed by Whale's action names (e.g. edit_copy, movetotrash, renamefile, "
+        "view_zoom_in, sort, toggle_selection_mode). Also part of get_ui_state as 'actions'.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "open_context_menu",
+        "description": "Opens Whale's context menu of a pane through the host API that plugin views use: for an "
+        "item of the listing (url; it becomes the selection if it is not selected) or, without url, for the "
+        "location. Returns at once; the menu shows up as popupMenu in get_ui_state until close_popup.",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}},
+    },
+    {
+        "name": "close_popup",
+        "description": "Closes open popup menus (e.g. a context menu) without choosing an entry.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "request_item_info",
+        "description": "Reports an item of a pane as hovered (or none without url) through the host API that "
+        "plugin views use; the information panel follows. See shell.itemInfo in get_ui_state.",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}},
+    },
+    {
+        "name": "rename_dialog",
+        "description": "Enters a new name in the open rename dialog and confirms it (the dialog that "
+        "trigger_action rename opens). Needs WHALE_DEV_MCP_FILE_OPERATIONS=1. Open dialogs are listed as "
+        "'dialogs' in get_ui_state.",
+        "inputSchema": {"type": "object", "properties": {"new_name": {"type": "string"}}, "required": ["new_name"]},
+    },
+    {
+        "name": "close_dialogs",
+        "description": "Cancels all open dialogs (rename, properties, ...).",
+        "inputSchema": {"type": "object", "properties": {}},
     },
     {
         "name": "wait_for_state",
@@ -268,6 +307,18 @@ class Whale:
         if tool == "activate_items":
             urls = dbus.Array([str(url) for url in args["urls"]], signature="s")
             return result(iface.ActivateItems(pane, urls))
+        if tool == "get_action_state":
+            return result(iface.ActionState())
+        if tool == "open_context_menu":
+            return result(iface.OpenContextMenu(pane, args.get("url", "")))
+        if tool == "close_popup":
+            return result(iface.ClosePopups())
+        if tool == "request_item_info":
+            return result(iface.RequestItemInfo(pane, args.get("url", "")))
+        if tool == "rename_dialog":
+            return result(iface.AnswerRenameDialog(args["new_name"]))
+        if tool == "close_dialogs":
+            return result(iface.CloseDialogs())
         if tool == "trigger_action":
             return result(iface.TriggerAction(args["action"]))
         if tool == "wait_for_state":
