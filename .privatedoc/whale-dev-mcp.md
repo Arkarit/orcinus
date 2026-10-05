@@ -43,7 +43,9 @@ Gewählt: **Variante 3**, internes Diagnose-Interface plus dünner MCP-Adapter.
 `get_ui_state`, `get_focus_state`, `set_view`, `activate_pane`, `set_split_view`, `set_location`,
 `set_filter_text`, `clear_filter`, `set_hidden_files`, `set_sort`, `trigger_action` (nur
 `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`,
-`invert_selection`, `rename`), `wait_for_state`, `screenshot`.
+`invert_selection`, `rename`), `wait_for_state`, `screenshot`; seit M4 zusätzlich `set_selection`
+und `activate_items` (beide über die Bridge-API, die auch Plugin-Views nutzen) sowie
+`{"$contains": x}` in `wait_for_state`.
 
 Bewusste Erweiterungen gegenüber Elfies Liste: `set_split_view` (die M3-Liste braucht die
 Split-View deterministisch) und `screenshot` (unter Wayland per Shell nicht zuverlässig: Spectacle
@@ -91,3 +93,12 @@ der Nutzerin/des Nutzers vom 2026-10-05, keine Zeit für manuelle Tests).
 - Eingaben per simulierter Maus/Tastatur, falls Klick-Pfade (z. B. FocusIn → Aktivierung) direkt
   getestet werden sollen
 - `trigger_action` für Datei-Actions erst nach M4/M5
+
+## M4-Abnahme über das Dev-MCP (2026-10-05)
+
+`tests/test_m4_acceptance.py` (Fälle A–F, 26 Schritte), offscreen (ctest `whale_dev_mcp_m4_e2e`) und auf
+echtem Plasma/Wayland grün, mit Screenshots. Dateien öffnen mit einem Test-Öffner im Whale-Profil
+(`mcp_test_support.install_test_opener`), nie mit einer echten Anwendung. Die M3-Abnahme läuft dabei
+als Regression weiterhin grün.
+
+Hinweis: `set_split_view(false)` schließt wie der Schließen-Knopf die **aktive** Hälfte.

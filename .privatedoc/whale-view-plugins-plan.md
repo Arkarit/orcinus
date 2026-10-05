@@ -549,7 +549,8 @@ wendet sie nach dem Laden an.
   - Host → Dolphin (Plugin ändert die Auswahl): Die Bridge setzt sie direkt über
     `KItemListSelectionManager::setSelectedItems(KItemSet)` und `setCurrentItem`. Das ist sofort
     wirksam, im Gegensatz zum verzögerten `markUrlsAsSelected`. Zugriff gibt es über den Weg aus K4.
-  - Eine Rückkopplung wird mit einem Herkunfts-Flag und Vergleich verhindert.
+  - Eine Rückkopplung wird mit einem Herkunfts-Flag und Vergleich verhindert. **(Umgesetzt in M4, siehe
+  14.11: Vergleich nach URL in der Bridge, Echo-Unterdrückung pro Context.)**
 - Folgen:
   - Beim Wechsel der View **bleibt die Auswahl automatisch erhalten**, weil sie nie die `DolphinView`
     verlässt.
@@ -1166,3 +1167,73 @@ Ansichtseinstellungen, deshalb setzt der Test Sortierung/Hidden in `init()` zur�
 **Abnahme (2026-10-05):** Statt manuell über das Dev-MCP (`.privatedoc/whale-dev-mcp.md`):
 `test_m3_acceptance.py` mit 20 Schritten grün unter offscreen und auf echtem Plasma/Wayland, jeweils
 mit echtem Tastaturfokus und ohne Fokus-Anomalien.
+
+### 14.11 Ergebnisse aus M4: Auswahl und Aktivierung (2026-10-05)
+
+Commits `ae836a7e5` (M4) und `027ad999a` (Dev-MCP). **Keine Änderung an Dolphin-Dateien.**
+
+**Autoritativer Speicher:** unverändert nach 5.2 der `KItemListSelectionManager` der `DolphinView`.
+Plugins halten nur eine Darstellungskopie. Alle Pull-Stellen der Shell (`selectedItems()`) bleiben
+unberührt.
+
+**`WhaleSelection` (öffentliche API):** `selected()` (URLs in Host-Reihenfolge, ohne Duplikate),
+`current()`. Dolphins Semantik bleibt erhalten: Es gibt fast immer ein aktuelles Item (Standard
+Index 0), auch ohne Auswahl, und es muss nicht ausgewählt sein. `isEmpty()` betrachtet nur die
+Auswahl. Die Anker-Auswahl (Umschalt) ist in `selectedItems()` enthalten.
+
+**Context:** `selection()`, `setSelection()`, `selectionChanged()`, `activateItems(QList<QUrl>)`.
+Abweichung von 4.2: Die Aktivierung ist URL-basiert (`activateItems`) statt `activate(items)`.
+
+**URL↔Index (Bridge):**
+
+- Whale → Dolphin: `KFileItemModel::index(QUrl)`, danach `endAnchoredSelection()`, gegebenenfalls
+  `setCurrentItem()` und `setSelectedItems()`, also direkt im SelectionManager. Die normale
+  Dolphin-Signalkette folgt (300-ms-Entprellung, Statusleiste, Info-Panel, Actions).
+  URLs außerhalb des Listings werden ignoriert, ein leeres oder unbekanntes `current` lässt das
+  aktuelle Item unverändert.
+- Dolphin → Whale: `selectionChanged`/`currentChanged` des SelectionManagers sowie
+  `itemsChanged` des Modells (Umbenennen ändert eine ausgewählte URL ohne Auswahlsignal) werden über
+  einen 0-ms-Timer gesammelt, nach URL verglichen und nur bei echter Änderung gemeldet. Bis dahin hat
+  auch die `WhaleItemList` den Modellschritt nachvollzogen (vgl. Reihenfolgeproblem in 14.10).
+
+**Rückkopplung:** Die Bridge meldet jede Änderung, egal wer sie ausgelöst hat. Unterdrückt wird nur
+das Echo an den **Context, der die Auswahl selbst gesetzt hat**, und nur wenn das Ergebnis genau
+dem Gewünschten entspricht. Ein erster Entwurf unterdrückte das Echo global in der Bridge; dadurch
+erfuhr die sichtbare View nichts von Änderungen anderer Quellen (Dev-MCP, zweiter Context).
+Zusätzlich ignoriert die Test-View Auswahländerungen, während sie selbst anwendet oder ihr Modell
+nachführt. Getestet: genau ein `DolphinView::selectionChanged`, keine weiteren Signale.
+
+**Verhalten an Rändern (alles wie in Dolphin):** Gelöschte oder weggefilterte Items verlassen die
+Auswahl; nach dem Entfernen des Filters kommen sie nicht ausgewählt zurück. Hidden Files aus
+entfernt ausgewählte versteckte Items. Wird das aktuelle Item gelöscht, rückt `current` auf ein
+existierendes Item. Navigation leert die Auswahl. F5 stellt die Auswahl wieder her (Dolphins
+`m_selectedUrls`). Während des Ladens sind nur bereits gelistete Items auswählbar. Symlinks werden
+über ihre angezeigte URL ausgewählt, ohne Kanonisierung. Tiefe URLs werden ignoriert und im Dev-MCP
+als `ignored` gemeldet; das ist bewusst keine Vorwegnahme von T1/T2.
+
+**Aktivierung:** Die Bridge aktiviert die Hälfte (`DolphinView::setActive(true)`, Regel 14.8) und
+löst die Anfrage-Signale `KItemListController::itemActivated(index)` bzw. `itemsActivated(KItemSet)`
+aus (3.2). Damit läuft Dolphins gesamte Logik: Alt für Eigenschaften, Archive, Ordner, `OpenUrlJob`,
+Rückfrage bei mehr als 5 Items, Ordner in Tabs bei Mehrfachauswahl. Die Test-View: Doppelklick
+aktiviert ein Item, Enter die Auswahl (oder das aktuelle Item).
+
+**Statusleiste/Info-Panel:** funktionieren ohne Zusatzverdrahtung über die bestehende Kette
+`DolphinView::selectionChanged` → `DolphinMainWindow::selectionChanged` → `InformationPanel`.
+
+**Beobachtung Entf/Strg+X/Strg+C/Strg+V (kein Command-Routing!):** Die Datei-Actions lesen weiter
+die `DolphinView`. Weil die Auswahl jetzt gespiegelt ist, treffen sie im Plugin-Modus die Items, die
+die Test-List markiert zeigt. Belegt nicht-destruktiv: Strg+C/Strg+X legen genau diese URLs in die
+Zwischenablage; Papierkorb/Löschen (`trashSelectedItems`) würden sie verwenden; Einfügen geht in
+den aktuellen Ordner. Das ist eine Folge der Architektur, keine Lösung. Offen für M5:
+
+1. Ohne Auswahl öffnen Entf/Papierkorb den Auswahlmodus mit Bottom-Bar der versteckten
+   `DolphinView`.
+2. Es gibt kein Capability-Gating: Ein Plugin ohne `Selection` (z. B. Treemap) hätte trotzdem eine
+   unsichtbare Auswahl als Ziel.
+3. F2 bleibt durch den M2-Schutz gesperrt; Inline-Umbenennen braucht M5.
+4. Tiefe Auswahl (T1) fehlt.
+
+**Tests:** `whaleselectiontest` (19 Fälle), Dev-MCP `whale_dev_mcp_m4_e2e` (Fälle A–F) unter offscreen
+und auf echtem Plasma/Wayland grün. Dateien öffnen in Tests mit einem Test-Öffner (`.desktop` im
+Test- bzw. Whale-Profil), der nur den Pfad protokolliert; der In-Process-Test prüft vorher, dass er
+wirklich zuständig ist.
