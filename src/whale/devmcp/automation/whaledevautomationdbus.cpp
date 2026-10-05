@@ -163,4 +163,24 @@ QByteArray WhaleDevAutomationDBus::Screenshot()
     return m_automation->screenshot();
 }
 
+QString WhaleDevAutomationDBus::PreviewState()
+{
+    return toJson(m_automation->previewState());
+}
+
+QString WhaleDevAutomationDBus::RequestPreview(int pane, const QStringList &urls, int size)
+{
+    return toJson(m_automation->requestPreview(pane, urls, size));
+}
+
+QString WhaleDevAutomationDBus::PerformDragDrop(int sourcePane, int targetPane, const QString &targetUrl, const QString &action)
+{
+    return toJson(m_automation->performDragDrop(sourcePane, targetPane, targetUrl, action));
+}
+
+QString WhaleDevAutomationDBus::ChoosePopupEntry(const QString &text)
+{
+    return toJson(m_automation->choosePopupEntry(text));
+}
+
 #include "moc_whaledevautomationdbus.cpp"

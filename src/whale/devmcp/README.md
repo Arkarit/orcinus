@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M6 acceptance through the MCP (`test_m3_acceptance.py` … `test_m6_acceptance.py`, shared `mcp_test_support.py`). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, shared `mcp_test_support.py`). |
 
 ## Activation
 
@@ -61,13 +61,17 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
+| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
 | `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
 | `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
 | `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
 | `scroll_to_item` | Scroll a plugin item view so an item is at its top (a view state; `pluginTopItem`) |
 | `quit` | Close the window as the user does: Whale saves its session and quits (restart tests) |
 | `rename_dialog` / `close_dialogs` | Answer the rename dialog (file operation) / cancel open dialogs; open dialogs are `dialogs` in the state |
+| `get_preview_state` | Preview state of all panes (`previews`, see below) and the answers to `request_preview` |
+| `request_preview` | Request previews of items through the preview provider of a pane's plugin view, as the view does |
+| `perform_drag_drop` | Drag the selection of a pane and drop it onto a folder item or the location of a pane (`copy`/`move`/`link`/`ask`); file operation, see below |
+| `choose_popup_entry` | Choose an entry of the open popup menu by text, e.g. "Copy Here" of the drop menu; file operation |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
 
@@ -117,6 +121,12 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `storedViewStates` (view IDs with a state at the location, including the shown
   view's current one), `restore` (`source` history/session, `requested`, `shown`,
   `fallback`) of the last restore in the pane.
+- Previews (M7): `pluginPreviewRows` (rows of a plugin item view that show a preview,
+  i.e. a QPixmap instead of the icon), `pluginVisibleRows` (`first`, `last`, `count`),
+  and `previews`: `shown` (Dolphin's "Show Previews" at the location), `capability`
+  (the view's Previews), `provider` (the view asked for its provider) and, if so,
+  `enabled`, `pending`/`pendingCount`, `runningJobs` and the counters `requested`,
+  `generated`, `failed`, `canceled`, `jobsStarted`, `jobsKilled`, `maxPending`.
 - `activations` counts pane activations, so a test can prove that an operation did
   not activate the other half of a split view.
 
@@ -131,8 +141,8 @@ files open with a test "opener" that only logs the path.
 
 ## File operations
 
-`copy`, `cut`, `paste`, `trash`, `delete` and `rename_dialog` change files or the
-clipboard. Whale refuses them unless it was started with
+`copy`, `cut`, `paste`, `trash`, `delete`, `rename_dialog`, `perform_drag_drop` and
+`choose_popup_entry` change files or the clipboard. Whale refuses them unless it was started with
 `WHALE_DEV_MCP_FILE_OPERATIONS=1` (`whale-dev-session.sh --file-operations`,
 `mcp_test_support.start_whale(file_operations=True)`), which is meant for throwaway
 test folders only. Such a Whale gets a home inside its profile, so the trash is the
@@ -140,12 +150,36 @@ profile's (KIO only uses the home trash for files on the device of `$HOME`), and
 delete confirmation. The state shows the clipboard (`clipboard`) only then, as it is
 the user's own otherwise.
 
+## Drag and drop
+
+`perform_drag_drop` changes files and needs `WHALE_DEV_MCP_FILE_OPERATIONS=1`. It does
+not copy or move anything itself:
+
+- Source plugin item view: the view gets the user's drag gesture (press on the first
+  selected row, moves beyond the drag distance) and starts its drag through
+  `WhaleFileOperations::startDrag()`, which builds the drag data and the `QDrag`.
+  Only `QDrag::exec()` (the platform's drag transport, which needs a real pointer) is
+  replaced for that drag by delivering the events to the target.
+- Source file list: the drag data comes from the function the file list's own drags
+  use (`KFileItemModel::createMimeData()` + portal export, via the bridge).
+- Target: the target view's widget (the plugin item view's viewport, or the file
+  list's `QGraphicsView`) gets drag enter, move and drop events and handles them as
+  a real drop: target rules, `DolphinView::dropUrls()`, `KIO::drop`.
+
+`action` sets the modifier keys of the drop: `copy` Ctrl, `move` Shift, `link`
+Ctrl+Shift, `ask` none (KDE's drop menu opens; `choose_popup_entry`). The reply has
+`accepted`/`dropped`, the dragged names and the source path. The test checks the file
+system itself.
+
 ## Limits
 
 - The state is semantic and immediate; pixels may lag behind: a screenshot taken
   right after a state change can still show an animation (filter bar, split view).
 - Navigation, view switching and pane activation go through the same functions as
-  the UI, but not through simulated mouse or keyboard input.
+  the UI, but not through simulated mouse or keyboard input (except the drag gesture
+  of `perform_drag_drop`).
+- Popup menus (context menu, drop menu) need real input on Wayland; they are only
+  testable offscreen.
 - Only the current tab's panes are addressed.
 - The automation answers before Dolphin restores its session at start-up; wait for
   the restored state (e.g. `tabs.count`) before acting.

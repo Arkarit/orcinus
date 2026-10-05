@@ -13,13 +13,20 @@
 #include "dolphinviewbridge.h"
 #include "dolphinviewcontainer.h"
 #include "filterbar/filterbar.h"
+#include "kitemviews/kfileitemmodel.h"
+#include "kitemviews/kitemlistcontainer.h"
+#include "kitemviews/kitemlistcontroller.h"
+#include "kitemviews/kitemlistview.h"
 #include "kitemviews/private/kitemlistroleeditor.h"
 #include "search/bar.h"
 #include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
 #include "whaledevautomationdbus.h"
+#include "whalefileoperationsimpl.h"
+#include "whalepreviewproviderimpl.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
+#include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewhost.h"
 #include "whaleviewregistry.h"
@@ -43,12 +50,16 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDockWidget>
+#include <QDrag>
+#include <QDropEvent>
 #include <QElapsedTimer>
+#include <QGraphicsView>
 #include <QJsonArray>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
+#include <QPixmap>
 #include <QPushButton>
 #include <QTimer>
 
@@ -96,6 +107,7 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("new_tab"), QStringLiteral("new_tab")},
         {QStringLiteral("activate_next_tab"), QStringLiteral("activate_next_tab")},
         {QStringLiteral("activate_prev_tab"), QStringLiteral("activate_prev_tab")},
+        {QStringLiteral("show_preview"), QStringLiteral("show_preview")},
         // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
         {QStringLiteral("copy"), KStandardAction::name(KStandardAction::Copy)},
         {QStringLiteral("cut"), KStandardAction::name(KStandardAction::Cut)},
@@ -322,13 +334,35 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         pluginCurrent = itemView->currentIndex().isValid() ? QJsonValue(itemView->currentIndex().data().toString()) : QJsonValue::Null;
     }
 
-    // The item a plugin item view shows at its top (its scroll position).
+    // The item a plugin item view shows at its top (its scroll position), the rows it
+    // shows, and the rows that show a preview (a QPixmap instead of the icon).
     QJsonValue pluginTopItem = QJsonValue::Null;
+    QJsonValue pluginVisibleRows = QJsonValue::Null;
+    QJsonValue pluginPreviewRows = QJsonValue::Null;
     if (auto itemView = qobject_cast<QAbstractItemView *>(pluginWidget)) {
         const QModelIndex top = itemView->indexAt(QPoint(1, 1));
         if (top.isValid()) {
             pluginTopItem = top.data().toString();
         }
+        const QRect area = itemView->viewport()->rect();
+        const QModelIndex bottom = itemView->indexAt(QPoint(1, area.bottom() - 1));
+        const int rowCount = itemView->model()->rowCount();
+        if (top.isValid()) {
+            const int last = bottom.isValid() ? bottom.row() : rowCount - 1;
+            pluginVisibleRows = QJsonObject{
+                {QStringLiteral("first"), top.data().toString()},
+                {QStringLiteral("last"), itemView->model()->index(last, 0).data().toString()},
+                {QStringLiteral("count"), last - top.row() + 1},
+            };
+        }
+        QJsonArray previewRows;
+        for (int row = 0; row < rowCount; ++row) {
+            const QModelIndex index = itemView->model()->index(row, 0);
+            if (index.data(Qt::DecorationRole).typeId() == QMetaType::QPixmap) {
+                previewRows.append(index.data().toString());
+            }
+        }
+        pluginPreviewRows = previewRows;
     }
     // Which views have a stored state at this location (the states themselves are the
     // views' own business), and how the last restore went.
@@ -392,6 +426,9 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("items"), items},
         {QStringLiteral("pluginRows"), pluginRows},
         {QStringLiteral("pluginTopItem"), pluginTopItem},
+        {QStringLiteral("pluginVisibleRows"), pluginVisibleRows},
+        {QStringLiteral("pluginPreviewRows"), pluginPreviewRows},
+        {QStringLiteral("previews"), panePreviews(container)},
         {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
         {QStringLiteral("restore"), restoreState},
         {QStringLiteral("selectionCount"), selected.count()},
@@ -1064,6 +1101,292 @@ QByteArray WhaleDevAutomation::screenshot() const
     buffer.open(QIODevice::WriteOnly);
     m_window->grab().save(&buffer, "PNG");
     return png;
+}
+
+QJsonValue WhaleDevAutomation::panePreviews(DolphinViewContainer *container) const
+{
+    WhaleViewHost *host = container->viewHost();
+    const WhaleViewContextImpl *context = host->pluginContext();
+    const WhalePreviewProviderImpl *provider = context ? context->previewProviderIfCreated() : nullptr;
+    QJsonObject state{
+        // Dolphin's "Show Previews" at the location, and the view's capability.
+        {QStringLiteral("shown"), container->view()->previewsShown()},
+        {QStringLiteral("capability"), bool(host->currentView()->capabilities() & WhaleViewCapability::Previews)},
+        {QStringLiteral("provider"), provider != nullptr},
+    };
+    if (!provider) {
+        return state;
+    }
+    QStringList pending;
+    const QList<QUrl> urls = provider->pendingUrls();
+    for (const QUrl &url : urls) {
+        pending.append(url.fileName());
+    }
+    pending.sort();
+    const WhalePreviewProviderImpl::Statistics statistics = provider->statistics();
+    state.insert(QStringLiteral("enabled"), provider->isEnabled());
+    state.insert(QStringLiteral("pendingCount"), pending.count());
+    state.insert(QStringLiteral("pending"), QJsonArray::fromStringList(pending.mid(0, MaxListedItems)));
+    state.insert(QStringLiteral("runningJobs"), provider->runningJobs());
+    state.insert(QStringLiteral("requested"), statistics.requested);
+    state.insert(QStringLiteral("generated"), statistics.generated);
+    state.insert(QStringLiteral("failed"), statistics.failed);
+    state.insert(QStringLiteral("canceled"), statistics.canceled);
+    state.insert(QStringLiteral("jobsStarted"), statistics.jobsStarted);
+    state.insert(QStringLiteral("jobsKilled"), statistics.jobsKilled);
+    state.insert(QStringLiteral("maxPending"), statistics.maxPending);
+    return state;
+}
+
+QJsonObject WhaleDevAutomation::previewState() const
+{
+    QJsonArray panesState;
+    const QList<DolphinViewContainer *> all = panes();
+    for (DolphinViewContainer *container : all) {
+        panesState.append(panePreviews(container));
+    }
+    return {{QStringLiteral("panes"), panesState}, {QStringLiteral("results"), m_previewResults}};
+}
+
+QJsonObject WhaleDevAutomation::requestPreview(int paneIndexArg, const QStringList &urls, int size)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    WhaleViewContextImpl *context = container->viewHost()->pluginContext();
+    if (!context) {
+        return failure(QStringLiteral("the pane shows the file list; previews are for plugin views"));
+    }
+    WhalePreviewProvider *provider = context->previews();
+    if (!m_watchedProviders.contains(provider)) {
+        m_watchedProviders.append(provider);
+        const int index = paneIndex(container);
+        auto record = [this, index](const KFileItem &item, const QPixmap &preview) {
+            m_previewResults.append(QJsonObject{
+                {QStringLiteral("pane"), index},
+                {QStringLiteral("name"), item.url().fileName()},
+                {QStringLiteral("preview"), !preview.isNull()},
+                {QStringLiteral("width"), preview.width()},
+                {QStringLiteral("height"), preview.height()},
+            });
+            while (m_previewResults.count() > 50) {
+                m_previewResults.removeFirst();
+            }
+        };
+        connect(provider, &WhalePreviewProvider::previewAvailable, this, record);
+        connect(provider, &WhalePreviewProvider::previewFailed, this, [record](const KFileItem &item) {
+            record(item, QPixmap());
+        });
+    }
+    KFileItemList items;
+    QJsonArray ignored;
+    for (const QString &url : urls) {
+        const KFileItem item = container->viewHost()->bridge()->item(QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile));
+        if (item.isNull()) {
+            ignored.append(url);
+        } else {
+            items.append(item);
+        }
+    }
+    provider->requestPreviews(items, QSize(size, size), m_window->devicePixelRatioF());
+    QJsonObject reply = ok();
+    reply.insert(QStringLiteral("enabled"), provider->isEnabled());
+    reply.insert(QStringLiteral("ignored"), ignored);
+    return reply;
+}
+
+QJsonObject WhaleDevAutomation::deliverDrag(DolphinViewContainer *target, const QUrl &item, const QMimeData *data, Qt::KeyboardModifiers modifiers)
+{
+    WhaleViewHost *host = target->viewHost();
+    QWidget *widget = nullptr;
+    QPoint position;
+    if (!host->isDolphinViewShown()) {
+        auto itemView = qobject_cast<QAbstractItemView *>(host->currentView()->widget());
+        if (!itemView) {
+            return failure(QStringLiteral("the target pane's view is no item view"));
+        }
+        widget = itemView->viewport();
+        if (item.isEmpty()) {
+            // The background below the rows.
+            position = QPoint(widget->width() / 2, widget->height() - 5);
+            if (itemView->indexAt(position).isValid()) {
+                return failure(QStringLiteral("the target view shows no background to drop onto"));
+            }
+        } else {
+            const QAbstractItemModel *model = itemView->model();
+            for (int row = 0; row < model->rowCount() && widget && position.isNull(); ++row) {
+                if (model->index(row, 0).data().toString() == item.fileName()) {
+                    itemView->scrollTo(model->index(row, 0));
+                    position = itemView->visualRect(model->index(row, 0)).center();
+                }
+            }
+            if (position.isNull()) {
+                return failure(QStringLiteral("\"%1\" is not shown in the target view").arg(item.toString()));
+            }
+        }
+    } else {
+        // The file list's own item view (KItemListContainer's QGraphicsView).
+        KItemListContainer *container = target->view()->itemListContainer();
+        auto graphicsView = qobject_cast<QGraphicsView *>(container->viewport());
+        KItemListView *itemListView = container->controller()->view();
+        widget = graphicsView->viewport();
+        if (item.isEmpty()) {
+            position = QPoint(widget->width() - 20, widget->height() - 20);
+            if (itemListView->itemAt(itemListView->mapFromScene(graphicsView->mapToScene(position)))) {
+                return failure(QStringLiteral("the target file list shows no background to drop onto"));
+            }
+        } else {
+            auto model = qobject_cast<KFileItemModel *>(container->controller()->model());
+            const int index = model->index(item);
+            const QRectF rect = index >= 0 ? itemListView->itemRect(index) : QRectF();
+            position = graphicsView->mapFromScene(itemListView->mapToScene(rect.center()));
+            if (rect.isEmpty() || !widget->rect().contains(position)) {
+                return failure(QStringLiteral("\"%1\" is not shown in the target file list").arg(item.toString()));
+            }
+        }
+    }
+
+    const Qt::DropActions actions = Qt::CopyAction | Qt::MoveAction | Qt::LinkAction;
+    QDragEnterEvent enter(position, actions, data, Qt::LeftButton, modifiers);
+    QCoreApplication::sendEvent(widget, &enter);
+    QDragMoveEvent move(position, actions, data, Qt::LeftButton, modifiers);
+    QCoreApplication::sendEvent(widget, &move);
+    const bool accepted = move.isAccepted() && move.dropAction() != Qt::IgnoreAction;
+    bool dropped = false;
+    if (accepted) {
+        QDropEvent drop(position, actions, data, Qt::LeftButton, modifiers);
+        QCoreApplication::sendEvent(widget, &drop);
+        dropped = drop.isAccepted();
+    } else {
+        QDragLeaveEvent leave;
+        QCoreApplication::sendEvent(widget, &leave);
+    }
+    QJsonObject reply = ok();
+    reply.insert(QStringLiteral("accepted"), accepted);
+    reply.insert(QStringLiteral("dropped"), dropped);
+    reply.insert(QStringLiteral("proposedAction"), int(move.proposedAction()));
+    return reply;
+}
+
+QJsonObject WhaleDevAutomation::performDragDrop(int sourcePaneArg, int targetPaneArg, const QString &targetUrl, const QString &action)
+{
+    if (!fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(QStringLiteral("perform_drag_drop")));
+    }
+    static const QHash<QString, Qt::KeyboardModifiers> modifiersOf = {
+        {QStringLiteral("copy"), Qt::ControlModifier},
+        {QStringLiteral("move"), Qt::ShiftModifier},
+        {QStringLiteral("link"), Qt::ControlModifier | Qt::ShiftModifier},
+        {QStringLiteral("ask"), Qt::NoModifier},
+    };
+    if (!modifiersOf.contains(action)) {
+        return failure(QStringLiteral("unknown action \"%1\", expected copy, move, link or ask").arg(action));
+    }
+    QString error;
+    DolphinViewContainer *source = pane(sourcePaneArg, &error);
+    DolphinViewContainer *target = source ? pane(targetPaneArg, &error) : nullptr;
+    if (!target) {
+        return failure(error);
+    }
+    const QUrl item = targetUrl.isEmpty() ? QUrl() : QUrl::fromUserInput(targetUrl, QString(), QUrl::AssumeLocalFile);
+    const Qt::KeyboardModifiers modifiers = modifiersOf.value(action);
+    const QList<QUrl> selection = source->viewHost()->bridge()->selection().selected();
+    if (selection.isEmpty()) {
+        return failure(QStringLiteral("the source pane has no selection to drag"));
+    }
+
+    WhaleViewHost *sourceHost = source->viewHost();
+    if (sourceHost->isDolphinViewShown()) {
+        // The data of the file list's own drag (KItemListController::startDragging()).
+        std::unique_ptr<QMimeData> data(sourceHost->bridge()->createDragMimeData(selection));
+        QJsonObject reply = deliverDrag(target, item, data.get(), modifiers);
+        reply.insert(QStringLiteral("source"), QStringLiteral("file-list-drag-data"));
+        return reply;
+    }
+
+    auto itemView = qobject_cast<QAbstractItemView *>(sourceHost->currentView()->widget());
+    if (!itemView) {
+        return failure(QStringLiteral("the source pane's view is no item view"));
+    }
+    // The gesture on the first selected row the view shows.
+    QModelIndex pressed;
+    const QModelIndexList selectedRows = itemView->selectionModel()->selectedIndexes();
+    for (const QModelIndex &index : selectedRows) {
+        if (!pressed.isValid() || index.row() < pressed.row()) {
+            pressed = index;
+        }
+    }
+    if (!pressed.isValid()) {
+        return failure(QStringLiteral("the source view shows no selected row"));
+    }
+    itemView->scrollTo(pressed);
+
+    QJsonObject reply;
+    int drags = 0;
+    WhaleFileOperationsImpl::setDragRunner([&](QDrag *drag) {
+        ++drags;
+        QStringList dragged;
+        const QList<QUrl> urls = KUrlMimeData::urlsFromMimeData(drag->mimeData(), KUrlMimeData::PreferKdeUrls);
+        for (const QUrl &url : urls) {
+            dragged.append(url.fileName());
+        }
+        reply = deliverDrag(target, item, drag->mimeData(), modifiers);
+        reply.insert(QStringLiteral("dragged"), QJsonArray::fromStringList(dragged));
+        return reply.value(QStringLiteral("dropped")).toBool() ? Qt::DropAction(reply.value(QStringLiteral("proposedAction")).toInt()) : Qt::IgnoreAction;
+    });
+    // Sent directly to the view: a running drag owns the pointer, so after it neither a
+    // move nor the release reaches the view.
+    QWidget *viewport = itemView->viewport();
+    auto send = [viewport](QEvent::Type type, const QPoint &position) {
+        const Qt::MouseButton button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
+        const Qt::MouseButtons buttons = type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton;
+        QMouseEvent event(type, position, viewport->mapToGlobal(position), button, buttons, Qt::NoModifier);
+        QCoreApplication::sendEvent(viewport, &event);
+    };
+    const QPoint start = itemView->visualRect(pressed).center();
+    const QPoint step(QApplication::startDragDistance() + 2, 0);
+    send(QEvent::MouseButtonPress, start);
+    for (const QPoint &position : {start + QPoint(1, 0), start + step, start + step * 2}) {
+        send(QEvent::MouseMove, position);
+        if (drags > 0) {
+            break;
+        }
+    }
+    WhaleFileOperationsImpl::setDragRunner({});
+    if (drags == 0) {
+        send(QEvent::MouseButtonRelease, start + step * 2);
+        return failure(QStringLiteral("the source view did not start a drag"));
+    }
+    reply.insert(QStringLiteral("source"), QStringLiteral("plugin-drag-gesture"));
+    return reply;
+}
+
+QJsonObject WhaleDevAutomation::choosePopupEntry(const QString &text)
+{
+    if (!fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(QStringLiteral("choose_popup_entry")));
+    }
+    auto menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+    if (!menu || !menu->isVisible()) {
+        return failure(QStringLiteral("no popup menu is open"));
+    }
+    const auto actions = menu->actions();
+    for (QAction *action : actions) {
+        // The text, or only its label without the shortcut after a tab ("Copy Here\tCtrl").
+        const QString entry = action->text().remove(QLatin1Char('&'));
+        if (!action->isSeparator() && (entry == text || entry.section(QLatin1Char('\t'), 0, 0) == text)) {
+            if (!action->isEnabled()) {
+                return failure(QStringLiteral("the entry \"%1\" is disabled").arg(text));
+            }
+            // As a click: the menu closes, then the entry acts.
+            menu->hide();
+            action->trigger();
+            return ok();
+        }
+    }
+    return failure(QStringLiteral("the popup menu has no entry \"%1\"").arg(text));
 }
 
 #include "moc_whaledevautomation.cpp"

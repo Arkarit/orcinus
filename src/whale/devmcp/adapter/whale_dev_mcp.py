@@ -42,7 +42,10 @@ TOOLS = [
         "name": "get_ui_state",
         "description": "Semantic UI state of Whale: panes, active pane, view per pane, visibility of the DolphinView, "
         "focus (semantic role, anomalies), URL, items (Dolphin model order) and rows of a plugin item view, "
-        "pluginTopItem (scroll position of a plugin item view), storedViewStates (views with a stored state at "
+        "pluginTopItem (scroll position of a plugin item view), pluginVisibleRows (first/last/count of the rows a "
+        "plugin item view shows), pluginPreviewRows (rows that show a preview instead of an icon), previews (Dolphin's "
+        "'Show Previews' at the location, the view's Previews capability, and the view's preview provider: enabled, "
+        "pending, runningJobs, requested/generated/failed/canceled, jobsStarted/jobsKilled, maxPending), storedViewStates (views with a stored state at "
         "the location), restore (source history/session, requested and shown view, fallback), "
         "selection per pane (selection URLs, selectedNames, current/currentName: the host's; pluginSelection/"
         "pluginCurrent: what a plugin item view shows), statusText, shell.selectedNames (what the information "
@@ -142,7 +145,8 @@ TOOLS = [
         "description": "Triggers one of a fixed set of Whale actions on the active pane, only if Whale has it "
         "enabled (view gating). copy, cut, paste, trash and delete change files or the clipboard and are refused "
         "unless Whale was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1. rename opens Whale's "
-        "rename path (inline in views that can, else the dialog: see rename_dialog); properties opens a dialog.",
+        "rename path (inline in views that can, else the dialog: see rename_dialog); properties opens a dialog; "
+        "show_preview toggles 'Show Previews' of the location.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -150,7 +154,7 @@ TOOLS = [
                     "type": "string",
                     "enum": ["focus_other_view", "go_up", "go_back", "go_forward", "edit_location", "select_all",
                              "invert_selection", "rename", "properties", "new_tab", "activate_next_tab",
-                             "activate_prev_tab", "copy", "cut", "paste", "trash", "delete"],
+                             "activate_prev_tab", "show_preview", "copy", "cut", "paste", "trash", "delete"],
                 }
             },
             "required": ["action"],
@@ -220,6 +224,53 @@ TOOLS = [
             },
             "required": ["conditions"],
         },
+    },
+    {
+        "name": "get_preview_state",
+        "description": "Preview state of all panes (as 'previews' in get_ui_state) and the answers to request_preview "
+        "(results: pane, name, preview true/false, width, height).",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "request_preview",
+        "description": "Requests previews of items of a pane (urls) through the preview provider of the pane's plugin "
+        "view, as the view does; the answers show up in get_preview_state as results. Nothing is requested while the "
+        "provider is disabled (previews off, or the view lacks the Previews capability).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pane": PANE,
+                "urls": {"type": "array", "items": {"type": "string"}},
+                "size": {"type": "integer", "minimum": 16, "maximum": 512, "default": 128},
+            },
+            "required": ["urls"],
+        },
+    },
+    {
+        "name": "perform_drag_drop",
+        "description": "Drags the selection of source_pane and drops it onto target_url (a folder item of the target "
+        "pane; without it the location) in target_pane. action: copy (Ctrl), move (Shift), link (Ctrl+Shift) or ask "
+        "(no modifier: KDE's drop menu opens, see popupMenu and choose_popup_entry). A plugin item view gets the real "
+        "drag gesture and starts its drag through Whale's file operations; the file list's drag data comes from its "
+        "own drag function. The target view gets drag enter/move/drop events and handles them itself (same code as a "
+        "real drop); only the transport (QDrag::exec) is skipped. Changes files: needs "
+        "WHALE_DEV_MCP_FILE_OPERATIONS=1 (throwaway test profiles only).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source_pane": PANE,
+                "target_pane": PANE,
+                "target_url": {"type": "string"},
+                "action": {"type": "string", "enum": ["copy", "move", "link", "ask"]},
+            },
+            "required": ["source_pane", "target_pane", "action"],
+        },
+    },
+    {
+        "name": "choose_popup_entry",
+        "description": "Chooses an entry of the open popup menu by its text (without '&'; the shortcut after a tab "
+        "may be left out), e.g. 'Copy Here' in the drop menu. Needs WHALE_DEV_MCP_FILE_OPERATIONS=1, as menu entries may change files.",
+        "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
     },
     {
         "name": "screenshot",
@@ -344,6 +395,16 @@ class Whale:
             timeout = int(args.get("timeout_ms", 5000))
             text = iface.WaitForState(json.dumps(args["conditions"]), timeout, timeout=timeout / 1000 + 10)
             return result(text)
+        if tool == "get_preview_state":
+            return result(iface.PreviewState())
+        if tool == "request_preview":
+            urls = dbus.Array([str(url) for url in args["urls"]], signature="s")
+            return result(iface.RequestPreview(pane, urls, int(args.get("size", 128))))
+        if tool == "perform_drag_drop":
+            return result(iface.PerformDragDrop(pane_index(args.get("source_pane")), pane_index(args.get("target_pane")),
+                                                args.get("target_url", ""), args["action"]))
+        if tool == "choose_popup_entry":
+            return result(iface.ChoosePopupEntry(args["text"]))
         if tool == "screenshot":
             png = bytes(iface.Screenshot(byte_arrays=True))
             path = args.get("save_path")

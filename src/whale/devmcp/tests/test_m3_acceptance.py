@@ -63,7 +63,8 @@ def run(args, work):
                           "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_sort",
                           "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
                           "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "quit",
-                          "trigger_action", "wait_for_state", "screenshot"}
+                          "trigger_action", "wait_for_state", "screenshot", "get_preview_state", "request_preview",
+                          "perform_drag_drop", "choose_popup_entry"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)

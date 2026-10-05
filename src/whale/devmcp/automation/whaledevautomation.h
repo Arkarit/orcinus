@@ -20,6 +20,7 @@
 class DolphinMainWindow;
 class DolphinTabWidget;
 class DolphinViewContainer;
+class QMimeData;
 class QWidget;
 
 /**
@@ -155,6 +156,38 @@ public:
      */
     QByteArray screenshot() const;
 
+    /**
+     * @return The preview state of all panes ("previews" of uiState()) and the results
+     *         of requestPreview().
+     */
+    QJsonObject previewState() const;
+
+    /**
+     * Requests previews of @p urls (items of the pane) with @p size through the preview
+     * provider of the pane's plugin view, as the view would. The answers are listed in
+     * previewState() as "results".
+     */
+    QJsonObject requestPreview(int pane, const QStringList &urls, int size);
+
+    /**
+     * Drags the selection of @p sourcePane and drops it onto the item @p targetUrl (a
+     * folder; empty: the location) of @p targetPane, with the modifier keys of @p action
+     * ("copy": Ctrl, "move": Shift, "link": Ctrl+Shift, "ask": none, which opens the drop
+     * menu). Only the transport of the drag differs from the user's: a plugin item view
+     * gets the drag gesture (press, move) and starts its drag through its file operations;
+     * for the file list the drag data comes from the same function as its own drags. The
+     * target widget gets the drag enter, move and drop events and handles them itself.
+     * Only with WHALE_DEV_MCP_FILE_OPERATIONS=1.
+     */
+    QJsonObject performDragDrop(int sourcePane, int targetPane, const QString &targetUrl, const QString &action);
+
+    /**
+     * Chooses the entry with the text @p text (without "&", with or without the shortcut
+     * after a tab) of the open popup menu, e.g. "Copy Here" in the drop menu. Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, as menu
+     * entries may change files.
+     */
+    QJsonObject choosePopupEntry(const QString &text);
+
 private:
     DolphinTabWidget *tabWidget() const;
     QList<DolphinViewContainer *> panes() const;
@@ -164,6 +197,9 @@ private:
     QJsonValue clipboardState() const;
     QJsonArray dialogs() const;
     QJsonObject paneState(DolphinViewContainer *container, int index) const;
+    QJsonValue panePreviews(DolphinViewContainer *container) const;
+    /// Delivers a drag with @p data to the view of @p target, see performDragDrop().
+    QJsonObject deliverDrag(DolphinViewContainer *target, const QUrl &item, const QMimeData *data, Qt::KeyboardModifiers modifiers);
     QString focusRole(QWidget *focus, int *paneIndex) const;
     void recordActivation(DolphinViewContainer *container);
 
@@ -183,6 +219,10 @@ private:
     int m_shellSelectionSignals = 0;
     QString m_itemInfo;
     int m_itemInfoSignals = 0;
+
+    // Answers to requestPreview(), newest last.
+    QJsonArray m_previewResults;
+    QList<QPointer<QObject>> m_watchedProviders;
 };
 
 #endif

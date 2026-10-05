@@ -366,6 +366,12 @@ void WhaleDevAutomationTest::testOnlyNonDestructiveActions()
         QVERIFY2(result.value(QStringLiteral("error")).toString().contains(QStringLiteral("WHALE_DEV_MCP_FILE_OPERATIONS")), qPrintable(id));
     }
     QVERIFY(!m_automation->answerRenameDialog(QStringLiteral("x")).value(QStringLiteral("ok")).toBool());
+    // Drag and drop and popup entries may change files too (M7).
+    for (const QJsonObject &result :
+         {m_automation->performDragDrop(0, 0, QString(), QStringLiteral("copy")), m_automation->choosePopupEntry(QStringLiteral("Copy Here"))}) {
+        QVERIFY(!result.value(QStringLiteral("ok")).toBool());
+        QVERIFY(result.value(QStringLiteral("error")).toString().contains(QStringLiteral("WHALE_DEV_MCP_FILE_OPERATIONS")));
+    }
 
     const QStringList forbidden = {QStringLiteral("move_to_trash"),
                                    QStringLiteral("duplicate"),

@@ -55,6 +55,11 @@ public Q_SLOTS:
     /// Replies when the conditions (a JSON object) hold or after @p timeoutMs (at most 60000).
     Q_SCRIPTABLE QString WaitForState(const QString &conditions, int timeoutMs);
     Q_SCRIPTABLE QByteArray Screenshot();
+    Q_SCRIPTABLE QString PreviewState();
+    Q_SCRIPTABLE QString RequestPreview(int pane, const QStringList &urls, int size);
+    /// @p targetUrl may be empty (the location); @p action is copy, move, link or ask.
+    Q_SCRIPTABLE QString PerformDragDrop(int sourcePane, int targetPane, const QString &targetUrl, const QString &action);
+    Q_SCRIPTABLE QString ChoosePopupEntry(const QString &text);
 
 private:
     WhaleDevAutomation *const m_automation;
