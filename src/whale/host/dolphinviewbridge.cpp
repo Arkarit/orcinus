@@ -15,6 +15,8 @@
 #include "whaleitemlist.h"
 #include "whaleviewdebug.h"
 
+#include <KCoreDirLister>
+
 #include <QPoint>
 #include <QPointer>
 #include <QTimer>
@@ -235,6 +237,16 @@ DolphinViewBridge::~DolphinViewBridge() = default;
 QUrl DolphinViewBridge::url() const
 {
     return m_dolphinView->url();
+}
+
+bool DolphinViewBridge::isLoading() const
+{
+    // The DolphinView keeps its loading state private; its model's directory listers
+    // (one, plus those of expanded folders) know it.
+    const auto listers = m_dolphinView->findChildren<KCoreDirLister *>();
+    return std::any_of(listers.cbegin(), listers.cend(), [](const KCoreDirLister *lister) {
+        return !lister->isFinished();
+    });
 }
 
 WhaleItemList *DolphinViewBridge::createItemList(QObject *parent) const

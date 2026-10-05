@@ -12,13 +12,16 @@
 #include <KPluginFactory>
 
 #include <QAbstractListModel>
+#include <QDataStream>
 #include <QEvent>
 #include <QHash>
+#include <QIODevice>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QListView>
 #include <QPointer>
 #include <QScopedValueRollback>
+#include <QTimer>
 
 namespace
 {
@@ -163,6 +166,9 @@ private:
  * a right click shows the host's context menu, and hovering an item describes it in
  * the information panel, all through the context. Renaming (F2) is the host's
  * dialog: the view does not declare InlineRename. No drag and drop, no previews.
+ *
+ * Its state (saveState()) is the item scrolled to the top, so the history, view
+ * switches and the session bring the user back to the same place.
  */
 class WhaleTestListView : public WhaleView
 {
@@ -199,6 +205,39 @@ public:
         connect(m_listView, &QAbstractItemView::doubleClicked, this, [this](const QModelIndex &index) {
             this->context()->activateItems({m_model->url(index.row())});
         });
+
+        // A restored top item may not be listed yet; it is applied once it is.
+        connect(context, &WhaleViewContext::urlChanged, this, [this]() {
+            m_pendingTopItem.clear();
+        });
+        connect(m_model, &QAbstractItemModel::rowsInserted, this, &WhaleTestListView::schedulePendingTopItem);
+        connect(m_model, &QAbstractItemModel::modelReset, this, &WhaleTestListView::schedulePendingTopItem);
+        connect(context, &WhaleViewContext::loadingCompleted, this, &WhaleTestListView::schedulePendingTopItem);
+    }
+
+    QByteArray saveState() const override
+    {
+        const QModelIndex top = m_listView->indexAt(QPoint(1, 1));
+        if (!top.isValid() && m_pendingTopItem.isEmpty()) {
+            return {};
+        }
+        QByteArray state;
+        QDataStream stream(&state, QIODevice::WriteOnly);
+        stream << quint8(1) << (top.isValid() ? m_model->url(top.row()) : m_pendingTopItem);
+        return state;
+    }
+
+    void restoreState(const QByteArray &state) override
+    {
+        QDataStream stream(state);
+        quint8 version = 0;
+        QUrl topItem;
+        stream >> version >> topItem;
+        if (stream.status() != QDataStream::Ok || version != 1) {
+            return; // unknown or damaged: keep the view as it is
+        }
+        m_pendingTopItem = topItem;
+        schedulePendingTopItem();
     }
 
     ~WhaleTestListView() override
@@ -222,6 +261,9 @@ protected:
     {
         if (watched == m_listView->viewport() && event->type() == QEvent::Leave) {
             requestItemInfo(QUrl());
+        }
+        if (watched == m_listView->viewport() && event->type() == QEvent::Resize) {
+            schedulePendingTopItem(); // a list without a size cannot scroll yet
         }
         if (watched == m_listView && event->type() == QEvent::KeyPress) {
             const int key = static_cast<QKeyEvent *>(event)->key();
@@ -253,8 +295,34 @@ private:
         }
         QItemSelectionModel *selectionModel = m_listView->selectionModel();
         selectionModel->select(itemSelection, QItemSelectionModel::ClearAndSelect);
+        // The host's current item does not move the view; what is scrolled into view is
+        // the view's own state.
+        const bool autoScroll = m_listView->hasAutoScroll();
+        m_listView->setAutoScroll(false);
         const int currentRow = rows.value(selection.current(), -1);
         selectionModel->setCurrentIndex(currentRow >= 0 ? m_model->index(currentRow) : QModelIndex(), QItemSelectionModel::NoUpdate);
+        m_listView->setAutoScroll(autoScroll);
+    }
+
+    void schedulePendingTopItem()
+    {
+        if (!m_pendingTopItem.isEmpty()) {
+            // After the list view has laid out the new rows.
+            QTimer::singleShot(0, this, &WhaleTestListView::applyPendingTopItem);
+        }
+    }
+
+    void applyPendingTopItem()
+    {
+        const int row = m_model->rowsByUrl().value(m_pendingTopItem, -1);
+        if (row < 0 || m_listView->viewport()->height() <= 0) {
+            return;
+        }
+        m_listView->scrollTo(m_model->index(row), QAbstractItemView::PositionAtTop);
+        // Items may still come in above it while the location loads; keep it until then.
+        if (!context()->isLoading() && m_listView->indexAt(QPoint(1, 1)).row() == row) {
+            m_pendingTopItem.clear();
+        }
     }
 
     void requestContextMenu(const QPoint &position)
@@ -295,6 +363,7 @@ private:
     ItemListModel *const m_model;
     bool m_applying = false;
     QUrl m_infoUrl;
+    QUrl m_pendingTopItem;
 };
 }
 

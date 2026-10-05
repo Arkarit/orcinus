@@ -1203,12 +1203,12 @@ void DolphinViewContainer::saveViewState()
     QByteArray locationState;
     QDataStream stream(&locationState, QIODevice::WriteOnly);
     m_view->saveState(stream);
-    m_urlNavigator->saveLocationState(locationState);
+    m_urlNavigator->saveLocationState(m_viewHost->wrapLocationState(locationState)); // Whale: view plugins, adds the shown view
 }
 
 void DolphinViewContainer::tryRestoreViewState()
 {
-    QByteArray locationState = m_urlNavigator->locationState();
+    QByteArray locationState = m_viewHost->unwrapLocationState(m_urlNavigator->locationState()); // Whale: view plugins, restores the view
     if (!locationState.isEmpty()) {
         QDataStream stream(&locationState, QIODevice::ReadOnly);
         m_view->restoreState(stream);

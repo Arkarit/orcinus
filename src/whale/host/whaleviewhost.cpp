@@ -9,9 +9,11 @@
 #include "dolphinviewadapter.h"
 #include "dolphinviewbridge.h"
 #include "views/dolphinview.h"
+#include "whaleviewactions.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewplugin.h"
+#include "whaleviewregistry.h"
 
 #include <QApplication>
 #include <QStackedLayout>
@@ -65,6 +67,7 @@ void WhaleViewHost::showDolphinView()
         return;
     }
 
+    keepPluginState();
     m_pluginView->deactivate();
     restoreDolphinView();
     // If the focus is in the plugin view, QStackedLayout moves it into the DolphinView.
@@ -76,6 +79,7 @@ void WhaleViewHost::showDolphinView()
     m_dolphinViewAdapter->activate();
 
     Q_EMIT currentViewChanged(dolphinViewId());
+    notifyWindow();
 }
 
 bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plugin)
@@ -92,6 +96,10 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
         return false;
     }
 
+    // Order (plan 9.3): the outgoing view's state is kept, it is deactivated and
+    // destroyed; the new view, created with its context, gets its state of this
+    // location, then the focus, then activate(); currentViewChanged() updates the gating.
+    keepPluginState();
     if (m_pluginView) {
         // Replace one plugin view by another; the DolphinView stays silenced.
         m_pluginView->deactivate();
@@ -116,6 +124,16 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     m_pluginId = pluginId;
     m_pluginContext = std::move(context);
     m_pluginView = std::move(view);
+    const QByteArray state = m_views.states.value(pluginId);
+    if (!state.isEmpty()) {
+        m_pluginView->restoreState(state);
+    }
+    connect(m_pluginView.get(), &WhaleView::capabilitiesChanged, this, [this]() {
+        if (!(m_pluginView->capabilities() & WhaleViewCapability::Selection)) {
+            m_bridge->setSelection(WhaleSelection());
+        }
+        Q_EMIT capabilitiesChanged();
+    });
     // A view without a selection must not leave an invisible one for the shell's actions.
     if (!(m_pluginView->capabilities() & WhaleViewCapability::Selection)) {
         m_bridge->setSelection(WhaleSelection());
@@ -126,6 +144,7 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     m_pluginView->activate();
 
     Q_EMIT currentViewChanged(pluginId);
+    notifyWindow();
     return true;
 }
 
@@ -143,6 +162,107 @@ void WhaleViewHost::setActive(bool active)
 DolphinViewBridge *WhaleViewHost::bridge() const
 {
     return m_bridge;
+}
+
+void WhaleViewHost::notifyWindow()
+{
+    // The session records the shown views; a changed one is a reason to save it again.
+    if (auto actions = window()->findChild<WhaleViewActions *>()) {
+        actions->notifyViewChanged();
+    }
+}
+
+WhaleViewsState WhaleViewHost::viewsState() const
+{
+    WhaleViewsState views = m_views;
+    views.activeViewId = currentViewId();
+    if (m_pluginView) {
+        const QByteArray state = m_pluginView->saveState();
+        if (state.isEmpty()) {
+            views.states.remove(m_pluginId);
+        } else {
+            views.states.insert(m_pluginId, state);
+        }
+    }
+    return views;
+}
+
+void WhaleViewHost::keepPluginState()
+{
+    if (m_pluginView && !m_applyingState) {
+        m_views = viewsState();
+    }
+}
+
+QByteArray WhaleViewHost::wrapLocationState(const QByteArray &dolphinState)
+{
+    return WhalePersistence::wrapLocationState(dolphinState, viewsState());
+}
+
+QByteArray WhaleViewHost::unwrapLocationState(const QByteArray &locationState)
+{
+    QByteArray dolphinState;
+    WhaleViewsState views;
+    if (WhalePersistence::unwrapLocationState(locationState, &dolphinState, &views)) {
+        applyViewsState(views, QStringLiteral("history"));
+    } else {
+        // A new location, or Dolphin's own state: the shown view stays, with no stored states.
+        m_views = WhaleViewsState();
+    }
+    return dolphinState;
+}
+
+QByteArray WhaleViewHost::saveSessionState(const QList<WhaleViewHost *> &hosts)
+{
+    QList<WhaleViewsState> panes;
+    for (const WhaleViewHost *host : hosts) {
+        panes.append(host->viewsState());
+    }
+    return WhalePersistence::writeSessionState(panes);
+}
+
+void WhaleViewHost::restoreSessionState(const QList<WhaleViewHost *> &hosts, const QByteArray &data)
+{
+    const QList<WhaleViewsState> panes = WhalePersistence::readSessionState(data);
+    for (int i = 0; i < panes.count() && i < hosts.count(); ++i) {
+        hosts.at(i)->applyViewsState(panes.at(i), QStringLiteral("session"));
+    }
+}
+
+WhaleViewHost::RestoreInfo WhaleViewHost::lastRestore() const
+{
+    return m_lastRestore;
+}
+
+void WhaleViewHost::applyViewsState(const WhaleViewsState &views, const QString &source)
+{
+    m_applyingState = true;
+    m_views = views;
+    const QString requested = views.activeViewId.isEmpty() ? dolphinViewId() : views.activeViewId;
+    bool fallback = false;
+
+    if (requested == dolphinViewId()) {
+        showDolphinView();
+    } else if (m_pluginView && m_pluginId == requested) {
+        // The view stays; it gets its state of this location.
+        const QByteArray state = m_views.states.value(requested);
+        if (!state.isEmpty()) {
+            m_pluginView->restoreState(state);
+        }
+    } else {
+        WhaleViewRegistry *registry = window()->findChild<WhaleViewRegistry *>();
+        WhaleViewPlugin *plugin = registry ? registry->plugin(requested) : nullptr;
+        if (!plugin || !showPluginView(requested, plugin)) {
+            // Missing, disabled, incompatible or broken: the file list. The view's stored
+            // state stays in m_views, so it is written again and not lost.
+            qCWarning(WhaleViewDebug) << "Cannot restore the view" << requested << "- showing the file list instead";
+            fallback = true;
+            showDolphinView();
+        }
+    }
+
+    m_lastRestore = RestoreInfo{source, requested, currentViewId(), fallback};
+    m_applyingState = false;
 }
 
 void WhaleViewHost::destroyPluginView()

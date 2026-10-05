@@ -35,6 +35,11 @@ WhaleItemList *WhaleViewContextImpl::items() const
     return m_items;
 }
 
+bool WhaleViewContextImpl::isLoading() const
+{
+    return m_bridge->isLoading();
+}
+
 WhaleSelection WhaleViewContextImpl::selection() const
 {
     return m_bridge->selection();

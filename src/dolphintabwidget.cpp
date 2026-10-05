@@ -11,6 +11,7 @@
 #include "dolphintabbar.h"
 #include "dolphinviewcontainer.h"
 #include "views/draganddrophelper.h"
+#include "whaleviewhost.h" // Whale: view plugins
 
 #include <KAcceleratorManager>
 #include <KConfigGroup>
@@ -23,6 +24,16 @@
 #include <QApplication>
 #include <QDropEvent>
 #include <QStackedWidget>
+
+// Whale: view plugins. The view areas of a tab, for the session data of their views.
+static QList<WhaleViewHost *> whaleViewHosts(const DolphinTabPage *tabPage)
+{
+    QList<WhaleViewHost *> hosts{tabPage->primaryViewContainer()->viewHost()};
+    if (tabPage->splitViewEnabled()) {
+        hosts.append(tabPage->secondaryViewContainer()->viewHost());
+    }
+    return hosts;
+}
 
 DolphinTabWidget::DolphinTabWidget(DolphinNavigatorsWidgetAction *navigatorsWidget, QWidget *parent)
     : QTabWidget(parent)
@@ -98,6 +109,7 @@ void DolphinTabWidget::saveProperties(KConfigGroup &group) const
         KConfigGroup tabGroup = tabsGroup.group(QString::number(i));
         tabGroup.writeEntry("Urls", urls);
         tabGroup.writeEntry("State", tabPage->saveState());
+        tabGroup.writeEntry(WhalePersistence::SessionKey, WhaleViewHost::saveSessionState(whaleViewHosts(tabPage))); // Whale: view plugins
     }
 
     // The one entry per tab that a Dolphin of 26.08 or older wrote here is read no more, and only
@@ -141,6 +153,7 @@ void DolphinTabWidget::readProperties(const KConfigGroup &group)
             state = group.readEntry("Tab Data " % QString::number(i), QByteArray());
         }
         tabPageAt(i)->restoreState(state);
+        WhaleViewHost::restoreSessionState(whaleViewHosts(tabPageAt(i)), tabGroup.readEntry(WhalePersistence::SessionKey, QByteArray())); // Whale: view plugins
     }
 
     const int index = group.readEntry("Active Tab Index", 0);

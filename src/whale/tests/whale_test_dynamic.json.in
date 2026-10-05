@@ -1,0 +1,9 @@
+{
+    "KPlugin": {
+        "Description": "Test view whose capabilities depend on the location and its state",
+        "License": "GPL-2.0-or-later",
+        "Name": "Dynamic Test",
+        "Version": "0.1"
+    },
+    "X-Whale-ViewApiVersion": @WHALE_VIEW_API_VERSION@
+}

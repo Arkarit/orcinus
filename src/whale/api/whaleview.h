@@ -53,7 +53,8 @@ public:
     virtual QWidget *widget() = 0;
 
     /**
-     * @return The abilities of the view. They may depend on context()->url().
+     * @return The abilities of the view. They may depend on context()->url() or on the
+     *         view's state; emit capabilitiesChanged() when they change.
      *         The default implementation returns no capabilities.
      */
     virtual WhaleViewCapabilities capabilities() const;
@@ -70,14 +71,20 @@ public:
     virtual void deactivate();
 
     /**
-     * @return An opaque state that is handed back to restoreState() when the
-     *         user returns to the same location. The default implementation
-     *         returns an empty state.
+     * @return An opaque state of the view at the current location (e.g. what is scrolled
+     *         into view, a display option). Whale stores it per location in the history
+     *         and per view area in the session, separately for each view ID, and hands it
+     *         back to restoreState() of a view with the same ID. An empty state means none.
+     *         The default implementation returns an empty state.
      */
     virtual QByteArray saveState() const;
 
     /**
-     * Restores a state returned by saveState(). The default implementation does nothing.
+     * Restores a state returned by saveState(), possibly by an older version of the
+     * plugin: unknown or damaged data must be ignored. Called after the view has been
+     * created with its context and before activate(), and again on the shown view when
+     * the user returns to a location in the history (after the location has changed;
+     * its items may still be loading). The default implementation does nothing.
      */
     virtual void restoreState(const QByteArray &state);
 
@@ -88,6 +95,13 @@ public:
      * The default implementation does nothing.
      */
     virtual void startRename(const QUrl &url);
+
+Q_SIGNALS:
+    /**
+     * Is emitted when capabilities() changed, e.g. after the location or the state
+     * changed; Whale then updates which actions apply.
+     */
+    void capabilitiesChanged();
 
 protected:
     WhaleViewContext *context() const;

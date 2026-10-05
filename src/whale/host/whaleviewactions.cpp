@@ -76,12 +76,14 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
 {
     disconnect(m_hostConnection);
     disconnect(m_selectionConnection);
+    disconnect(m_capabilitiesConnection);
     m_host = host;
     if (host) {
         m_hostConnection = connect(host, &WhaleViewHost::currentViewChanged, this, [this]() {
             updateCheckedView();
             updateGates();
         });
+        m_capabilitiesConnection = connect(host, &WhaleViewHost::capabilitiesChanged, this, &WhaleViewActions::updateGates);
         // Immediately, so a shortcut pressed right after a click finds the right state.
         m_selectionConnection = connect(host->bridge(), &DolphinViewBridge::hasSelectionChanged, this, &WhaleViewActions::updateGates);
     }
@@ -124,6 +126,11 @@ QStringList WhaleViewActions::gateableActions()
         QStringLiteral("move_to_inactive_split_view"),
         QStringLiteral("compare_files"),
     };
+}
+
+void WhaleViewActions::notifyViewChanged()
+{
+    Q_EMIT sessionChanged();
 }
 
 QString WhaleViewActions::gateReason(const QString &actionName) const

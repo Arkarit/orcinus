@@ -18,6 +18,18 @@ set_target_properties(whale_test_wrongapi PROPERTIES
     PREFIX ""
     LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_EXTRA_PLUGIN_DIR}/whale/views)
 
+# A view whose capabilities change with the location and its state (M6), in a plugin
+# directory of its own that only the tests use.
+configure_file(whale_test_dynamic.json.in ${CMAKE_CURRENT_BINARY_DIR}/whale_test_dynamic.json @ONLY)
+set_source_files_properties(whaletestdynamicplugin.cpp PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/whale_test_dynamic.json)
+add_library(whale_test_dynamic MODULE whaletestdynamicplugin.cpp)
+target_link_libraries(whale_test_dynamic PRIVATE whaleviewapi KF6::CoreAddons Qt6::Widgets)
+set(WHALE_TEST_DYNAMIC_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/dynamicplugins)
+set(WHALE_TEST_DYNAMIC_PLUGIN_DIR ${WHALE_TEST_DYNAMIC_PLUGIN_DIR} PARENT_SCOPE)
+set_target_properties(whale_test_dynamic PROPERTIES
+    PREFIX ""
+    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_DYNAMIC_PLUGIN_DIR}/whale/views)
+
 ecm_add_test(whaleviewregistrytest.cpp
     TEST_NAME whaleviewregistrytest
     LINK_LIBRARIES whaleviewhost Qt6::Test)
@@ -53,6 +65,15 @@ ecm_add_test(whaleactionstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/sr
 target_include_directories(whaleactionstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaleactionstest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaleactionstest whale_testlist whale_hello)
+
+ecm_add_test(whalepersistencetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalepersistencetest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalepersistencetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalepersistencetest PRIVATE
+    WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
+    WHALE_TEST_DYNAMIC_PLUGIN_DIR="${WHALE_TEST_DYNAMIC_PLUGIN_DIR}")
+add_dependencies(whalepersistencetest whale_testlist whale_hello whale_test_dynamic)
 
 # The development automation must stay out of regular builds (see src/whale/devmcp).
 add_test(NAME whale_dev_mcp_default_off

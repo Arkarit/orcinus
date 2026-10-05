@@ -28,6 +28,7 @@ public:
 
     QUrl url() const override;
     WhaleItemList *items() const override;
+    bool isLoading() const override;
     WhaleSelection selection() const override;
     void setSelection(const WhaleSelection &selection) override;
     void activateItems(const QList<QUrl> &urls) override;

@@ -7,6 +7,8 @@
 #ifndef WHALEVIEWHOST_H
 #define WHALEVIEWHOST_H
 
+#include "whaleviewstate.h"
+
 #include <QList>
 #include <QPointer>
 #include <QWidget>
@@ -76,6 +78,48 @@ public:
     bool showPluginView(const QString &pluginId, WhaleViewPlugin *plugin);
 
     /**
+     * History (called by DolphinViewContainer around its own location state):
+     * @return Dolphin's @p dolphinState of the location being left, wrapped together
+     *         with the shown view and the states of the views (WhalePersistence).
+     */
+    QByteArray wrapLocationState(const QByteArray &dolphinState);
+
+    /**
+     * History: the location has changed. Shows the view stored in @p locationState and
+     * hands it its state; without Whale data (a new location, or an entry of an older
+     * Whale/Dolphin) the shown view stays.
+     * @return Dolphin's part of @p locationState for DolphinView::restoreState().
+     */
+    QByteArray unwrapLocationState(const QByteArray &locationState);
+
+    /**
+     * Session: @return the session data of the view areas @p hosts of one tab.
+     */
+    static QByteArray saveSessionState(const QList<WhaleViewHost *> &hosts);
+
+    /**
+     * Session: shows the views stored in @p data in the view areas @p hosts of one tab.
+     * Missing, damaged or older data without Whale's part leaves the views as they are.
+     */
+    static void restoreSessionState(const QList<WhaleViewHost *> &hosts, const QByteArray &data);
+
+    /**
+     * @return The shown view and the states of the views at the current location.
+     */
+    WhaleViewsState viewsState() const;
+
+    /**
+     * How the last history or session restore went; for tests and development tools.
+     */
+    struct RestoreInfo {
+        QString source; ///< "history" or "session", empty if nothing was restored yet
+        QString requestedViewId;
+        QString shownViewId;
+        bool fallback = false; ///< the requested view could not be shown
+    };
+    RestoreInfo lastRestore() const;
+
+    /**
      * Tells the host whether its view area is the active one. On activation a shown
      * plugin view gets the focus, just as DolphinView::setActive() focuses itself.
      */
@@ -91,11 +135,19 @@ Q_SIGNALS:
     void currentViewChanged(const QString &viewId);
 
     /**
+     * Is emitted when the shown view reports changed capabilities.
+     */
+    void capabilitiesChanged();
+
+    /**
      * Is emitted when the focus enters a shown plugin view.
      */
     void activationRequested();
 
 private:
+    void applyViewsState(const WhaleViewsState &views, const QString &source);
+    void keepPluginState();
+    void notifyWindow();
     void destroyPluginView();
     void silenceDolphinView();
     void restoreDolphinView();
@@ -116,6 +168,13 @@ private:
     // State of the DolphinView taken away while a plugin view is shown.
     QPointer<QWidget> m_dolphinViewFocusProxy;
     QList<QPointer<QWidget>> m_disabledDolphinViewChildren;
+
+    // The views of the current location: which one is shown, and their states.
+    WhaleViewsState m_views;
+    // While a stored state is being applied, the outgoing view's state belongs to the
+    // previous location and must not end up in m_views.
+    bool m_applyingState = false;
+    RestoreInfo m_lastRestore;
 };
 
 #endif

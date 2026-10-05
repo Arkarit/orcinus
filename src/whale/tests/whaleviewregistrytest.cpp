@@ -44,6 +44,11 @@ public:
         return m_items;
     }
 
+    bool isLoading() const override
+    {
+        return false;
+    }
+
     WhaleSelection selection() const override
     {
         return m_selection;

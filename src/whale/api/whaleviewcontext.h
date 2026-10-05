@@ -48,6 +48,12 @@ public:
     virtual WhaleItemList *items() const = 0;
 
     /**
+     * @return True while the host loads the location (between loadingStarted() and
+     *         loadingCompleted() or loadingCanceled()): items() may still grow.
+     */
+    virtual bool isLoading() const = 0;
+
+    /**
      * @return The selection of the view area. The host keeps it, so it is the same
      *         in every view of the area and survives switching views.
      */

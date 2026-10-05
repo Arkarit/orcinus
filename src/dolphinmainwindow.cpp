@@ -813,6 +813,8 @@ void DolphinMainWindow::setSessionAutoSaveEnabled(bool enable)
         connect(m_tabWidget, &DolphinTabWidget::urlChanged, m_sessionSaveTimer, qOverload<>(&QTimer::start), Qt::UniqueConnection);
         connect(m_tabWidget, &DolphinTabWidget::tabCountChanged, m_sessionSaveTimer, qOverload<>(&QTimer::start), Qt::UniqueConnection);
         connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, m_sessionSaveTimer, qOverload<>(&QTimer::start), Qt::UniqueConnection);
+        // Whale: view plugins. A view area showing another view changes the session, too.
+        connect(m_whaleViewActions, &WhaleViewActions::sessionChanged, m_sessionSaveTimer, qOverload<>(&QTimer::start), Qt::UniqueConnection);
     } else if (m_sessionSaveTimer) {
         m_sessionSaveTimer->stop();
         m_sessionSaveWatcher->disconnect();

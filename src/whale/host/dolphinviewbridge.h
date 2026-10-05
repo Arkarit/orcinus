@@ -48,6 +48,11 @@ public:
     QUrl url() const;
 
     /**
+     * @return True while the DolphinView loads its location.
+     */
+    bool isLoading() const;
+
+    /**
      * @return A new list that mirrors the items of the DolphinView in their order
      *         until the list is destroyed. The caller owns it through @p parent.
      */

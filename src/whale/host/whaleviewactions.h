@@ -68,6 +68,19 @@ public:
      */
     static QStringList gateableActions();
 
+    /**
+     * Called by the view areas of the window when they show another view, so the
+     * session (which records the shown views) is saved again.
+     */
+    void notifyViewChanged();
+
+Q_SIGNALS:
+    /**
+     * Is emitted when a view area of the window shows another view. Like a changed
+     * location, this is a reason to save the session.
+     */
+    void sessionChanged();
+
 private:
     void slotViewSelected(QAction *action);
     void updateCheckedView();
@@ -81,6 +94,7 @@ private:
     QPointer<WhaleViewHost> m_host;
     QMetaObject::Connection m_hostConnection;
     QMetaObject::Connection m_selectionConnection;
+    QMetaObject::Connection m_capabilitiesConnection;
     QHash<QString, QActionGroup *> m_gates;
     QHash<QString, QString> m_gateReasons;
 };
