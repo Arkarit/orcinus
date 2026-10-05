@@ -39,6 +39,7 @@ public:
     WhaleSelection selection() const override;
     void setSelection(const WhaleSelection &selection) override;
     void activateItems(const QList<QUrl> &urls) override;
+    void openFolder(const QUrl &url) override;
     void requestContextMenu(const QPoint &globalPos, const QUrl &url) override;
     void requestItemInfo(const QUrl &url) override;
     WhalePreviewProvider *previews() const override;

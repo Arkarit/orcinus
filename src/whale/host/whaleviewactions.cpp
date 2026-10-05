@@ -80,6 +80,7 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
     disconnect(m_hostConnection);
     disconnect(m_selectionConnection);
     disconnect(m_capabilitiesConnection);
+    disconnect(m_urlConnection);
     m_host = host;
     if (host) {
         m_hostConnection = connect(host, &WhaleViewHost::currentViewChanged, this, [this]() {
@@ -89,8 +90,10 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
         m_capabilitiesConnection = connect(host, &WhaleViewHost::capabilitiesChanged, this, &WhaleViewActions::updateGates);
         // Immediately, so a shortcut pressed right after a click finds the right state.
         m_selectionConnection = connect(host->bridge(), &DolphinViewBridge::hasSelectionChanged, this, &WhaleViewActions::updateGates);
+        m_urlConnection = connect(host->bridge(), &DolphinViewBridge::urlChanged, this, &WhaleViewActions::updateAvailableViews);
     }
     m_switcher->setEnabled(host);
+    updateAvailableViews();
     updateCheckedView();
     updateGates();
 }
@@ -266,6 +269,23 @@ void WhaleViewActions::slotViewSelected(QAction *action)
     }
     // Reflect the real state, e.g. if the plugin could not be loaded.
     updateCheckedView();
+}
+
+void WhaleViewActions::updateAvailableViews()
+{
+    // Views that declare "X-Whale-RequiresLocal" are offered for local locations only;
+    // their metadata says so without loading them. (WhaleViewPlugin::supportsUrl() is
+    // asked when a view is about to be shown, see WhaleViewHost.)
+    const bool local = m_host && m_host->bridge()->url().isLocalFile();
+    const auto actions = m_switcher->actions();
+    for (QAction *action : actions) {
+        const QString viewId = action->data().toString();
+        if (viewId == WhaleViewHost::dolphinViewId()) {
+            continue;
+        }
+        const bool requiresLocal = m_registry->pluginMetaData(viewId).value(QStringLiteral("X-Whale-RequiresLocal"), false);
+        action->setEnabled(local || !requiresLocal);
+    }
 }
 
 void WhaleViewActions::updateCheckedView()

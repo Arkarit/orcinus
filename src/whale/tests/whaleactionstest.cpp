@@ -18,6 +18,7 @@
 #include "whaleselection.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
+#include "whaleviewcontext.h"
 #include "whaleviewhost.h"
 #include "whaleviewplugin.h"
 #include "whaleviewregistry.h"
@@ -101,11 +102,20 @@ public:
     WhaleView *createView(WhaleViewContext *context, QObject *parent) override
     {
         Q_UNUSED(parent)
-        return new CapsView(context, capabilities, &renamed);
+        auto view = new CapsView(context, capabilities, &renamed);
+        lastContext = context;
+        return view;
+    }
+
+    bool supportsUrl(const QUrl &url) const override
+    {
+        return !localOnly || url.isLocalFile();
     }
 
     WhaleViewCapabilities capabilities;
     QList<QUrl> renamed;
+    bool localOnly = false;
+    QPointer<WhaleViewContext> lastContext;
 };
 
 /// Opens a popup menu with @p open, returns the names (or texts) of its actions and closes it.
@@ -168,6 +178,9 @@ private Q_SLOTS:
     void testContextMenuSeveralItems();
     void testContextMenuBackground();
     void testItemInfo();
+    void testItemInfoOutsideListing();
+    void testOpenFolder();
+    void testUnsupportedLocationFallsBack();
     void testSplitView();
 
 private:
@@ -224,6 +237,7 @@ void WhaleActionsTest::init()
     m_dir->createFile(QStringLiteral("sub/inner.txt"));
     m_capsPlugin.capabilities = {};
     m_capsPlugin.renamed.clear();
+    m_capsPlugin.localOnly = false;
     GeneralSettings::self()->setRenameInline(true);
     m_mainWindow.reset(new DolphinMainWindow());
 }
@@ -733,6 +747,81 @@ void WhaleActionsTest::testItemInfo()
     QTest::mouseMove(listView->viewport(), QPoint(listView->viewport()->width() / 2, listView->viewport()->height() - 5));
     QTRY_VERIFY(info.last().at(0).value<KFileItem>().isNull());
     QCOMPARE(container->viewHost()->currentViewId(), testListId);
+}
+
+void WhaleActionsTest::testItemInfoOutsideListing()
+{
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    QVERIFY(showView(container, capsId, &m_capsPlugin));
+    WhaleViewContext *context = m_capsPlugin.lastContext;
+    QVERIFY(context);
+    QSignalSpy info(m_mainWindow.data(), &DolphinMainWindow::requestItemInfo);
+
+    // An entry below the listing is described from the file system (view API 6).
+    context->requestItemInfo(url(QStringLiteral("sub/inner.txt")));
+    QVERIFY(!info.isEmpty());
+    KFileItem item = info.last().at(0).value<KFileItem>();
+    QCOMPARE(item.url(), url(QStringLiteral("sub/inner.txt")));
+    QVERIFY(!item.isDir());
+    QCOMPARE(item.size(), KIO::filesize_t(4)); // "test"
+    // A listed one is the listing's item.
+    context->requestItemInfo(url(QStringLiteral("sub")));
+    QVERIFY(info.last().at(0).value<KFileItem>().isDir());
+    // Missing and non-local URLs describe nothing.
+    context->requestItemInfo(url(QStringLiteral("sub/missing.txt")));
+    QVERIFY(info.last().at(0).value<KFileItem>().isNull());
+    context->requestItemInfo(url(QStringLiteral("sub/inner.txt")));
+    context->requestItemInfo(QUrl(QStringLiteral("sftp://host/file")));
+    QVERIFY(info.last().at(0).value<KFileItem>().isNull());
+}
+
+void WhaleActionsTest::testOpenFolder()
+{
+    m_dir->createFile(QStringLiteral("sub/deeper/x.txt"));
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    QVERIFY(showView(container, capsId, &m_capsPlugin));
+    WhaleViewContext *context = m_capsPlugin.lastContext;
+    QVERIFY(context);
+
+    // A folder below the listing becomes the location, with a history entry.
+    context->openFolder(url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(container->url(), url(QStringLiteral("sub/deeper")));
+    m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::Back))->trigger();
+    QTRY_COMPARE(container->url(), m_dir->url());
+
+    // Files and missing folders are not opened (no application starts).
+    context->openFolder(url(QStringLiteral("a.txt")));
+    context->openFolder(url(QStringLiteral("missing")));
+    QTest::qWait(200);
+    QCOMPARE(container->url(), m_dir->url());
+}
+
+void WhaleActionsTest::testUnsupportedLocationFallsBack()
+{
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    m_capsPlugin.localOnly = true;
+    WhaleViewHost *host = container->viewHost();
+    QVERIFY(showView(container, capsId, &m_capsPlugin));
+
+    // A location the plugin does not support: the file list shows it.
+    container->setUrl(QUrl(QStringLiteral("trash:/")));
+    QTRY_COMPARE(container->url(), QUrl(QStringLiteral("trash:/")));
+    QTRY_VERIFY(host->isDolphinViewShown());
+    QCOMPARE(host->lastRestore().source, QStringLiteral("location"));
+    QCOMPARE(host->lastRestore().requestedViewId, capsId);
+    QVERIFY(host->lastRestore().fallback);
+    QVERIFY(!host->showPluginView(capsId, &m_capsPlugin));
+    QVERIFY(host->isDolphinViewShown());
+
+    // The history brings the view back where it is supported.
+    m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::Back))->trigger();
+    QTRY_COMPARE(container->url(), m_dir->url());
+    // (The test plugin is not in the registry, so the history cannot restore it; a real
+    // plugin comes back, see whaletreemaptest.) It can be shown again here.
+    QVERIFY(host->showPluginView(capsId, &m_capsPlugin));
 }
 
 void WhaleActionsTest::testSplitView()

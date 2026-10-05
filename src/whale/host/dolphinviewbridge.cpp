@@ -20,6 +20,7 @@
 #include <KUrlMimeData>
 
 #include <QDropEvent>
+#include <QFileInfo>
 #include <QMimeData>
 #include <QPoint>
 #include <QPointer>
@@ -289,9 +290,25 @@ void DolphinViewBridge::requestItemInfo(const QUrl &url)
 {
     const KFileItemModel *fileItemModel = model();
     const int index = url.isEmpty() ? -1 : fileItemModel->index(url);
+    KFileItem item = index >= 0 ? fileItemModel->fileItem(index) : KFileItem();
+    if (item.isNull() && url.isLocalFile() && QFileInfo::exists(url.toLocalFile())) {
+        // Not listed, e.g. deep below the location: KFileItem reads it from the file system.
+        item = KFileItem(url);
+    }
     // The DolphinView's request signal itself: its hover handling would also show a
     // tooltip at the position of the hidden view.
-    Q_EMIT m_dolphinView->requestItemInfo(index >= 0 ? fileItemModel->fileItem(index) : KFileItem());
+    Q_EMIT m_dolphinView->requestItemInfo(item);
+}
+
+void DolphinViewBridge::openFolder(const QUrl &url)
+{
+    if (!url.isValid() || (url.isLocalFile() && !QFileInfo(url.toLocalFile()).isDir())) {
+        return;
+    }
+    // The main window only listens to the active view area (plan 14.8).
+    m_dolphinView->setActive(true);
+    // See plan 3.2: DolphinMainWindow::handleUrl() enters folders in the active view area.
+    Q_EMIT m_dolphinView->urlActivated(url);
 }
 
 void DolphinViewBridge::renameSelectedItemsWithDialog()

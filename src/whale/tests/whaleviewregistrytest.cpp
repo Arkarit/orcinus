@@ -134,6 +134,11 @@ public:
         Q_UNUSED(urls)
     }
 
+    void openFolder(const QUrl &url) override
+    {
+        Q_UNUSED(url)
+    }
+
     void requestContextMenu(const QPoint &globalPos, const QUrl &url) override
     {
         Q_UNUSED(globalPos)

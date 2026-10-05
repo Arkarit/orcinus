@@ -90,6 +90,7 @@ Q_SIGNALS:
 private:
     void slotViewSelected(QAction *action);
     void updateCheckedView();
+    void updateAvailableViews();
     void updateGates();
     void slotRename();
     void slotViewModeTriggered();
@@ -101,6 +102,7 @@ private:
     QPointer<WhaleViewHost> m_host;
     QMetaObject::Connection m_hostConnection;
     QMetaObject::Connection m_selectionConnection;
+    QMetaObject::Connection m_urlConnection;
     QMetaObject::Connection m_capabilitiesConnection;
     QHash<QString, QActionGroup *> m_gates;
     QHash<QString, QString> m_gateReasons;

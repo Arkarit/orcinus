@@ -90,6 +90,13 @@ public:
     void activateItems(const QList<QUrl> &urls);
 
     /**
+     * Makes the folder @p url the location of the view area, through the shell's
+     * handling of activated URLs (DolphinView::urlActivated, as for a link in a tooltip):
+     * the view area becomes active and the shell enters the folder there, with an entry in
+     * the history. Local URLs that are not folders are ignored.
+     */
+    void openFolder(const QUrl &url);
+    /**
      * Opens the DolphinView's context menu (DolphinContextMenu, KFileItemActions,
      * service menus) at @p globalPos for @p url and the selection, or for the location
      * if @p url is empty. An item outside the selection becomes the selection first,
@@ -99,8 +106,10 @@ public:
 
     /**
      * Reports the item under the pointer to the shell (information panel, status
-     * bar); an empty @p url clears it. Does not activate the view area, as hovering
-     * does not in the DolphinView either.
+     * bar); an empty @p url clears it. Items of the listing are reported as listed; an
+     * existing local file or folder outside the listing (e.g. deep below the location)
+     * as a KFileItem made from the file system. Other URLs clear it. Does not activate
+     * the view area, as hovering does not in the DolphinView either.
      */
     void requestItemInfo(const QUrl &url);
 

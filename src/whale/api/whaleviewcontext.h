@@ -78,6 +78,14 @@ public:
     virtual void activateItems(const QList<QUrl> &urls) = 0;
 
     /**
+     * Makes the folder @p url the location of the view area, as entering it in the
+     * file list does (with an entry in the history). Unlike activateItems(), the folder
+     * does not need to be in items(), e.g. a folder deep below the location. A local
+     * URL that is not a folder is ignored; other URLs are handed to Whale like a link,
+     * which enters folders and opens anything else with its application.
+     */
+    virtual void openFolder(const QUrl &url) = 0;
+    /**
      * Shows Whale's context menu at @p globalPos, as for a right click in the file
      * list: for the item @p url together with the rest of the selection, or for the
      * location itself if @p url is empty. An item that is not selected becomes the
@@ -88,6 +96,8 @@ public:
     /**
      * Tells Whale which item the user points at (hover), so the information panel
      * and the status bar can describe it. An empty @p url means none any more.
+     * Besides the items of items(), any existing local file or folder can be described,
+     * e.g. one deep below the location; other URLs count as none.
      */
     virtual void requestItemInfo(const QUrl &url) = 0;
 

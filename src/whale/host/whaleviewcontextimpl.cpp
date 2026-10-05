@@ -84,6 +84,11 @@ void WhaleViewContextImpl::activateItems(const QList<QUrl> &urls)
     m_bridge->activateItems(urls);
 }
 
+void WhaleViewContextImpl::openFolder(const QUrl &url)
+{
+    m_bridge->openFolder(url);
+}
+
 void WhaleViewContextImpl::requestContextMenu(const QPoint &globalPos, const QUrl &url)
 {
     m_bridge->requestContextMenu(globalPos, url);

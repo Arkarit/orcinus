@@ -87,6 +87,11 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     if (m_pluginView && m_pluginId == pluginId) {
         return true;
     }
+    const QUrl url = m_bridge->url();
+    if (!url.isEmpty() && !plugin->supportsUrl(url)) {
+        qCDebug(WhaleViewDebug) << "View plugin" << pluginId << "does not support" << url;
+        return false;
+    }
 
     auto context = std::make_unique<WhaleViewContextImpl>(m_bridge);
     if (auto actions = window()->findChild<WhaleViewActions *>()) {
@@ -125,6 +130,7 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     }
 
     m_pluginId = pluginId;
+    m_plugin = plugin;
     m_pluginContext = std::move(context);
     m_pluginView = std::move(view);
     m_pluginContext->setViewCapabilities(m_pluginView->capabilities());
@@ -220,7 +226,23 @@ QByteArray WhaleViewHost::unwrapLocationState(const QByteArray &locationState)
         // A new location, or Dolphin's own state: the shown view stays, with no stored states.
         m_views = WhaleViewsState();
     }
+    checkUrlSupported();
     return dolphinState;
+}
+
+void WhaleViewHost::checkUrlSupported()
+{
+    const QUrl url = m_bridge->url();
+    if (!m_pluginView || !m_plugin || url.isEmpty() || m_plugin->supportsUrl(url)) {
+        return;
+    }
+    // E.g. a treemap of local folders entering a remote one: the file list shows it. The
+    // view's state belongs to the previous location, which keeps it in the history.
+    const QString requested = m_pluginId;
+    m_applyingState = true;
+    showDolphinView();
+    m_applyingState = false;
+    m_lastRestore = RestoreInfo{QStringLiteral("location"), requested, currentViewId(), true};
 }
 
 QByteArray WhaleViewHost::saveSessionState(const QList<WhaleViewHost *> &hosts)
@@ -287,6 +309,7 @@ void WhaleViewHost::destroyPluginView()
     m_pluginView.reset();
     m_pluginContext.reset();
     m_pluginId.clear();
+    m_plugin = nullptr;
 }
 
 void WhaleViewHost::silenceDolphinView()

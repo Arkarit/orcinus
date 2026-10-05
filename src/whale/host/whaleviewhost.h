@@ -72,8 +72,9 @@ public:
 
     /**
      * Shows a new view created by @p plugin instead of the current view.
-     * @return False if the plugin did not provide a view with a widget; the
-     *         current view stays in that case.
+     * @return False if the plugin does not support the location (WhaleViewPlugin::
+     *         supportsUrl()) or did not provide a view with a widget; the current view
+     *         stays in that case.
      */
     bool showPluginView(const QString &pluginId, WhaleViewPlugin *plugin);
 
@@ -87,7 +88,8 @@ public:
     /**
      * History: the location has changed. Shows the view stored in @p locationState and
      * hands it its state; without Whale data (a new location, or an entry of an older
-     * Whale/Dolphin) the shown view stays.
+     * Whale/Dolphin) the shown view stays. A plugin view that does not support the new
+     * location is replaced by the file list.
      * @return Dolphin's part of @p locationState for DolphinView::restoreState().
      */
     QByteArray unwrapLocationState(const QByteArray &locationState);
@@ -112,7 +114,9 @@ public:
      * How the last history or session restore went; for tests and development tools.
      */
     struct RestoreInfo {
-        QString source; ///< "history" or "session", empty if nothing was restored yet
+        /// "history" or "session", or "location" when a view could not show a new location;
+        /// empty if nothing was restored yet
+        QString source;
         QString requestedViewId;
         QString shownViewId;
         bool fallback = false; ///< the requested view could not be shown
@@ -158,6 +162,7 @@ private:
     void silenceDolphinView();
     void restoreDolphinView();
     void slotFocusChanged(QWidget *old, QWidget *now);
+    void checkUrlSupported();
 
     DolphinView *const m_dolphinView;
     QStackedLayout *m_stack;
@@ -168,6 +173,7 @@ private:
     DolphinViewAdapter *m_dolphinViewAdapter;
 
     QString m_pluginId;
+    WhaleViewPlugin *m_plugin = nullptr; // owned by the registry, never unloaded
     std::unique_ptr<WhaleViewContextImpl> m_pluginContext;
     std::unique_ptr<WhaleView> m_pluginView;
 
