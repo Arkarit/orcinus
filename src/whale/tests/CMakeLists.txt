@@ -100,6 +100,19 @@ target_include_directories(whaletreecachetest PRIVATE ${CMAKE_SOURCE_DIR}/src/te
 target_compile_definitions(whaletreecachetest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaletreecachetest whale_testlist)
 
+# M9: the treemap's layout and renderer (deterministic, proportional, no overlaps).
+ecm_add_test(whaletreemaplayouttest.cpp
+    TEST_NAME whaletreemaplayouttest
+    LINK_LIBRARIES whaletreemapcore Qt6::Test)
+
+# M9: the treemap view in a real main window (scan, cache, hover, selection, navigation, state).
+ecm_add_test(whaletreemaptest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaletreemaptest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaletreemaptest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaletreemaptest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whaletreemaptest whale_treemap whale_testlist)
+
 # The development automation must stay out of regular builds (see src/whale/devmcp).
 add_test(NAME whale_dev_mcp_default_off
     COMMAND ${CMAKE_COMMAND}
@@ -119,5 +132,20 @@ add_test(
              echo \"\$result\"; \
              exit 1; \
          fi"
+)
+# ... and the built plugins must not link Whale's or Dolphin's private libraries.
+add_test(
+    NAME whale_view_plugin_dependencies
+    COMMAND bash -c
+        "status=0; \
+         for plugin in '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/*.so; do \
+             needed=\$(readelf -d \"\$plugin\" | grep NEEDED); \
+             if echo \"\$needed\" | grep -qiE 'whaleprivate|dolphin|whaleviewhost'; then \
+                 echo \"\$plugin links private libraries:\"; echo \"\$needed\"; status=1; \
+             fi; \
+             echo \"\$needed\" | grep -q whaleviewapi || { echo \"\$plugin does not use libwhaleviewapi\"; status=1; }; \
+         done; \
+         ls '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/whale_treemap.so >/dev/null || status=1; \
+         exit \$status"
 )
 endif()

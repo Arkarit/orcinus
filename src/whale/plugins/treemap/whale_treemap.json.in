@@ -1,0 +1,16 @@
+{
+    "KPlugin": {
+        "Description": "Shows how the space below the folder is used, as nested cushions",
+        "Icon": "folder-chart",
+        "License": "GPL-2.0-or-later",
+        "Name": "Treemap",
+        "Version": "0.1"
+    },
+    "X-Whale-Capabilities": [
+        "Selection",
+        "RecursiveContent",
+        "KeyboardNavigation"
+    ],
+    "X-Whale-RequiresLocal": true,
+    "X-Whale-ViewApiVersion": @WHALE_VIEW_API_VERSION@
+}

@@ -105,6 +105,7 @@ target_link_libraries(whaleviewhost PUBLIC
 
 add_subdirectory(plugins/hello)
 add_subdirectory(plugins/testlist)
+add_subdirectory(plugins/treemap)
 
 if(BUILD_TESTING)
     add_subdirectory(tests)
