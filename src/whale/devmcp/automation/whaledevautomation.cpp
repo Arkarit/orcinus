@@ -24,6 +24,7 @@
 #include "whaledevautomationdbus.h"
 #include "whalefileoperationsimpl.h"
 #include "whalepreviewproviderimpl.h"
+#include "whaletreecache.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
 #include "whaleviewcontextimpl.h"
@@ -45,7 +46,9 @@
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QBuffer>
+#include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QDBusConnection>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -55,13 +58,16 @@
 #include <QElapsedTimer>
 #include <QGraphicsView>
 #include <QJsonArray>
+#include <QKeySequence>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
 #include <QPixmap>
 #include <QPushButton>
+#include <QSplitter>
 #include <QTimer>
+#include <QWheelEvent>
 
 namespace
 {
@@ -108,6 +114,8 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("activate_next_tab"), QStringLiteral("activate_next_tab")},
         {QStringLiteral("activate_prev_tab"), QStringLiteral("activate_prev_tab")},
         {QStringLiteral("show_preview"), QStringLiteral("show_preview")},
+        {QStringLiteral("reload"), KStandardAction::name(KStandardAction::Redisplay)},
+        {QStringLiteral("show_information_panel"), QStringLiteral("show_information_panel")},
         // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
         {QStringLiteral("copy"), KStandardAction::name(KStandardAction::Copy)},
         {QStringLiteral("cut"), KStandardAction::name(KStandardAction::Cut)},
@@ -238,6 +246,8 @@ WhaleDevAutomation::WhaleDevAutomation(DolphinMainWindow *window)
     // ... and to this one.
     connect(window, &DolphinMainWindow::requestItemInfo, this, [this](const KFileItem &item) {
         m_itemInfo = item.isNull() ? QString() : item.text();
+        m_itemInfoUrl = item.url();
+        m_itemInfoIsDir = !item.isNull() && item.isDir();
         ++m_itemInfoSignals;
     });
     connect(window, &DolphinMainWindow::selectionChanged, this, [this](const KFileItemList &selection) {
@@ -364,6 +374,12 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         }
         pluginPreviewRows = previewRows;
     }
+    // What a treemap view shows (whale_treemap describes itself through its widget).
+    QJsonValue treemap = QJsonValue::Null;
+    QVariantMap treemapState;
+    if (pluginWidget && QMetaObject::invokeMethod(pluginWidget, "treemapState", Qt::DirectConnection, Q_RETURN_ARG(QVariantMap, treemapState))) {
+        treemap = QJsonObject::fromVariantMap(treemapState);
+    }
     // Which views have a stored state at this location (the states themselves are the
     // views' own business), and how the last restore went.
     const WhaleViewsState views = host->viewsState();
@@ -428,6 +444,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("pluginTopItem"), pluginTopItem},
         {QStringLiteral("pluginVisibleRows"), pluginVisibleRows},
         {QStringLiteral("pluginPreviewRows"), pluginPreviewRows},
+        {QStringLiteral("treemap"), treemap},
         {QStringLiteral("previews"), panePreviews(container)},
         {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
         {QStringLiteral("restore"), restoreState},
@@ -492,6 +509,8 @@ QJsonObject WhaleDevAutomation::uiState() const
          QJsonObject{
              {QStringLiteral("visible"), m_window->isVisible()},
              {QStringLiteral("active"), m_window->isActiveWindow()},
+             {QStringLiteral("width"), m_window->width()},
+             {QStringLiteral("height"), m_window->height()},
          }},
         {QStringLiteral("tabs"), QJsonObject{{QStringLiteral("count"), tabs->count()}, {QStringLiteral("current"), tabs->currentIndex()}}},
         {QStringLiteral("splitView"), all.count() > 1},
@@ -508,11 +527,35 @@ QJsonObject WhaleDevAutomation::uiState() const
              {QStringLiteral("selectionSignals"), m_shellSelectionSignals},
              {QStringLiteral("itemInfo"), m_itemInfo.isNull() ? QJsonValue::Null : QJsonValue(m_itemInfo)},
              {QStringLiteral("itemInfoSignals"), m_itemInfoSignals},
+             {QStringLiteral("itemInfoUrl"), m_itemInfoUrl.toString()},
+             {QStringLiteral("itemInfoIsDir"), m_itemInfoIsDir},
          }},
         {QStringLiteral("actions"), actionState()},
         {QStringLiteral("clipboard"), clipboardState()},
         {QStringLiteral("popupMenu"), popupMenu()},
         {QStringLiteral("dialogs"), dialogs()},
+        {QStringLiteral("treeCache"), treeCacheState()},
+    };
+}
+
+QJsonValue WhaleDevAutomation::treeCacheState() const
+{
+    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    if (!viewActions) {
+        return QJsonValue::Null;
+    }
+    const WhaleTreeCache::Statistics statistics = viewActions->treeCache()->statistics();
+    return QJsonObject{
+        {QStringLiteral("hits"), statistics.hits},
+        {QStringLiteral("misses"), statistics.misses},
+        {QStringLiteral("joins"), statistics.joins},
+        {QStringLiteral("invalidations"), statistics.invalidations},
+        {QStringLiteral("evictions"), statistics.evictions},
+        {QStringLiteral("notKept"), statistics.notKept},
+        {QStringLiteral("entries"), statistics.entries},
+        {QStringLiteral("bytes"), double(statistics.bytes)},
+        {QStringLiteral("watchedFolders"), statistics.watchedFolders},
+        {QStringLiteral("runningScans"), statistics.runningScans},
     };
 }
 
@@ -675,6 +718,34 @@ QJsonObject WhaleDevAutomation::setSplitView(bool enabled)
         // The same path as the "Split" toolbar button.
         page->setSplitViewEnabled(enabled, WithAnimation);
     }
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::setSplitRatio(double leftShare)
+{
+    DolphinTabPage *page = tabWidget()->currentTabPage();
+    auto splitter = page->splitViewEnabled() ? qobject_cast<QSplitter *>(page->primaryViewContainer()->parentWidget()) : nullptr;
+    if (!splitter || splitter->count() < 2) {
+        return failure(QStringLiteral("the current tab is not split"));
+    }
+    if (leftShare < 0.1 || leftShare > 0.9) {
+        return failure(QStringLiteral("the share must be between 0.1 and 0.9"));
+    }
+    const QList<int> sizes = splitter->sizes();
+    const int total = sizes.at(0) + sizes.at(1);
+    splitter->setSizes({int(total * leftShare), total - int(total * leftShare)});
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::setWindowSize(int width, int height)
+{
+    if (width < 300 || height < 200 || width > 8000 || height > 8000) {
+        return failure(QStringLiteral("unreasonable window size %1x%2").arg(width).arg(height));
+    }
+    if (m_window->isMaximized() || m_window->isFullScreen()) {
+        m_window->showNormal();
+    }
+    m_window->resize(width, height);
     return ok();
 }
 
@@ -1387,6 +1458,208 @@ QJsonObject WhaleDevAutomation::choosePopupEntry(const QString &text)
         }
     }
     return failure(QStringLiteral("the popup menu has no entry \"%1\"").arg(text));
+}
+
+// What QTest uses for mouse input on a window: the event takes the way of real input
+// (the widget under the position gets it, a click focuses it, two clicks make a double click).
+Q_GUI_EXPORT void qt_handleMouseEvent(QWindow *window,
+                                      const QPointF &local,
+                                      const QPointF &global,
+                                      Qt::MouseButtons state,
+                                      Qt::MouseButton button,
+                                      QEvent::Type type,
+                                      Qt::KeyboardModifiers mods,
+                                      int timestamp);
+// What QTest uses to let a synthesized key reach the window's shortcuts first.
+Q_GUI_EXPORT bool qt_sendShortcutOverrideEvent(QObject *o, ulong timestamp, int k, Qt::KeyboardModifiers mods, const QString &text, bool autorep, ushort count);
+
+namespace
+{
+/// Mouse input at @p position of @p widget, as real input of its window.
+void sendMouse(QWidget *widget, QEvent::Type type, const QPoint &position, Qt::MouseButton button, Qt::MouseButtons buttons, int timestamp)
+{
+    QWidget *window = widget->window();
+    const QPointF local = widget->mapTo(window, QPointF(position));
+    qt_handleMouseEvent(window->windowHandle(), local, window->mapToGlobal(local), buttons, button, type, Qt::NoModifier, timestamp);
+}
+
+QVariantMap treemapStateOf(QWidget *view)
+{
+    QVariantMap state;
+    QMetaObject::invokeMethod(view, "treemapState", Qt::DirectConnection, Q_RETURN_ARG(QVariantMap, state));
+    return state;
+}
+
+QRect treemapCellRect(QWidget *view, const QUrl &url)
+{
+    QRect rect;
+    QMetaObject::invokeMethod(view, "cellRect", Qt::DirectConnection, Q_RETURN_ARG(QRect, rect), Q_ARG(QUrl, url));
+    return rect;
+}
+}
+
+QJsonObject WhaleDevAutomation::treemapInput(int paneIndexArg, const QString &action, const QString &url, const QString &key)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    WhaleViewHost *host = container->viewHost();
+    QWidget *view = host->isDolphinViewShown() ? nullptr : host->currentView()->widget();
+    QWidget *canvas = view ? view->findChild<QWidget *>(QStringLiteral("whaleTreemapCanvas")) : nullptr;
+    if (!canvas || view->metaObject()->indexOfMethod("cellRect(QUrl)") < 0) {
+        return failure(QStringLiteral("the pane does not show the treemap"));
+    }
+    const QUrl target = url.isEmpty() ? QUrl() : QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile);
+    auto cellCenter = [view, &target](QPoint *position) {
+        const QRect rect = treemapCellRect(view, target);
+        *position = rect.center();
+        return !rect.isEmpty();
+    };
+    auto notShown = [&url]() {
+        return failure(QStringLiteral("\"%1\" has no cell of its own in the treemap (not shown, or too small)").arg(url));
+    };
+    // Input times: steps of one input 10 ms apart, separate clicks a second apart (no double click).
+    m_inputTime += 1000;
+    auto pressKey = [canvas](const QString &name, bool *shortcut) {
+        const QKeySequence sequence = QKeySequence::fromString(name);
+        if (sequence.isEmpty()) {
+            return false;
+        }
+        const QKeyCombination combination = sequence[0];
+        const int keyCode = int(combination.key());
+        const Qt::KeyboardModifiers modifiers = combination.keyboardModifiers();
+        const QString text = (modifiers & ~Qt::ShiftModifier) || keyCode > 0xffff ? QString() : QKeySequence(combination.key()).toString().left(1);
+        // As for a real key: the shortcuts of the window first, then the focused widget.
+        *shortcut = qt_sendShortcutOverrideEvent(canvas, 0, keyCode, modifiers, text, false, 1);
+        if (!*shortcut) {
+            QKeyEvent press(QEvent::KeyPress, keyCode, modifiers, text);
+            QApplication::sendEvent(canvas, &press);
+            QKeyEvent release(QEvent::KeyRelease, keyCode, modifiers, text);
+            QApplication::sendEvent(canvas, &release);
+        }
+        return true;
+    };
+    auto click = [this, canvas](const QPoint &position) {
+        m_inputTime += 1000;
+        sendMouse(canvas, QEvent::MouseMove, position, Qt::NoButton, Qt::NoButton, m_inputTime);
+        sendMouse(canvas, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton, m_inputTime += 10);
+        sendMouse(canvas, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton, m_inputTime += 10);
+    };
+    // Keys go where real keys go: to the focus widget, which has to be the treemap.
+    auto treemapHasFocus = [canvas]() {
+        return QApplication::focusWidget() == canvas;
+    };
+    // Click into the cell, then go up (Up key) until the entry itself is selected: a folder
+    // is covered by its entries, so a click always hits the deepest entry.
+    auto select = [&]() -> QJsonObject {
+        QPoint position;
+        if (!cellCenter(&position)) {
+            return notShown();
+        }
+        click(position);
+        if (!treemapHasFocus()) {
+            return failure(QStringLiteral("the click did not focus the treemap"));
+        }
+        for (int step = 0; step < 64; ++step) {
+            const QUrl selected = QUrl(treemapStateOf(view).value(QStringLiteral("selected")).toString());
+            if (selected == target) {
+                return ok();
+            }
+            if (!target.isParentOf(selected)) {
+                return failure(QStringLiteral("selecting \"%1\" ended at \"%2\"").arg(url, selected.toString()));
+            }
+            bool shortcut = false;
+            pressKey(QStringLiteral("Up"), &shortcut);
+        }
+        return failure(QStringLiteral("could not select \"%1\"").arg(url));
+    };
+
+    if (action == QLatin1String("hover")) {
+        QPoint position;
+        if (target.isEmpty()) {
+            // Onto the treemap's bar above the canvas: the pointer leaves the canvas.
+            position = QPoint(canvas->width() / 2, -4);
+        } else if (!cellCenter(&position)) {
+            return notShown();
+        }
+        sendMouse(canvas, QEvent::MouseMove, position, Qt::NoButton, Qt::NoButton, m_inputTime);
+        return ok();
+    }
+    if (action == QLatin1String("select")) {
+        return select();
+    }
+    if (action == QLatin1String("activate")) {
+        const QJsonObject selected = select();
+        if (!selected.value(QStringLiteral("ok")).toBool()) {
+            return selected;
+        }
+        bool shortcut = false;
+        pressKey(QStringLiteral("Return"), &shortcut);
+        return ok();
+    }
+    if (action == QLatin1String("double_click")) {
+        QPoint position;
+        if (!cellCenter(&position)) {
+            return notShown();
+        }
+        click(position);
+        // The second click right after the first one at the same place: a double click.
+        sendMouse(canvas, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton, m_inputTime += 10);
+        sendMouse(canvas, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton, m_inputTime += 10);
+        return ok();
+    }
+    if (action == QLatin1String("wheel_in") || action == QLatin1String("wheel_out")) {
+        QPoint position = canvas->rect().center();
+        if (!target.isEmpty() && !cellCenter(&position)) {
+            return notShown();
+        }
+        const QPoint delta(0, action == QLatin1String("wheel_in") ? 120 : -120);
+        QWheelEvent event(QPointF(position), QPointF(canvas->mapToGlobal(position)), QPoint(), delta, Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(canvas, &event);
+        return ok();
+    }
+    if (action == QLatin1String("key")) {
+        if (!treemapHasFocus()) {
+            return failure(QStringLiteral("the treemap does not have the keyboard focus (click into it first)"));
+        }
+        bool shortcut = false;
+        if (!pressKey(key, &shortcut)) {
+            return failure(QStringLiteral("unknown key \"%1\"").arg(key));
+        }
+        QJsonObject result = ok();
+        result.insert(QStringLiteral("shortcut"), shortcut);
+        return result;
+    }
+    return failure(QStringLiteral("unknown treemap action \"%1\"").arg(action));
+}
+
+QJsonObject WhaleDevAutomation::treemapSetOptions(int paneIndexArg, const QString &colorMode, const QString &labels)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    WhaleViewHost *host = container->viewHost();
+    QWidget *view = host->isDolphinViewShown() ? nullptr : host->currentView()->widget();
+    auto colorBox = view ? view->findChild<QComboBox *>(QStringLiteral("colorMode")) : nullptr;
+    auto labelsBox = view ? view->findChild<QCheckBox *>(QStringLiteral("showLabels")) : nullptr;
+    if (!colorBox || !labelsBox) {
+        return failure(QStringLiteral("the pane does not show the treemap"));
+    }
+    if (colorMode == QLatin1String("fileType") || colorMode == QLatin1String("topFolder")) {
+        colorBox->setCurrentIndex(colorMode == QLatin1String("topFolder") ? 1 : 0);
+    } else if (!colorMode.isEmpty()) {
+        return failure(QStringLiteral("unknown color mode \"%1\"").arg(colorMode));
+    }
+    if (labels == QLatin1String("true") || labels == QLatin1String("false")) {
+        if (labelsBox->isChecked() != (labels == QLatin1String("true"))) {
+            labelsBox->click(); // as the user does
+        }
+    }
+    return ok();
 }
 
 #include "moc_whaledevautomation.cpp"

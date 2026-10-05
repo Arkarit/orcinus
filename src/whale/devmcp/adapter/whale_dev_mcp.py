@@ -83,6 +83,22 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}}, "required": ["enabled"]},
     },
     {
+        "name": "set_window_size",
+        "description": "Resizes the Whale window as the user does (the compositor may adjust it); "
+        "window.width/height in get_ui_state show the result.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"width": {"type": "integer"}, "height": {"type": "integer"}},
+            "required": ["width", "height"],
+        },
+    },
+    {
+        "name": "set_split_ratio",
+        "description": "Moves the handle between the halves of the split view as the user drags it: the left "
+        "half gets left_share (0.1 to 0.9) of the width.",
+        "inputSchema": {"type": "object", "properties": {"left_share": {"type": "number"}}, "required": ["left_share"]},
+    },
+    {
         "name": "set_location",
         "description": "Navigates a pane to a URL or local path through Whale's location bar (history, focus "
         "and plugin views behave as with user navigation).",
@@ -273,6 +289,59 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
     },
     {
+        "name": "treemap_hover",
+        "description": "Moves the pointer onto the cell of url in the treemap view (whale_treemap) with a real mouse "
+        "event, or out of the treemap without url. The treemap outlines it and reports it to the information panel "
+        "(shell.itemInfo*). State: panes.N.treemap in get_ui_state.",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}},
+    },
+    {
+        "name": "treemap_select",
+        "description": "Selects url in the treemap as the user does: a click into its cell (which hits the deepest "
+        "entry there), then the Up key until url itself is selected. Deep entries stay the view's own selection.",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}, "required": ["url"]},
+    },
+    {
+        "name": "treemap_activate",
+        "description": "Opens a folder from the treemap as the new location. how=enter (default): treemap_select, "
+        "then Enter (opens the selected folder, or the folder of a selected file). how=double_click: a double click "
+        "at the center of the cell of url (opens the folder of the deepest entry there).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"pane": PANE, "url": {"type": "string"}, "how": {"type": "string", "enum": ["enter", "double_click"]}},
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "treemap_zoom",
+        "description": "Zooms within the treemap with the mouse wheel: direction=in at the cell of url (or the "
+        "center) zooms one folder level towards it, out zooms out one level. The location does not change.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"pane": PANE, "direction": {"type": "string", "enum": ["in", "out"]}, "url": {"type": "string"}},
+            "required": ["direction"],
+        },
+    },
+    {
+        "name": "treemap_key",
+        "description": "Presses a key in the treemap (focuses it first), e.g. Left/Right/Up/Down, Return, +, -, "
+        "Escape, or a shortcut such as Delete or Ctrl+C: the window's shortcuts get it first, as for real input "
+        "(result.shortcut tells whether one took it).",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "key": {"type": "string"}}, "required": ["key"]},
+    },
+    {
+        "name": "treemap_set_options",
+        "description": "Sets the treemap's display options with its own controls.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pane": PANE,
+                "color_mode": {"type": "string", "enum": ["fileType", "topFolder"]},
+                "labels": {"type": "boolean"},
+            },
+        },
+    },
+    {
         "name": "screenshot",
         "description": "PNG of the Whale main window, rendered by Whale itself (works on Wayland, also when the "
         "window is covered). Optionally also saved to a file.",
@@ -353,6 +422,10 @@ class Whale:
             return result(iface.SetView(pane, args["view"]))
         if tool == "activate_pane":
             return result(iface.ActivatePane(pane))
+        if tool == "set_window_size":
+            return result(iface.SetWindowSize(int(args["width"]), int(args["height"])))
+        if tool == "set_split_ratio":
+            return result(iface.SetSplitRatio(float(args["left_share"])))
         if tool == "set_split_view":
             return result(iface.SetSplitView(bool(args["enabled"])))
         if tool == "set_location":
@@ -405,6 +478,20 @@ class Whale:
                                                 args.get("target_url", ""), args["action"]))
         if tool == "choose_popup_entry":
             return result(iface.ChoosePopupEntry(args["text"]))
+        if tool == "treemap_hover":
+            return result(iface.TreemapInput(pane, "hover", args.get("url", ""), ""))
+        if tool == "treemap_select":
+            return result(iface.TreemapInput(pane, "select", args["url"], ""))
+        if tool == "treemap_activate":
+            how = args.get("how", "enter")
+            return result(iface.TreemapInput(pane, "activate" if how == "enter" else "double_click", args["url"], ""))
+        if tool == "treemap_zoom":
+            return result(iface.TreemapInput(pane, "wheel_" + args["direction"], args.get("url", ""), ""))
+        if tool == "treemap_key":
+            return result(iface.TreemapInput(pane, "key", "", args["key"]))
+        if tool == "treemap_set_options":
+            labels = args.get("labels")
+            return result(iface.TreemapSetOptions(pane, args.get("color_mode", ""), "" if labels is None else ("true" if labels else "false")))
         if tool == "screenshot":
             png = bytes(iface.Screenshot(byte_arrays=True))
             path = args.get("save_path")

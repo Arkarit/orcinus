@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, shared `mcp_test_support.py`). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7 and M9 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, shared `mcp_test_support.py`). |
 
 ## Activation
 
@@ -55,13 +55,15 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_view` | `dolphin` or a view plugin ID in a pane |
 | `activate_pane` | Make a pane the active view area |
 | `set_split_view` | Open/close split view (setter); closing closes the active side, like the Close button |
+| `set_split_ratio` | Move the handle between the halves (`left_share` 0.1–0.9), as dragging it does |
+| `set_window_size` | Resize the main window (`window.width`/`height` in the state) |
 | `set_location` | Navigate a pane through the location bar |
 | `set_filter_text` / `clear_filter` | Filter bar of a pane |
 | `set_hidden_files` | Setter, not a toggle |
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
+| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
 | `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
 | `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
 | `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
@@ -72,6 +74,12 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `request_preview` | Request previews of items through the preview provider of a pane's plugin view, as the view does |
 | `perform_drag_drop` | Drag the selection of a pane and drop it onto a folder item or the location of a pane (`copy`/`move`/`link`/`ask`); file operation, see below |
 | `choose_popup_entry` | Choose an entry of the open popup menu by text, e.g. "Copy Here" of the drop menu; file operation |
+| `treemap_hover` | Treemap (M9): move the pointer onto the cell of `url`, or off the treemap without `url` |
+| `treemap_select` | Treemap: click into the cell of `url`, then Up until `url` itself is selected (deep entries too) |
+| `treemap_activate` | Treemap: `how=enter` (select, then Enter) or `how=double_click` on the cell of `url` |
+| `treemap_zoom` | Treemap: mouse wheel `in` at the cell of `url` (one level towards it) or `out` |
+| `treemap_key` | Treemap: a key (`Up`, `Return`, `+`, `Escape`, `Delete`, `Ctrl+C`, …); the window's shortcuts get it first; `result.shortcut` |
+| `treemap_set_options` | Treemap: `color_mode` (`fileType`/`topFolder`) and `labels` through the treemap's own controls |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
 
@@ -129,6 +137,19 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `generated`, `failed`, `canceled`, `jobsStarted`, `jobsKilled`, `maxPending`.
 - `activations` counts pane activations, so a test can prove that an operation did
   not activate the other half of a split view.
+- Treemap (M9): `treemap` in a pane that shows `whale_treemap` (null otherwise), as the
+  view describes itself (`treemapState()` of its widget): `status`
+  (`scanning`/`ready`/`empty`/`failed`/`unsupported`), `loadingShown`, `error`,
+  `statusText`, `scanRoot`, `zoomRoot`, `zoomPath`, `totalSize`, `zoomSize`, `cells`,
+  `leafCells`, `restCells`, `truncated`, `hovered`, `selected`, `selectedRelative`,
+  `selectedDeep` (below the listing), `selectedShown` (has a cell of its own), `infoUrl`
+  (what it reported to the information panel), `colorMode`, `showLabels`,
+  `finishedScans`, `lastScanMs`, `scanProgress`, `layoutCount`, `layoutUs`, `renderUs`,
+  `paintUs`, `canvasWidth`/`canvasHeight`, `pathText`/`infoText` (its bar).
+  `shell.itemInfoUrl`/`itemInfoIsDir` describe what the information panel got last;
+  `treeCache` the window's tree scan cache (`hits`, `misses`, `joins`,
+  `invalidations`, `evictions`, `notKept`, `entries`, `bytes`, `watchedFolders`,
+  `runningScans`).
 
 `wait_for_state` conditions map dotted paths into this state to expected JSON
 values, e.g. `{"panes.1.viewId": "whale_testlist", "focus.role": "plugin:whale_testlist"}`.
@@ -177,7 +198,8 @@ system itself.
   right after a state change can still show an animation (filter bar, split view).
 - Navigation, view switching and pane activation go through the same functions as
   the UI, but not through simulated mouse or keyboard input (except the drag gesture
-  of `perform_drag_drop`).
+  of `perform_drag_drop` and the treemap tools, which send mouse input through the
+  window like QTest and keys through the window's shortcuts first).
 - Popup menus (context menu, drop menu) need real input on Wayland; they are only
   testable offscreen.
 - Only the current tab's panes are addressed.

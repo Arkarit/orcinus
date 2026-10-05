@@ -70,6 +70,13 @@ public:
     QJsonObject setView(int pane, const QString &viewId);
     QJsonObject activatePane(int pane);
     QJsonObject setSplitView(bool enabled);
+    /**
+     * Moves the handle between the two halves of the split view, as the user drags it:
+     * the left half gets @p leftShare (0.1 to 0.9) of the width.
+     */
+    QJsonObject setSplitRatio(double leftShare);
+    /// Resizes the main window, as the user does by dragging its border.
+    QJsonObject setWindowSize(int width, int height);
     QJsonObject setLocation(int pane, const QString &url);
     QJsonObject setFilterText(int pane, const QString &text);
     QJsonObject clearFilter(int pane);
@@ -188,12 +195,27 @@ public:
      */
     QJsonObject choosePopupEntry(const QString &text);
 
+    /**
+     * Input for the treemap view (plugin whale_treemap) as the user gives it: real mouse
+     * and key events sent to its canvas, at the cell of @p url. @p action is one of
+     * hover (leave without url), select (click, then Up until the folder is selected),
+     * activate (select, then Enter), double_click, wheel_in, wheel_out, key (@p key as
+     * in QKeySequence, e.g. "Up", "Delete", "Ctrl+C"; shortcuts of the window apply).
+     */
+    QJsonObject treemapInput(int pane, const QString &action, const QString &url, const QString &key);
+    /**
+     * Sets the treemap's display options through its own controls: @p colorMode
+     * "fileType" or "topFolder" (empty: unchanged), @p labels "true", "false" or "".
+     */
+    QJsonObject treemapSetOptions(int pane, const QString &colorMode, const QString &labels);
+
 private:
     DolphinTabWidget *tabWidget() const;
     QList<DolphinViewContainer *> panes() const;
     DolphinViewContainer *pane(int index, QString *error) const;
     int paneIndex(const DolphinViewContainer *container) const;
     QJsonValue popupMenu() const;
+    QJsonValue treeCacheState() const;
     QJsonValue clipboardState() const;
     QJsonArray dialogs() const;
     QJsonObject paneState(DolphinViewContainer *container, int index) const;
@@ -218,6 +240,10 @@ private:
     QStringList m_shellSelection;
     int m_shellSelectionSignals = 0;
     QString m_itemInfo;
+    // Time stamps of synthesized input (treemap tools).
+    int m_inputTime = 0;
+    QUrl m_itemInfoUrl;
+    bool m_itemInfoIsDir = false;
     int m_itemInfoSignals = 0;
 
     // Answers to requestPreview(), newest last.

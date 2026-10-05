@@ -33,6 +33,8 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString SetView(int pane, const QString &viewId);
     Q_SCRIPTABLE QString ActivatePane(int pane);
     Q_SCRIPTABLE QString SetSplitView(bool enabled);
+    Q_SCRIPTABLE QString SetSplitRatio(double leftShare);
+    Q_SCRIPTABLE QString SetWindowSize(int width, int height);
     Q_SCRIPTABLE QString SetLocation(int pane, const QString &url);
     Q_SCRIPTABLE QString SetFilterText(int pane, const QString &text);
     Q_SCRIPTABLE QString ClearFilter(int pane);
@@ -60,6 +62,10 @@ public Q_SLOTS:
     /// @p targetUrl may be empty (the location); @p action is copy, move, link or ask.
     Q_SCRIPTABLE QString PerformDragDrop(int sourcePane, int targetPane, const QString &targetUrl, const QString &action);
     Q_SCRIPTABLE QString ChoosePopupEntry(const QString &text);
+    /// See WhaleDevAutomation::treemapInput(); @p url and @p key may be empty.
+    Q_SCRIPTABLE QString TreemapInput(int pane, const QString &action, const QString &url, const QString &key);
+    /// @p colorMode "fileType", "topFolder" or "" (unchanged); @p labels "true", "false" or "".
+    Q_SCRIPTABLE QString TreemapSetOptions(int pane, const QString &colorMode, const QString &labels);
 
 private:
     WhaleDevAutomation *const m_automation;

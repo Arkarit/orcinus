@@ -57,6 +57,16 @@ QString WhaleDevAutomationDBus::SetSplitView(bool enabled)
     return toJson(m_automation->setSplitView(enabled));
 }
 
+QString WhaleDevAutomationDBus::SetSplitRatio(double leftShare)
+{
+    return toJson(m_automation->setSplitRatio(leftShare));
+}
+
+QString WhaleDevAutomationDBus::SetWindowSize(int width, int height)
+{
+    return toJson(m_automation->setWindowSize(width, height));
+}
+
 QString WhaleDevAutomationDBus::SetLocation(int pane, const QString &url)
 {
     return toJson(m_automation->setLocation(pane, url));
@@ -181,6 +191,16 @@ QString WhaleDevAutomationDBus::PerformDragDrop(int sourcePane, int targetPane, 
 QString WhaleDevAutomationDBus::ChoosePopupEntry(const QString &text)
 {
     return toJson(m_automation->choosePopupEntry(text));
+}
+
+QString WhaleDevAutomationDBus::TreemapInput(int pane, const QString &action, const QString &url, const QString &key)
+{
+    return toJson(m_automation->treemapInput(pane, action, url, key));
+}
+
+QString WhaleDevAutomationDBus::TreemapSetOptions(int pane, const QString &colorMode, const QString &labels)
+{
+    return toJson(m_automation->treemapSetOptions(pane, colorMode, labels));
 }
 
 #include "moc_whaledevautomationdbus.cpp"

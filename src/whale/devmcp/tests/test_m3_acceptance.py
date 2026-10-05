@@ -64,7 +64,9 @@ def run(args, work):
                           "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
                           "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "quit",
                           "trigger_action", "wait_for_state", "screenshot", "get_preview_state", "request_preview",
-                          "perform_drag_drop", "choose_popup_entry"}
+                          "perform_drag_drop", "choose_popup_entry", "set_split_ratio", "set_window_size",
+                          "treemap_hover", "treemap_select", "treemap_activate", "treemap_zoom", "treemap_key",
+                          "treemap_set_options"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)
