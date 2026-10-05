@@ -115,3 +115,11 @@ Hinweis: `set_split_view(false)` schließt wie der Schließen-Knopf die **aktive
   (`names`/`texts`/`entries`), `dialogs`, `shell.itemInfo`, `panes.N.selectionMode`, `clipboard`.
 - `test_m5_acceptance.py` (A–G, 40 Schritte offscreen). Grenzen auf echtem Wayland: Kontextmenüs
   brauchen echte Eingabe; Zwischenablage-Schritte nur mit `--clipboard`.
+
+## M6-Erweiterung (2026-10-05)
+
+- Zustand: `pluginTopItem`, `storedViewStates`, `restore` (source/requested/shown/fallback).
+- Tools: `scroll_to_item`, `quit` (schließt wie der Benutzer, Session wird gespeichert);
+  `trigger_action` zusätzlich `new_tab`, `activate_next_tab`, `activate_prev_tab`.
+- `test_m6_acceptance.py` (A–G, 36 Schritte) startet sich selbst unter `dbus-run-session`; grün offscreen
+  und auf Wayland inkl. Neustarts.

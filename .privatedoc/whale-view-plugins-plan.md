@@ -708,13 +708,15 @@ vtables in entladenem Code.
 
 ### 9.6 Persistenz  [W][U]
 
+**Umgesetzt in M6 (History, Session); tatsächliches Format siehe 14.13.**
+
 | Ebene | Inhalt | Speicherort |
 |---|---|---|
 | History-Eintrag | aktive View-ID + `saveState()` der aktiven View | **Whale-Umschlag** um `locationState`: `magic "WHL1" + DolphinView-State + viewId + pluginState`. Ein Umschlag ohne `magic` wird als reiner Dolphin-State gelesen. Nur `saveViewState`/`tryRestoreViewState` im Container sind betroffen. |
 | Session/Tab | aktive View-ID pro Container + Plugin-State | eigener Key `WhaleViews` in der Tab-Gruppe neben `State` (`DolphinTabWidget::saveProperties`). Das Format von `DolphinTabPage::saveState` bleibt unverändert. |
 | Globale Plugin-Einstellungen | z. B. Farbschema der Treemap | `whalerc [WhaleView][<pluginId>]` über `context->viewConfig()` |
 | Standard-View | welche View neue Container zeigen | `whalerc [WhaleViews] DefaultView` (Default: Dolphin-View) |
-| View pro Ordner | (später) | **offene Entscheidung O3**. Nie in `[Dolphin]`-ViewProperties. Möglich ist eine eigene KConfig-Datei mit URL-Keys oder ein xattr `user.whale.view`. |
+| View pro Ordner | (später; **in M6 bewusst nicht umgesetzt**) | **offene Entscheidung O3**. Nie in `[Dolphin]`-ViewProperties. Möglich ist eine eigene KConfig-Datei mit URL-Keys oder ein xattr `user.whale.view`. |
 
 ---
 
@@ -1331,3 +1333,85 @@ mit `RecursiveContent` bekommt alle Actions auf ausgewählten Items gesperrt, bi
 **Tests:** `whaleactionstest` (22 Fälle). Dev-MCP `whale_dev_mcp_m5_e2e`: Szenarien A–G offscreen;
 auf echtem Wayland A, B, D, F, G (C wegen deiner Zwischenablage und E wegen Wayland-Popups
 übersprungen). M3/M4-Abnahmen als Regression auf Wayland grün.
+
+### 14.13 Ergebnisse aus M6: Persistenz (2026-10-05)
+
+Commits: `795e2838b` (Action-ID-Existenztest, vor M6), `a9acd2731` (M6), `9dd5c6de1` (Dev-MCP).
+
+**Action-ID-Test:** `whaleactionstest::testGateableActionsExist` prüft jede Action aus
+`WhaleViewActions::gateableActions()` (die Produktionsliste). Sie muss in der Collection existieren und
+eine eigene Sperrgruppe haben. Die Gegenprobe mit einem nicht existierenden Namen schlägt hart fehl.
+
+**API-Version 3:** neues Signal `WhaleView::capabilitiesChanged()` und `WhaleViewContext::isLoading()`.
+Ein neues Qt-Signal wäre ABI-technisch verträglich. Die Projektregel ist aber exakte Versionsgleichheit
+ohne Kompatibilitätsversprechen, also wird bei jeder Änderung der öffentlichen API erhöht.
+
+**Persistenzformat (eigene Version `WhalePersistence::FormatVersion = 1`, unabhängig von der API):**
+
+| Ebene | Ort | Aufbau |
+|---|---|---|
+| History | Location-State des `KUrlNavigator`-Eintrags | `"WHALEVS\x01"` + `quint32` Version + `QByteArray` Dolphin-State (unverändert `DolphinView::saveState`) + `WhaleViewsState` |
+| Session | Tab-Gruppe, Key `WhaleViews` neben `State` | `"WHALESS\x01"` + Version + Anzahl (1–2) + je Hälfte `WhaleViewsState` |
+| `WhaleViewsState` | – | aktive View-ID (Dateiliste: `org.kde.dolphin.itemview`) + sortierte Liste (View-ID, State-Blob) |
+
+`QDataStream` mit fester Version `Qt_6_0`. Daten ohne Magic: History = reiner Dolphin-State (alte
+Einträge), Session = keine Whale-Daten. Beschädigte oder neuere Daten werden mit Warnung ignoriert;
+der Dolphin-Teil eines beschädigten Umschlags wird **nicht** an die `DolphinView` gegeben.
+`DolphinView::saveState` und `DolphinTabPage::saveState` bleiben unverändert.
+
+**History-Integration:** `DolphinViewContainer::saveViewState`/`tryRestoreViewState` reichen den
+Location-State durch `WhaleViewHost::wrapLocationState`/`unwrapLocationState` (je eine Zeile). Beim
+Zurückkehren zeigt der Host die gespeicherte View. Bei neuen Orten und alten Einträgen bleibt die
+gezeigte View, aber ohne gespeicherte States.
+
+**Session-Integration:** `DolphinTabWidget::saveProperties`/`readProperties` schreiben bzw. lesen
+`WhaleViews` pro Tab über `WhaleViewHost::save/restoreSessionState` (Helfer `whaleViewHosts` +
+2 Zeilen). **Zusätzliche Dolphin-Zeile:** `DolphinMainWindow::setSessionAutoSaveEnabled` startet den
+Session-Speicher-Timer auch bei `WhaleViewActions::sessionChanged`. Grund: Dolphin speichert die
+Session beim Beenden nur, wenn eine Speicherung ansteht (URL-, Tab-, Aktivitätswechsel). Ein reiner
+View-Wechsel ginge sonst verloren.
+
+**Lifecycle (tatsächliche Reihenfolge):** State der alten View sichern → neue View erzeugen (mit
+Context) → alte `deactivate()`, Stack umschalten, alte zerstören → neue `restoreState()` (nur wenn ein
+State existiert) → Fokus → `activate()` → `currentViewChanged` (Gating) → `sessionChanged`. Bei der
+History-Wiederherstellung ist der Ort schon gewechselt; die Items können noch laden (`isLoading()`).
+Gleiche View-ID: `restoreState()` auf der bestehenden View. States sind pro View-ID getrennt; eine View
+bekommt nie den State einer anderen.
+
+**Split:** Jede Hälfte hat ihren eigenen `WhaleViewsState`. In der Session gibt es einen Datensatz pro
+Hälfte.
+
+**Fallback:** Unbekannte, deaktivierte, inkompatible oder nicht ladbare Plugins → Dateiliste,
+Warnung, `lastRestore().fallback`, kein Dialog. Der State des fehlenden Plugins bleibt in
+`WhaleViewsState` und wird weiter geschrieben. Ein Lauf ohne das Plugin überschreibt die gespeicherte
+View-Wahl nur, wenn er die Session aus anderen Gründen neu speichert. Dann steht dort die gezeigte
+Dateiliste, und der Plugin-State bleibt erhalten (E2E F).
+
+**`capabilitiesChanged`:** Der Host leitet es weiter (ohne `Selection` wird die versteckte Auswahl
+geleert), `WhaleViewActions` aktualisiert die Sperren sofort. Getestet über das Test-Plugin
+`whale_test_dynamic` (Zoom nach Ort oder State), auch nach History-Wiederherstellung.
+
+**Test-List-State:** das oberste sichtbare Item (URL). Es wird bis zum Ende des Ladens und bis die
+Liste eine Größe hat festgehalten. Beim Übernehmen des aktuellen Items vom Host ist `autoScroll` aus.
+Sonst würde Dolphins Standard-Current (Index 0) die Wiederherstellung überschreiben.
+
+**Globale Plugin-Konfiguration:** in M6 nicht benötigt und nicht verdrahtet (`viewConfig()` bleibt
+Plan). History- und Session-Blobs enthalten nur Ortszustand.
+
+**Befunde:**
+
+1. Das Dev-MCP antwortet, bevor Dolphin die Session wiederherstellt (`main()`): erst auf den
+   wiederhergestellten Zustand warten.
+2. Dolphin stellt die Session nur als einzige Instanz wieder her (`dolphinGuiInstances`); Neustart-Tests
+   laufen deshalb auf einem privaten D-Bus (`dbus-run-session`). Dort gestartete Dienste halten Pipes
+   offen, daher geht die Ausgabe über eine Datei.
+3. **Vermutlich vorbestehend in Dolphin, nicht weiter untersucht:** Nach dem Wiederherstellen einer
+   Split-View löst Navigation in der aktiven Hälfte erst dann eine Session-Speicherung aus, wenn die
+   aktive Hälfte einmal gewechselt hat. `DolphinTabPage` verbindet `activeViewUrlChanged` nur beim
+   Wechsel neu. Kandidat für ein Upstream-Issue.
+
+**Tests:** `whalepersistencetest` (16), `whale_dev_mcp_m6_e2e` mit A–G (36 Schritte) offscreen und auf
+echtem Wayland inklusive vier Neustarts; M3–M5-Abnahmen auf Wayland weiter grün.
+
+**Weiter offen:** O3 (View pro Ordner) bleibt offen; keine `.directory`/xattr-Lösung. T1/T2
+unverändert offen.
