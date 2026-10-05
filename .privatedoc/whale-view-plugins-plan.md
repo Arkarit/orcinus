@@ -1162,3 +1162,7 @@ Ansichtseinstellungen, deshalb setzt der Test Sortierung/Hidden in `init()` zur�
 6. Vorbestehend, nicht durch M3: `filenamehighlightingviewtest` st체rzt auf der echten
    Wayland-Plattform in `KItemListViewAccessible::slotAnnounceCurrentItemTimerTimeout` ab (gleich im
    M2-Stand `7997f1893` gepr체ft). Unter `offscreen` ist er gr체n.
+
+**Abnahme (2026-10-05):** Statt manuell 체ber das Dev-MCP (`.privatedoc/whale-dev-mcp.md`):
+`test_m3_acceptance.py` mit 20 Schritten gr체n unter offscreen und auf echtem Plasma/Wayland, jeweils
+mit echtem Tastaturfokus und ohne Fokus-Anomalien.
