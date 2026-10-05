@@ -15,6 +15,7 @@
 class DolphinViewBridge;
 class WhaleFileOperationsImpl;
 class WhalePreviewProviderImpl;
+class WhaleTreeScannerImpl;
 
 /**
  * @brief The WhaleViewContext of one view, backed by the DolphinView of its view area.
@@ -39,6 +40,7 @@ public:
     void requestItemInfo(const QUrl &url) override;
     WhalePreviewProvider *previews() const override;
     WhaleFileOperations *fileOperations() const override;
+    WhaleTreeScanner *treeScanner() const override;
 
     /**
      * Tells the context the capabilities of its view (set by the host after creating
@@ -60,6 +62,7 @@ private:
     mutable WhaleItemList *m_items = nullptr;
     mutable WhalePreviewProviderImpl *m_previews = nullptr;
     mutable WhaleFileOperationsImpl *m_fileOperations = nullptr;
+    mutable WhaleTreeScannerImpl *m_treeScanner = nullptr;
     WhaleViewCapabilities m_viewCapabilities;
 };
 

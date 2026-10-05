@@ -19,6 +19,7 @@
 class WhaleFileOperations;
 class WhaleItemList;
 class WhalePreviewProvider;
+class WhaleTreeScanner;
 class WhaleViewContextPrivate;
 
 /**
@@ -101,6 +102,14 @@ public:
      *         context and live as long as it.
      */
     virtual WhaleFileOperations *fileOperations() const = 0;
+
+    /**
+     * @return A scanner of local folder trees with sizes, e.g. for a view that shows
+     *         more than the listing. One scanner per context: it belongs to the context,
+     *         lives as long as it and runs one scan at a time; a scan still running when
+     *         the context goes is canceled. It is created on the first call.
+     */
+    virtual WhaleTreeScanner *treeScanner() const = 0;
 
 Q_SIGNALS:
     /**

@@ -8,6 +8,7 @@
 #include "whalefileoperations.h"
 #include "whaleitemlist.h"
 #include "whalepreviewprovider.h"
+#include "whaletreescanner.h"
 #include "whaleview.h"
 #include "whaleviewapiversion.h"
 #include "whaleviewcontext.h"
@@ -80,6 +81,26 @@ public:
     }
 };
 
+class NoTreeScanner : public WhaleTreeScanner
+{
+public:
+    explicit NoTreeScanner(QObject *parent)
+        : WhaleTreeScanner(parent)
+    {
+    }
+    bool scan(const QUrl &, const Options &) override
+    {
+        return false;
+    }
+    void cancel() override
+    {
+    }
+    bool isRunning() const override
+    {
+        return false;
+    }
+};
+
 class TestContext : public WhaleViewContext
 {
 public:
@@ -134,6 +155,11 @@ public:
         return m_fileOperations;
     }
 
+    WhaleTreeScanner *treeScanner() const override
+    {
+        return m_treeScanner;
+    }
+
     void setUrl(const QUrl &url)
     {
         m_url = url;
@@ -145,6 +171,7 @@ private:
     EmptyItemList *const m_items = new EmptyItemList(this);
     NoPreviews *const m_previews = new NoPreviews(this);
     NoFileOperations *const m_fileOperations = new NoFileOperations(this);
+    NoTreeScanner *const m_treeScanner = new NoTreeScanner(this);
     WhaleSelection m_selection;
 };
 
