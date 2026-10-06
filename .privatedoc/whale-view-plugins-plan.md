@@ -579,7 +579,7 @@ diese Datei aus.
 | Option | Beschreibung | Dolphin-Änderung | Bewertung |
 |---|---|---|---|
 | **T1** – View-lokale Auswahl + Kontextmenü mit expliziter Liste **(umgesetzt, siehe 14.18)** | Die Treemap hält ihre Auswahl selbst und meldet sie dem Host als `WhaleSelection` mit dem Flag „tief“. Der Host spiegelt nur den Anteil im Listing in die `DolphinView`. Rechtsklick → Whale baut ein **eigenes, reduziertes** Menü: `KFileItemActions` (Öffnen mit, Service-Menüs) + `WhaleFileOperations` auf der expliziten Liste (Papierkorb, Löschen, Kopieren, Pfad kopieren, Eigenschaften, „Im Ordner anzeigen“ = Host navigiert und markiert). Tastatur-Shortcuts der Standard-Actions sind in der Treemap deaktiviert (Capability `RecursiveContent` ⇒ Gating der Datei-Actions). | keine | **Empfohlen für die erste Treemap-Version.** Ist sicher, weil keine Aktion das falsche Ziel trifft. |
-| **T2** – Command-Routing | Die Datei-Slots in `DolphinViewActionHandler` (Rename, Trash, Delete, Duplicate, Properties, CopyPath: 6 Slots) und in `DolphinMainWindow` (Cut, Copy, Paste, `updateFileAndEditActions`, `slotSelectionChanged`, Compare, Add-to-Places …: etwa 12 Stellen) fragen eine Hilfsfunktion `activeSelection()` bzw. `activeFileOperations()` statt `view()->…` | etwa 20–30 einzeilige Änderungen in 2–3 viel geänderten Dateien | Erst entscheiden, wenn T1 im Alltag nicht reicht. Mechanisch, aber merge-relevant. |
+| **T2** – Command-Routing **(umgesetzt, siehe 14.19)** | Die Datei-Slots in `DolphinViewActionHandler` (Rename, Trash, Delete, Duplicate, Properties, CopyPath: 6 Slots) und in `DolphinMainWindow` (Cut, Copy, Paste, `updateFileAndEditActions`, `slotSelectionChanged`, Compare, Add-to-Places …: etwa 12 Stellen) fragen eine Hilfsfunktion `activeSelection()` bzw. `activeFileOperations()` statt `view()->…` | etwa 20–30 einzeilige Änderungen in 2–3 viel geänderten Dateien | Erst entscheiden, wenn T1 im Alltag nicht reicht. Mechanisch, aber merge-relevant. |
 | **T3** – Selection-Override in `DolphinView::selectedItems()` | `DolphinView` liefert bei gesetztem Override eine externe Liste | wenige Zeilen in `dolphinview.cpp` | **Abgeraten.** `selectionMimeData` (`:2752`), das Inline-Rename und das „nächstes Item auswählen“ nach dem Löschen arbeiten mit Indizes. Es entstehen stille Inkonsistenzen in der Datei, die upstream am häufigsten geändert wird. |
 
 ---
@@ -810,7 +810,7 @@ Whale-Integration kommen in getrennte Commits.
 | **M8** | `WhaleTreeScanner` (lokal, `fts`, Thread, Abbruch, inkrementell, Cache; `KIO`-Fallback später) | – | `whaletreescannertest` mit `QTemporaryDir`-Bäumen: Größen, Symlinks (nicht folgen), Abbruch, keine Grenzen von Dateisystemen überschreiten (`FTS_XDEV`) |
 | **M9** | Treemap-Plugin: Squarified-Layout + Cushion-Rendering, Hover → Info-Panel, Doppelklick auf Ordner → `openUrl` oder internes Hineinzoomen (State), T1-Kontextmenü, eigener State (Wurzel, Tiefe, Farbmodus) **(umgesetzt ohne T1-Kontextmenü, siehe 14.17)** | – | `whaletreemaplayouttest` (deterministisches Layout); manuelle Abnahme: keine Datei-Action trifft ein falsches Ziel |
 | **T1** | Operationen auf tiefen Einträgen: `WhaleFileOperations` mit expliziten URLs (API 7), Treemap-Kontextmenü, Rescan nach Mutation **(umgesetzt, siehe 14.18)** | – | `whaledeepoperationstest`; MCP-Abnahme `test_t1_acceptance.py` (offscreen und Plasma/Wayland mit echter Eingabe) |
-| **M10** | *Optional:* T2 Command-Routing, falls T1 nicht reicht | `dolphinviewactionhandler.cpp`, `dolphinmainwindow.cpp`, `dolphintabpage.cpp` | Papierkorb, Kopieren usw. per Shortcut auf tiefen Treemap-Items |
+| **M10** | *Optional:* T2 Command-Routing **(umgesetzt, siehe 14.19)**, falls T1 nicht reicht | `dolphinviewactionhandler.cpp`, `dolphinmainwindow.cpp`, `dolphintabpage.cpp` | Papierkorb, Kopieren usw. per Shortcut auf tiefen Treemap-Items |
 | **M11** | *Optional, upstreamfähig:* RolesUpdater einer unsichtbaren View pausieren | `kitemviews/kfileitemlistview.cpp` | nur bei messbarer Last aus M0; als eigener, upstream-tauglicher Commit |
 
 ### 12.1 Abgleich mit den drei Testfällen
@@ -2086,3 +2086,93 @@ auf tiefe Auswahl, Copy/Move in die andere Hälfte, Vergleichen, Mehrfachauswahl
 **Weiter offen:** O3 (View pro Ordner), M8c (Live-Updates, Remote), M11 (RolesUpdater pausieren),
 Toolbar-Themen; Live-Aktualisierung einer zweiten, nicht operierenden Treemap auf denselben Baum
 (heute: Cache invalidiert, F5).
+
+### 14.19 Ergebnisse aus T2/M10: Command-Routing (2026-10-06)
+
+Commits `2ed57098c` (API 8, Router, Dolphin-Delegationen), `d30096905` (Treemap, Tests),
+`bebbf4f8f` (Dev-MCP). Kein Umbau von Dolphin: nur Delegationspunkte (unten).
+
+**Prinzip:** `globale Action → aktive Selection-Quelle → passender Pfad`. Keine Fake-Selection in
+der `DolphinView`. Dolphin bleibt Backend der Dateiliste und Ausführender seiner eigenen Pfade.
+
+**Selection-Quelle (`WhaleCommandRouter`, Host):** immer nur der Ansichtsbereich der aktiven
+`DolphinView` (Dolphins `m_activeViewContainer` bzw. `m_currentView` – die M2-Fokus-/Aktivierungs-
+mechanik bleibt maßgeblich). Drei Fälle:
+
+| Quelle | wann | Auswahl | Pfad |
+|---|---|---|---|
+| `file-list` | Dateiliste gezeigt | Dolphins | Dolphin unverändert |
+| `plugin-mirrored` | Plugin-View ohne `RecursiveContent` (Testliste) | Whales = Dolphins (gespiegelt) | Dolphin unverändert (M4/M5) |
+| `plugin` | Plugin-View mit `RecursiveContent` (Treemap) | `WhaleView::selectedItems()` der View | Router → `WhaleFileOperations` (T1) bzw. Dolphins Code mit den Router-Items |
+
+Der Router findet den Host über `DolphinView::parentWidget()` (der Host zeigt die `DolphinView` in
+seinem Stack). Er arbeitet mit `QList<QUrl>`; MultiSelection braucht keinen Umbau.
+
+**API 8:** `WhaleView::selectedItems()` (Default: Whales Auswahl) + `selectedItemsChanged()`;
+`WhaleFileOperations::duplicateItems()` + `Operation::Duplicate`. Kein `perform(operation)` in der
+öffentlichen API: die View liefert nur ihre Auswahl, der Host entscheidet.
+
+**Geroutete Actions** (zentrale Produktionsliste `WhaleViewActions::routedActions()`, vom
+Action-ID-Test geprüft):
+
+| Action | Shortcut | Operation | Ausführung |
+|---|---|---|---|
+| `renamefile` | F2 | Rename | `WhaleViewActions::slotRename` → Dialog (nie inline) |
+| `movetotrash` | Entf | Trash | Handler-Slot → Router |
+| `deletefile` | Umschalt+Entf | Delete | Handler-Slot → Router (KIO-Bestätigung) |
+| `delete_shortcut` | Entf bei nicht trashbaren Items | Delete | wie Dolphin (aktiv nur, wenn kein Papierkorb möglich) |
+| `edit_cut` / `edit_copy` | Strg+X / Strg+C | Cut / Copy | MainWindow `cut()`/`copy()` → Router |
+| `duplicate` | Strg+D | Duplicate | Handler-Slot → Router → `DolphinView::duplicateItems` |
+| `copy_location` | Strg+Alt+C | CopyLocation | Handler-Slot → Router |
+| `properties` | Alt+Enter | Properties | Handler-Slot → Router; ohne Auswahl Dolphins Ort-Eigenschaften |
+| `copy_to_inactive_split_view` / `move_to_inactive_split_view` | – | Copy / Cut (Freigabe) | Dolphins `DolphinTabWidget`-Code mit Router-Items (KIO, Undo, Ziel = andere Hälfte) |
+
+Enter → Öffnen ist die Taste der View (Treemap: `openItems`, T1-Pfad; Doppelklick unverändert).
+Paste bleibt Dolphins (Ziel = aktiver Ort). „Im Ordner anzeigen“ hat keine globale Action
+(nur Treemap-Menü). Nicht geroutet: `show_target`, `compare_files` (Grund im Gate).
+
+**Enablement:** Dolphins `updateFileAndEditActions` rechnet mit den Router-Items (also auch tiefen
+`KFileItem`s) – Dolphins eigene Regeln (Rechte, Papierkorb lokal, Ziel der anderen Hälfte schon
+enthaltend/schreibgeschützt). Darüber die M5-Gates, für `plugin`-Quellen jetzt selektionsbasiert
+statt pauschal: leer → `nothing selected` (kein Selection-Mode in Plugin-Views); Operation nicht in
+`supportedOperations` → `not supported for the selection` (Ort selbst/Oberordner, schreibgeschützt,
+verschwundene Einträge); nicht geroutet → `not routed to a view's own selection`. Die
+Selection-Änderung der View aktualisiert Dolphins Action-Zustände und Gates synchron
+(`commandSelectionChanged` → `DolphinMainWindow::slotSelectionChanged`), ebenso View-Wechsel und
+Capability-Änderung; Back/Forward über Ortswechsel/Restore (getestet ohne Event-Loop-Lücke).
+
+**Kontextmenü (T1):** unverändert; Menü, Shortcuts, Hauptmenü und Toolbar enden alle in
+`WhaleFileOperations` (Router bzw. Menü direkt), keine doppelte Business-Logik.
+
+**Split/Fokus:** Quelle ist stets die aktive Hälfte; Klick in die Treemap aktiviert sie (M2).
+Die versteckte `DolphinView` gewinnt nie: bei `plugin`-Quelle wird ihre Auswahl auch dann nicht
+benutzt, wenn sie nicht leer ist (Test mit eigener Test-View) oder die View-Auswahl leer ist.
+
+**Duplicate:** Dolphins `duplicateSelectedItems` in `duplicateItems(items)` aufgeteilt (Namensschema
+„x copy.ext“, `autoRename`, Undo, Fehler wie Dolphin). Keine Kopie der Logik.
+
+**Compare:** Dolphin vergleicht über `DolphinTabPage::selectedItems()` beider Hälften und braucht
+Kompare, das hier nicht installiert ist (Action dauerhaft aus). Technisch wäre es ein 2-Zeilen-
+Delegationspunkt in `dolphintabpage.cpp`; ohne Testmöglichkeit vertagt, Gate-Grund gesetzt.
+
+**Dolphin-Dateien (produktiv, ohne Kommentare):**
+
+| Datei | Zeilen | Warum |
+|---|---|---|
+| `views/dolphinviewactionhandler.h/.cpp` | Hook (Member, Setter, Include ≈ 8) + 5 × 3 Zeilen Guard | Handler ist in `dolphinprivate`, kann `whaleviewhost` nicht linken → Callback statt direktem Aufruf |
+| `dolphinmainwindow.cpp` | 1 geänderte Ctor-Zeile, 1 `connect`, 2 × 3 Guard (cut/copy), 3 geänderte Zeilen (Items aus Router), 1 Include | Copy/Cut sitzen im MainWindow; Enablement und Copy/Move-to-other-pane-Prüfung brauchen die Router-Items |
+| `dolphintabwidget.cpp` | 2 geänderte Zeilen + Include | Copy/Move to other pane mit Router-Items, Dolphins KIO-Pfad |
+| `views/dolphinview.h/.cpp` | Funktion aufgeteilt (≈ 5) | Duplicate ohne Logik-Kopie |
+
+Summe ≈ 35 Zeilen in 6 Dateien, alle als „Whale“ markiert.
+
+**Tests:** `whalecommandroutingtest` (22 Funktionen; Clipboard-Fälle nur offscreen),
+`whaledeepoperationstest` (31), angepasst `whaletreemaptest`/`whaleactionstest`/M9-/T1-Abnahme.
+Volle Suite offscreen 57/58 (bekannter `testAccessibilityTree`). Wayland-Unit-Tests: nur die
+bekannten `whaletreemaptest::testHover` und `whaleactionstest::testItemInfo` (vorbestehend, siehe
+14.18). MCP: `test_t2_acceptance.py` offscreen, Wayland synthetisch und mit `--real-keys`
+(F2/Entf als echte Tasten) grün; T1 mit `--popups real`, M3–M7, M9 auf Wayland grün.
+
+**Abweichungen/Restpunkte:** Compare und `show_target` nicht geroutet; Copy To…/Move To…-Dialoge,
+Mehrfachauswahl-UI weiter offen; „Im Ordner anzeigen“ nur im Treemap-Menü. Treemap-Enter öffnet
+Dateien jetzt (M9: Ordner der Datei) – auf Wunsch aus T2. Weiter offen: O3, M8c, M11, Toolbar-Themen.
