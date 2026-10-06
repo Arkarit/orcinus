@@ -13,13 +13,17 @@
 
 #include <QCheckBox>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDataStream>
 #include <QDir>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QIODevice>
 #include <QIcon>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QMenu>
+#include <QMetaEnum>
 #include <QPainter>
 #include <QTimer>
 #include <QToolButton>
@@ -288,6 +292,37 @@ void TreemapCanvas::keyPressEvent(QKeyEvent *event)
     event->accept();
 }
 
+void TreemapCanvas::contextMenuEvent(QContextMenuEvent *event)
+{
+    event->accept();
+    if (m_view->status() != TreemapView::Status::Ready) {
+        return;
+    }
+    if (event->reason() != QContextMenuEvent::Mouse) {
+        // The Menu key: Qt sends this event before the key press itself.
+        showMenuForSelection();
+        return;
+    }
+    // As in the file list, a right click selects the entry first.
+    const int index = cellAt(event->pos());
+    if (index <= 0) {
+        return;
+    }
+    m_view->selectCell(index);
+    m_view->showContextMenu(m_view->selectedUrl(), event->globalPos());
+}
+
+void TreemapCanvas::showMenuForSelection()
+{
+    if (m_view->status() != TreemapView::Status::Ready || m_view->selectedUrl().isEmpty()) {
+        return;
+    }
+    // At the selected entry, or the folder that shows it when it is too small.
+    const int selected = selectedCell();
+    const QPoint position = selected > 0 ? m_layout.cells().at(selected).rect.center().toPoint() : rect().center();
+    m_view->showContextMenu(m_view->selectedUrl(), mapToGlobal(position));
+}
+
 void TreemapCanvas::leaveEvent(QEvent *event)
 {
     m_view->hoverCell(-1);
@@ -312,7 +347,15 @@ TreemapWidget::TreemapWidget(TreemapView *view)
 
 QVariantMap TreemapWidget::treemapState() const
 {
-    return m_view->state();
+    QVariantMap state = m_view->state();
+    // The context menu the selected entry would get (names of its entries).
+    QStringList menu;
+    const QVariantList entries = contextMenuEntries(m_view->selectedUrl());
+    for (const QVariant &entry : entries) {
+        menu.append(entry.toMap().value(QStringLiteral("name")).toString());
+    }
+    state.insert(QStringLiteral("selectedMenu"), menu);
+    return state;
 }
 
 QRect TreemapWidget::cellRect(const QUrl &url) const
@@ -332,6 +375,24 @@ QUrl TreemapWidget::urlAt(const QPoint &position) const
     return index > 0 ? canvas->layout().cells().at(index).node.url() : QUrl();
 }
 
+QVariantList TreemapWidget::contextMenuEntries(const QUrl &url) const
+{
+    QVariantList entries;
+    std::unique_ptr<QMenu> menu(m_view->createContextMenu(url, nullptr));
+    if (!menu) {
+        return entries;
+    }
+    const auto actions = menu->actions();
+    for (const QAction *action : actions) {
+        if (!action->isSeparator()) {
+            entries.append(QVariantMap{{QStringLiteral("name"), action->objectName()},
+                                       {QStringLiteral("text"), action->text()},
+                                       {QStringLiteral("enabled"), action->isEnabled()}});
+        }
+    }
+    return entries;
+}
+
 // TreemapView --------------------------------------------------------------------
 
 TreemapView::TreemapView(WhaleViewContext *context, QObject *parent)
@@ -345,6 +406,7 @@ TreemapView::TreemapView(WhaleViewContext *context, QObject *parent)
     , m_labelsBox(new QCheckBox(i18nc("@option:check Treemap: show the names of entries", "Names")))
     , m_loadingTimer(new QTimer(this))
     , m_scanner(context->treeScanner())
+    , m_operations(context->fileOperations())
 {
     auto bar = new QWidget;
     auto barLayout = new QHBoxLayout(bar);
@@ -426,6 +488,7 @@ TreemapView::TreemapView(WhaleViewContext *context, QObject *parent)
         }
     });
     connect(context, &WhaleViewContext::selectionChanged, this, &TreemapView::slotSelectionChanged);
+    connect(m_operations, &WhaleFileOperations::operationFinished, this, &TreemapView::slotOperationFinished);
 
     startScan(false);
     // Whale's selection, e.g. made in the file list before switching to the treemap.
@@ -437,6 +500,7 @@ TreemapView::~TreemapView()
 {
     // The canvas calls back into the view while it handles events; not any more.
     m_scanner->disconnect(this);
+    m_operations->disconnect(this);
     delete m_widget;
 }
 
@@ -495,7 +559,9 @@ QString TreemapView::statusText() const
 void TreemapView::startScan(bool keepView)
 {
     m_scanner->cancel();
-    if (keepView) {
+    if (keepView && m_hasPendingState) {
+        // A state is still waiting for a tree (e.g. this scan restarts one): it stays.
+    } else if (keepView) {
         // Keep what the user zoomed into and selected across the new scan.
         QStringList selection;
         const bool selected = !m_selected.isEmpty() && relativePath(m_selected, &selection);
@@ -736,6 +802,139 @@ void TreemapView::clearSelection()
     selectUrl(QUrl());
 }
 
+QMenu *TreemapView::createContextMenu(const QUrl &url, QWidget *parent)
+{
+    // Entries below the location only: the location itself is Whale's (Up, the file list).
+    QStringList parts;
+    if (url.isEmpty() || !relativePath(url, &parts) || parts.isEmpty()) {
+        return nullptr;
+    }
+    using Operation = WhaleFileOperations::Operation;
+    const QList<QUrl> urls{url};
+    // Only what can be done with the entry now (e.g. nothing that removes it from a
+    // read-only folder, only "Show in Folder" if it is gone).
+    const WhaleFileOperations::Operations supported = m_operations->supportedOperations(urls);
+    const WhaleTreeNode node = nodeAt(parts);
+    const bool folder = node.isNull() ? QFileInfo(url.toLocalFile()).isDir() : node.isDirectory();
+
+    auto menu = new QMenu(parent);
+    menu->setObjectName(QStringLiteral("whaleTreemapContextMenu"));
+    auto add = [this, menu, supported](Operation operation, const QString &name, const QString &icon, const QString &text, auto function) {
+        if (!(supported & operation)) {
+            return;
+        }
+        QAction *action = menu->addAction(QIcon::fromTheme(icon), text);
+        action->setObjectName(name);
+        connect(action, &QAction::triggered, this, function);
+    };
+    WhaleFileOperations *operations = m_operations;
+    add(Operation::Open,
+        QStringLiteral("open"),
+        QStringLiteral("document-open"),
+        i18nc("@action:inmenu Treemap: open the file or enter the folder", "Open"),
+        [operations, urls]() {
+            operations->openItems(urls);
+        });
+    if (!folder) {
+        add(Operation::OpenWith,
+            QStringLiteral("open_with"),
+            QStringLiteral("system-run"),
+            i18nc("@action:inmenu Treemap", "Open With…"),
+            [operations, urls]() {
+                operations->openItemsWith(urls);
+            });
+    }
+    add(Operation::ShowInFolder,
+        QStringLiteral("show_in_folder"),
+        QStringLiteral("document-open-folder"),
+        folder ? i18nc("@action:inmenu Treemap: go to the folder that contains this folder and select it", "Show in Parent Folder")
+               : i18nc("@action:inmenu Treemap: go to the folder of this file and select it", "Show in Folder"),
+        [operations, url]() {
+            operations->showItemInFolder(url);
+        });
+    menu->addSeparator();
+    add(Operation::Copy, QStringLiteral("copy"), QStringLiteral("edit-copy"), i18nc("@action:inmenu Treemap", "Copy"), [operations, urls]() {
+        operations->copyItems(urls);
+    });
+    add(Operation::Cut, QStringLiteral("cut"), QStringLiteral("edit-cut"), i18nc("@action:inmenu Treemap", "Cut"), [operations, urls]() {
+        operations->cutItems(urls);
+    });
+    add(Operation::CopyLocation,
+        QStringLiteral("copy_location"),
+        QStringLiteral("edit-copy-path"),
+        i18nc("@action:inmenu Treemap", "Copy Location"),
+        [operations, urls]() {
+            operations->copyLocations(urls);
+        });
+    menu->addSeparator();
+    add(Operation::Rename, QStringLiteral("rename"), QStringLiteral("edit-rename"), i18nc("@action:inmenu Treemap", "Rename…"), [operations, urls]() {
+        operations->renameItems(urls);
+    });
+    add(Operation::Trash, QStringLiteral("trash"), QStringLiteral("user-trash"), i18nc("@action:inmenu Treemap", "Move to Trash"), [operations, urls]() {
+        operations->trashItems(urls);
+    });
+    add(Operation::Delete, QStringLiteral("delete"), QStringLiteral("edit-delete"), i18nc("@action:inmenu Treemap", "Delete"), [operations, urls]() {
+        operations->deleteItems(urls);
+    });
+    menu->addSeparator();
+    add(Operation::Properties,
+        QStringLiteral("properties"),
+        QStringLiteral("document-properties"),
+        i18nc("@action:inmenu Treemap", "Properties"),
+        [operations, urls]() {
+            operations->showProperties(urls);
+        });
+
+    const auto actions = menu->actions();
+    if (std::all_of(actions.cbegin(), actions.cend(), [](const QAction *action) {
+            return action->isSeparator();
+        })) {
+        delete menu;
+        return nullptr;
+    }
+    return menu;
+}
+
+void TreemapView::showContextMenu(const QUrl &url, const QPoint &globalPos)
+{
+    QMenu *menu = createContextMenu(url, m_canvas);
+    if (!menu) {
+        return;
+    }
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    // Not exec(): the menu must not block the event loop (scans, D-Bus) while it is open.
+    menu->popup(globalPos);
+}
+
+void TreemapView::slotOperationFinished(WhaleFileOperations::Operation operation,
+                                        const QList<QUrl> &urls,
+                                        WhaleFileOperations::Result result,
+                                        const QList<QUrl> &newUrls)
+{
+    m_lastOperation = QString::fromLatin1(QMetaEnum::fromType<WhaleFileOperations::Operation>().valueToKey(int(operation))) + QLatin1Char(':')
+        + QString::fromLatin1(QMetaEnum::fromType<WhaleFileOperations::Result>().valueToKey(int(result)));
+    if (result == WhaleFileOperations::Result::Canceled) {
+        return;
+    }
+    // A renamed selection stays selected under its new name.
+    if (operation == WhaleFileOperations::Operation::Rename && !m_selected.isEmpty()) {
+        for (int i = 0; i < urls.count() && i < newUrls.count(); ++i) {
+            const QString from = QDir::cleanPath(urls.at(i).toLocalFile());
+            const QString selected = QDir::cleanPath(m_selected.toLocalFile());
+            if (selected == from || selected.startsWith(from + QLatin1Char('/'))) {
+                m_selected = QUrl::fromLocalFile(QDir::cleanPath(newUrls.at(i).toLocalFile()) + selected.mid(from.length()));
+                break;
+            }
+        }
+    }
+    // The tree is a snapshot: scan again (the cache has dropped the changed tree). Zoom and
+    // selection stay as far as they still exist; a removed selection goes away.
+    if (m_status != Status::Unsupported && context()->url() == m_scanUrl) {
+        ++m_operationScans;
+        startScan(true);
+    }
+}
+
 void TreemapView::slotSelectionChanged(const WhaleSelection &selection)
 {
     const QList<QUrl> selected = selection.selected();
@@ -945,6 +1144,10 @@ QVariantMap TreemapView::state() const
     const int selected = m_canvas->selectedCell();
     QStringList selection;
     const bool selectionInTree = !m_selected.isEmpty() && relativePath(m_selected, &selection);
+    const auto menus = m_canvas->findChildren<QMenu *>(QStringLiteral("whaleTreemapContextMenu"));
+    const int openMenus = std::count_if(menus.cbegin(), menus.cend(), [](const QMenu *menu) {
+        return menu->isVisible();
+    });
 
     return {
         {QStringLiteral("status"), statusName(m_status)},
@@ -971,6 +1174,9 @@ QVariantMap TreemapView::state() const
         {QStringLiteral("colorMode"), m_colorMode == TreemapRenderer::ColorMode::TopFolder ? QStringLiteral("topFolder") : QStringLiteral("fileType")},
         {QStringLiteral("showLabels"), m_showLabels},
         {QStringLiteral("finishedScans"), m_finishedScans},
+        {QStringLiteral("operationScans"), m_operationScans},
+        {QStringLiteral("lastOperation"), m_lastOperation},
+        {QStringLiteral("openMenus"), openMenus},
         {QStringLiteral("lastScanMs"), m_lastScanMs},
         {QStringLiteral("scanProgress"), m_progress},
         {QStringLiteral("layoutCount"), m_canvas->layoutCount()},

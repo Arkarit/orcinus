@@ -9,6 +9,7 @@
 
 #include "treemaplayout.h"
 #include "treemaprenderer.h"
+#include "whalefileoperations.h"
 #include "whaleselection.h"
 #include "whaletreescanner.h"
 #include "whaleview.h"
@@ -23,6 +24,7 @@
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QMenu;
 class QTimer;
 class QToolButton;
 class TreemapView;
@@ -89,11 +91,13 @@ protected:
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void keyPressEvent(QKeyEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:
     void paintMessage(QPainter &painter, const QString &text);
+    void showMenuForSelection();
 
     TreemapView *const m_view;
     TreemapLayout m_layout;
@@ -133,6 +137,9 @@ public:
     Q_INVOKABLE QRect cellRect(const QUrl &url) const;
     /// The entry at @p position in canvas coordinates; empty for none or a rest cell.
     Q_INVOKABLE QUrl urlAt(const QPoint &position) const;
+    /// The entries of the context menu for @p url (name, text, enabled), without showing it;
+    /// empty if there is no menu for @p url.
+    Q_INVOKABLE QVariantList contextMenuEntries(const QUrl &url) const;
 
 private:
     TreemapView *const m_view;
@@ -150,8 +157,12 @@ private:
  * - Hover: outlines the entry and describes it in Whale's information panel and status
  *   bar (WhaleViewContext::requestItemInfo()), also below the listing.
  * - Click: selects the entry. The selection belongs to the view and may be deep (below
- *   the listing); only an entry of the listing also becomes Whale's selection. Actions on
- *   selected items stay disabled (RecursiveContent): no file operation acts on deep entries.
+ *   the listing); only an entry of the listing also becomes Whale's selection. Whale's
+ *   actions on selected items and their shortcuts stay disabled (RecursiveContent).
+ * - Right click, the Menu key: the treemap's own context menu for the selected entry
+ *   (selected first by a right click). Its operations name the entry explicitly
+ *   (WhaleFileOperations), so they act on exactly that entry, deep or not. After an
+ *   operation that changes files, the treemap scans again.
  * - Double click, Enter: opens the folder (or the folder of the file) as the new location.
  * - Wheel, +/-, the zoom button: zooms in and out of folders within the treemap, without
  *   changing the location.
@@ -202,6 +213,10 @@ public:
     void zoomOut();
     void moveSelection(int key);
     void clearSelection();
+    /// The context menu of the entry @p url at @p globalPos (none for the location itself).
+    void showContextMenu(const QUrl &url, const QPoint &globalPos);
+    /// A new context menu of @p url (owned by @p parent), or null if there is none.
+    QMenu *createContextMenu(const QUrl &url, QWidget *parent);
 
     QUrl selectedUrl() const
     {
@@ -218,6 +233,8 @@ private:
     void slotFinished(const WhaleTreeNode &root);
     void slotFailed(WhaleTreeScanner::Error error, const QString &message);
     void slotSelectionChanged(const WhaleSelection &selection);
+    void
+    slotOperationFinished(WhaleFileOperations::Operation operation, const QList<QUrl> &urls, WhaleFileOperations::Result result, const QList<QUrl> &newUrls);
     void setStatus(Status status);
     void setZoomPath(const QStringList &path);
     void applyPendingState();
@@ -239,6 +256,9 @@ private:
     QTimer *m_loadingTimer;
 
     WhaleTreeScanner *const m_scanner;
+    WhaleFileOperations *const m_operations;
+    int m_operationScans = 0;
+    QString m_lastOperation;
     Status m_status = Status::Scanning;
     QString m_error;
     int m_progress = 0;
