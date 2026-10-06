@@ -60,6 +60,7 @@ private Q_SLOTS:
     void testOnlyStartedWhenRequested();
     void testUiState();
     void testSetView();
+    void testPreferredViews();
     void testSplitPanes();
     void testHiddenFiles();
     void testFilter();
@@ -218,6 +219,37 @@ void WhaleDevAutomationTest::testSetView()
     QVERIFY(!error.value(QStringLiteral("ok")).toBool());
     QVERIFY(error.value(QStringLiteral("error")).toString().contains(QStringLiteral("no_such_view")));
     QVERIFY(!m_automation->setView(5, QStringLiteral("dolphin")).value(QStringLiteral("ok")).toBool());
+}
+
+void WhaleDevAutomationTest::testPreferredViews()
+{
+    const QString url = m_automation->uiState().value(QStringLiteral("url")).toString();
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.preferredView"), QJsonValue::Null}})));
+
+    // An automatic switch is not remembered; the user's choice (the switcher's entry) is.
+    QVERIFY(m_automation->setView(0, QStringLiteral("whale_testlist")).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.preferredView"), QJsonValue::Null}})));
+    QVERIFY(m_automation->setView(0, QStringLiteral("dolphin"), true).value(QStringLiteral("ok")).toBool());
+    QVERIFY(m_automation->setView(0, QStringLiteral("whale_testlist"), true).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({
+        {QStringLiteral("panes.0.viewId"), QStringLiteral("whale_testlist")},
+        {QStringLiteral("panes.0.preferredView"), QStringLiteral("whale_testlist")},
+        {QStringLiteral("panes.0.viewOrigin"), QStringLiteral("user")},
+    })));
+    QCOMPARE(m_automation->preferredView(url).value(QStringLiteral("view")).toString(), QStringLiteral("whale_testlist"));
+    QVERIFY(!m_automation->setView(0, QStringLiteral("no_such_view"), true).value(QStringLiteral("ok")).toBool());
+
+    // Set and clear from outside, as another window would.
+    QCOMPARE(m_automation->setPreferredView(url + QLatin1Char('/'), QStringLiteral("dolphin")).value(QStringLiteral("view")).toString(),
+             QStringLiteral("dolphin"));
+    QVERIFY(m_automation->setPreferredView(url, QString()).value(QStringLiteral("view")).isNull());
+    QVERIFY(!m_automation->setPreferredView(QString(), QStringLiteral("dolphin")).value(QStringLiteral("ok")).toBool());
+
+    // The plugin hook: the switcher does not offer a missing plugin.
+    QVERIFY(m_automation->setViewPluginAvailable(QStringLiteral("whale_hello"), false).value(QStringLiteral("ok")).toBool());
+    QVERIFY(!m_automation->setView(0, QStringLiteral("whale_hello"), false).value(QStringLiteral("ok")).toBool());
+    QVERIFY(m_automation->setViewPluginAvailable(QStringLiteral("whale_hello"), true).value(QStringLiteral("ok")).toBool());
+    QVERIFY(m_automation->setView(0, QStringLiteral("dolphin")).value(QStringLiteral("ok")).toBool());
 }
 
 void WhaleDevAutomationTest::testSplitPanes()

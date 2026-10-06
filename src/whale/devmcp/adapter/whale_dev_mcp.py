@@ -46,7 +46,9 @@ TOOLS = [
         "plugin item view shows), pluginPreviewRows (rows that show a preview instead of an icon), previews (Dolphin's "
         "'Show Previews' at the location, the view's Previews capability, and the view's preview provider: enabled, "
         "pending, runningJobs, requested/generated/failed/canceled, jobsStarted/jobsKilled, maxPending), storedViewStates (views with a stored state at "
-        "the location), restore (source history/session, requested and shown view, fallback), "
+        "the location), restore (source history/session/preference/location, requested and shown view, fallback), "
+        "preferredView (O3: the view remembered for the location, null if none), viewOrigin (what decided about "
+        "the shown view: user, preference, history, session, fallback, kept, initial), "
         "selection per pane (selection URLs, selectedNames, current/currentName: the host's; pluginSelection/"
         "pluginCurrent: what a plugin item view shows), statusText, shell.selectedNames (what the information "
         "panel got last), hidden files, sorting, filter, loading, recent pane activations, available view IDs.",
@@ -64,11 +66,44 @@ TOOLS = [
     {
         "name": "set_view",
         "description": "Shows a view in a pane: \"dolphin\" (the built-in file list) or a view plugin ID such as "
-        "\"whale_testlist\" or \"whale_hello\" (see availableViews in the state).",
+        "\"whale_testlist\" or \"whale_hello\" (see availableViews in the state). By default an automatic switch "
+        "(nothing is remembered); remember=true is the user's choice in the view switcher, which makes it the "
+        "preferred view of the location (O3).",
         "inputSchema": {
             "type": "object",
-            "properties": {"pane": PANE, "view": {"type": "string"}},
+            "properties": {"pane": PANE, "view": {"type": "string"}, "remember": {"type": "boolean"}},
             "required": ["view"],
+        },
+    },
+    {
+        "name": "get_preferred_view",
+        "description": "O3: the view remembered for a location (URL or local path): view (\"dolphin\", a plugin ID or "
+        "null), the normalized location key, and the number of remembered locations.",
+        "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
+    },
+    {
+        "name": "set_preferred_view",
+        "description": "O3: remembers a view for a location, as if chosen there in another window. Shown views do "
+        "not change; it applies at the next navigation to the location.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"url": {"type": "string"}, "view": {"type": "string"}},
+            "required": ["url", "view"],
+        },
+    },
+    {
+        "name": "clear_preferred_view",
+        "description": "O3: forgets the view remembered for a location (reset to default).",
+        "inputSchema": {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]},
+    },
+    {
+        "name": "set_view_plugin_available",
+        "description": "Test hook: treats a view plugin as missing (available=false) or back (true) in the window's "
+        "registry, as if it was uninstalled; shown views stay.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"view": {"type": "string"}, "available": {"type": "boolean"}},
+            "required": ["view", "available"],
         },
     },
     {
@@ -456,7 +491,15 @@ class Whale:
         if tool == "get_focus_state":
             return result(iface.FocusState())
         if tool == "set_view":
-            return result(iface.SetView(pane, args["view"]))
+            return result(iface.SetView(pane, args["view"], bool(args.get("remember", False))))
+        if tool == "get_preferred_view":
+            return result(iface.PreferredView(args["url"]))
+        if tool == "set_preferred_view":
+            return result(iface.SetPreferredView(args["url"], args["view"]))
+        if tool == "clear_preferred_view":
+            return result(iface.SetPreferredView(args["url"], ""))
+        if tool == "set_view_plugin_available":
+            return result(iface.SetViewPluginAvailable(args["view"], bool(args["available"])))
         if tool == "activate_pane":
             return result(iface.ActivatePane(pane))
         if tool == "set_window_size":

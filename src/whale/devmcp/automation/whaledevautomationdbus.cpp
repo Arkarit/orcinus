@@ -42,9 +42,24 @@ QStringList WhaleDevAutomationDBus::ActionIds()
     return WhaleDevAutomation::actionIds();
 }
 
-QString WhaleDevAutomationDBus::SetView(int pane, const QString &viewId)
+QString WhaleDevAutomationDBus::SetView(int pane, const QString &viewId, bool remember)
 {
-    return toJson(m_automation->setView(pane, viewId));
+    return toJson(m_automation->setView(pane, viewId, remember));
+}
+
+QString WhaleDevAutomationDBus::PreferredView(const QString &url)
+{
+    return toJson(m_automation->preferredView(url));
+}
+
+QString WhaleDevAutomationDBus::SetPreferredView(const QString &url, const QString &viewId)
+{
+    return toJson(m_automation->setPreferredView(url, viewId));
+}
+
+QString WhaleDevAutomationDBus::SetViewPluginAvailable(const QString &viewId, bool available)
+{
+    return toJson(m_automation->setViewPluginAvailable(viewId, available));
 }
 
 QString WhaleDevAutomationDBus::ActivatePane(int pane)

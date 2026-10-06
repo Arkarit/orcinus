@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1 and T2 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2 and O3 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -52,7 +52,9 @@ by default, so sorting or hidden files would otherwise leak into it.
 |---|---|
 | `get_ui_state` | Full semantic state (see below) |
 | `get_focus_state` | Only the focus part |
-| `set_view` | `dolphin` or a view plugin ID in a pane |
+| `set_view` | `dolphin` or a view plugin ID in a pane; an automatic switch, or with `remember: true` the user's choice through the view switcher's entry (O3: becomes the location's preferred view) |
+| `get_preferred_view` / `set_preferred_view` / `clear_preferred_view` | O3: the view remembered for a location (`view`, normalized `key`, `count`); setting it is like a choice in another window (shown views stay) |
+| `set_view_plugin_available` | Test hook: a view plugin is treated as missing (`available: false`) or back, in the window's registry |
 | `activate_pane` | Make a pane the active view area |
 | `set_split_view` | Open/close split view (setter); closing closes the active side, like the Close button |
 | `set_split_ratio` | Move the handle between the halves (`left_share` 0.1–0.9), as dragging it does |
@@ -159,6 +161,12 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   e.g. the treemap) and its `urls`. `actions.<name>.gate` says why an action is off,
   e.g. `nothing selected`, `not supported for the selection`, `not routed to a view's own
   selection`.
+- Preferred views (O3): `preferredView` of a pane is the view remembered for its location
+  (`dolphin`, a plugin ID, or null); `viewOrigin` says what decided about the shown view:
+  `user` (the view switcher), `preference`, `history`, `session`, `fallback` (the
+  requested view could not be shown), `kept` (a new location without a preference: the
+  view stayed), `initial`. `restore.source` is `preference` after a preference was
+  applied.
 - File operations (T1): `fileOperations` of a pane with a plugin view: `finished` (count)
   and `last` (`operation`, `result` done/canceled/failed, `urls`, `newUrls`) of what its
   `WhaleFileOperations` reported (rename, trash, delete); `message` the error or message

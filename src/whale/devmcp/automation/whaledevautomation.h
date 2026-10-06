@@ -67,7 +67,18 @@ public:
     QJsonObject uiState() const;
     QJsonObject focusState() const;
 
-    QJsonObject setView(int pane, const QString &viewId);
+    /**
+     * Shows @p viewId in a pane, as an automatic change (nothing is remembered). With
+     * @p remember like the user's choice in the view switcher, which makes it the preferred
+     * view of the location (O3).
+     */
+    QJsonObject setView(int pane, const QString &viewId, bool remember = false);
+    /// O3: the preferred view of @p url ("view" null if there is none) and its location key.
+    QJsonObject preferredView(const QString &url) const;
+    /// O3: @p viewId "dolphin" or a plugin ID; an empty one forgets the preference.
+    QJsonObject setPreferredView(const QString &url, const QString &viewId);
+    /// Treats the view plugin @p viewId as missing (or back) in this window's registry.
+    QJsonObject setViewPluginAvailable(const QString &viewId, bool available);
     QJsonObject activatePane(int pane);
     QJsonObject setSplitView(bool enabled);
     /**

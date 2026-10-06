@@ -30,7 +30,12 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString UiState();
     Q_SCRIPTABLE QString FocusState();
     Q_SCRIPTABLE QStringList ActionIds();
-    Q_SCRIPTABLE QString SetView(int pane, const QString &viewId);
+    /// @p remember: like the user's choice in the view switcher (the location's preferred view).
+    Q_SCRIPTABLE QString SetView(int pane, const QString &viewId, bool remember);
+    Q_SCRIPTABLE QString PreferredView(const QString &url);
+    /// An empty @p viewId forgets the preference.
+    Q_SCRIPTABLE QString SetPreferredView(const QString &url, const QString &viewId);
+    Q_SCRIPTABLE QString SetViewPluginAvailable(const QString &viewId, bool available);
     Q_SCRIPTABLE QString ActivatePane(int pane);
     Q_SCRIPTABLE QString SetSplitView(bool enabled);
     Q_SCRIPTABLE QString SetSplitRatio(double leftShare);

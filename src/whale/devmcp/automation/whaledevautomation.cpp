@@ -32,6 +32,7 @@
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewhost.h"
+#include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
 
 #include <KActionCollection>
@@ -406,6 +407,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         id = semanticViewId(id);
     }
     const WhaleViewHost::RestoreInfo restore = host->lastRestore();
+    const QString preferredViewId = WhaleViewPreferences::instance()->preferredView(container->url());
     const QJsonValue restoreState = restore.source.isEmpty() ? QJsonValue(QJsonValue::Null)
                                                              : QJsonObject{
                                                                    {QStringLiteral("source"), restore.source},
@@ -481,6 +483,9 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("previews"), panePreviews(container)},
         {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
         {QStringLiteral("restore"), restoreState},
+        // O3: the view preferred at the location, and what decided about the shown view.
+        {QStringLiteral("preferredView"), preferredViewId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(semanticViewId(preferredViewId))},
+        {QStringLiteral("viewOrigin"), host->viewOrigin()},
         {QStringLiteral("selectionCount"), selected.count()},
         {QStringLiteral("selection"), selection},
         {QStringLiteral("selectedNames"), selectedNames},
@@ -712,7 +717,7 @@ void WhaleDevAutomation::recordActivation(DolphinViewContainer *container)
     }
 }
 
-QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId)
+QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId, bool remember)
 {
     QString error;
     DolphinViewContainer *container = pane(paneIndexArg, &error);
@@ -720,6 +725,30 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId)
         return failure(error);
     }
     WhaleViewHost *host = container->viewHost();
+    if (remember) {
+        // The user's path: the entry of the view switcher, which acts on the active pane.
+        const QString hostViewId = viewId == dolphinId ? WhaleViewHost::dolphinViewId() : viewId;
+        auto switcher = qobject_cast<KSelectAction *>(m_window->actionCollection()->action(QStringLiteral("whale_view_switcher")));
+        QAction *entry = nullptr;
+        const auto entries = switcher ? switcher->actions() : QList<QAction *>();
+        for (QAction *candidate : entries) {
+            if (candidate->data().toString() == hostViewId) {
+                entry = candidate;
+            }
+        }
+        if (!entry) {
+            return failure(QStringLiteral("unknown view \"%1\"").arg(viewId));
+        }
+        container->setActive(true);
+        if (!entry->isEnabled()) {
+            return failure(QStringLiteral("the view \"%1\" is not offered at this location").arg(viewId));
+        }
+        entry->trigger();
+        if (host->currentViewId() != hostViewId) {
+            return failure(QStringLiteral("the view \"%1\" could not be shown").arg(viewId));
+        }
+        return ok();
+    }
     if (viewId == dolphinId) {
         host->showDolphinView();
         return ok();
@@ -732,6 +761,43 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId)
     if (!host->showPluginView(viewId, plugin)) {
         return failure(QStringLiteral("the view \"%1\" could not be shown").arg(viewId));
     }
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::preferredView(const QString &url) const
+{
+    const QUrl location = QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile);
+    const QString viewId = WhaleViewPreferences::instance()->preferredView(location);
+    return {
+        {QStringLiteral("ok"), true},
+        {QStringLiteral("url"), location.toString()},
+        {QStringLiteral("key"), WhaleViewPreferences::locationKey(location)},
+        {QStringLiteral("view"), viewId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(semanticViewId(viewId))},
+        {QStringLiteral("count"), WhaleViewPreferences::instance()->count()},
+    };
+}
+
+QJsonObject WhaleDevAutomation::setPreferredView(const QString &url, const QString &viewId)
+{
+    const QUrl location = QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile);
+    if (WhaleViewPreferences::locationKey(location).isEmpty()) {
+        return failure(QStringLiteral("\"%1\" is no location").arg(url));
+    }
+    if (viewId.isEmpty()) {
+        WhaleViewPreferences::instance()->clearPreferredView(location);
+    } else {
+        WhaleViewPreferences::instance()->setPreferredView(location, viewId == dolphinId ? WhaleViewHost::dolphinViewId() : viewId);
+    }
+    return preferredView(url);
+}
+
+QJsonObject WhaleDevAutomation::setViewPluginAvailable(const QString &viewId, bool available)
+{
+    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    if (!viewActions) {
+        return failure(QStringLiteral("no view actions"));
+    }
+    viewActions->registry()->setPluginAvailable(viewId, available);
     return ok();
 }
 
