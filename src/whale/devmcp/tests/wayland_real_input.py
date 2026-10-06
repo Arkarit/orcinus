@@ -30,6 +30,7 @@ KEY_ESC = 1
 KEY_COMPOSE = 127  # the Menu key
 KEY_F2 = 60
 KEY_DELETE = 111
+KEY_LEFTCTRL = 29
 
 
 class RealInputUnavailable(Exception):
@@ -127,6 +128,22 @@ class RealInput:
 
     def right_click(self):
         subprocess.check_call(["ydotool", "click", "0xC1"], env=self.env, stdout=subprocess.DEVNULL)
+
+    def click(self):
+        subprocess.check_call(["ydotool", "click", "0xC0"], env=self.env, stdout=subprocess.DEVNULL)
+
+    def press(self):
+        """Left button down (e.g. to start a drag)."""
+        subprocess.check_call(["ydotool", "click", "0x40"], env=self.env, stdout=subprocess.DEVNULL)
+
+    def release(self):
+        subprocess.check_call(["ydotool", "click", "0x80"], env=self.env, stdout=subprocess.DEVNULL)
+
+    def key_down(self, code):
+        subprocess.check_call(["ydotool", "key", f"{code}:1"], env=self.env, stdout=subprocess.DEVNULL)
+
+    def key_up(self, code):
+        subprocess.check_call(["ydotool", "key", f"{code}:0"], env=self.env, stdout=subprocess.DEVNULL)
 
     def key(self, code, times=1):
         for _ in range(times):

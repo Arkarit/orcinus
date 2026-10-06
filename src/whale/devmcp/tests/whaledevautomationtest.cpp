@@ -61,6 +61,7 @@ private Q_SLOTS:
     void testUiState();
     void testSetView();
     void testPreferredViews();
+    void testContentScope();
     void testSplitPanes();
     void testHiddenFiles();
     void testFilter();
@@ -251,6 +252,55 @@ void WhaleDevAutomationTest::testPreferredViews()
     QVERIFY(!m_automation->setView(0, QStringLiteral("whale_hello"), false).value(QStringLiteral("ok")).toBool());
     QVERIFY(m_automation->setViewPluginAvailable(QStringLiteral("whale_hello"), true).value(QStringLiteral("ok")).toBool());
     QVERIFY(m_automation->setView(0, QStringLiteral("dolphin")).value(QStringLiteral("ok")).toBool());
+}
+
+void WhaleDevAutomationTest::testContentScope()
+{
+    QVERIFY(reaches(expect({
+        {QStringLiteral("panes.0.contentScope.scope"), QStringLiteral("current-folder")},
+        {QStringLiteral("panes.0.contentScope.shown"), false},
+        {QStringLiteral("panes.0.contentScope.supported"), true},
+        {QStringLiteral("panes.0.contentScope.pasteRefusal"), QJsonValue::Null},
+    })));
+    // "Include Subfolders", as the user chooses it: the files below, relative to the location.
+    QVERIFY(m_automation->setContentScope(0, QStringLiteral("recursive-files")).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({
+        {QStringLiteral("panes.0.contentScope.shown"), true},
+        {QStringLiteral("panes.0.contentScope.origin"), QStringLiteral("user")},
+        {QStringLiteral("panes.0.contentScope.preferred"), QStringLiteral("recursive-files")},
+        {QStringLiteral("panes.0.loading"), false},
+        {QStringLiteral("panes.0.contentScope.relativeItems"), QJsonArray{QStringLiteral("a.txt"), QStringLiteral("b.txt"), QStringLiteral("sub/inner.txt")}},
+        {QStringLiteral("panes.0.contentScope.fileCount"), 3},
+    })));
+    QVERIFY(m_automation->uiState()
+                .value(QStringLiteral("panes"))
+                .toArray()
+                .at(0)
+                .toObject()
+                .value(QStringLiteral("contentScope"))
+                .toObject()
+                .value(QStringLiteral("pasteRefusal"))
+                .isString());
+    QVERIFY(!m_automation->setContentScope(0, QStringLiteral("everything")).value(QStringLiteral("ok")).toBool());
+
+    // Plugin views ignore it; the file list keeps it.
+    QVERIFY(m_automation->setView(0, QStringLiteral("whale_testlist")).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({
+        {QStringLiteral("panes.0.contentScope.shown"), false},
+        {QStringLiteral("panes.0.contentScope.supported"), false},
+        {QStringLiteral("panes.0.contentScope.scope"), QStringLiteral("recursive-files")},
+    })));
+    QVERIFY(!m_automation->setContentScope(0, QStringLiteral("current-folder")).value(QStringLiteral("ok")).toBool());
+    QVERIFY(m_automation->setView(0, QStringLiteral("dolphin")).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.contentScope.shown"), true}, {QStringLiteral("panes.0.loading"), false}})));
+
+    QVERIFY(m_automation->setContentScope(0, QStringLiteral("current-folder")).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({
+        {QStringLiteral("panes.0.contentScope.shown"), false},
+        {QStringLiteral("panes.0.contentScope.preferred"), QStringLiteral("current-folder")},
+        {QStringLiteral("panes.0.itemCount"), 3},
+        {QStringLiteral("panes.0.loading"), false},
+    })));
 }
 
 void WhaleDevAutomationTest::testSplitPanes()

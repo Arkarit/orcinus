@@ -26,6 +26,7 @@
 #include "whalefileoperations.h"
 #include "whalefileoperationsimpl.h"
 #include "whalepreviewproviderimpl.h"
+#include "whalerecursivecontent.h"
 #include "whaletreecache.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
@@ -72,6 +73,7 @@
 #include <QMimeData>
 #include <QPixmap>
 #include <QPushButton>
+#include <QRegion>
 #include <QSplitter>
 #include <QTimer>
 #include <QWheelEvent>
@@ -122,6 +124,10 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("show_preview"), QStringLiteral("show_preview")},
         {QStringLiteral("reload"), KStandardAction::name(KStandardAction::Redisplay)},
         {QStringLiteral("show_information_panel"), QStringLiteral("show_information_panel")},
+        // F1: the file list's view modes (the toolbar's and View menu's actions).
+        {QStringLiteral("view_icons"), QStringLiteral("icons")},
+        {QStringLiteral("view_compact"), QStringLiteral("compact")},
+        {QStringLiteral("view_details"), QStringLiteral("details")},
         // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
         {QStringLiteral("copy"), KStandardAction::name(KStandardAction::Copy)},
         {QStringLiteral("cut"), KStandardAction::name(KStandardAction::Cut)},
@@ -443,11 +449,8 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         }
     }
 
-    bool loading = false;
-    const auto listers = view->findChildren<KCoreDirLister *>();
-    for (const KCoreDirLister *lister : listers) {
-        loading = loading || !lister->isFinished();
-    }
+    // The listers, and (F1) the files below the location the file list still waits for.
+    const bool loading = host->bridge()->isLoading();
 
     QString focusProxy = QStringLiteral("none");
     if (QWidget *proxy = view->focusProxy()) {
@@ -486,6 +489,8 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         // O3: the view preferred at the location, and what decided about the shown view.
         {QStringLiteral("preferredView"), preferredViewId.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(semanticViewId(preferredViewId))},
         {QStringLiteral("viewOrigin"), host->viewOrigin()},
+        {QStringLiteral("contentScope"), contentScopeState(container)},
+        {QStringLiteral("fileListPoints"), fileListPoints(container)},
         {QStringLiteral("selectionCount"), selected.count()},
         {QStringLiteral("selection"), selection},
         {QStringLiteral("selectedNames"), selectedNames},
@@ -510,6 +515,120 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("focusProxy"), focusProxy},
         {QStringLiteral("hiddenDolphinViewHasFocus"), pluginWidget != nullptr && contains(view, focus)},
     };
+}
+
+QJsonObject WhaleDevAutomation::contentScopeState(DolphinViewContainer *container) const
+{
+    WhaleViewHost *host = container->viewHost();
+    const WhaleRecursiveContent *content = host->recursiveContent();
+    // The shown items as paths relative to the location (a sample, in the file list's order).
+    QJsonArray relativeItems;
+    const QString prefix = container->url().adjusted(QUrl::StripTrailingSlash).path() + QLatin1Char('/');
+    const KFileItemList fileItems = container->view()->items();
+    for (int i = 0; i < fileItems.count() && i < MaxListedItems; ++i) {
+        const QString path = fileItems.at(i).url().path();
+        relativeItems.append(path.startsWith(prefix) ? path.mid(prefix.length()) : fileItems.at(i).url().toString());
+    }
+    const WhaleRecursiveContent::Timing timing = content->timing();
+    auto textOrNull = [](const QString &text) {
+        return text.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(text);
+    };
+    return {
+        {QStringLiteral("scope"), WhaleContentScopes::name(host->contentScope())},
+        {QStringLiteral("shown"), host->isRecursiveContentShown()},
+        {QStringLiteral("supported"), host->supportsRecursiveContent()},
+        {QStringLiteral("origin"), host->contentScopeOrigin()},
+        {QStringLiteral("preferred"), WhaleContentScopes::name(WhaleViewPreferences::instance()->contentScope(container->url()))},
+        {QStringLiteral("busy"), content->isBusy()},
+        {QStringLiteral("fileCount"), content->fileCount()},
+        {QStringLiteral("relativeItems"), relativeItems},
+        {QStringLiteral("timing"),
+         QJsonObject{
+             {QStringLiteral("scanMs"), timing.scanMs},
+             {QStringLiteral("projectionMs"), timing.projectionMs},
+             {QStringLiteral("modelMs"), timing.modelMs},
+             {QStringLiteral("updates"), timing.updates},
+         }},
+        {QStringLiteral("pasteRefusal"), textOrNull(content->pasteRefusal())},
+        {QStringLiteral("lastRefusal"), textOrNull(content->lastRefusal())},
+        {QStringLiteral("refusals"), content->refusalCount()},
+    };
+}
+
+QJsonValue WhaleDevAutomation::fileListPoints(DolphinViewContainer *container) const
+{
+    // Where real input reaches the file list's items (their icon and name) and its background,
+    // in the main window's coordinates (e.g. for ydotool on Wayland); only items shown completely.
+    if (!container->viewHost()->isDolphinViewShown() || !container->view()->isVisible()) {
+        return QJsonValue::Null;
+    }
+    KItemListContainer *itemListContainer = container->view()->itemListContainer();
+    auto graphicsView = qobject_cast<QGraphicsView *>(itemListContainer->viewport());
+    KItemListView *itemListView = itemListContainer->controller()->view();
+    auto model = qobject_cast<KFileItemModel *>(itemListContainer->controller()->model());
+    if (!graphicsView || !itemListView || !model) {
+        return QJsonValue::Null;
+    }
+    QWidget *viewport = graphicsView->viewport();
+    const QString prefix = container->url().adjusted(QUrl::StripTrailingSlash).path() + QLatin1Char('/');
+    QJsonArray items;
+    QRegion covered;
+    for (int index = 0; index < model->count() && items.count() < MaxListedItems; ++index) {
+        const QRectF rect = itemListView->itemRect(index);
+        // Details rows may be wider than the view: shown completely in height, the point is
+        // the middle of the visible part of the row.
+        const QRect inViewport = graphicsView->mapFromScene(itemListView->mapToScene(rect)).boundingRect();
+        const QRect visible = inViewport.intersected(viewport->rect());
+        if (rect.isEmpty() || visible.top() != inViewport.top() || visible.bottom() != inViewport.bottom() || visible.width() < 8) {
+            continue;
+        }
+        covered += inViewport;
+        // The point on the item's icon and name (a press elsewhere in a Details row starts a
+        // rubber band, not a drag), if that is visible.
+        const QRectF contextRect = itemListView->itemContextRect(index);
+        const QRect context = graphicsView->mapFromScene(itemListView->mapToScene(contextRect)).boundingRect();
+        const QPoint center = viewport->mapTo(m_window, visible.contains(context.center()) ? context.center() : visible.center());
+        const QString path = model->fileItem(index).url().path();
+        items.append(QJsonObject{
+            {QStringLiteral("path"), path.startsWith(prefix) ? path.mid(prefix.length()) : path},
+            {QStringLiteral("x"), center.x()},
+            {QStringLiteral("y"), center.y()},
+        });
+    }
+    // A point of the background: the lowest free spot near the bottom right corner.
+    QJsonValue background = QJsonValue::Null;
+    for (int dy = 12; dy < viewport->height() / 2 && background.isNull(); dy += 12) {
+        const QPoint candidate(viewport->width() - 24, viewport->height() - dy);
+        if (!covered.contains(candidate) && !itemListView->itemAt(itemListView->mapFromScene(graphicsView->mapToScene(candidate)))) {
+            const QPoint point = viewport->mapTo(m_window, candidate);
+            background = QJsonObject{{QStringLiteral("x"), point.x()}, {QStringLiteral("y"), point.y()}};
+        }
+    }
+    return QJsonObject{{QStringLiteral("items"), items}, {QStringLiteral("background"), background}};
+}
+
+QJsonObject WhaleDevAutomation::setContentScope(int paneIndexArg, const QString &scopeName)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    const std::optional<WhaleContentScope> scope = WhaleContentScopes::fromName(scopeName);
+    if (!scope) {
+        return failure(QStringLiteral("unknown scope \"%1\", expected current-folder or recursive-files").arg(scopeName));
+    }
+    // As the user does: the pane becomes active, then "Include Subfolders".
+    container->setActive(true);
+    QAction *action = m_window->actionCollection()->action(QStringLiteral("whale_include_subfolders"));
+    if (!action || !action->isEnabled()) {
+        return failure(QStringLiteral("\"Include Subfolders\" is not available in this pane (file list at a local folder only)"));
+    }
+    const bool recursive = *scope == WhaleContentScope::RecursiveFiles;
+    if (action->isChecked() != recursive) {
+        action->trigger();
+    }
+    return ok();
 }
 
 QJsonObject WhaleDevAutomation::uiState() const

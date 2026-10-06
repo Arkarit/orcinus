@@ -92,6 +92,9 @@ public:
     QJsonObject setFilterText(int pane, const QString &text);
     QJsonObject clearFilter(int pane);
     QJsonObject setHiddenFiles(int pane, bool shown);
+    /// F1: @p scope "current-folder" or "recursive-files" for the file list of a pane, through
+    /// "Include Subfolders" as the user chooses it (remembered for the location).
+    QJsonObject setContentScope(int pane, const QString &scope);
     QJsonObject setSort(int pane, const QString &field, const QString &order, std::optional<bool> foldersFirst);
     QJsonObject triggerAction(const QString &actionId);
 
@@ -247,6 +250,10 @@ private:
     QJsonValue clipboardState() const;
     QJsonArray dialogs() const;
     QJsonObject paneState(DolphinViewContainer *container, int index) const;
+    /// F1: the content scope of the pane's file list and its recursive content.
+    QJsonObject contentScopeState(DolphinViewContainer *container) const;
+    /// Window positions of the file list's fully shown items and of its background, for real input.
+    QJsonValue fileListPoints(DolphinViewContainer *container) const;
     QJsonValue panePreviews(DolphinViewContainer *container) const;
     /// What the file operations of the pane's plugin view have done (T1), see fileOperation().
     QJsonValue paneFileOperations(DolphinViewContainer *container) const;

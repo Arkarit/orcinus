@@ -102,6 +102,11 @@ QString WhaleDevAutomationDBus::SetHiddenFiles(int pane, bool shown)
     return toJson(m_automation->setHiddenFiles(pane, shown));
 }
 
+QString WhaleDevAutomationDBus::SetContentScope(int pane, const QString &scope)
+{
+    return toJson(m_automation->setContentScope(pane, scope));
+}
+
 QString WhaleDevAutomationDBus::SetSort(int pane, const QString &field, const QString &order, const QString &foldersFirst)
 {
     std::optional<bool> folders;

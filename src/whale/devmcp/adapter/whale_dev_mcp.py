@@ -156,6 +156,18 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"pane": PANE, "shown": {"type": "boolean"}}, "required": ["shown"]},
     },
     {
+        "name": "set_content_scope",
+        "description": "F1: the content scope of a pane's file list, through \"Include Subfolders\" as the user "
+        "chooses it (the pane becomes active; the choice is remembered for the location): \"recursive-files\" "
+        "(the files below the location, no folders) or \"current-folder\". Only for the file list at a local "
+        "folder. See panes.N.contentScope in the state.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"pane": PANE, "scope": {"type": "string", "enum": ["current-folder", "recursive-files"]}},
+            "required": ["scope"],
+        },
+    },
+    {
         "name": "set_sort",
         "description": "Sets the sorting of a pane. Omitted values stay unchanged. Note that Whale switches to the "
         "preferred order of a field when the field changes; the order given here is applied after that.",
@@ -200,7 +212,8 @@ TOOLS = [
         "and move_to_other_pane change files or the clipboard and are refused "
         "unless Whale was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1. rename opens Whale's "
         "rename path (inline in views that can, else the dialog: see rename_dialog); properties opens a dialog; "
-        "show_preview toggles 'Show Previews' of the location.",
+        "show_preview toggles 'Show Previews' of the location; view_icons/view_compact/view_details choose the "
+        "file list's view mode.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -208,7 +221,8 @@ TOOLS = [
                     "type": "string",
                     "enum": ["focus_other_view", "go_up", "go_back", "go_forward", "edit_location", "select_all",
                              "invert_selection", "rename", "properties", "new_tab", "activate_next_tab",
-                             "activate_prev_tab", "show_preview", "reload", "show_information_panel", "copy", "cut",
+                             "activate_prev_tab", "show_preview", "reload", "show_information_panel", "view_icons",
+                             "view_compact", "view_details", "copy", "cut",
                              "paste", "trash", "delete", "duplicate", "copy_location", "copy_to_other_pane",
                              "move_to_other_pane"],
                 }
@@ -517,6 +531,8 @@ class Whale:
             return result(iface.ClearFilter(pane))
         if tool == "set_hidden_files":
             return result(iface.SetHiddenFiles(pane, bool(args["shown"])))
+        if tool == "set_content_scope":
+            return result(iface.SetContentScope(pane, args["scope"]))
         if tool == "set_sort":
             folders = args.get("folders_first")
             folders = "" if folders is None else ("true" if folders else "false")

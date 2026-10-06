@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2 and O3 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3 and F1 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_f1_wayland_real.py` (real drags on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -66,10 +66,11 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_location` | Navigate a pane through the location bar |
 | `set_filter_text` / `clear_filter` | Filter bar of a pane |
 | `set_hidden_files` | Setter, not a toggle |
+| `set_content_scope` | F1: `current-folder` or `recursive-files` for a pane's file list through "Include Subfolders" (the user's choice, remembered for the location); local folders only |
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | The same QActions as the menus, toolbar and shortcuts (since T2 also on a plugin view's own selection, see `command`). Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), and the file operations `copy`, `cut`, `paste`, `trash`, `delete`, `duplicate`, `copy_location`, `copy_to_other_pane`, `move_to_other_pane` (see below). Disabled (gated) actions are refused. |
+| `trigger_action` | The same QActions as the menus, toolbar and shortcuts (since T2 also on a plugin view's own selection, see `command`). Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), `view_icons`/`view_compact`/`view_details` (the file list's view modes, F1), and the file operations `copy`, `cut`, `paste`, `trash`, `delete`, `duplicate`, `copy_location`, `copy_to_other_pane`, `move_to_other_pane` (see below). Disabled (gated) actions are refused. |
 | `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
 | `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
 | `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
@@ -171,6 +172,18 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   requested view could not be shown), `kept` (a new location without a preference: the
   view stayed), `initial`. `restore.source` is `preference` after a preference was
   applied.
+- Content scope (F1): `contentScope` of a pane: `scope` (`current-folder` or
+  `recursive-files`, the file list's scope at the location), `shown` (the file list shows
+  the files below its location now), `supported` (file list at a local folder), `origin`
+  (`user`, `preference`, `default`, `history`, `session`, `initial`), `preferred` (the
+  location's remembered scope), `busy`, `fileCount`, `relativeItems` (the shown items
+  relative to the location, in the file list's order), `timing` (`scanMs`,
+  `projectionMs`, `modelMs`, `updates`), `pasteRefusal` (why Paste is refused there, or
+  null), `lastRefusal`/`refusals` (the explanations shown for refused drops and Paste).
+  `loading` includes the files below the location the file list still waits for.
+- Real input (F1): `fileListPoints` of a pane showing the file list: `items` (`path`
+  relative to the location, `x`/`y` the center in main window coordinates, for the fully
+  shown items) and a `background` point, e.g. for real drags with ydotool on Wayland.
 - File operations (T1): `fileOperations` of a pane with a plugin view: `finished` (count)
   and `last` (`operation`, `result` done/canceled/failed, `urls`, `newUrls`) of what its
   `WhaleFileOperations` reported (rename, trash, delete); `message` the error or message

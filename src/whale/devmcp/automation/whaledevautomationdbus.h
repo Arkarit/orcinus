@@ -44,6 +44,7 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString SetFilterText(int pane, const QString &text);
     Q_SCRIPTABLE QString ClearFilter(int pane);
     Q_SCRIPTABLE QString SetHiddenFiles(int pane, bool shown);
+    Q_SCRIPTABLE QString SetContentScope(int pane, const QString &scope);
     /// @p foldersFirst is "true", "false" or "" (unchanged); empty @p field or @p order are unchanged too.
     Q_SCRIPTABLE QString SetSort(int pane, const QString &field, const QString &order, const QString &foldersFirst);
     Q_SCRIPTABLE QString TriggerAction(const QString &actionId);

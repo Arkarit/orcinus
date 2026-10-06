@@ -61,7 +61,7 @@ def run(args, work):
             raise Failure(f"destructive actions offered: {offered & FORBIDDEN_ACTIONS}")
         # Exactly this small set; anything new must be a deliberate decision (see README.md).
         expected_tools = {"get_ui_state", "get_focus_state", "set_view", "activate_pane", "set_split_view",
-                          "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_sort",
+                          "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_content_scope", "set_sort",
                           "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
                           "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "quit",
                           "trigger_action", "wait_for_state", "screenshot", "get_preview_state", "request_preview",
