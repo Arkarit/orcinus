@@ -2294,3 +2294,216 @@ Unit-Test 3× offscreen, 3× Wayland grün.
 **Weiter offen:** M8c (Live-Updates, Remote), M11 (RolesUpdater pausieren), Toolbar-Themen; sichtbares
 „Zurücksetzen“ der Präferenz; Vererbung auf Unterordner (bewusst nicht in O3); Compare/`show_target`
 (T2-Rest).
+
+### 14.21 Ergebnisse aus F1: „Unterordner einbeziehen" (rekursive Dateien in der Dateiliste) (2026-10-06)
+
+Commits `461a99742` (Test-Views aus dem Produkt), `1b1f8c19f` (Session-Tests, Wayland-Fund),
+`9fa715d1f` (Model-Grundlage, Dolphin-Dateien), `04e0bb884` (F1), `d7fde2b7c` (Dev-MCP).
+**Öffentliche Plugin-API unverändert (Version 8).** F1 ist keine View: Präsentation (Icons/Compact/Details)
+und Inhalts-Scope (Current Folder / Recursive Files) sind getrennt.
+
+**Vorab – Test-Views aus dem Produkt:** `Hello` und `Test List` sind Test-Fixtures. Quellen nach
+`src/whale/tests/plugins/`, gebaut nur mit `BUILD_TESTING` als einfache Module in ein eigenes
+Test-Plugin-Verzeichnis (`<build>/src/whale/tests/testviewplugins`), nie installiert. Ein Whale aus dem
+Build-Tree findet nur noch `whale_treemap` (geprüft: `availableViews = [dolphin, whale_treemap]`).
+Unit-Tests fügen das Testverzeichnis zum Library-Path hinzu, MCP-Abnahmen bekommen es über `--plugin-dir`
+(Liste mit `:`), `whale-dev-session.sh --test-views` für Handarbeit. Neue Prüfungen:
+`whaleviewregistrytest::testProductViews`, `whale_view_plugin_dependencies` schlägt fehl, wenn eine
+Test-View im Produktverzeichnis liegt; der Boundary-Lint deckt die Test-Plugins mit ab. Veraltete
+`whale_hello.so`/`whale_testlist.so` im Build-Tree und ein altes `whale_hello.so` (API 1) im privaten
+Install-Prefix gelöscht.
+
+**Ergebnis des Architektur-Spikes: Die bestehenden Basic Views tragen rekursiven Inhalt mit einer
+lokalen Erweiterung des Models.** Entscheidend war ein Befund im Code: `KFileItemModel` kann Items aus
+vielen Ordnern bereits *flach* halten. Ein Item ist nur dann Kind (Einrückung, `expandedParentsCount`,
+hierarchischer Vergleich in `lessThan`), wenn sein Elternordner selbst im Model steht
+(`createItemDataList()`: Parent per `index(parentUrl)`). Ohne Ordnerzeilen ist jedes Item Top-Level.
+Filter (`m_filter`, `m_filteredItems`), Sortierung, Gruppierung, Selection (Indexe), Drag-Daten
+(`createMimeData`), RolesUpdater (Previews, Icons, MIME), Kontextmenü und alle Actions arbeiten auf den
+`KFileItem`s mit ihren echten URLs. Es fehlte nur eine zweite Item-Quelle neben dem `KDirLister`. Kein
+Umbau von `DolphinView`/`KDirLister`, keine nachgebauten Views.
+
+**Model-Erweiterung (`kfileitemmodel.{h,cpp}`, ≈ 140 Zeilen, alle „Whale"):**
+
+| API | Verhalten |
+|---|---|
+| `setExternalItemsEnabled(bool)` | leert das Model; der Lister lädt weiter (Root-Item, Ladezustand, Fehler, Redirects, `clear` bei neuem Ort), seine `itemsAdded/Deleted/refreshItems` werden ausgelassen (Guard in den drei Slots, merkt sich „ausgelassen"); die Löschung des Ortes selbst wird weiter gemeldet (`currentDirectoryRemoved`). Ausschalten zeigt die Lister-Items wieder (sofort aus `items()`, wenn er fertig ist; lädt er noch und hat schon geliefert: `openUrl(Reload)`) |
+| `setExternalItems(KFileItemList)` | Diff per URL gegen gezeigte **und** gefilterte Items → bestehende Slots (`slotItemsDeleted`, `slotRefreshItems` mit `KFileItem::cmp`, `slotItemsAdded`). Unveränderte Items bleiben samt Selection/Scrollposition |
+| verzögertes `directoryLoadingCompleted` | jedes (Neu-)Laden des Ortes (Lister-`clear`) wartet auf die nächsten externen Items; erst dann `updateViewState()` der `DolphinView` (aktuelles Item, Position, vorgemerkte Selection aus History/Reload) |
+
+Empirisch geprüft (Probe gegen `KCoreDirLister`): `clear` und `started` kommen synchron in `openUrl`,
+auch bei `Reload` und bei gecachten Ordnern; Items kommen asynchron. Darauf beruht die Pending-Logik.
+
+**Projektion:** `WhaleTreeScanner` (Cache M8b) → `WhaleRecursiveProjection::project()` im Worker
+(`QtConcurrent`, abbrechbar) → `KFileItemList` → `setExternalItems`. Keine zweite Rekursion: der Baum
+gibt Struktur, Typ und Hidden-Semantik vor; pro Datei ein `statx` für die Details, die der Baum nicht
+hält. Der `UDSEntry` entspricht exakt dem des KIO-file-Workers (NAME, LINK_DEST, FILE_TYPE, ACCESS, SIZE,
+LOCAL_USER_ID/GROUP_ID, M/A/CREATION_TIME; kaputte Links `S_IFMT-1`, 0777, Größe 0), MIME verzögert wie
+beim Lister. Geprüft gegen echte Lister-Items (`testProjectionEqualsListing`, `KFileItem::cmp`).
+URL, Name, Größe, Typ, Datum kommen damit aus Dolphins eigener Infrastruktur; Parent/relativer Pfad über
+die neue Rolle (unten). Keine parallele Datenmodellwelt.
+
+**Relative Path:** neue Rolle `relativePath` („Relative Path"/„Relativer Pfad", Gruppe „Other") in der
+bestehenden Rollen-Tabelle, ≈ 15 Zeilen: `retrieveData()` (Ordner relativ zu `directory()`, z. B.
+`assets/ui/`, leer für direkte Items), natürliche Sortierung, generische Gruppierung. Sichtbar wie jede
+Zusatzinfo (Details-Spalte, Sortieren nach). Hinweis: per Ordner gespeicherte `VisibleRoles` mit
+`relativePath` kennt ein System-Dolphin nicht (Whale nutzt standardmäßig globale View-Properties).
+
+**Scope-Semantik:** nur Dateien (`File`, `Other`, Links auf Dateien, kaputte Links), **keine
+Ordnerzeilen**, auch keine leeren Ordner; Links auf Ordner fallen weg (Ordner für den Benutzer, der
+Scanner folgt ihnen nicht). Nur lokale Orte (`file:`); anderswo (trash:, sftp, Suche) ist die Action aus
+und die Dateiliste zeigt den Ort selbst. `stayOnFilesystem` wie beim Scanner (Mount-Punkte nicht betreten).
+
+**Hidden Files:** folgt „Versteckte Dateien anzeigen" über die Scanner-Option `includeHidden`: aus →
+versteckte Dateien fehlen **und** versteckte Ordner werden nicht betreten (Dateien darunter fehlen); an
+→ alles. Umschalten scannt neu (anderer Cache-Schlüssel). Dolphins `.hidden`-Dateien (KIOs `UDS_HIDDEN`)
+kennt der Scanner nicht. Backup-Dateien (`~`) über Dolphins MIME-Filter wie gewohnt.
+
+**Filter / Sortierung:** unverändert Dolphins (Filterleiste wirkt auf die rekursiven Items, gefilterte
+Items überleben Rescans), Sortierung nach allen Rollen inkl. `relativePath`; keine Ordnersortierung, weil
+keine Ordner. Hinweis: Dolphin wählt für Größe/Datum absteigend als bevorzugte Reihenfolge.
+
+**Selection / Operationen:** Dolphins Selection (Indexe, Multi, Select All) über die echten URLs. Alle
+Operationen laufen auf den Items der Selection, also auf den echten URLs, nie `Ort + Name`: Öffnen,
+Umbenennen (Dialog und inline; im eigenen Ordner), Papierkorb, Löschen, Kopieren/Ausschneiden, Pfad
+kopieren, Duplizieren (neben dem Original, danach ausgewählt), Eigenschaften, In andere Hälfte
+kopieren/verschieben, Drag-out. Nach Mutationen: die Cache-Invalidierung (M8b) meldet jetzt
+`WhaleTreeCache::treeChanged(root)` (gehaltene Bäume und laufende Scans) → `WhaleRecursiveContent`
+scannt nach 300 ms neu (während eines laufenden Scans: danach) → Diff. Kein M8c: keine Baumreparatur,
+keine Node-Signale; Bäume, die der Cache nicht hält (Budget), werden nicht beobachtet (dann F5).
+Vorgemerkte Auswahl (Duplicate, Rename-Dialog) greift über `DolphinView::updateViewState()` nach dem Diff.
+
+**Drag & Drop / Paste – „Recursive darf Quelle sein, nie Ziel":**
+
+- Drag-out unverändert (Dolphins Drag-Daten mit echten URLs).
+- Drop-in komplett gesperrt: Event-Filter auf dem Viewport der Dateiliste (`fileListDragWidget()`),
+  `DragEnter/Move/Drop` → `IgnoreAction`, ignoriert, nichts erreicht den Controller (kein Ziel-Highlight,
+  kein Auto-Öffnen, kein `KIO::drop`). Hintergrund, Dateien, leere Bereiche gleich.
+- Erklärung im Nachrichtenbereich der View (`DolphinViewContainer::showMessage`, Information): beim
+  `DragEnter` eines fremden Drags **oder** bei einem trotzdem zugestellten Drop, je Drag (`QMimeData`) nur
+  einmal, nie bei `DragMove`. Grund für `DragEnter`: Unter Wayland liefert der Compositor einen
+  abgelehnten Drop gar nicht aus. Eigene Drags der View (Maus-Press im Viewport vor dem Drag) schweigen.
+  Text: „Cannot drop files into a recursive view because it contains items from multiple folders. Turn
+  off “Include Subfolders” to choose a destination." (de: „…Schalte „Unterordner einbeziehen“ aus, um ein
+  Ziel auszuwählen.") – statt „Switch to Current Folder", weil die UI nur diesen Schalter hat.
+- Paste: `DolphinMainWindow::paste()` fragt `WhaleViewActions::routeAction("edit_paste")` (wie T2) →
+  keine Operation, Erklärung „Cannot paste into a recursive view because no single destination folder
+  is selected. Turn off “Include Subfolders” first." Die Action bleibt im Dolphin-Zustand aktiv
+  (abgefangen statt deaktiviert), damit auch Strg+V erklärt wird. Kontextmenü und Selection-Mode-Leiste
+  nutzen dieselbe Action.
+- Zurück auf Current Folder: Drop und Paste sind wieder Dolphins (getestet).
+- Nicht gesperrt: „Neu erstellen" (Ziel ist eindeutig der Ort; ein neuer Ordner erscheint nicht).
+
+**Previews:** Dolphins RolesUpdater für die sichtbaren Items, keine zweite Pipeline. Fund dabei:
+`KFileItemModelRolesUpdater::slotItemsInserted` dedupliziert die Elternordner per `QList::contains` –
+quadratisch bei Items vieler Ordner (betrifft upstream auch Suchergebnisse): 100k Dateien/2000 Ordner,
+Sortierung nach Größe: 1,38 s → `QSet`, Model-Einfügen 1747 → 688 ms.
+
+**Persistenz / History / Session / O3 (Entscheidung A: pro Ort, eigene Präferenz):**
+
+- Laufzeit: `WhaleViewHost` hält den Scope der Fläche; wirksam nur bei gezeigter Dateiliste an lokalem
+  Ort (sonst bleibt er gemerkt und greift, sobald die Dateiliste wieder sichtbar ist).
+- Präferenz: `WhaleViewPreferences`, gleiche Datei und Schlüssel-Hash wie O3, aber Gruppe
+  `[ContentScopes]` (Wert `recursive-files,<location key>`). Nur die Wahl des Benutzers schreibt; „aus"
+  löscht den Eintrag (Default = Current Folder). Kein „kept" wie bei O3 und keine Vererbung: sonst würde
+  „hoch zu ~" ungefragt das ganze Home scannen. View- und Scope-Präferenz nie in einer ID vermischt.
+- History/Session: der Scope ist der **View-State der Dateiliste** (`states["org.kde.dolphin.itemview"]`,
+  `QDataStream` v1 mit Name, nur bei Recursive) in der bestehenden M6-Infrastruktur – kein neues Format,
+  `FormatVersion` bleibt 1. History hat Vorrang vor der Präferenz, Session ebenso.
+- Ablauf beim Ortswechsel: View und Scope werden zusammen entschieden (`m_holdRecursiveContent`), dann
+  einmal angewendet. Ursprung `contentScopeOrigin()`: user/preference/default/history/session/initial.
+- O3 unverändert: Treemap ignoriert den Scope (Plugin-Views sehen immer das Listing; vor dem Erzeugen
+  einer Plugin-View wird der rekursive Inhalt abgeschaltet). Scope wechseln ändert keine View-Präferenz,
+  View wechseln keinen Scope.
+- Scope-Wechsel: keine Navigation; Einschalten an geladenem Ort per `DolphinView::reload()` (echter
+  Ladezyklus: „Loading…", Statusleiste, State-Wiederherstellung), Auswahl wird vorgemerkt; Ausschalten
+  stellt die Lister-Items synchron wieder her, Auswahl direkter Items bleibt.
+
+**UI:** `KToggleAction` „Include Subfolders"/„Unterordner einbeziehen" (`whale_include_subfolders`,
+Icon `folder-tree`) im Ansicht-Menü neben „View Type", im `view_settings`-Dropdown der Toolbar und im
+Hamburger-Menü. Aktiv nur bei Dateiliste an lokalem Ort. `dolphinui.rc` v51, `dolphinuiforphones.rc` v8.
+Deutsche Texte: neuer kleiner Whale-Katalog `po-whale/de/whale.po`, beim Build per `msgcat --use-first`
+vor Dolphins Katalog gemischt (Dolphins `po/` bleibt unberührt).
+
+**Performance** (offscreen, SSD, warm; Ordner à 50 Dateien in zwei Ebenen; „GUI-Lücke" = längste Pause
+eines 10-ms-Timers):
+
+| Schritt | 1k | 10k | 100k |
+|---|---|---|---|
+| Scan (Worker) / Projektion (Worker) / Model (GUI) | 11 / 10 / 22 ms | 21 / 31 / 188 ms | 186 / 264 / 259 ms |
+| Scope an (Details, Name) gesamt (GUI-Lücke) | 73 ms (33) | 268 ms (200) | 719 ms (269) |
+| Sortieren nach Größe | 8 ms | 50 ms | 383 ms |
+| Filter / Filter aus | 2 / 17 ms | 24 / 183 ms | 265 / 733 ms |
+| Wechsel nach Icons | 23 ms | 220 ms | 732 ms (702) |
+| Scope aus | 1 ms | 7 ms | 108 ms |
+| Scope wieder an (Cache-Hit, Icons, Größe) gesamt (GUI-Lücke) | 56 ms (20) | 745 ms (98) | 2183 ms (701) |
+
+Vergleich Dolphins eigenes Listing eines flachen Ordners: 10k 801 ms (Lücke 197), 100k Details 6575 ms
+(Lücke 264), Icons 6101 ms (171), Icons nach Größe 6846 ms (372). F1 zeigt 100k Dateien also rund 9× schneller
+als Dolphin einen 100k-Ordner listet, mit vergleichbarer GUI-Lücke in Details. Scan und Projektion laufen
+nie im GUI-Thread. Was im GUI-Thread bleibt, ist Dolphins eigenes Einfügen in Model und View (sortieren,
+Layout; in Icons nach Größe bis ≈ 0,7 s bei 100k, weil alles in einem Block kommt statt in KIO-Batches) –
+dieselben Kosten wie bei Dolphins Sortier-/Filter-/Ansichtswechseln dieser Größe. Kein Chunking eingebaut:
+Teilblöcke würden ineinander gemischt und mehr Bereiche erzeugen (siehe „Filter aus"); offen für später.
+
+**Dolphin-Dateien (produktiv):**
+
+| Datei | Änderung | Warum |
+|---|---|---|
+| `kitemviews/kfileitemmodel.h/.cpp` | externe Items (≈ 120 Z.), Rolle `relativePath` (≈ 20 Z.) | zweite Item-Quelle; Spalte |
+| `kitemviews/kfileitemmodelrolesupdater.cpp` | `QSet` statt `QList::contains` (3 Z.) | quadratisch bei vielen Ordnern |
+| `dolphinmainwindow.cpp` | Paste fragt Whale (3 Z.), Action im Hamburger-Menü (1 Z.) | Paste sperren; Erreichbarkeit ohne Menüleiste |
+| `dolphinviewcontainer.cpp` | `messageRequested` → `showMessage` (3 Z.) | Erklärungen im bestehenden Nachrichtenbereich |
+| `dolphinui.rc`, `dolphinuiforphones.rc` | Action + Version | Ansicht-Menü |
+| `CMakeLists.txt` (oben) | Whale-Katalog mischen | deutsche Texte |
+
+`DolphinView` und `KDirLister` sind unverändert.
+
+**Dev-MCP:** Zustand `panes.N.contentScope` (scope, shown, supported, origin, preferred, busy, fileCount,
+relativeItems, timing, pasteRefusal, lastRefusal, refusals), `fileListPoints` (Item-/Hintergrundpunkte für
+echte Eingabe), `loading` inkl. ausstehender rekursiver Items; Tool `set_content_scope`, `trigger_action`
+`view_icons/view_compact/view_details`. Kein Drop-Tool nötig: `perform_drag_drop` prüft den Filter mit
+denselben Events wie ein echter Drop.
+
+**Tests:**
+
+- `whalerecursivecontenttest` (42 Fälle): Scope 1–5, Basic Views 6–8 (data-driven), Projektion = Lister,
+  Model-API allein (Diff, Filter, verzögertes Completed, Ausschalten), Ort gelöscht, Relative Path,
+  Selection 9–11, Operationen 12–20, Drop/Paste 21–31, Sort/Filter 32–35, Änderungen/F5, State 36–38
+  (Präferenz, History, Session mit Split, O3 zusammen), Treemap ignoriert Scope, Remote, Performance 39–41
+  (1k/10k/100k) plus Dolphin-Baseline. Offscreen 42/42, Wayland 41/42 (Clipboard übersprungen).
+- `whaledevautomationtest::testContentScope`.
+- MCP-Abnahme `test_f1_acceptance.py` (39 Schritte offscreen inkl. K/Paste; 32 auf echtem Wayland, Paste
+  dort übersprungen) – A Details, B Icons, C Compact, D Filter, E Sort, F Multi-Selection + Duplicate/Trash,
+  G Split (Quelle ja, Ziel nein, Erklärung), H History, K Paste/Drop, J O3+F1, I Session-Neustart; ctest
+  `whale_dev_mcp_f1_e2e`.
+- Echte Wayland-Eingabe `test_f1_wayland_real.py` (ydotool + KWin-Skript, nötig, weil der Compositor
+  DnD vermittelt): echter Klick, Strg+Klick, echter Drag-out (kopiert), echter Drag-in (abgelehnt, eine
+  Erklärung trotz weiterer Bewegungen – Zustand mitten im Drag geprüft), ohne Scope normaler Drop. Grün.
+- Regression: volle Suite offscreen 61/62 (bekannt `testAccessibilityTree`); M3–M7, M9, T1 (`--popups off`
+  und `real`), T2 (inkl. `--real-keys`), O3 auf echtem Wayland grün. Wayland-Unit: bekannt
+  `whaletreemaptest::testHover`, `whaleactionstest::testItemInfo`.
+- Fund unterwegs (Commit `1b1f8c19f`): Session-Tests zeigten ein neues Hauptfenster vor
+  `readProperties()`; unter Wayland löst der Fokus bei gefülltem Session-Clipboard `dataChanged` aus und
+  Dolphins `updatePasteAction()` dereferenziert den fehlenden View-Container. Tests restaurieren jetzt wie
+  `KMainWindow::restore()` (erst Session, dann `show()`); die App selbst ist nicht betroffen.
+
+**Abweichungen vom Auftrag:**
+
+- Meldungstexte „Turn off “Include Subfolders”…" statt „Switch to Current Folder" (UI hat nur den Schalter).
+- Drop-Erklärung schon beim Hineinziehen eines fremden Drags (Wayland stellt abgelehnte Drops nicht zu).
+- Paste wird abgefangen (mit Erklärung), nicht deaktiviert.
+- Updates nach Änderungen kommen allgemein über die Cache-Invalidierung (auch Änderungen anderer
+  Programme), nicht nur nach eigenen Operationen; gedrosselt, kein Live-Repair.
+- Neuer Whale-Übersetzungskatalog für die deutschen Texte.
+- Kein Chunking des 100k-Einfügens (s. Performance).
+
+**Offen für „Recursive Files + Folders":** Ordnerzeilen bräuchten echte Elternbeziehungen im Model (dann
+greifen Einrückung/`lessThan`-Hierarchie und das Ausklappen der Details-Ansicht) oder eine bewusste flache
+Darstellung mit Ordnern; Drop auf Ordnerzeilen wäre wieder ein eindeutiges Ziel (Sperre verfeinern);
+Ordnergrößen/Zähler (RolesUpdater zählt Ordner per Lister-URL); Links auf Ordner; Sortierung „Ordner
+zuerst" pro Ebene.
+
+**Weiter offen:** M8c (Teilbäume aus Oberwurzeln, inkrementelle Updates, Remote), M11 (RolesUpdater
+pausieren), Toolbar-Neugestaltung (Scope-Schalter sichtbarer), Chunking großer Einfügungen,
+`.hidden`-Dateien im Scanner, sichtbares Zurücksetzen der Präferenzen, Compare/`show_target` (T2-Rest).
