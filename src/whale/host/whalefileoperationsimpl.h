@@ -9,6 +9,8 @@
 
 #include "whalefileoperations.h"
 
+#include <KFileItem>
+
 #include <functional>
 
 class DolphinViewBridge;
@@ -33,6 +35,18 @@ public:
     bool updateDropAction(QDragMoveEvent *event, const QUrl &url) override;
     bool drop(QDropEvent *event, const QUrl &url, QWidget *widget) override;
 
+    Operations supportedOperations(const QList<QUrl> &urls) const override;
+    void openItems(const QList<QUrl> &urls) override;
+    void openItemsWith(const QList<QUrl> &urls) override;
+    void showItemInFolder(const QUrl &url) override;
+    void showProperties(const QList<QUrl> &urls) override;
+    void renameItems(const QList<QUrl> &urls) override;
+    void trashItems(const QList<QUrl> &urls) override;
+    void deleteItems(const QList<QUrl> &urls) override;
+    void copyItems(const QList<QUrl> &urls) override;
+    void cutItems(const QList<QUrl> &urls) override;
+    void copyLocations(const QList<QUrl> &urls) override;
+
     using DragRunner = std::function<Qt::DropAction(QDrag *drag)>;
 
     /**
@@ -44,6 +58,16 @@ public:
     static void setDragRunner(const DragRunner &runner);
 
 private:
+    /// The items of @p urls: as listed, else read from the file system (KFileItem(url)).
+    KFileItemList itemsFor(const QList<QUrl> &urls) const;
+    /// False after showing an error in the view area if a local item does not exist.
+    bool checkExisting(const QList<QUrl> &urls) const;
+    /// True if one of @p urls is the location of the view area or a folder above it.
+    bool removesLocation(const QList<QUrl> &urls) const;
+    void putOnClipboard(const QList<QUrl> &urls, bool cut) const;
+    /// Moves to the trash or deletes, as DolphinView::trashSelectedItems() and deleteSelectedItems().
+    void removeItems(Operation operation, const QList<QUrl> &urls);
+
     DolphinViewBridge *const m_bridge;
 };
 

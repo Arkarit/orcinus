@@ -162,6 +162,9 @@ WhaleTreeCache::Key WhaleTreeCache::keyOf(const QUrl &root, const WhaleTreeScann
 
 std::optional<WhaleTreeWalker::Outcome> WhaleTreeCache::lookup(const QUrl &root, const WhaleTreeScanner::Options &options)
 {
+    // Changes that happened before this request (e.g. by a file operation that has just
+    // finished) must drop their trees first, even if their report is still queued.
+    m_watch->processPendingEvents();
     const auto entry = m_entries.find(keyOf(root, options));
     if (entry == m_entries.end()) {
         return std::nullopt;

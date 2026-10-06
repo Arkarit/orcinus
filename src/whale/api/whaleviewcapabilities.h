@@ -41,7 +41,9 @@ enum class WhaleViewCapability : quint32 {
     /// WhaleView::startRename(). Without it, Whale renames with a dialog.
     InlineRename = 1 << 8,
     /// The view shows more than the current folder listing. Its items cannot be the
-    /// host's selection yet, so the actions on selected items are disabled.
+    /// host's selection, so Whale's actions on selected items (and their shortcuts) are
+    /// disabled; the view offers operations on its items itself, through
+    /// WhaleFileOperations (e.g. from its own context menu).
     RecursiveContent = 1 << 9,
     KeyboardNavigation = 1 << 10, ///< The view can be operated with the keyboard. (Informative.)
 };

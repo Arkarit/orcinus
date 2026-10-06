@@ -118,6 +118,13 @@ int WhaleTreeWatch::watchCount(quint64 owner) const
     return m_core->watches.value(owner).count();
 }
 
+void WhaleTreeWatch::processPendingEvents()
+{
+    if (isValid()) {
+        readEvents();
+    }
+}
+
 void WhaleTreeWatch::readEvents()
 {
     alignas(inotify_event) char buffer[16 * 1024];

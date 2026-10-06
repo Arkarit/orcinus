@@ -5,7 +5,7 @@
 # Whale view plugins, see .privatedoc/whale-view-plugins-plan.md.
 
 # Exact version of the view plugin API. Plugins must be built against the same value.
-set(WHALE_VIEW_API_VERSION 6)
+set(WHALE_VIEW_API_VERSION 7)
 
 # kcoreaddons_add_plugin puts plugins below CMAKE_LIBRARY_OUTPUT_DIRECTORY (bin/), but there
 # bin/whale is the executable, so bin/whale/views cannot exist. View plugins of the build
@@ -95,6 +95,7 @@ target_link_libraries(whaleviewhost PUBLIC
     KF6::CoreAddons
     KF6::I18n
     KF6::KIOGui
+    KF6::KIOWidgets
     KF6::ConfigCore
     Qt6::Concurrent
     KF6::WidgetsAddons

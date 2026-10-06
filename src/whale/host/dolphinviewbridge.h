@@ -114,6 +114,40 @@ public:
     void requestItemInfo(const QUrl &url);
 
     /**
+     * Opens @p items like a double click in the DolphinView (plan 3.2): the view area
+     * becomes active and the container's own handling enters folders and archives or
+     * opens files with their application. The items need not be in the listing.
+     */
+    void openItems(const KFileItemList &items);
+
+    /**
+     * Makes the folder of @p url the location and selects @p url there, as Dolphin's
+     * "Open Path" does: the view area becomes active, the shell enters the folder
+     * (DolphinView::urlActivated, with history), and the item is marked for selection
+     * once the DolphinView has the new location, so loading the folder selects it. If
+     * the folder is the location already, the item is selected at once.
+     */
+    void showItemInFolder(const QUrl &url);
+
+    /**
+     * Shows @p message as an error in the view area, as the DolphinView does after a
+     * failed operation (DolphinView::errorMessage).
+     */
+    void showErrorMessage(const QString &message, int kioErrorCode);
+
+    /**
+     * Shows @p message in the status bar of the view area, as the DolphinView does after
+     * an operation (DolphinView::operationCompletedMessage).
+     */
+    void showOperationCompletedMessage(const QString &message);
+
+    /**
+     * @return The widget that dialogs and jobs of the view area belong to, as those of
+     *         the DolphinView do (it is the DolphinView, hidden or not).
+     */
+    QWidget *operationsWidget() const;
+
+    /**
      * Renames the selected items with Dolphin's rename dialog (KIO::RenameFileDialog,
      * also for several items), never with the inline editor of the DolphinView,
      * which is hidden while a plugin view is shown. Does nothing without a selection.
@@ -184,11 +218,17 @@ private:
     KItemListController *controller() const;
     KFileItemModel *model() const;
     void reportSelection();
+    void slotUrlChangedForReveal(const QUrl &url);
+    void slotLoadingCompletedForReveal();
 
     DolphinView *const m_dolphinView;
     QTimer *m_selectionTimer;
     std::optional<WhaleSelection> m_reportedSelection;
     bool m_hasSelection = false;
+    // showItemInFolder(): the item to select, and the folder it waits for.
+    QUrl m_revealUrl;
+    QUrl m_revealFolder;
+    bool m_revealFolderShown = false;
 };
 
 #endif

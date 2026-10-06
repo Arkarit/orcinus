@@ -62,6 +62,14 @@ public:
      */
     void release(quint64 owner);
 
+    /**
+     * Reads the changes the kernel has queued but this object has not handled yet, and
+     * reports them (changed(), overflowed()) now instead of when the event loop gets to
+     * them. E.g. before a cached tree is handed out right after a file operation: the
+     * operation's changes are queued already, but their report may still be pending.
+     */
+    void processPendingEvents();
+
     /// The number of folders watched now.
     int watchCount() const;
 

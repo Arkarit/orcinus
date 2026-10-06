@@ -17,6 +17,7 @@
 #include "whaleviewdebug.h"
 
 #include <KCoreDirLister>
+#include <KIO/Global>
 #include <KUrlMimeData>
 
 #include <QDropEvent>
@@ -213,6 +214,11 @@ DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::loadingCompleted);
     connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, &DolphinViewBridge::loadingCanceled);
     connect(dolphinView, &DolphinView::previewsShownChanged, this, &DolphinViewBridge::previewsShownChanged);
+    connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::slotUrlChangedForReveal);
+    connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::slotLoadingCompletedForReveal);
+    connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, [this]() {
+        m_revealUrl.clear();
+    });
 
     // The selection manager reports every step (a rubber band, the index shifts of an
     // insertion, ...). They are collected and compared by URL once the event loop is
@@ -309,6 +315,112 @@ void DolphinViewBridge::openFolder(const QUrl &url)
     m_dolphinView->setActive(true);
     // See plan 3.2: DolphinMainWindow::handleUrl() enters folders in the active view area.
     Q_EMIT m_dolphinView->urlActivated(url);
+}
+
+void DolphinViewBridge::openItems(const KFileItemList &items)
+{
+    if (items.isEmpty()) {
+        return;
+    }
+    // The main window only listens to the active view area (plan 14.8).
+    m_dolphinView->setActive(true);
+    if (items.count() == 1) {
+        // DolphinViewContainer::slotItemActivated(): folders and archives, files with
+        // their application (asking for programs), errors in the view area.
+        Q_EMIT m_dolphinView->itemActivated(items.first());
+        return;
+    }
+    // As DolphinView::slotItemsActivated(): folders in new tabs, the files together.
+    KFileItemList files;
+    for (const KFileItem &item : items) {
+        const QUrl folder = DolphinView::openItemAsFolderUrl(item, GeneralSettings::browseThroughArchives());
+        if (folder.isEmpty()) {
+            files.append(item);
+        } else {
+            Q_EMIT m_dolphinView->tabRequested(folder);
+        }
+    }
+    if (files.count() == 1) {
+        Q_EMIT m_dolphinView->itemActivated(files.first());
+    } else if (!files.isEmpty()) {
+        Q_EMIT m_dolphinView->itemsActivated(files);
+    }
+}
+
+void DolphinViewBridge::showItemInFolder(const QUrl &url)
+{
+    if (!url.isValid()) {
+        return;
+    }
+    QUrl folder = KIO::upUrl(url);
+    if (folder.path() != QLatin1String("/")) {
+        folder = folder.adjusted(QUrl::StripTrailingSlash);
+    }
+    m_dolphinView->setActive(true);
+    if (folder.matches(m_dolphinView->url(), QUrl::StripTrailingSlash)) {
+        m_revealUrl.clear();
+        if (model()->index(url) >= 0) {
+            setSelection(WhaleSelection({url}, url));
+        } else {
+            // Still loading: the DolphinView selects it when the folder is complete.
+            m_dolphinView->markUrlsAsSelected({url});
+            m_dolphinView->markUrlAsCurrent(url);
+        }
+        return;
+    }
+    // As "Open Path" (DolphinContextMenu): enter the folder, then mark the item. The shell
+    // enters folders asynchronously (DolphinMainWindow::handleUrl()), and entering clears
+    // the marks, so the marks are set when the DolphinView has the new location.
+    m_revealUrl = url;
+    m_revealFolder = folder;
+    m_revealFolderShown = false;
+    Q_EMIT m_dolphinView->urlActivated(folder);
+}
+
+void DolphinViewBridge::slotUrlChangedForReveal(const QUrl &url)
+{
+    if (m_revealUrl.isEmpty()) {
+        return;
+    }
+    if (!url.matches(m_revealFolder, QUrl::StripTrailingSlash)) {
+        m_revealUrl.clear(); // the user went elsewhere meanwhile
+        return;
+    }
+    // Loading the folder selects the item and makes it the current one (scrolled to).
+    m_dolphinView->markUrlsAsSelected({m_revealUrl});
+    m_dolphinView->markUrlAsCurrent(m_revealUrl);
+    m_revealFolderShown = true;
+}
+
+void DolphinViewBridge::slotLoadingCompletedForReveal()
+{
+    if (m_revealUrl.isEmpty() || !m_revealFolderShown) {
+        return;
+    }
+    const QUrl url = m_revealUrl;
+    m_revealUrl.clear();
+    // The marks have done it, unless something selected meanwhile; then the item wins,
+    // as the user asked for it.
+    const int index = model()->index(url);
+    if (index >= 0 && !controller()->selectionManager()->isSelected(index)) {
+        setSelection(WhaleSelection({url}, url));
+    }
+}
+
+void DolphinViewBridge::showErrorMessage(const QString &message, int kioErrorCode)
+{
+    // See plan 3.2: the container shows the DolphinView's messages.
+    Q_EMIT m_dolphinView->errorMessage(message, kioErrorCode);
+}
+
+void DolphinViewBridge::showOperationCompletedMessage(const QString &message)
+{
+    Q_EMIT m_dolphinView->operationCompletedMessage(message);
+}
+
+QWidget *DolphinViewBridge::operationsWidget() const
+{
+    return m_dolphinView;
 }
 
 void DolphinViewBridge::renameSelectedItemsWithDialog()

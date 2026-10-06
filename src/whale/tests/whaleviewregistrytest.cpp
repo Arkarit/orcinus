@@ -79,6 +79,40 @@ public:
     {
         return false;
     }
+    Operations supportedOperations(const QList<QUrl> &) const override
+    {
+        return {};
+    }
+    void openItems(const QList<QUrl> &) override
+    {
+    }
+    void openItemsWith(const QList<QUrl> &) override
+    {
+    }
+    void showItemInFolder(const QUrl &) override
+    {
+    }
+    void showProperties(const QList<QUrl> &) override
+    {
+    }
+    void renameItems(const QList<QUrl> &) override
+    {
+    }
+    void trashItems(const QList<QUrl> &) override
+    {
+    }
+    void deleteItems(const QList<QUrl> &) override
+    {
+    }
+    void copyItems(const QList<QUrl> &) override
+    {
+    }
+    void cutItems(const QList<QUrl> &) override
+    {
+    }
+    void copyLocations(const QList<QUrl> &) override
+    {
+    }
 };
 
 class NoTreeScanner : public WhaleTreeScanner
