@@ -158,12 +158,14 @@ private:
  *   bar (WhaleViewContext::requestItemInfo()), also below the listing.
  * - Click: selects the entry. The selection belongs to the view and may be deep (below
  *   the listing); only an entry of the listing also becomes Whale's selection. Whale's
- *   actions on selected items and their shortcuts stay disabled (RecursiveContent).
+ *   actions on selected items and their shortcuts act on the treemap's selection
+ *   (selectedItems(), RecursiveContent; T2).
  * - Right click, the Menu key: the treemap's own context menu for the selected entry
  *   (selected first by a right click). Its operations name the entry explicitly
  *   (WhaleFileOperations), so they act on exactly that entry, deep or not. After an
  *   operation that changes files, the treemap scans again.
- * - Double click, Enter: opens the folder (or the folder of the file) as the new location.
+ * - Enter: opens the selected entry (a folder as the new location, a file with its
+ *   application). Double click: opens the folder (or the folder of the file) as the new location.
  * - Wheel, +/-, the zoom button: zooms in and out of folders within the treemap, without
  *   changing the location.
  * - Arrow keys: Left/Right go to the neighbors, Up to the folder, Down to the largest entry.
@@ -189,6 +191,7 @@ public:
     WhaleViewCapabilities capabilities() const override;
     QByteArray saveState() const override;
     void restoreState(const QByteArray &state) override;
+    QList<QUrl> selectedItems() const override;
 
     Status status() const
     {
@@ -236,6 +239,7 @@ private:
     void
     slotOperationFinished(WhaleFileOperations::Operation operation, const QList<QUrl> &urls, WhaleFileOperations::Result result, const QList<QUrl> &newUrls);
     void setStatus(Status status);
+    void setSelected(const QUrl &url);
     void setZoomPath(const QStringList &path);
     void applyPendingState();
     void updateBar();

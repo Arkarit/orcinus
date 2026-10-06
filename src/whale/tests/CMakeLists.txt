@@ -121,6 +121,14 @@ target_include_directories(whaledeepoperationstest PRIVATE ${CMAKE_SOURCE_DIR}/s
 target_compile_definitions(whaledeepoperationstest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaledeepoperationstest whale_treemap)
 
+# T2: Whale's actions on a plugin view's own selection (WhaleCommandRouter), shortcuts, split view.
+ecm_add_test(whalecommandroutingtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalecommandroutingtest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalecommandroutingtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalecommandroutingtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalecommandroutingtest whale_treemap whale_testlist)
+
 # The development automation must stay out of regular builds (see src/whale/devmcp).
 add_test(NAME whale_dev_mcp_default_off
     COMMAND ${CMAKE_COMMAND}

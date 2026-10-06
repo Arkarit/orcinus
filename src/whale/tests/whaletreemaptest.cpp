@@ -94,7 +94,7 @@ private Q_SLOTS:
     void testFailure();
     void testHover();
     void testSelection();
-    void testDeepSelectionKeepsActionsDisabled();
+    void testDeepSelectionRoutesActions();
     void testKeyboard();
     void testNavigation();
     void testZoom();
@@ -495,47 +495,35 @@ void WhaleTreemapTest::testSelection()
     QTRY_VERIFY(bridge->selection().isEmpty());
 }
 
-void WhaleTreemapTest::testDeepSelectionKeepsActionsDisabled()
+void WhaleTreemapTest::testDeepSelectionRoutesActions()
 {
+    // Since T2 Whale's actions act on the treemap's own selection, never on the hidden
+    // file list's (which stays empty for a deep entry).
     DolphinViewContainer *container = showMainWindow();
     QVERIFY(container);
     QWidget *view = showTreemap(container);
     QVERIFY(view);
     const QString deepPath = m_dir->path() + QStringLiteral("/media/photos/p1.jpg");
-    QVERIFY(select(view, QUrl::fromLocalFile(deepPath)));
-    const QStringList fileActions = {KStandardAction::name(KStandardAction::MoveToTrash),
-                                     KStandardAction::name(KStandardAction::DeleteFile),
-                                     QStringLiteral("delete_shortcut"),
-                                     KStandardAction::name(KStandardAction::Cut),
-                                     KStandardAction::name(KStandardAction::Copy),
-                                     KStandardAction::name(KStandardAction::RenameFile),
-                                     QStringLiteral("duplicate"),
-                                     QStringLiteral("copy_location"),
-                                     QStringLiteral("compare_files"),
-                                     KStandardAction::name(KStandardAction::SelectAll),
-                                     QStringLiteral("invert_selection")};
-    for (const QString &name : fileActions) {
-        QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
-    }
-    // Also with a listed entry selected: the treemap shows more than the listing.
     QVERIFY(select(view, url(QStringLiteral("big.bin"))));
     QTRY_VERIFY(!container->viewHost()->bridge()->selection().isEmpty());
-    for (const QString &name : fileActions) {
+    QVERIFY(select(view, QUrl::fromLocalFile(deepPath)));
+    QTRY_VERIFY(container->viewHost()->bridge()->selection().isEmpty());
+    for (const QString &name : {KStandardAction::name(KStandardAction::MoveToTrash),
+                                KStandardAction::name(KStandardAction::DeleteFile),
+                                KStandardAction::name(KStandardAction::Cut),
+                                KStandardAction::name(KStandardAction::Copy),
+                                KStandardAction::name(KStandardAction::RenameFile)}) {
+        QVERIFY2(action(name)->isEnabled(), qPrintable(name));
+    }
+    for (const QString &name : {KStandardAction::name(KStandardAction::SelectAll), QStringLiteral("invert_selection"), QStringLiteral("compare_files")}) {
         QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
     }
 
-    // The shortcuts reach nothing.
-    QVERIFY(select(view, QUrl::fromLocalFile(deepPath)));
-    for (const QKeySequence &keys : {QKeySequence(Qt::Key_Delete),
-                                     QKeySequence(Qt::SHIFT | Qt::Key_Delete),
-                                     QKeySequence(Qt::Key_F2),
-                                     QKeySequence(Qt::CTRL | Qt::Key_X),
-                                     QKeySequence(Qt::CTRL | Qt::Key_C)}) {
-        QTest::keySequence(canvasOf(view), keys);
-    }
-    QTest::qWait(300);
-    QVERIFY(QFile::exists(deepPath));
+    // Shift+Delete deletes exactly the deep entry (no confirmation in this test).
+    QTest::keySequence(canvasOf(view), QKeySequence(Qt::SHIFT | Qt::Key_Delete));
+    QTRY_VERIFY(!QFile::exists(deepPath));
     QVERIFY(QFile::exists(m_dir->path() + QStringLiteral("/big.bin")));
+    QVERIFY(QFile::exists(m_dir->path() + QStringLiteral("/media/photos/p2.jpg")));
     const auto dialogs = QApplication::topLevelWidgets();
     for (QWidget *window : dialogs) {
         QVERIFY2(!qobject_cast<QDialog *>(window) || !window->isVisible(), qPrintable(window->metaObject()->className()));
@@ -786,7 +774,8 @@ void WhaleTreemapTest::testSplitView()
     QTRY_VERIFY(left->isActive());
     QVERIFY(!right->isActive());
     QVERIFY(canvasOf(view)->hasFocus());
-    QVERIFY(!action(KStandardAction::name(KStandardAction::DeleteFile))->isEnabled());
+    // The treemap's deep selection is what the actions act on (T2).
+    QTRY_VERIFY(action(KStandardAction::name(KStandardAction::DeleteFile))->isEnabled());
 
     // The test list on the right: its actions are the file list's again.
     auto listView = qobject_cast<QListView *>(right->viewHost()->currentView()->widget());
@@ -853,8 +842,8 @@ void WhaleTreemapTest::testCapabilityGating()
     QCOMPARE(actions->gateReason(KStandardAction::name(KStandardAction::ZoomIn)), QStringLiteral("no Zoom capability"));
     QCOMPARE(actions->gateReason(QStringLiteral("show_preview")), QStringLiteral("no Previews capability"));
     QCOMPARE(actions->gateReason(KStandardAction::name(KStandardAction::SelectAll)), QStringLiteral("no MultiSelection capability"));
-    QCOMPARE(actions->gateReason(KStandardAction::name(KStandardAction::MoveToTrash)),
-             QStringLiteral("RecursiveContent: items outside the listing cannot be selected yet"));
+    // Without a selection the actions on selected items are off (no selection mode).
+    QCOMPARE(actions->gateReason(KStandardAction::name(KStandardAction::MoveToTrash)), QStringLiteral("nothing selected"));
     for (const QString &name : {QStringLiteral("sort"), QStringLiteral("view_zoom_in"), QStringLiteral("show_preview"), QStringLiteral("movetotrash")}) {
         QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
     }

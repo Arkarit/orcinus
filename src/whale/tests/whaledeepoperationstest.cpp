@@ -229,12 +229,12 @@ private Q_SLOTS:
     void testMenuActsOnTheChosenEntry();
     void testMenuKey();
     void testDeepSelectionStaysOutOfWhale();
-    void testGlobalActionsStayDisabled();
+    void testGlobalActionsFollowTheMenusEntry();
     void testRescanAfterOperation();
     void testRenamedSelectionFollows();
     void testShowInFolderFromMenu();
     void testSplitView();
-    void testNavigationUnchanged();
+    void testNavigation();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -466,7 +466,7 @@ void WhaleDeepOperationsTest::testSupportedOperations()
     QVERIFY(ops);
 
     const auto all = Operation::Open | Operation::OpenWith | Operation::ShowInFolder | Operation::Properties | Operation::Rename | Operation::Trash
-        | Operation::Delete | Operation::Copy | Operation::Cut | Operation::CopyLocation;
+        | Operation::Delete | Operation::Copy | Operation::Cut | Operation::CopyLocation | Operation::Duplicate;
     // Deep and listed entries alike: everything the file list offers for them.
     QCOMPARE(ops->supportedOperations({url(QStringLiteral("a/deep.txt"))}), WhaleFileOperations::Operations(all));
     QCOMPARE(ops->supportedOperations({url(QStringLiteral("a/sub"))}), WhaleFileOperations::Operations(all));
@@ -1052,52 +1052,28 @@ void WhaleDeepOperationsTest::testDeepSelectionStaysOutOfWhale()
     QTest::keyClick(menu, Qt::Key_Escape);
 }
 
-void WhaleDeepOperationsTest::testGlobalActionsStayDisabled()
+void WhaleDeepOperationsTest::testGlobalActionsFollowTheMenusEntry()
 {
+    // Since T2 Whale's actions act on the treemap's selection; the menu does not change that.
     DolphinViewContainer *container = showMainWindow();
     QVERIFY(container);
     QWidget *view = showTreemap(container);
     QVERIFY(view);
-    const QStringList fileActions = {KStandardAction::name(KStandardAction::MoveToTrash),
-                                     KStandardAction::name(KStandardAction::DeleteFile),
-                                     QStringLiteral("delete_shortcut"),
-                                     KStandardAction::name(KStandardAction::Cut),
-                                     KStandardAction::name(KStandardAction::Copy),
-                                     KStandardAction::name(KStandardAction::RenameFile),
-                                     QStringLiteral("duplicate"),
-                                     QStringLiteral("copy_location"),
-                                     QStringLiteral("compare_files"),
-                                     QStringLiteral("copy_to_inactive_split_view"),
-                                     QStringLiteral("move_to_inactive_split_view")};
-    auto check = [&]() {
-        for (const QString &name : fileActions) {
-            if (QAction *fileAction = action(name)) {
-                QVERIFY2(!fileAction->isEnabled(), qPrintable(name));
-            }
-        }
-    };
     QMenu *menu = openMenu(view, url(QStringLiteral("a/deep.txt")));
     QVERIFY(menu);
-    check();
-    menu->close();
-    // After an operation of the menu too.
-    operations(container)->deleteItems({url(QStringLiteral("a/delete-me.txt"))});
-    QTRY_VERIFY(!QFile::exists(path(QStringLiteral("a/delete-me.txt"))));
-    QVERIFY(waitForReady(view, 2));
-    QVERIFY(select(view, url(QStringLiteral("a/deep.txt"))));
-    check();
-    // The shortcuts still reach nothing.
-    for (const QKeySequence &keys : {QKeySequence(Qt::Key_Delete),
-                                     QKeySequence(Qt::SHIFT | Qt::Key_Delete),
-                                     QKeySequence(Qt::Key_F2),
-                                     QKeySequence(Qt::CTRL | Qt::Key_X),
-                                     QKeySequence(Qt::CTRL | Qt::Key_C),
-                                     QKeySequence(Qt::CTRL | Qt::Key_D)}) {
-        QTest::keySequence(canvasOf(view), keys);
+    for (const QString &name : {KStandardAction::name(KStandardAction::MoveToTrash),
+                                KStandardAction::name(KStandardAction::DeleteFile),
+                                KStandardAction::name(KStandardAction::RenameFile),
+                                KStandardAction::name(KStandardAction::Cut),
+                                KStandardAction::name(KStandardAction::Copy),
+                                QStringLiteral("duplicate"),
+                                QStringLiteral("copy_location")}) {
+        QVERIFY2(action(name)->isEnabled(), qPrintable(name));
     }
-    QTest::qWait(300);
-    QVERIFY(QFile::exists(path(QStringLiteral("a/deep.txt"))));
-    QVERIFY(!anyVisibleDialog());
+    QVERIFY(!action(QStringLiteral("compare_files"))->isEnabled());
+    QVERIFY(!action(QStringLiteral("copy_to_inactive_split_view"))->isEnabled()); // no split view
+    menu->close();
+    QVERIFY(container->viewHost()->bridge()->selection().isEmpty());
 }
 
 void WhaleDeepOperationsTest::testRescanAfterOperation()
@@ -1228,18 +1204,29 @@ void WhaleDeepOperationsTest::testSplitView()
     QTRY_VERIFY(left->viewHost()->currentView()->widget()->isAncestorOf(m_mainWindow->focusWidget()));
 }
 
-void WhaleDeepOperationsTest::testNavigationUnchanged()
+void WhaleDeepOperationsTest::testNavigation()
 {
     DolphinViewContainer *container = showMainWindow();
     QVERIFY(container);
     QWidget *view = showTreemap(container);
     QVERIFY(view);
-    // Enter on a deep file still opens its folder as the location (M9), not the file.
+    // T2: Enter opens the selected entry as Whale's Open does: a deep file with its
+    // application (the location stays), a deep folder as the location.
     QVERIFY(select(view, url(QStringLiteral("a/deep.txt"))));
     QTest::keyClick(canvasOf(view), Qt::Key_Return);
+    QTRY_COMPARE_WITH_TIMEOUT(openedFiles(), QStringList({path(QStringLiteral("a/deep.txt"))}), 10000);
+    QCOMPARE(container->url(), m_dir->url());
+    QVERIFY(select(view, url(QStringLiteral("a/sub"))));
+    QTest::keyClick(canvasOf(view), Qt::Key_Return);
+    QTRY_COMPARE(container->url(), url(QStringLiteral("a/sub")));
+    // A double click still opens the folder under the pointer (M9).
+    container->setUrl(m_dir->url());
+    view = container->viewHost()->currentView()->widget();
+    QVERIFY(waitForReady(view, 1));
+    const QRect deepCell = cellRect(view, url(QStringLiteral("a/deep.txt")));
+    QTest::mouseDClick(canvasOf(view), Qt::LeftButton, {}, deepCell.center());
     QTRY_COMPARE(container->url(), url(QStringLiteral("a")));
-    QTest::qWait(200);
-    QVERIFY(openedFiles().isEmpty());
+    QCOMPARE(openedFiles().count(), 1);
     // The wheel still zooms within the treemap.
     container->setUrl(m_dir->url());
     view = container->viewHost()->currentView()->widget();

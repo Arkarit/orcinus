@@ -493,7 +493,7 @@ TreemapView::TreemapView(WhaleViewContext *context, QObject *parent)
     startScan(false);
     // Whale's selection, e.g. made in the file list before switching to the treemap.
     const QList<QUrl> selected = context->selection().selected();
-    m_selected = selected.isEmpty() ? QUrl() : selected.first();
+    setSelected(selected.isEmpty() ? QUrl() : selected.first());
 }
 
 TreemapView::~TreemapView()
@@ -571,7 +571,7 @@ void TreemapView::startScan(bool keepView)
         m_hasPendingState = true;
     } else {
         m_hasPendingState = false;
-        m_selected.clear();
+        setSelected(QUrl());
     }
     m_tree = WhaleTreeNode();
     m_zoomNode = WhaleTreeNode();
@@ -605,7 +605,7 @@ void TreemapView::slotFinished(const WhaleTreeNode &root)
     if (!m_selected.isEmpty()) {
         QStringList parts;
         if (!relativePath(m_selected, &parts) || nodeAt(parts).isNull()) {
-            m_selected.clear();
+            setSelected(QUrl());
         }
     }
     setStatus(root.totalSize() > 0 ? Status::Ready : Status::Empty);
@@ -638,7 +638,7 @@ void TreemapView::applyPendingState()
     setZoomPath(m_pendingZoomPath);
     if (m_pendingSelectionSet) {
         const WhaleTreeNode node = nodeAt(m_pendingSelection);
-        m_selected = node.isNull() ? QUrl() : node.url();
+        setSelected(node.isNull() ? QUrl() : node.url());
         m_canvas->update();
     }
     updateBar();
@@ -787,7 +787,7 @@ void TreemapView::selectUrl(const QUrl &url)
     if (url == m_selected) {
         return;
     }
-    m_selected = url;
+    setSelected(url);
     // An entry of the listing is Whale's selection too (status bar, information panel,
     // the file list after switching views). A deep entry clears Whale's selection, so no
     // invisible selection of the listing is left: the host ignores URLs it does not list.
@@ -795,6 +795,26 @@ void TreemapView::selectUrl(const QUrl &url)
     m_canvas->update();
     updateBar();
     reportInfo();
+}
+
+void TreemapView::setSelected(const QUrl &url)
+{
+    if (url == m_selected) {
+        return;
+    }
+    m_selected = url;
+    // Whale's actions on selected items act on it (T2).
+    Q_EMIT selectedItemsChanged();
+}
+
+QList<QUrl> TreemapView::selectedItems() const
+{
+    // Entries below the location only; the location itself is not an item of the view.
+    QStringList parts;
+    if (m_selected.isEmpty() || !relativePath(m_selected, &parts) || parts.isEmpty()) {
+        return {};
+    }
+    return {m_selected};
 }
 
 void TreemapView::clearSelection()
@@ -922,7 +942,7 @@ void TreemapView::slotOperationFinished(WhaleFileOperations::Operation operation
             const QString from = QDir::cleanPath(urls.at(i).toLocalFile());
             const QString selected = QDir::cleanPath(m_selected.toLocalFile());
             if (selected == from || selected.startsWith(from + QLatin1Char('/'))) {
-                m_selected = QUrl::fromLocalFile(QDir::cleanPath(newUrls.at(i).toLocalFile()) + selected.mid(from.length()));
+                setSelected(QUrl::fromLocalFile(QDir::cleanPath(newUrls.at(i).toLocalFile()) + selected.mid(from.length())));
                 break;
             }
         }
@@ -940,13 +960,13 @@ void TreemapView::slotSelectionChanged(const WhaleSelection &selection)
     const QList<QUrl> selected = selection.selected();
     if (!selected.isEmpty()) {
         if (selected.first() != m_selected) {
-            m_selected = selected.first();
+            setSelected(selected.first());
             m_canvas->update();
             updateBar();
         }
     } else if (!m_selected.isEmpty() && isListed(m_selected)) {
         // Whale's selection of the listing went away; a deep selection is the view's own.
-        m_selected.clear();
+        setSelected(QUrl());
         m_canvas->update();
         updateBar();
     }
@@ -979,22 +999,11 @@ void TreemapView::openCell(int index)
 
 void TreemapView::openSelection()
 {
-    if (m_selected.isEmpty() || m_status != Status::Ready) {
-        return;
-    }
-    QStringList parts;
-    if (!relativePath(m_selected, &parts)) {
-        return;
-    }
-    const WhaleTreeNode node = nodeAt(parts);
-    if (node.isNull()) {
-        return;
-    }
-    if (!node.isDirectory()) {
-        parts.removeLast();
-    }
-    if (!parts.isEmpty()) {
-        context()->openFolder(urlOf(parts));
+    // Enter opens the selected entry as Whale's Open does (T1/T2): a folder becomes the
+    // location, a file opens with its application.
+    const QList<QUrl> urls = selectedItems();
+    if (!urls.isEmpty() && m_status == Status::Ready && (m_operations->supportedOperations(urls) & WhaleFileOperations::Operation::Open)) {
+        m_operations->openItems(urls);
     }
 }
 
