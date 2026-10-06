@@ -7,11 +7,17 @@
 #ifndef WHALEVIEWACTIONS_H
 #define WHALEVIEWACTIONS_H
 
+#include "whalefileoperations.h"
+
+#include <KFileItem>
+
 #include <QHash>
 #include <QMetaObject>
 #include <QObject>
 #include <QPointer>
 
+class DolphinView;
+class DolphinViewActionHandler;
 class KActionCollection;
 class KSelectAction;
 class QAction;
@@ -38,6 +44,11 @@ class WhaleViewRegistry;
  *
  * Rename (F2) in a plugin view: views with InlineRename rename themselves, the
  * others get Dolphin's rename dialog; the DolphinView's inline editor is never used.
+ *
+ * Routing (T2): for a plugin view with a selection of its own (RecursiveContent) the
+ * actions on selected items act on that selection (WhaleCommandRouter): Dolphin's slots
+ * ask routeAction() first, Dolphin's action states are computed from the routed items,
+ * and the gates follow the operations the view's file operations support for them.
  */
 class WhaleViewActions : public QObject
 {
@@ -48,7 +59,7 @@ public:
      * Adds the view switcher to @p actionCollection and to its "view_settings" menu,
      * so it must be created after the actions of the DolphinViewActionHandler.
      */
-    WhaleViewActions(KActionCollection *actionCollection, QObject *parent);
+    WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent);
     ~WhaleViewActions() override;
 
     /**
@@ -75,6 +86,26 @@ public:
     static QStringList gateableActions();
 
     /**
+     * The actions on selected items that are routed to a plugin view's own selection
+     * (T2), with the operation of WhaleFileOperations each stands for. All but
+     * "properties" (Dolphin keeps it enabled; without a selection it is the location's)
+     * are gateable actions. Actions marked as Dolphin's (copying/moving to the other half of
+     * a split view) keep Dolphin's code, which takes the routed items.
+     */
+    struct RoutedAction {
+        WhaleFileOperations::Operation operation;
+        bool byDolphin = false;
+    };
+    static const QHash<QString, RoutedAction> &routedActions();
+
+    /**
+     * For Dolphin's slots of the actions on selected items: carries the action
+     * @p actionName out on the routed selection of the view area of @p view.
+     * @return False if that view area is not routed (Dolphin's own path applies).
+     */
+    bool routeAction(DolphinView *view, const QString &actionName);
+
+    /**
      * Called by the view areas of the window when they show another view, so the
      * session (which records the shown views) is saved again.
      */
@@ -87,6 +118,14 @@ Q_SIGNALS:
      */
     void sessionChanged();
 
+    /**
+     * The selection the actions on selected items act on has changed without a selection
+     * change of the DolphinView (a routed view's own selection, or the view was switched):
+     * @p items are now the selection (WhaleCommandRouter::selectedItems()). Dolphin's main
+     * window updates its actions with it.
+     */
+    void commandSelectionChanged(const KFileItemList &items);
+
 private:
     void slotViewSelected(QAction *action);
     void updateCheckedView();
@@ -94,6 +133,7 @@ private:
     void updateGates();
     void slotRename();
     void slotViewModeTriggered();
+    void notifyCommandSelection();
 
     WhaleViewRegistry *m_registry;
     WhaleTreeCache *m_treeCache;
@@ -104,6 +144,7 @@ private:
     QMetaObject::Connection m_selectionConnection;
     QMetaObject::Connection m_urlConnection;
     QMetaObject::Connection m_capabilitiesConnection;
+    QMetaObject::Connection m_viewSelectionConnection;
     QHash<QString, QActionGroup *> m_gates;
     QHash<QString, QString> m_gateReasons;
 };

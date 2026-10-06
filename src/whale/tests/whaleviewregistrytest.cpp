@@ -113,6 +113,9 @@ public:
     void copyLocations(const QList<QUrl> &) override
     {
     }
+    void duplicateItems(const QList<QUrl> &) override
+    {
+    }
 };
 
 class NoTreeScanner : public WhaleTreeScanner

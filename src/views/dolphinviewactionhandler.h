@@ -14,6 +14,8 @@
 
 #include <QObject>
 
+#include <functional>
+
 class KToggleAction;
 class QAction;
 class QActionGroup;
@@ -56,6 +58,13 @@ public:
      * Returns the view that this action handler should work on.
      */
     DolphinView *currentView();
+
+    /**
+     * Whale: view plugins. Asked first by the actions on selected items with the view and
+     * the action's name; returns true if Whale carried the action out on a plugin view's
+     * selection of its own (WhaleViewActions::routeAction()).
+     */
+    void setSelectionCommandRouter(const std::function<bool(DolphinView *, const QString &)> &router);
 
     /**
      * Returns the name of the action for the current viewmode
@@ -291,6 +300,7 @@ private:
 
     KActionCollection *m_actionCollection;
     DolphinView *m_currentView;
+    std::function<bool(DolphinView *, const QString &)> m_selectionCommandRouter; // Whale: view plugins
 
     QHash<QByteArray, KToggleAction *> m_sortByActions;
     QHash<QByteArray, KToggleAction *> m_visibleRoles;

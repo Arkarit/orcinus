@@ -407,6 +407,11 @@ void DolphinViewBridge::slotLoadingCompletedForReveal()
     }
 }
 
+void DolphinViewBridge::duplicateItems(const KFileItemList &items)
+{
+    m_dolphinView->duplicateItems(items);
+}
+
 void DolphinViewBridge::showErrorMessage(const QString &message, int kioErrorCode)
 {
     // See plan 3.2: the container shows the DolphinView's messages.

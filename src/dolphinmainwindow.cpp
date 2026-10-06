@@ -39,6 +39,7 @@
 #include "views/dolphinviewactionhandler.h"
 #include "views/draganddrophelper.h"
 #include "views/viewproperties.h"
+#include "whalecommandrouter.h"
 #include "whaleviewactions.h"
 
 #include <KAboutApplicationDialog>
@@ -188,7 +189,8 @@ DolphinMainWindow::DolphinMainWindow()
     setupActions();
 
     m_actionHandler = new DolphinViewActionHandler(actionCollection(), m_actionTextHelper, this);
-    m_whaleViewActions = new WhaleViewActions(actionCollection(), this); // Whale: view plugins
+    m_whaleViewActions = new WhaleViewActions(actionCollection(), m_actionHandler, this); // Whale: view plugins
+    connect(m_whaleViewActions, &WhaleViewActions::commandSelectionChanged, this, &DolphinMainWindow::slotSelectionChanged); // Whale: T2
     connect(m_actionHandler, &DolphinViewActionHandler::createDirectoryTriggered, this, &DolphinMainWindow::createDirectory);
     connect(m_actionHandler, &DolphinViewActionHandler::createFileTriggered, this, &DolphinMainWindow::createFile);
     connect(m_actionHandler, &DolphinViewActionHandler::selectionModeChangeTriggered, this, &DolphinMainWindow::slotSetSelectionMode);
@@ -922,6 +924,9 @@ void DolphinMainWindow::redo()
 
 void DolphinMainWindow::cut()
 {
+    if (m_whaleViewActions->routeAction(m_activeViewContainer->view(), KStandardAction::name(KStandardAction::Cut))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     if (m_activeViewContainer->view()->selectedItems().isEmpty()) {
         m_activeViewContainer->setSelectionModeEnabled(true, actionCollection(), SelectionMode::BottomBar::Contents::CutContents);
     } else {
@@ -932,6 +937,9 @@ void DolphinMainWindow::cut()
 
 void DolphinMainWindow::copy()
 {
+    if (m_whaleViewActions->routeAction(m_activeViewContainer->view(), KStandardAction::name(KStandardAction::Copy))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     if (m_activeViewContainer->view()->selectedItems().isEmpty()) {
         m_activeViewContainer->setSelectionModeEnabled(true, actionCollection(), SelectionMode::BottomBar::Contents::CopyContents);
     } else {
@@ -1146,7 +1154,7 @@ void DolphinMainWindow::toggleSplitStash()
 
 void DolphinMainWindow::copyToInactiveSplitView()
 {
-    if (m_activeViewContainer->view()->selectedItems().isEmpty()) {
+    if (WhaleCommandRouter::selectedItems(m_activeViewContainer->view()).isEmpty()) { // Whale: T2
         m_activeViewContainer->setSelectionModeEnabled(true, actionCollection(), SelectionMode::BottomBar::Contents::CopyToOtherViewContents);
     } else {
         m_tabWidget->copyToInactiveSplitView();
@@ -1156,7 +1164,7 @@ void DolphinMainWindow::copyToInactiveSplitView()
 
 void DolphinMainWindow::moveToInactiveSplitView()
 {
-    if (m_activeViewContainer->view()->selectedItems().isEmpty()) {
+    if (WhaleCommandRouter::selectedItems(m_activeViewContainer->view()).isEmpty()) { // Whale: T2
         m_activeViewContainer->setSelectionModeEnabled(true, actionCollection(), SelectionMode::BottomBar::Contents::MoveToOtherViewContents);
     } else {
         m_tabWidget->moveToInactiveSplitView();
@@ -2645,7 +2653,7 @@ void DolphinMainWindow::setupFileItemActions()
 
 void DolphinMainWindow::updateFileAndEditActions()
 {
-    const KFileItemList list = m_activeViewContainer->view()->selectedItems();
+    const KFileItemList list = WhaleCommandRouter::selectedItems(m_activeViewContainer->view()); // Whale: T2
     const KActionCollection *col = actionCollection();
     KFileItemListProperties capabilitiesSource(list);
 

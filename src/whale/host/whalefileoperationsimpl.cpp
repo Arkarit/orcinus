@@ -168,6 +168,10 @@ WhaleFileOperations::Operations WhaleFileOperationsImpl::supportedOperations(con
         if (properties.supportsDeleting()) {
             operations |= Operation::Delete;
         }
+        // As the file list's Duplicate (it creates the copies next to the items).
+        if (properties.supportsWriting()) {
+            operations |= Operation::Duplicate;
+        }
     }
     return operations;
 }
@@ -339,6 +343,18 @@ void WhaleFileOperationsImpl::copyLocations(const QList<QUrl> &urls)
         paths.append(path.isEmpty() ? item.url().toDisplayString() : QDir::toNativeSeparators(path));
     }
     QApplication::clipboard()->setText(paths.join(QLatin1Char('\n')));
+}
+
+void WhaleFileOperationsImpl::duplicateItems(const QList<QUrl> &urls)
+{
+    if (urls.isEmpty() || !checkExisting(urls)) {
+        return;
+    }
+    if (removesLocation(urls)) {
+        qCWarning(WhaleViewDebug) << "Refusing to duplicate the location of the view area or a folder above it:" << urls;
+        return;
+    }
+    m_bridge->duplicateItems(itemsFor(urls));
 }
 
 #include "moc_whalefileoperationsimpl.cpp"

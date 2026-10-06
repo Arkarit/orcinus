@@ -524,6 +524,11 @@ void DolphinViewActionHandler::slotViewModeActionTriggered(QAction *action)
     viewSettingsAction->setIcon(action->icon());
 }
 
+void DolphinViewActionHandler::setSelectionCommandRouter(const std::function<bool(DolphinView *, const QString &)> &router)
+{
+    m_selectionCommandRouter = router;
+}
+
 void DolphinViewActionHandler::slotRename()
 {
     // Whale: view plugins. While a plugin view is shown instead of the DolphinView, WhaleViewActions
@@ -542,6 +547,9 @@ void DolphinViewActionHandler::slotRename()
 
 void DolphinViewActionHandler::slotTrashActivated()
 {
+    if (m_selectionCommandRouter && m_selectionCommandRouter(m_currentView, KStandardAction::name(KStandardAction::MoveToTrash))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     if (m_currentView->selectedItemsCount() == 0) {
         Q_EMIT selectionModeChangeTriggered(true, SelectionMode::BottomBar::Contents::MoveToTrashContents);
     } else {
@@ -553,6 +561,9 @@ void DolphinViewActionHandler::slotTrashActivated()
 
 void DolphinViewActionHandler::slotDeleteItems()
 {
+    if (m_selectionCommandRouter && m_selectionCommandRouter(m_currentView, KStandardAction::name(KStandardAction::DeleteFile))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     if (m_currentView->selectedItemsCount() == 0) {
         Q_EMIT selectionModeChangeTriggered(true, SelectionMode::BottomBar::Contents::DeleteContents);
     } else {
@@ -900,6 +911,9 @@ void DolphinViewActionHandler::slotAdjustViewProperties()
 
 void DolphinViewActionHandler::slotDuplicate()
 {
+    if (m_selectionCommandRouter && m_selectionCommandRouter(m_currentView, QStringLiteral("duplicate"))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     if (m_currentView->selectedItemsCount() == 0) {
         Q_EMIT selectionModeChangeTriggered(true, SelectionMode::BottomBar::Contents::DuplicateContents);
     } else {
@@ -911,6 +925,9 @@ void DolphinViewActionHandler::slotDuplicate()
 
 void DolphinViewActionHandler::slotProperties()
 {
+    if (m_selectionCommandRouter && m_selectionCommandRouter(m_currentView, QStringLiteral("properties"))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     KPropertiesDialog *dialog = nullptr;
     const KFileItemList list = m_currentView->selectedItems();
     if (list.isEmpty()) {
@@ -928,6 +945,9 @@ void DolphinViewActionHandler::slotProperties()
 
 void DolphinViewActionHandler::slotCopyPath()
 {
+    if (m_selectionCommandRouter && m_selectionCommandRouter(m_currentView, QStringLiteral("copy_location"))) {
+        return; // Whale: view plugins, a plugin view's own selection (T2)
+    }
     if (m_currentView->selectedItemsCount() == 0) {
         Q_EMIT selectionModeChangeTriggered(true, SelectionMode::BottomBar::Contents::CopyLocationContents);
     } else {

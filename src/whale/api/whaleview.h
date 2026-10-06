@@ -11,6 +11,7 @@
 #include "whaleviewcapabilities.h"
 
 #include <QByteArray>
+#include <QList>
 #include <QObject>
 #include <QUrl>
 
@@ -96,12 +97,29 @@ public:
      */
     virtual void startRename(const QUrl &url);
 
+    /**
+     * @return The items selected in the view, on which Whale's actions on selected items
+     *         (Delete, F2, Copy, Properties, ...) act while the view is shown. Only asked of
+     *         views with WhaleViewCapability::RecursiveContent: their selection may lie
+     *         outside the listing and therefore cannot be Whale's selection; it stays the
+     *         view's own and Whale routes the actions to it (WhaleFileOperations). Other
+     *         views show Whale's selection, which the actions use directly. Emit
+     *         selectedItemsChanged() when the result changes. The default implementation
+     *         returns context()->selection().selected().
+     */
+    virtual QList<QUrl> selectedItems() const;
+
 Q_SIGNALS:
     /**
      * Is emitted when capabilities() changed, e.g. after the location or the state
      * changed; Whale then updates which actions apply.
      */
     void capabilitiesChanged();
+
+    /**
+     * Is emitted when selectedItems() changed, so Whale updates its actions at once.
+     */
+    void selectedItemsChanged();
 
 protected:
     WhaleViewContext *context() const;

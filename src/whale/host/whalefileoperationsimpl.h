@@ -46,6 +46,7 @@ public:
     void copyItems(const QList<QUrl> &urls) override;
     void cutItems(const QList<QUrl> &urls) override;
     void copyLocations(const QList<QUrl> &urls) override;
+    void duplicateItems(const QList<QUrl> &urls) override;
 
     using DragRunner = std::function<Qt::DropAction(QDrag *drag)>;
 

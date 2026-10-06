@@ -5,7 +5,7 @@
 # Whale view plugins, see .privatedoc/whale-view-plugins-plan.md.
 
 # Exact version of the view plugin API. Plugins must be built against the same value.
-set(WHALE_VIEW_API_VERSION 7)
+set(WHALE_VIEW_API_VERSION 8)
 
 # kcoreaddons_add_plugin puts plugins below CMAKE_LIBRARY_OUTPUT_DIRECTORY (bin/), but there
 # bin/whale is the executable, so bin/whale/views cannot exist. View plugins of the build
@@ -66,6 +66,7 @@ add_library(whaleviewhost STATIC)
 target_sources(whaleviewhost PRIVATE
     host/dolphinviewadapter.cpp
     host/dolphinviewbridge.cpp
+    host/whalecommandrouter.cpp
     host/whalefileoperationsimpl.cpp
     host/whalepreviewproviderimpl.cpp
     host/whaletreecache.cpp

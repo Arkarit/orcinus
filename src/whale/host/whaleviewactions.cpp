@@ -10,7 +10,10 @@
 
 #include "dolphin_generalsettings.h"
 #include "dolphinviewbridge.h"
+#include "views/dolphinviewactionhandler.h"
+#include "whalecommandrouter.h"
 #include "whaleview.h"
+#include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewhost.h"
 #include "whaleviewregistry.h"
@@ -25,7 +28,7 @@
 
 #include <QMenu>
 
-WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, QObject *parent)
+WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent)
     : QObject(parent)
     , m_registry(new WhaleViewRegistry(this))
     , m_treeCache(new WhaleTreeCache(WhaleTreeCache::configuredLimits(), this))
@@ -61,6 +64,13 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, QObject 
         viewSettings->insertAction(firstSeparator != entries.cend() ? *firstSeparator : nullptr, m_switcher);
     }
 
+    // T2: the handler's actions on selected items ask first whether they are routed.
+    if (actionHandler) {
+        actionHandler->setSelectionCommandRouter([this](DolphinView *view, const QString &actionName) {
+            return routeAction(view, actionName);
+        });
+    }
+
     // F2 in a plugin view. DolphinViewActionHandler::slotRename() leaves it to us then.
     if (QAction *rename = actionCollection->action(KStandardAction::name(KStandardAction::RenameFile))) {
         connect(rename, &QAction::triggered, this, &WhaleViewActions::slotRename);
@@ -81,13 +91,23 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
     disconnect(m_selectionConnection);
     disconnect(m_capabilitiesConnection);
     disconnect(m_urlConnection);
+    disconnect(m_viewSelectionConnection);
     m_host = host;
     if (host) {
+        // Synchronously: a shortcut right after switching views must act on the new source.
         m_hostConnection = connect(host, &WhaleViewHost::currentViewChanged, this, [this]() {
             updateCheckedView();
             updateGates();
+            notifyCommandSelection();
         });
-        m_capabilitiesConnection = connect(host, &WhaleViewHost::capabilitiesChanged, this, &WhaleViewActions::updateGates);
+        m_capabilitiesConnection = connect(host, &WhaleViewHost::capabilitiesChanged, this, [this]() {
+            updateGates();
+            notifyCommandSelection();
+        });
+        m_viewSelectionConnection = connect(host, &WhaleViewHost::viewSelectionChanged, this, [this]() {
+            updateGates();
+            notifyCommandSelection();
+        });
         // Immediately, so a shortcut pressed right after a click finds the right state.
         m_selectionConnection = connect(host->bridge(), &DolphinViewBridge::hasSelectionChanged, this, &WhaleViewActions::updateGates);
         m_urlConnection = connect(host->bridge(), &DolphinViewBridge::urlChanged, this, &WhaleViewActions::updateAvailableViews);
@@ -132,6 +152,43 @@ QStringList WhaleViewActions::gateableActions()
         QStringLiteral("move_to_inactive_split_view"),
         QStringLiteral("compare_files"),
     };
+}
+
+const QHash<QString, WhaleViewActions::RoutedAction> &WhaleViewActions::routedActions()
+{
+    using Operation = WhaleFileOperations::Operation;
+    static const QHash<QString, RoutedAction> actions = {
+        {KStandardAction::name(KStandardAction::RenameFile), {Operation::Rename}},
+        {KStandardAction::name(KStandardAction::MoveToTrash), {Operation::Trash}},
+        {KStandardAction::name(KStandardAction::DeleteFile), {Operation::Delete}},
+        // Delete with the trash's shortcut, for items that cannot be trashed.
+        {QStringLiteral("delete_shortcut"), {Operation::Delete}},
+        {KStandardAction::name(KStandardAction::Cut), {Operation::Cut}},
+        {KStandardAction::name(KStandardAction::Copy), {Operation::Copy}},
+        {QStringLiteral("duplicate"), {Operation::Duplicate}},
+        {QStringLiteral("copy_location"), {Operation::CopyLocation}},
+        {QStringLiteral("properties"), {Operation::Properties}},
+        // Dolphin's code copies/moves the routed items (DolphinTabWidget, WhaleCommandRouter::selectedItems()).
+        {QStringLiteral("copy_to_inactive_split_view"), {Operation::Copy, true}},
+        {QStringLiteral("move_to_inactive_split_view"), {Operation::Cut, true}},
+    };
+    return actions;
+}
+
+bool WhaleViewActions::routeAction(DolphinView *view, const QString &actionName)
+{
+    const auto routed = routedActions().constFind(actionName);
+    if (routed == routedActions().constEnd() || routed->byDolphin) {
+        return false;
+    }
+    return WhaleCommandRouter::perform(view, routed->operation);
+}
+
+void WhaleViewActions::notifyCommandSelection()
+{
+    if (m_host) {
+        Q_EMIT commandSelectionChanged(WhaleCommandRouter::selectedItems(m_host->dolphinView()));
+    }
 }
 
 void WhaleViewActions::notifyViewChanged()
@@ -189,7 +246,23 @@ void WhaleViewActions::updateGates()
         if (!(capabilities & C::Selection)) {
             gate(onSelection, QStringLiteral("no Selection capability"));
         } else if (capabilities & C::RecursiveContent) {
-            gate(onSelection, QStringLiteral("RecursiveContent: items outside the listing cannot be selected yet"));
+            // T2: the view's own selection, through WhaleCommandRouter. Dolphin decides about
+            // the action states with the routed items; the gate adds what the view's file
+            // operations do not support (e.g. nothing that removes the location).
+            const QList<QUrl> urls = m_host->currentView()->selectedItems();
+            if (urls.isEmpty()) {
+                gate(onSelection, QStringLiteral("nothing selected"));
+            } else {
+                const WhaleFileOperations::Operations supported = m_host->pluginContext()->fileOperations()->supportedOperations(urls);
+                for (const QString &name : onSelection) {
+                    const auto routed = routedActions().constFind(name);
+                    if (routed == routedActions().constEnd()) {
+                        gate({name}, QStringLiteral("not routed to a view's own selection"));
+                    } else if (!(supported & routed->operation)) {
+                        gate({name}, QStringLiteral("not supported for the selection"));
+                    }
+                }
+            }
         } else if (!m_host->bridge()->hasSelection()) {
             // In the file list these actions start the selection mode, which plugin views do not have.
             gate(onSelection, QStringLiteral("nothing selected"));
@@ -222,6 +295,9 @@ void WhaleViewActions::slotRename()
 {
     if (!m_host || m_host->isDolphinViewShown()) {
         return; // DolphinViewActionHandler::slotRename() handles the file list.
+    }
+    if (WhaleCommandRouter::perform(m_host->dolphinView(), WhaleFileOperations::Operation::Rename)) {
+        return; // a selection of the view's own: always the dialog (T2)
     }
     DolphinViewBridge *bridge = m_host->bridge();
     const WhaleSelection selection = bridge->selection();

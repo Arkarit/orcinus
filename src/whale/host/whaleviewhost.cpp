@@ -146,6 +146,7 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
         }
         Q_EMIT capabilitiesChanged();
     });
+    connect(m_pluginView.get(), &WhaleView::selectedItemsChanged, this, &WhaleViewHost::viewSelectionChanged);
     // A view without a selection must not leave an invisible one for the shell's actions.
     if (!(m_pluginView->capabilities() & WhaleViewCapability::Selection)) {
         m_bridge->setSelection(WhaleSelection());
@@ -174,6 +175,11 @@ void WhaleViewHost::setActive(bool active)
 DolphinViewBridge *WhaleViewHost::bridge() const
 {
     return m_bridge;
+}
+
+DolphinView *WhaleViewHost::dolphinView() const
+{
+    return m_dolphinView;
 }
 
 WhaleViewContextImpl *WhaleViewHost::pluginContext() const

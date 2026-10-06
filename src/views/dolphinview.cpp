@@ -1032,7 +1032,11 @@ void DolphinView::pasteIntoFolder()
 
 void DolphinView::duplicateSelectedItems()
 {
-    const KFileItemList itemList = selectedItems();
+    duplicateItems(selectedItems()); // Whale: view plugins
+}
+
+void DolphinView::duplicateItems(const KFileItemList &itemList)
+{
     if (itemList.isEmpty()) {
         return;
     }

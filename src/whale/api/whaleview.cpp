@@ -6,6 +6,8 @@
 
 #include "whaleview.h"
 
+#include "whaleviewcontext.h"
+
 class WhaleViewPrivate
 {
 public:
@@ -46,6 +48,11 @@ void WhaleView::restoreState(const QByteArray &state)
 void WhaleView::startRename(const QUrl &url)
 {
     Q_UNUSED(url)
+}
+
+QList<QUrl> WhaleView::selectedItems() const
+{
+    return d->context->selection().selected();
 }
 
 WhaleViewContext *WhaleView::context() const

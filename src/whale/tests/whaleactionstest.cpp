@@ -334,6 +334,14 @@ void WhaleActionsTest::testGateableActionsExist()
     QVERIFY(showMainWindow());
     const QStringList names = WhaleViewActions::gateableActions();
     QVERIFY(!names.isEmpty());
+    // The actions routed to a plugin view's own selection (T2): Dolphin's, all but
+    // "properties" gateable.
+    const auto routed = WhaleViewActions::routedActions();
+    QVERIFY(!routed.isEmpty());
+    for (auto it = routed.cbegin(); it != routed.cend(); ++it) {
+        QVERIFY2(action(it.key()), qPrintable(QStringLiteral("Dolphin has no action \"%1\" any more; update WhaleViewActions::routedActions()").arg(it.key())));
+        QVERIFY2(names.contains(it.key()) || it.key() == QLatin1String("properties"), qPrintable(it.key()));
+    }
     for (const QString &actionName : names) {
         QAction *gated = action(actionName);
         QVERIFY2(gated, qPrintable(QStringLiteral("Dolphin has no action \"%1\" any more; update WhaleViewActions::gateableActions()").arg(actionName)));
@@ -374,8 +382,9 @@ void WhaleActionsTest::testCapabilityMatrix_data()
                                               << (zoom + order + selecting + onSelection
                                                   + QStringList{QStringLiteral("show_preview"), QStringLiteral("group_by")});
     QTest::newRow("single selection") << capsId << int(C::Selection | C::HostOrder) << (selecting + selectionMode) << (onSelection + order);
-    QTest::newRow("recursive content") << capsId << int(C::Selection | C::MultiSelection | C::RecursiveContent) << (onSelection + order + selectionMode)
-                                       << (selecting + always);
+    // T2: the view's own selection (by default Whale's, a.txt) is routed; nothing removes the location.
+    QTest::newRow("recursive content") << capsId << int(C::Selection | C::MultiSelection | C::RecursiveContent) << (order + selectionMode)
+                                       << (selecting + always + onSelection);
 }
 
 void WhaleActionsTest::testCapabilityMatrix()

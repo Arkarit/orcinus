@@ -136,6 +136,12 @@ public:
     DolphinViewBridge *bridge() const;
 
     /**
+     * @return The DolphinView of this view area (shown or hidden), e.g. to route Whale's
+     *         actions (WhaleCommandRouter).
+     */
+    DolphinView *dolphinView() const;
+
+    /**
      * @return The context of the shown plugin view, or null while the DolphinView is
      *         shown. For Whale's own development tools.
      */
@@ -153,6 +159,12 @@ Q_SIGNALS:
      * Is emitted when the focus enters a shown plugin view.
      */
     void activationRequested();
+
+    /**
+     * Is emitted when the shown plugin view reports another selection of its own
+     * (WhaleView::selectedItemsChanged()).
+     */
+    void viewSelectionChanged();
 
 private:
     void applyViewsState(const WhaleViewsState &views, const QString &source);

@@ -502,6 +502,9 @@ public Q_SLOTS:
      */
     void duplicateSelectedItems();
 
+    // Whale: view plugins. duplicateSelectedItems() for explicit items, e.g. deep below the location.
+    void duplicateItems(const KFileItemList &items);
+
     /**
      * Handles a drop of @p dropEvent onto widget @p dropWidget and destination @p destUrl
      */

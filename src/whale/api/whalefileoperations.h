@@ -60,6 +60,7 @@ public:
         Copy = 1 << 7, ///< copyItems()
         Cut = 1 << 8, ///< cutItems()
         CopyLocation = 1 << 9, ///< copyLocations()
+        Duplicate = 1 << 10, ///< duplicateItems()
     };
     Q_ENUM(Operation)
     Q_DECLARE_FLAGS(Operations, Operation)
@@ -179,6 +180,12 @@ public:
      * per line, as "Copy Location" does.
      */
     virtual void copyLocations(const QList<QUrl> &urls) = 0;
+
+    /**
+     * Copies each item next to itself, named as "Duplicate" in the file list does
+     * ("name copy.ext", numbered if that exists), with undo.
+     */
+    virtual void duplicateItems(const QList<QUrl> &urls) = 0;
 
 Q_SIGNALS:
     /**

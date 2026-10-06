@@ -130,6 +130,12 @@ public:
     void showItemInFolder(const QUrl &url);
 
     /**
+     * Duplicates @p items with the DolphinView's own "Duplicate" (names, undo, errors in
+     * the view area). The items need not be in the listing.
+     */
+    void duplicateItems(const KFileItemList &items);
+
+    /**
      * Shows @p message as an error in the view area, as the DolphinView does after a
      * failed operation (DolphinView::errorMessage).
      */

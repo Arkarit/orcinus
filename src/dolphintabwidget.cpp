@@ -11,6 +11,7 @@
 #include "dolphintabbar.h"
 #include "dolphinviewcontainer.h"
 #include "views/draganddrophelper.h"
+#include "whalecommandrouter.h" // Whale: view plugins
 #include "whaleviewhost.h" // Whale: view plugins
 
 #include <KAcceleratorManager>
@@ -446,7 +447,7 @@ void DolphinTabWidget::copyToInactiveSplitView()
         return;
     }
 
-    const KFileItemList selectedItems = tabPage->activeViewContainer()->view()->selectedItems();
+    const KFileItemList selectedItems = WhaleCommandRouter::selectedItems(tabPage->activeViewContainer()->view()); // Whale: T2
     if (selectedItems.isEmpty()) {
         return;
     }
@@ -462,7 +463,7 @@ void DolphinTabWidget::moveToInactiveSplitView()
         return;
     }
 
-    const KFileItemList selectedItems = tabPage->activeViewContainer()->view()->selectedItems();
+    const KFileItemList selectedItems = WhaleCommandRouter::selectedItems(tabPage->activeViewContainer()->view()); // Whale: T2
     if (selectedItems.isEmpty()) {
         return;
     }
