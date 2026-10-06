@@ -719,7 +719,7 @@ vtables in entladenem Code.
 | Session/Tab | aktive View-ID pro Container + Plugin-State | eigener Key `WhaleViews` in der Tab-Gruppe neben `State` (`DolphinTabWidget::saveProperties`). Das Format von `DolphinTabPage::saveState` bleibt unverändert. |
 | Globale Plugin-Einstellungen | z. B. Farbschema der Treemap | `whalerc [WhaleView][<pluginId>]` über `context->viewConfig()` |
 | Standard-View | welche View neue Container zeigen | `whalerc [WhaleViews] DefaultView` (Default: Dolphin-View) |
-| View pro Ordner | (später; **in M6 bewusst nicht umgesetzt**) | **offene Entscheidung O3**. Nie in `[Dolphin]`-ViewProperties. Möglich ist eine eigene KConfig-Datei mit URL-Keys oder ein xattr `user.whale.view`. |
+| View pro Ordner | nur die View-ID (Dateiliste oder Plugin), **umgesetzt in O3** | `$XDG_STATE_HOME/whaleviewpreferencesrc [PreferredViews]` (Hash des Location-Keys → View-ID + Key), siehe 14.20. Nie in `[Dolphin]`-ViewProperties, kein xattr. |
 
 ---
 
@@ -811,6 +811,7 @@ Whale-Integration kommen in getrennte Commits.
 | **M9** | Treemap-Plugin: Squarified-Layout + Cushion-Rendering, Hover → Info-Panel, Doppelklick auf Ordner → `openUrl` oder internes Hineinzoomen (State), T1-Kontextmenü, eigener State (Wurzel, Tiefe, Farbmodus) **(umgesetzt ohne T1-Kontextmenü, siehe 14.17)** | – | `whaletreemaplayouttest` (deterministisches Layout); manuelle Abnahme: keine Datei-Action trifft ein falsches Ziel |
 | **T1** | Operationen auf tiefen Einträgen: `WhaleFileOperations` mit expliziten URLs (API 7), Treemap-Kontextmenü, Rescan nach Mutation **(umgesetzt, siehe 14.18)** | – | `whaledeepoperationstest`; MCP-Abnahme `test_t1_acceptance.py` (offscreen und Plasma/Wayland mit echter Eingabe) |
 | **M10** | *Optional:* T2 Command-Routing **(umgesetzt, siehe 14.19)**, falls T1 nicht reicht | `dolphinviewactionhandler.cpp`, `dolphinmainwindow.cpp`, `dolphintabpage.cpp` | Papierkorb, Kopieren usw. per Shortcut auf tiefen Treemap-Items |
+| **O3** | Bevorzugte View pro Ort (nur View-ID, Variante A), History/Session vor Präferenz **(umgesetzt, siehe 14.20)** | – | `whaleviewpreferencestest`; MCP-Abnahme `test_o3_acceptance.py` (offscreen und Plasma/Wayland, Neustart) |
 | **M11** | *Optional, upstreamfähig:* RolesUpdater einer unsichtbaren View pausieren | `kitemviews/kfileitemlistview.cpp` | nur bei messbarer Last aus M0; als eigener, upstream-tauglicher Commit |
 
 ### 12.1 Abgleich mit den drei Testfällen
@@ -829,7 +830,7 @@ Whale-Integration kommen in getrennte Commits.
 |---|---|---|
 | O1 | `WhaleView : QObject` + `widget()` oder `: QWidget`? | `QObject` + `widget()` |
 | O2 | Modellzugriff: Accessor in `DolphinView` (2 Zeilen) oder `findChild` (0 Zeilen)? | Accessor **(umgesetzt in M3)** |
-| O3 | Wo wird die View pro Ordner gespeichert (später)? | eigene Whale-KConfig mit URL-Keys; nie `[Dolphin]` |
+| O3 | Wo wird die View pro Ordner gespeichert (später)? | eigene Whale-KConfig mit URL-Keys; nie `[Dolphin]` **(umgesetzt, siehe 14.20)** |
 | O4 | Umschalter: Icons/Compact/Details als drei Einträge neben den Plugins oder ein Eintrag „Dolphin“? | Ein Eintrag „Dateiliste (Dolphin)“; die Modi bleiben in der bestehenden `view_mode`-Action. Später ggf. visuell zusammenführen. |
 | O5 | Tiefe Auswahl: T1 reicht vorerst? | Ja, T2 erst nach Praxis mit der Treemap |
 | O6 | Plugin-API vorerst nur für Plugins im eigenen Baum (exakte Version)? | Ja |
@@ -2176,3 +2177,120 @@ bekannten `whaletreemaptest::testHover` und `whaleactionstest::testItemInfo` (vo
 **Abweichungen/Restpunkte:** Compare und `show_target` nicht geroutet; Copy To…/Move To…-Dialoge,
 Mehrfachauswahl-UI weiter offen; „Im Ordner anzeigen“ nur im Treemap-Menü. Treemap-Enter öffnet
 Dateien jetzt (M9: Ordner der Datei) – auf Wunsch aus T2. Weiter offen: O3, M8c, M11, Toolbar-Themen.
+
+### 14.20 Ergebnisse aus O3: bevorzugte View pro Ort (2026-10-06)
+
+Commits `c3404ac36` (Host, Tests), `9af282fcd` (Dev-MCP). **Keine Änderung an Dolphin-Dateien**,
+**keine Änderung der öffentlichen API** (Version bleibt **8**). Dolphins ViewProperties (`[Dolphin]`,
+Icons/Compact/Details) bleiben unberührt.
+
+**Was O3 speichert:** nur „Preferred View for Location“ = eine View-ID pro Ort
+(`org.kde.dolphin.itemview` für die Dateiliste oder eine Plugin-ID). Nicht: Scrollposition, Zoompfad,
+Auswahl, Farbmodus, Labels, Plugin-Einstellungen, History- oder Session-State – die bleiben in M6
+(History-Umschlag, Session-Key) bzw. bei den Views. Keine zweite Persistenzschicht für View-State.
+
+**Variante A (wie vorgegeben):** O3 kennt nur „Dateiliste“ vs. Plugin-Views. Der Modus der Dateiliste
+bleibt Dolphins ViewProperties-Sache. Ein Moduswechsel in der Dateiliste schreibt keine Präferenz; die
+Wahl eines Modus *in einer Plugin-View* (Icons/Compact/Details-Action, M5) ist eine Wahl der Dateiliste
+und wird als „Dateiliste“ gemerkt.
+
+**Klasse `WhaleViewPreferences`** (Host, `host/whaleviewpreferences.{h,cpp}`), prozessweit
+(`instance()`), nicht pro Fenster (anders als der M8b-Cache):
+
+| Punkt | Umsetzung |
+|---|---|
+| Location-Key (`locationKey()`) | Lokal: `QDir::cleanPath` des Pfads (kein Schrägstrich am Ende, kein `//`, `.`, `..`), ohne Query/Fragment; **Symlinks werden nicht aufgelöst** (Link und Ziel sind zwei Orte, wie der Benutzer sie sieht). Andere URLs: `NormalizePathSegments`, `StripTrailingSlash`, ohne Fragment und **ohne Passwort**, leerer Pfad = `/` (`trash:` = `trash:/`), Query bleibt (Teil des Orts, z. B. Suche). Schema/Host klein (QUrl). Schlüssel = voll kodierte URL (`QUrl::FullyEncoded`), damit Unicode/Sonderzeichen genau eine Schreibweise haben. Leere/ungültige URLs: kein Ort. |
+| Datei | `KSharedConfig::openStateConfig("whaleviewpreferencesrc")` → `$XDG_STATE_HOME/whaleviewpreferencesrc` (dauerhafte Benutzerentscheidungen, kein Teil von `whalerc`, kein `.directory`/xattr) |
+| Format | Gruppe `[PreferredViews]`, Eintrag `<32 Hex-Zeichen von SHA-256(Location-Key)>=<View-ID>,<Location-Key>` (KConfig-Liste). Grund für den Hash: KConfig-Schlüssel vertragen keinen beliebigen Text (`[` leitet z. B. eine Locale ein), URLs können sehr lang sein. Der Wert enthält den Key im Klartext: lesbar, und beim Laden wird geprüft, dass er zum Hash passt (beschädigte/fremde Einträge werden still übergangen). |
+| Speicher | `QHash<Location-Key, View-ID>`; Lookup O(1), keine lineare Suche. Schreiben einer Änderung = `sync()` sofort (KConfig mischt in die Datei auf der Platte, Einträge anderer Prozesse bleiben). |
+| Mehrere Fenster | Gleicher Prozess: dieselbe Instanz, Änderung gilt ab der nächsten Navigation. Anderer Prozess: ein `stat` pro Lookup vergleicht die Änderungszeit der Datei und liest bei Bedarf neu („spätestens beim nächsten Navigieren“). Gezeigte Views anderer Fenster/Hälften werden **nicht** umgeschaltet. Kein KConfigWatcher nötig. |
+| Plugin-Unabhängigkeit | Der Speicher weiß nichts über Plugins: eine Präferenz für ein fehlendes Plugin bleibt stehen. |
+
+**Wann wird geschrieben (User-Intent):** nur über `WhaleViewHost::selectView(viewId)` = die Wahl des
+Benutzers: Eintrag im View-Umschalter (`WhaleViewActions::slotViewSelected`) und Icons/Compact/Details
+in einer Plugin-View (`slotViewModeTriggered`). Nur wenn die View tatsächlich gezeigt werden konnte.
+Auch die Bestätigung der schon gezeigten View wird gemerkt. **Nie** geschrieben: History-, Session- und
+Präferenz-Anwendung, `supportsUrl`-Fallback, Fallback wegen fehlendem Plugin, das „Mitnehmen“ der View
+an einen neuen Ort, programmatische `showPluginView`/`showDolphinView` (Tests, Dev-MCP ohne `remember`).
+
+**Wann wird angewendet (Priorität):**
+
+| Ereignis | Was entscheidet | Umsetzung |
+|---|---|---|
+| Back/Forward (History-Eintrag mit Whale-Umschlag) | **History** | `unwrapLocationState()` → `applyViewsState(…, "history")` wie M6; Präferenz wird nicht gefragt |
+| Neuer Ort (neuer History-Eintrag, alter Dolphin-State ohne Umschlag) | **Präferenz** des Ziels, sonst bleibt die gezeigte View (Verhalten vor O3) | `unwrapLocationState()` → `applyPreferredView()` |
+| Session-Restore | **Session** | `restoreSessionState()` läuft nach dem Setzen der URL; es überschreibt eine gerade angewendete Präferenz bzw. verhindert die Erstanwendung |
+| Erster Ort eines neuen Ansichtsbereichs (neues Fenster, Tab, Split-Hälfte) | Präferenz | geht nicht durch `unwrapLocationState()` (Dolphin setzt die URL im Konstruktor); der Host wendet die Präferenz beim ersten `showEvent` an, sofern bis dahin nichts anderes (Session, History, Benutzer, Programm) über die View entschieden hat (`m_initialPreferencePending`). Hintergrund-Tabs also erst beim ersten Zeigen. |
+| Danach `checkUrlSupported()` | `supportsUrl()` (M9) | unverändert |
+
+**Default ohne Präferenz:** bestehendes Verhalten, keine Heuristik: die gezeigte View bleibt
+(`viewOrigin = "kept"`), anfangs also die Dateiliste. Bewusst so, weil sonst M9-Drilldown (Doppelklick
+in der Treemap öffnet einen Unterordner) bei jedem Unterordner zur Dateiliste zurückspränge.
+„Clear“ heißt daher: kein Eintrag mehr → Default (bleibt die gezeigte View; von einer Dateiliste aus
+also Dateiliste).
+
+**Keine Vererbung:** nur exakt gespeicherte Orte. `~/Pictures` → Treemap macht `~/Pictures/x` nicht zur
+Treemap; dass die Treemap beim Hineinnavigieren *sichtbar bleibt*, ist das alte Mitnehmen, nicht O3
+(und wird nicht gespeichert).
+
+**Fallback-Semantik:** Präferenz-Plugin fehlt / API inkompatibel (beides: keine gültigen Metadaten) /
+nicht ladbar / `supportsUrl()` false → Dateiliste, `lastRestore = {preference, <id>, dolphin,
+fallback}`, `viewOrigin = "fallback"`, nur `qCDebug` (die Registry wird bei fehlenden Metadaten gar
+nicht erst nach dem Plugin gefragt, so entsteht auch ihre Warnung nicht), **Präferenz bleibt**. Ist das
+Plugin wieder da, greift sie beim nächsten Besuch. Eine bereits gezeigte Plugin-View bleibt, auch wenn
+ihr Plugin inzwischen als fehlend gilt (die Instanz ist geladen; wie eine Deinstallation zur Laufzeit).
+
+**supportsUrl:** Lokaler Ordner bevorzugt Treemap, Navigation nach `trash:/` → Dateiliste (M9,
+`restore.source = "location"`), für `trash:/` wird nichts gespeichert; neue Navigation zurück → Treemap
+(Präferenz), Back → Treemap (History). Der Umschalter deaktiviert die Treemap dort wie bisher
+(zusätzlich deaktiviert er Views ohne gültige Metadaten, also fehlende Plugins).
+
+**Split / Mehrfenster:** Präferenzen gehören zum Ort, nicht zur Hälfte. Jede Hälfte wendet beim
+Navigieren die Präferenz des Ziels an; beide Hälften sehen am selben Ort dieselbe bevorzugte View. Eine
+Wahl in der einen Hälfte schaltet die andere nicht um, gilt dort aber ab der nächsten Navigation.
+Eine neue Split-Hälfte am selben Ort zeigt dessen Präferenz.
+
+**Reset:** `WhaleViewPreferences::clearPreferredView(url)` + Dev-MCP `clear_preferred_view`; keine
+sichtbare UI (Scope).
+
+**Kein Toolbar-/Umschalter-Umbau.** Der Umschalter ruft jetzt `selectView()` statt
+`showDolphinView`/`showPluginView` (gleiches Verhalten + Merken).
+
+**Diagnose:** `WhaleViewHost::viewOrigin()`: `user`, `preference`, `history`, `session`, `fallback`,
+`kept`, `initial`. `RestoreInfo.source` kennt zusätzlich `preference`.
+
+**Test-Hook:** `WhaleViewRegistry::setPluginAvailable(id, bool)`: Plugin gilt als fehlend (nicht
+gelistet, keine Metadaten, keine Instanz), geladene Instanzen bleiben.
+
+**Dev-MCP:** Zustand pro Pane `preferredView`, `viewOrigin`; Tools `get_preferred_view`,
+`set_preferred_view`, `clear_preferred_view`, `set_view_plugin_available`; `set_view` mit
+`remember: true` geht über den echten Umschalter-Eintrag (aktiviert dazu die Hälfte). **Default von
+`remember` ist `false`** (alte Semantik): Die M3–T2-Abnahmen benutzen `set_view` als programmatischen
+Umschalter; mit Merken hätten sich ihre Abläufe geändert (z. B. neue Split-Hälfte am selben Ort zeigt
+die Präferenz), ohne dass dort etwas kaputt wäre. Einzige Änderung an alten Abnahmen: die erwartete
+Tool-Liste in `test_m3_acceptance.py`.
+
+**Tests:** `whaleviewpreferencestest` (16 Testfunktionen, 33 Fälle inkl. 17 Key-Fälle): Key-Semantik
+(Schrägstriche, `//`, `.`/`..`, Unicode roh/kodiert, `[`,`=`,`,`,`#`,`?`,`%`, `trash:`/`trash:/`,
+Passwort, Query, ungültig), Persistenz/Neustart, lange URLs, Schreiben eines anderen Prozesses,
+beschädigte Einträge, kein Default-Wechsel ohne Präferenz, A/B-Wechsel, nur Benutzerwahl wird
+gemerkt, `trash:/`, fehlendes Plugin (ohne Warnungen), History-Priorität, Session-Priorität, Split,
+neues Fenster/Tab/Hintergrund-Tab, Clear, Icons/Compact/Details. `whaledevautomationtest::testPreferredViews`.
+MCP-Abnahme `test_o3_acceptance.py` (38 Schritte, privater Bus, Neustart): A Simple, B zwei Ordner
+(+ Unterordner ohne Vererbung), C `trash:/`, D History-Priorität, E Session-Neustart (Präferenz vorher
+geändert, Session gewinnt; Präferenzen überleben den Neustart; neue Navigation nutzt sie), F Split
+gekreuzt, G fehlendes Plugin (keine Warnungen im Log), H Clear. Grün offscreen (ctest
+`whale_dev_mcp_o3_e2e`, 4 Läufe) und auf echtem Plasma/Wayland (2 Läufe, Screenshots geprüft).
+Unit-Test 3× offscreen, 3× Wayland grün.
+
+**Abweichungen vom Auftrag/Plan:**
+
+- „Clear → Default-Dateiliste“: Default ist das bisherige Verhalten (gezeigte View bleibt), nicht
+  zwingend die Dateiliste; aus der Dateiliste heraus ergibt das die Dateiliste. Grund siehe oben
+  (Drilldown, „keine neue Heuristik“).
+- Speicherort XDG-State statt `whalerc`/eigener Config-Datei in `XDG_CONFIG_HOME`.
+- Mehrfenster-Synchronisation über die Änderungszeit statt KConfigWatcher (kein D-Bus, deterministisch).
+
+**Weiter offen:** M8c (Live-Updates, Remote), M11 (RolesUpdater pausieren), Toolbar-Themen; sichtbares
+„Zurücksetzen“ der Präferenz; Vererbung auf Unterordner (bewusst nicht in O3); Compare/`show_target`
+(T2-Rest).
