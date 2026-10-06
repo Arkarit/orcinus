@@ -66,7 +66,8 @@ TOOLS = [
     {
         "name": "set_view",
         "description": "Shows a view in a pane: \"dolphin\" (the built-in file list) or a view plugin ID such as "
-        "\"whale_testlist\" or \"whale_hello\" (see availableViews in the state). By default an automatic switch "
+        "\"whale_treemap\", or the test views \"whale_testlist\"/\"whale_hello\" when Whale runs with the test "
+        "plugin directory (see availableViews in the state). By default an automatic switch "
         "(nothing is remembered); remember=true is the user's choice in the view switcher, which makes it the "
         "preferred view of the location (O3).",
         "inputSchema": {

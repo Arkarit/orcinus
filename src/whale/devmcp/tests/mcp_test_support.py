@@ -100,7 +100,9 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
                 extra_plugin_dirs=(), confirm_delete=False):
     """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
     Without @p folder Whale restores its session (if it is the only Whale on the bus).
-    @p plugin_dir may be None: then Whale finds no plugins of the build tree.
+    @p plugin_dir may be None: then Whale finds no plugins of the build tree. It may list
+    several directories separated by os.pathsep (the product's view plugins and the test
+    views Hello/Test List, which live in a test plugin directory of their own).
     With @p file_operations the dev MCP may change files and the clipboard, and deleting
     needs no confirmation (with @p confirm_delete it does, as KDE's default); only for
     throwaway test folders."""

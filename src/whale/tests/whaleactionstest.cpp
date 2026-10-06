@@ -214,6 +214,7 @@ void WhaleActionsTest::initTestCase()
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
 
     // Deleting asks for confirmation by default; the test confirms by configuration.
     const QString config = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);

@@ -130,6 +130,7 @@ void WhaleTreemapTest::initTestCase()
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
     // Deleting must not ask, so a Delete that got through would really delete.
     const QString config = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
     QVERIFY(QDir().mkpath(config));

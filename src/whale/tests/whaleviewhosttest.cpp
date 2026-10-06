@@ -172,6 +172,7 @@ void WhaleViewHostTest::initTestCase()
 
     // Only the plugins of this build tree (the Hello plugin).
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
 
     GeneralSettings *settings = GeneralSettings::self();
     settings->setShowStatusBar(GeneralSettings::EnumShowStatusBar::FullWidth);

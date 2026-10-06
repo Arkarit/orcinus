@@ -92,6 +92,7 @@ void WhaleDevAutomationTest::initTestCase()
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
     qunsetenv("WHALE_DEV_MCP");
 }
 

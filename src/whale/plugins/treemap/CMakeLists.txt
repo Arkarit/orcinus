@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 configure_file(whale_treemap.json.in ${CMAKE_CURRENT_BINARY_DIR}/whale_treemap.json @ONLY)
-# See plugins/testlist: recompile directly when the metadata changes.
+# See tests/plugins/testlist: recompile directly when the metadata changes.
 set_source_files_properties(whaletreemapplugin.cpp PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/whale_treemap.json)
 
 # The layout and the renderer do not depend on the view; the layout test uses them directly.

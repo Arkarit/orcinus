@@ -108,6 +108,7 @@ void WhaleViewPreferencesTest::initTestCase()
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->save();
     // The preferences of this test live in the test's state directory, never in the user's.

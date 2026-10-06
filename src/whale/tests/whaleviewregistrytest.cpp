@@ -242,6 +242,7 @@ private Q_SLOTS:
     void initTestCase();
 
     void testDiscovery();
+    void testProductViews();
     void testWrongApiVersionIsRejectedWithoutLoading();
     void testIsCompatible_data();
     void testIsCompatible();
@@ -253,7 +254,8 @@ private Q_SLOTS:
 void WhaleViewRegistryTest::initTestCase()
 {
     // Only search the plugins built in this tree, never installed ones.
-    QCoreApplication::setLibraryPaths({QStringLiteral(WHALE_TEST_PLUGIN_DIR), QStringLiteral(WHALE_TEST_EXTRA_PLUGIN_DIR)});
+    QCoreApplication::setLibraryPaths(
+        {QStringLiteral(WHALE_TEST_PLUGIN_DIR), QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR), QStringLiteral(WHALE_TEST_EXTRA_PLUGIN_DIR)});
     qunsetenv("WHALE_TEST_WRONGAPI_LOADED");
 }
 
@@ -269,6 +271,21 @@ void WhaleViewRegistryTest::testDiscovery()
     QCOMPARE(hello.name(), QStringLiteral("Hello"));
     QCOMPARE(hello.rawData().value(QLatin1String(WHALE_VIEW_API_VERSION_KEY)).toInt(), WHALE_VIEW_API_VERSION);
     QVERIFY(hello.fileName().contains(QLatin1String("whale/views/")));
+}
+
+void WhaleViewRegistryTest::testProductViews()
+{
+    // The product's view plugins are the real views only: the test views are test fixtures
+    // in a plugin directory of their own, which a Whale never searches.
+    const QStringList libraryPaths = QCoreApplication::libraryPaths();
+    QCoreApplication::setLibraryPaths({QStringLiteral(WHALE_TEST_PLUGIN_DIR)});
+    WhaleViewRegistry registry;
+    const QList<KPluginMetaData> plugins = registry.plugins();
+    QCoreApplication::setLibraryPaths(libraryPaths);
+
+    QVERIFY(containsPlugin(plugins, QStringLiteral("whale_treemap")));
+    QVERIFY(!containsPlugin(plugins, helloId));
+    QVERIFY(!containsPlugin(plugins, QStringLiteral("whale_testlist")));
 }
 
 void WhaleViewRegistryTest::testWrongApiVersionIsRejectedWithoutLoading()

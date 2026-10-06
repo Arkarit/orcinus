@@ -6,7 +6,7 @@
 # Starts the Whale of a build tree with the development automation, in a profile of
 # its own, so test runs never change the settings of the Whale used every day.
 #
-#   whale-dev-session.sh [--build DIR] [--profile DIR] [--offscreen] [--file-operations] [URL...]
+#   whale-dev-session.sh [--build DIR] [--profile DIR] [--offscreen] [--file-operations] [--test-views] [URL...]
 #
 # Defaults: --build ../build-whale (relative to the source tree), --profile
 # <build>/whale-dev-profile. The look (colors, fonts, icons) is copied from the
@@ -16,6 +16,9 @@
 # (WHALE_DEV_MCP_FILE_OPERATIONS=1). It also gives Whale a home inside the profile, so
 # its trash is the profile's, and turns off the delete confirmation. Only for
 # throwaway test folders inside the profile's device (e.g. /tmp).
+#
+# --test-views adds the test views Hello and Test List (test fixtures, built with the
+# tests into the build tree's test plugin directory; never part of the product).
 
 set -euo pipefail
 
@@ -24,6 +27,7 @@ build_dir="$src_dir/../build-whale"
 profile=""
 platform=""
 file_operations=""
+test_views=""
 urls=()
 
 while [ $# -gt 0 ]; do
@@ -32,6 +36,7 @@ while [ $# -gt 0 ]; do
         --profile) profile=$2; shift 2 ;;
         --offscreen) platform=offscreen; shift ;;
         --file-operations) file_operations=1; shift ;;
+        --test-views) test_views=1; shift ;;
         *) urls+=("$1"); shift ;;
     esac
 done
@@ -50,6 +55,9 @@ source "$build_dir/prefix.sh"
 set -u
 export XDG_CONFIG_HOME=$profile/config XDG_DATA_HOME=$profile/data XDG_CACHE_HOME=$profile/cache XDG_STATE_HOME=$profile/state
 export WHALE_DEV_MCP=1
+if [ -n "$test_views" ]; then
+    export QT_PLUGIN_PATH=$build_dir/src/whale/tests/testviewplugins:$QT_PLUGIN_PATH
+fi
 if [ -n "$file_operations" ]; then
     mkdir -p "$profile/home"
     printf '[Confirmations]\nConfirmDelete=false\nConfirmTrash=false\n' > "$profile/config/kiorc"

@@ -42,6 +42,10 @@ claude mcp add whale-dev -- python3 $PWD/src/whale/devmcp/adapter/whale_dev_mcp.
 ```
 
 With several automated Whales running, `WHALE_DEV_MCP_PID=<pid>` picks one.
+The test views Hello (`whale_hello`) and Test List (`whale_testlist`) are test fixtures,
+not part of the product: they live in the build tree's test plugin directory
+(`<build>/src/whale/tests/testviewplugins`). `whale-dev-session.sh --test-views` adds it;
+the acceptance tests get it through `--plugin-dir` (a list of directories, separated by `:`).
 The launcher's profile (`<build>/whale-dev-profile`) keeps test runs away from the
 settings of the Whale used every day; Whale shares view properties between folders
 by default, so sorting or hidden files would otherwise leak into it.

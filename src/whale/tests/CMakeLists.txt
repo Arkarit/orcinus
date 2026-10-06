@@ -5,6 +5,15 @@
 find_package(Qt6Test CONFIG REQUIRED)
 include(ECMAddTests)
 
+# The test views Hello and Test List: test fixtures in a plugin directory of their own, which
+# only the tests (and the dev MCP acceptance tests) add to the plugin path. Whale started from
+# the build tree never finds them, and they are never installed.
+set(WHALE_TEST_VIEW_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/testviewplugins)
+set(WHALE_TEST_VIEW_PLUGIN_DIR ${WHALE_TEST_VIEW_PLUGIN_DIR} PARENT_SCOPE)
+add_subdirectory(plugins/hello)
+add_subdirectory(plugins/testlist)
+add_compile_definitions(WHALE_TEST_VIEW_PLUGIN_DIR="${WHALE_TEST_VIEW_PLUGIN_DIR}")
+
 # A view plugin whose metadata claims a wrong API version. It lives in its own
 # plugin directory so that it never shows up when Whale runs from the build tree.
 math(EXPR WHALE_VIEW_API_WRONG_VERSION "${WHALE_VIEW_API_VERSION} + 1")
@@ -36,7 +45,7 @@ ecm_add_test(whaleviewregistrytest.cpp
 target_compile_definitions(whaleviewregistrytest PRIVATE
     WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
     WHALE_TEST_EXTRA_PLUGIN_DIR="${WHALE_TEST_EXTRA_PLUGIN_DIR}")
-add_dependencies(whaleviewregistrytest whale_hello whale_test_wrongapi)
+add_dependencies(whaleviewregistrytest whale_hello whale_test_wrongapi whale_treemap)
 
 ecm_add_test(whaleviewhosttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleviewhosttest
@@ -142,7 +151,7 @@ if(NOT WIN32)
 add_test(
     NAME whale_view_api_boundary
     COMMAND bash -c
-        "result=\$(grep -rnE '#include [<\"](dolphin|kitemviews|views/|settings/|kfileitemmodel|kitemlist|dolphinview)' '${CMAKE_CURRENT_SOURCE_DIR}/../api' '${CMAKE_CURRENT_SOURCE_DIR}/../plugins'); \
+        "result=\$(grep -rnE '#include [<\"](dolphin|kitemviews|views/|settings/|kfileitemmodel|kitemlist|dolphinview)' '${CMAKE_CURRENT_SOURCE_DIR}/../api' '${CMAKE_CURRENT_SOURCE_DIR}/../plugins' '${CMAKE_CURRENT_SOURCE_DIR}/plugins'); \
          if [ -n \"\$result\" ]; then \
              echo 'The Whale view plugin API and the view plugins must only use Qt, KDE Frameworks and the API itself:'; \
              echo \"\$result\"; \
@@ -154,7 +163,7 @@ add_test(
     NAME whale_view_plugin_dependencies
     COMMAND bash -c
         "status=0; \
-         for plugin in '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/*.so; do \
+         for plugin in '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/*.so '${WHALE_TEST_VIEW_PLUGIN_DIR}'/whale/views/*.so; do \
              needed=\$(readelf -d \"\$plugin\" | grep NEEDED); \
              if echo \"\$needed\" | grep -qiE 'whaleprivate|dolphin|whaleviewhost'; then \
                  echo \"\$plugin links private libraries:\"; echo \"\$needed\"; status=1; \
@@ -162,6 +171,11 @@ add_test(
              echo \"\$needed\" | grep -q whaleviewapi || { echo \"\$plugin does not use libwhaleviewapi\"; status=1; }; \
          done; \
          ls '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/whale_treemap.so >/dev/null || status=1; \
+         for test_view in whale_hello whale_testlist; do \
+             if [ -e '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/\$test_view.so ]; then \
+                 echo \"The test view \$test_view must not be among the product's view plugins\"; status=1; \
+             fi; \
+         done; \
          exit \$status"
 )
 endif()

@@ -210,6 +210,7 @@ void WhaleCommandRoutingTest::initTestCase()
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
 
     // Opening a file must never start a real application (see whaleselectiontest).
     m_openerLog = m_tmpHome.filePath(QStringLiteral("opened.log"));

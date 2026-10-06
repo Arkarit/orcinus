@@ -106,8 +106,8 @@ target_link_libraries(whaleviewhost PUBLIC
 
 ########### plugins ###############
 
-add_subdirectory(plugins/hello)
-add_subdirectory(plugins/testlist)
+# The test views (Hello, Test List) are test fixtures: they are built with the tests into a
+# plugin directory of their own (tests/plugins) and never installed or found by Whale.
 add_subdirectory(plugins/treemap)
 
 if(BUILD_TESTING)
