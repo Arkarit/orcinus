@@ -98,3 +98,29 @@ Mögliche Richtungen: ein `QSplitter` zwischen Vorschau und Metadaten (Position 
 eine automatische Begrenzung, damit die Metadaten ohne Scrollleiste passen, solange das Panel hoch
 genug ist. Ein Splitter wäre der direkteste Weg und ebenfalls ein Kandidat für einen Merge Request
 bei KDE.
+
+## 7. Ordner-Richtlinien (Path Policies / Folder Policies)
+
+Pro Verzeichnis (ggf. samt Unterverzeichnissen oder per Muster) Regeln festlegen wie:
+- keine Thumbnails
+- keine Hover-Vorschau
+- keine Metadatenanalyse
+- keine Inhaltsindizierung
+- keine rekursive Größenberechnung
+- vielleicht später: keine Versionskontroll-Overlays, keine Netzwerkzugriffe, keine Plugins
+
+Anlass (2026-10-06): Schaut man mit Dolphin/Whale in `~/.cache/thumbnails/normal`, findet eine
+wundersame Dateivermehrung statt: Jede Vorschau erzeugt eine Vorschau erzeugt eine Vorschau …
+
+Erster Befund, noch nicht analysiert:
+- Ein Teil existiert schon: Die ordnerbezogenen View-Properties (`views/viewproperties.cpp`) speichern
+  `previewsShown` pro Ordner. Das gilt aber nur für genau diesen Ordner, nicht vererbt, und ist
+  eine Ansichtseinstellung, keine Richtlinie.
+- Vorschauen entstehen an mehreren Stellen mit eigenen `KIO::PreviewJob`s: im
+  `KFileItemModelRolesUpdater` (Icons und Hover-Sequenz) und im Information-Panel
+  (`panels/information/informationpanelcontent.cpp:183`, `ScaledAndCached`). Eine Richtlinie müsste
+  alle diese Stellen erreichen.
+- Noch prüfen: Welcher Weg erzeugt die Vermehrung konkret (Ansicht, Hover, Information-Panel, andere
+  Thumbnail-Größe)? Schließt KIO das Thumbnail-Verzeichnis selbst schon irgendwo aus?
+  Für den Thumbnail-Ordner wäre eine eingebaute Standardregel sinnvoll, unabhängig von
+  Nutzereinstellungen; das wäre auch ein Kandidat für einen Merge Request bei KDE (oder bei KIO).
