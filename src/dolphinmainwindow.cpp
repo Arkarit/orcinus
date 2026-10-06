@@ -950,6 +950,9 @@ void DolphinMainWindow::copy()
 
 void DolphinMainWindow::paste()
 {
+    if (m_whaleViewActions->routeAction(m_activeViewContainer->view(), KStandardAction::name(KStandardAction::Paste))) {
+        return; // Whale: F1, no destination folder in a view of the files below its location
+    }
     m_activeViewContainer->view()->paste();
 }
 
@@ -1640,6 +1643,7 @@ void DolphinMainWindow::updateHamburgerMenu()
     }
     if (!toolBar()->isVisible() || !toolbarActions.contains(ac->action(QStringLiteral("view_settings")))) {
         menu->addAction(ac->action(QStringLiteral("whale_view_switcher"))); // Whale: view plugins
+        menu->addAction(ac->action(QStringLiteral("whale_include_subfolders"))); // Whale: F1
         menu->addAction(ac->action(QStringLiteral("show_hidden_files")));
         menu->addAction(ac->action(QStringLiteral("sort")));
         menu->addAction(ac->action(QStringLiteral("additional_info")));

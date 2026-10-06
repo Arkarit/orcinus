@@ -187,3 +187,12 @@ ecm_add_test(whaleviewpreferencestest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE
 target_include_directories(whaleviewpreferencestest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaleviewpreferencestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaleviewpreferencestest whale_treemap whale_testlist)
+
+# F1: "Include Subfolders", the file list showing the files below its location.
+ecm_add_test(whalerecursivecontenttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalerecursivecontenttest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalerecursivecontenttest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalerecursivecontenttest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalerecursivecontenttest whale_treemap)
+set_tests_properties(whalerecursivecontenttest PROPERTIES TIMEOUT 600)

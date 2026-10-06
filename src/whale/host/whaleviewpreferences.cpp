@@ -18,6 +18,7 @@
 namespace
 {
 const QString groupName = QStringLiteral("PreferredViews");
+const QString scopeGroupName = QStringLiteral("ContentScopes");
 }
 
 WhaleViewPreferences *WhaleViewPreferences::instance()
@@ -112,6 +113,45 @@ int WhaleViewPreferences::count()
     return m_views.count();
 }
 
+WhaleContentScope WhaleViewPreferences::contentScope(const QUrl &url)
+{
+    const QString key = locationKey(url);
+    if (key.isEmpty()) {
+        return WhaleContentScope::CurrentFolder;
+    }
+    reloadIfChanged();
+    return m_scopes.value(key, WhaleContentScope::CurrentFolder);
+}
+
+void WhaleViewPreferences::setContentScope(const QUrl &url, WhaleContentScope scope)
+{
+    const QString key = locationKey(url);
+    if (key.isEmpty()) {
+        return;
+    }
+    reloadIfChanged();
+    if (m_scopes.value(key, WhaleContentScope::CurrentFolder) == scope) {
+        return;
+    }
+    KConfigGroup group = m_config->group(scopeGroupName);
+    if (scope == WhaleContentScope::CurrentFolder) {
+        m_scopes.remove(key);
+        group.deleteEntry(entryKey(key));
+    } else {
+        m_scopes.insert(key, scope);
+        group.writeEntry(entryKey(key), QStringList{WhaleContentScopes::name(scope), key});
+    }
+    write();
+    qCDebug(WhaleViewDebug) << "Content scope of" << key << "is now" << WhaleContentScopes::name(scope);
+    Q_EMIT contentScopeChanged(key);
+}
+
+int WhaleViewPreferences::contentScopeCount()
+{
+    reloadIfChanged();
+    return m_scopes.count();
+}
+
 void WhaleViewPreferences::reloadIfChanged()
 {
     // One stat per lookup notices what another Whale process wrote.
@@ -139,6 +179,19 @@ void WhaleViewPreferences::load()
             continue;
         }
         m_views.insert(entry.at(1), entry.at(0));
+    }
+
+    m_scopes.clear();
+    const KConfigGroup scopeGroup = m_config->group(scopeGroupName);
+    const QStringList scopeKeys = scopeGroup.keyList();
+    for (const QString &key : scopeKeys) {
+        const QStringList entry = scopeGroup.readEntry(key, QStringList());
+        const std::optional<WhaleContentScope> scope = entry.count() == 2 ? WhaleContentScopes::fromName(entry.at(0)) : std::nullopt;
+        if (!scope || entryKey(entry.at(1)) != key) {
+            qCDebug(WhaleViewDebug) << "Ignoring the damaged content scope entry" << key;
+            continue;
+        }
+        m_scopes.insert(entry.at(1), *scope);
     }
 }
 

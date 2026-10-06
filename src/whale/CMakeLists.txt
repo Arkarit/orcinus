@@ -69,6 +69,8 @@ target_sources(whaleviewhost PRIVATE
     host/whalecommandrouter.cpp
     host/whalefileoperationsimpl.cpp
     host/whalepreviewproviderimpl.cpp
+    host/whalerecursivecontent.cpp
+    host/whalerecursiveprojection.cpp
     host/whaletreecache.cpp
     host/whaletreescannerimpl.cpp
     host/whaletreewalker.cpp

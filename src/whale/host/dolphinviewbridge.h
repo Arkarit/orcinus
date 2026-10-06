@@ -196,6 +196,26 @@ public:
      */
     bool drop(QDropEvent *event, const QUrl &url, QWidget *widget);
 
+    /**
+     * F1: the DolphinView's model shows the items given by setExternalItems() instead of the
+     * location's listing (KFileItemModel::setExternalItemsEnabled()), e.g. the files below
+     * the location. Enabling empties the file list; disabling shows the listing again.
+     */
+    void setExternalItemsEnabled(bool enabled);
+    bool externalItemsEnabled() const;
+
+    /**
+     * F1: the items of the file list while external items are enabled
+     * (KFileItemModel::setExternalItems()); loading the location completes with them.
+     */
+    void setExternalItems(const KFileItemList &items);
+
+    /**
+     * @return The widget that receives drags over the file list: the viewport of its
+     *         QGraphicsView (KItemListContainer).
+     */
+    QWidget *fileListDragWidget() const;
+
 Q_SIGNALS:
     void urlChanged(const QUrl &url);
     void loadingStarted();
@@ -235,6 +255,8 @@ private:
     QUrl m_revealUrl;
     QUrl m_revealFolder;
     bool m_revealFolderShown = false;
+    // F1: the location is (re)loaded and its external items are still to come.
+    bool m_externalItemsPending = false;
 };
 
 #endif

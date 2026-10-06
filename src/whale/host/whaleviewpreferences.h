@@ -9,6 +9,8 @@
 
 #include <KSharedConfig>
 
+#include "whalecontentscope.h"
+
 #include <QDateTime>
 #include <QHash>
 #include <QObject>
@@ -35,6 +37,11 @@
  *
  * Nothing here knows whether a view exists: a preference for a missing plugin is kept, so
  * it applies again once the plugin is back.
+ *
+ * F1: the content scope of the file list ("Include Subfolders") is remembered per location
+ * the same way but separately, in the group "ContentScopes": the preferred view and the
+ * preferred scope never mix. Only RecursiveFiles is written; CurrentFolder is the default
+ * and removes the entry.
  */
 class WhaleViewPreferences : public QObject
 {
@@ -88,11 +95,33 @@ public:
      */
     int count();
 
+    /**
+     * F1: @return The content scope of the file list preferred at @p url; CurrentFolder if
+     *         there is no preference.
+     */
+    WhaleContentScope contentScope(const QUrl &url);
+
+    /**
+     * F1: remembers @p scope as the content scope of the file list at @p url and writes it to
+     * disk at once. CurrentFolder, the default, forgets the preference.
+     */
+    void setContentScope(const QUrl &url, WhaleContentScope scope);
+
+    /**
+     * @return The number of locations with a remembered content scope.
+     */
+    int contentScopeCount();
+
 Q_SIGNALS:
     /**
      * Is emitted when a preference of this process changed.
      */
     void changed(const QString &locationKey);
+
+    /**
+     * Is emitted when a content scope preference of this process changed.
+     */
+    void contentScopeChanged(const QString &locationKey);
 
 private:
     static QString entryKey(const QString &locationKey);
@@ -102,6 +131,7 @@ private:
 
     KSharedConfigPtr m_config;
     QHash<QString, QString> m_views; // location key -> view ID
+    QHash<QString, WhaleContentScope> m_scopes; // location key -> content scope (F1)
     QString m_filePath;
     QDateTime m_fileModified;
     bool m_loaded = false;

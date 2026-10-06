@@ -139,6 +139,14 @@ public:
     Statistics statistics() const;
     Limits limits() const;
 
+Q_SIGNALS:
+    /**
+     * Something changed below the root @p rootPath (a cleaned local path) of a kept tree,
+     * which is dropped now, or of a running scan, whose tree will not be kept. Who shows
+     * such a tree may scan again (F1). Trees that are not kept are not watched.
+     */
+    void treeChanged(const QString &rootPath);
+
 private:
     struct Key {
         QString root;

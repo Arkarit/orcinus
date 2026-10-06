@@ -7,6 +7,7 @@
 #ifndef WHALEVIEWHOST_H
 #define WHALEVIEWHOST_H
 
+#include "whalecontentscope.h"
 #include "whaleviewstate.h"
 
 #include <QList>
@@ -22,6 +23,7 @@ class QStackedLayout;
 class WhaleView;
 class WhaleViewContextImpl;
 class WhaleViewPlugin;
+class WhaleRecursiveContent;
 class WhaleViewRegistry;
 
 /**
@@ -40,6 +42,12 @@ class WhaleViewRegistry;
  *   view()->setFocus() calls reach the visible view.
  * - Focus entering the plugin widget is reported by activationRequested(), which
  *   the container turns into the activation of its view area (split view).
+ *
+ * Content scope (F1): the file list shows the location's items or the files below it
+ * (WhaleRecursiveContent). The scope belongs to the file list: it is its state in the
+ * history and the session, the user's choice is remembered per location apart from the
+ * preferred view (WhaleViewPreferences), and it only takes effect while the file list is
+ * shown at a local folder. Plugin views always see the location's own items.
  */
 class WhaleViewHost : public QWidget
 {
@@ -145,6 +153,47 @@ public:
     QString viewOrigin() const;
 
     /**
+     * F1: @return The content scope of the file list at the current location, as the user
+     *         (or the history, the session, the location's preference) chose it.
+     */
+    WhaleContentScope contentScope() const;
+
+    /**
+     * F1: the user chose @p scope for the file list at the current location ("Include
+     * Subfolders"): it is applied and remembered for the location (WhaleViewPreferences).
+     * The shown view, the location and the view mode stay.
+     */
+    void selectContentScope(WhaleContentScope scope);
+
+    /**
+     * F1: @return True if the file list could show the files below the location: it is
+     *         shown, and the location is a local folder.
+     */
+    bool supportsRecursiveContent() const;
+
+    /**
+     * F1: @return True if the file list shows the files below the location now.
+     */
+    bool isRecursiveContentShown() const;
+
+    /**
+     * F1: what decided about the content scope: "user", "preference", "default" (a new
+     * location without a preference), "history", "session" or "initial".
+     */
+    QString contentScopeOrigin() const;
+
+    /**
+     * F1: the recursive content of the file list, for Whale's actions and development tools.
+     */
+    WhaleRecursiveContent *recursiveContent() const;
+
+    /**
+     * F1: Paste into the view area. @return True if it is refused, because the file list
+     *         shows files of many folders (no destination); the user is told why.
+     */
+    bool refusePaste();
+
+    /**
      * Tells the host whether its view area is the active one. On activation a shown
      * plugin view gets the focus, just as DolphinView::setActive() focuses itself.
      */
@@ -187,6 +236,17 @@ Q_SIGNALS:
      */
     void viewSelectionChanged();
 
+    /**
+     * F1: the content scope, or whether it takes effect, changed.
+     */
+    void contentScopeChanged();
+
+    /**
+     * @p message should be shown in the view area's message area, e.g. why a drop or
+     * Paste was refused.
+     */
+    void messageRequested(const QString &message);
+
 protected:
     void showEvent(QShowEvent *event) override;
 
@@ -201,6 +261,10 @@ private:
     void restoreDolphinView();
     void slotFocusChanged(QWidget *old, QWidget *now);
     void checkUrlSupported();
+    void applyPreferredContentScope();
+    void setContentScope(WhaleContentScope scope, const QString &origin);
+    void updateRecursiveContent();
+    QByteArray fileListState() const;
 
     DolphinView *const m_dolphinView;
     QStackedLayout *m_stack;
@@ -230,6 +294,12 @@ private:
     // preferred view is shown once the host is part of its window, unless a session, the
     // history or the user decided about the view before.
     bool m_initialPreferencePending = true;
+
+    // F1: the content scope of the file list at the current location.
+    WhaleRecursiveContent *m_recursiveContent;
+    WhaleContentScope m_contentScope = WhaleContentScope::CurrentFolder;
+    QString m_contentScopeOrigin = QStringLiteral("initial");
+    int m_holdRecursiveContent = 0; // > 0 while view and scope are being decided together
 };
 
 #endif

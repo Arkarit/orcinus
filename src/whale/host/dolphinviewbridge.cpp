@@ -22,6 +22,7 @@
 
 #include <QDropEvent>
 #include <QFileInfo>
+#include <QGraphicsView>
 #include <QMimeData>
 #include <QPoint>
 #include <QPointer>
@@ -210,6 +211,10 @@ DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     , m_selectionTimer(new QTimer(this))
 {
     connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::urlChanged);
+    connect(dolphinView, &DolphinView::directoryLoadingStarted, this, [this]() {
+        // F1: the model's loading waits for the external items of the location, too.
+        m_externalItemsPending = externalItemsEnabled();
+    });
     connect(dolphinView, &DolphinView::directoryLoadingStarted, this, &DolphinViewBridge::loadingStarted);
     connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::loadingCompleted);
     connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, &DolphinViewBridge::loadingCanceled);
@@ -256,9 +261,32 @@ bool DolphinViewBridge::isLoading() const
     // The DolphinView keeps its loading state private; its model's directory listers
     // (one, plus those of expanded folders) know it.
     const auto listers = m_dolphinView->findChildren<KCoreDirLister *>();
-    return std::any_of(listers.cbegin(), listers.cend(), [](const KCoreDirLister *lister) {
-        return !lister->isFinished();
-    });
+    return m_externalItemsPending || std::any_of(listers.cbegin(), listers.cend(), [](const KCoreDirLister *lister) {
+               return !lister->isFinished();
+           });
+}
+
+void DolphinViewBridge::setExternalItemsEnabled(bool enabled)
+{
+    m_externalItemsPending = enabled;
+    model()->setExternalItemsEnabled(enabled);
+}
+
+bool DolphinViewBridge::externalItemsEnabled() const
+{
+    return model()->externalItemsEnabled();
+}
+
+void DolphinViewBridge::setExternalItems(const KFileItemList &items)
+{
+    m_externalItemsPending = false;
+    model()->setExternalItems(items);
+}
+
+QWidget *DolphinViewBridge::fileListDragWidget() const
+{
+    auto graphicsView = qobject_cast<QGraphicsView *>(m_dolphinView->itemListContainer()->viewport());
+    return graphicsView ? graphicsView->viewport() : nullptr;
 }
 
 WhaleItemList *DolphinViewBridge::createItemList(QObject *parent) const

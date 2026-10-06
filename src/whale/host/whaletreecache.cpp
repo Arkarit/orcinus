@@ -16,6 +16,7 @@
 #include <QFile>
 #include <QFutureWatcher>
 #include <QPromise>
+#include <QSet>
 #include <QThreadPool>
 #include <QtConcurrentRun>
 
@@ -253,13 +254,17 @@ void WhaleTreeCache::dropEntry(const Key &key)
 void WhaleTreeCache::slotChanged(quint64 owner)
 {
     if (const auto key = m_entryOwners.constFind(owner); key != m_entryOwners.constEnd()) {
+        const QString root = key->root;
         dropEntry(*key);
         ++m_statistics.invalidations;
+        Q_EMIT treeChanged(root);
         return;
     }
-    for (const QPointer<WhaleTreeScanJob> &job : std::as_const(m_running)) {
-        if (job && job->owner() == owner) {
-            job->markChanged();
+    for (auto it = m_running.cbegin(); it != m_running.cend(); ++it) {
+        if (it.value() && it.value()->owner() == owner) {
+            it.value()->markChanged();
+            Q_EMIT treeChanged(it.key().root);
+            return;
         }
     }
 }
@@ -268,11 +273,19 @@ void WhaleTreeCache::slotOverflowed()
 {
     qCWarning(WhaleViewDebug) << "Lost changes of watched folders; dropping all cached tree scans";
     m_statistics.invalidations += m_entries.count();
+    QSet<QString> roots;
+    for (auto it = m_entries.cbegin(); it != m_entries.cend(); ++it) {
+        roots.insert(it.key().root);
+    }
     clear();
-    for (const QPointer<WhaleTreeScanJob> &job : std::as_const(m_running)) {
-        if (job) {
-            job->markChanged();
+    for (auto it = m_running.cbegin(); it != m_running.cend(); ++it) {
+        if (it.value()) {
+            it.value()->markChanged();
+            roots.insert(it.key().root);
         }
+    }
+    for (const QString &root : std::as_const(roots)) {
+        Q_EMIT treeChanged(root);
     }
 }
 

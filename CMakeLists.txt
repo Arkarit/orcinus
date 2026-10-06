@@ -256,19 +256,34 @@ endif()
 # domain. The source catalogs remain untouched, which keeps upstream updates
 # easy to merge and avoids installing files that collide with Dolphin.
 find_package(Gettext REQUIRED)
+find_program(WHALE_MSGCAT_EXECUTABLE msgcat REQUIRED)
 file(GLOB whale_po_files CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/po/*/dolphin.po")
 set(whale_mo_files)
 foreach(whale_po_file IN LISTS whale_po_files)
     get_filename_component(whale_po_dir "${whale_po_file}" DIRECTORY)
     get_filename_component(whale_locale "${whale_po_dir}" NAME)
     set(whale_mo_file "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES/whale.mo")
-    add_custom_command(
-        OUTPUT "${whale_mo_file}"
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES"
-        COMMAND ${GETTEXT_MSGFMT_EXECUTABLE} -o "${whale_mo_file}" "${whale_po_file}"
-        DEPENDS "${whale_po_file}"
-        VERBATIM
-    )
+    # Whale's own strings (po-whale/<locale>/whale.po) come first, Dolphin's catalog after them.
+    set(whale_own_po_file "${CMAKE_CURRENT_SOURCE_DIR}/po-whale/${whale_locale}/whale.po")
+    if(EXISTS "${whale_own_po_file}")
+        set(whale_merged_po_file "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/whale-merged.po")
+        add_custom_command(
+            OUTPUT "${whale_mo_file}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES"
+            COMMAND ${WHALE_MSGCAT_EXECUTABLE} --use-first -o "${whale_merged_po_file}" "${whale_own_po_file}" "${whale_po_file}"
+            COMMAND ${GETTEXT_MSGFMT_EXECUTABLE} -o "${whale_mo_file}" "${whale_merged_po_file}"
+            DEPENDS "${whale_po_file}" "${whale_own_po_file}"
+            VERBATIM
+        )
+    else()
+        add_custom_command(
+            OUTPUT "${whale_mo_file}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES"
+            COMMAND ${GETTEXT_MSGFMT_EXECUTABLE} -o "${whale_mo_file}" "${whale_po_file}"
+            DEPENDS "${whale_po_file}"
+            VERBATIM
+        )
+    endif()
     list(APPEND whale_mo_files "${whale_mo_file}")
     install(FILES "${whale_mo_file}" DESTINATION "${KDE_INSTALL_LOCALEDIR}/${whale_locale}/LC_MESSAGES")
 endforeach()

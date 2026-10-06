@@ -20,6 +20,7 @@ class DolphinView;
 class DolphinViewActionHandler;
 class KActionCollection;
 class KSelectAction;
+class KToggleAction;
 class QAction;
 class QActionGroup;
 class WhaleViewHost;
@@ -49,6 +50,10 @@ class WhaleViewRegistry;
  * actions on selected items act on that selection (WhaleCommandRouter): Dolphin's slots
  * ask routeAction() first, Dolphin's action states are computed from the routed items,
  * and the gates follow the operations the view's file operations support for them.
+ *
+ * Content scope (F1): "Include Subfolders" (whale_include_subfolders) switches the file
+ * list of the active view area between the location's items and the files below it. Paste
+ * into a view area that shows the files below its location is refused with an explanation.
  */
 class WhaleViewActions : public QObject
 {
@@ -102,6 +107,9 @@ public:
      * For Dolphin's slots of the actions on selected items: carries the action
      * @p actionName out on the routed selection of the view area of @p view.
      * @return False if that view area is not routed (Dolphin's own path applies).
+     *
+     * F1: also asked by Dolphin's Paste ("edit_paste"); true if Paste is refused because
+     * the file list of the view area shows the files below its location.
      */
     bool routeAction(DolphinView *view, const QString &actionName);
 
@@ -134,10 +142,12 @@ private:
     void slotRename();
     void slotViewModeTriggered();
     void notifyCommandSelection();
+    void updateContentScopeAction();
 
     WhaleViewRegistry *m_registry;
     WhaleTreeCache *m_treeCache;
     KSelectAction *m_switcher;
+    KToggleAction *m_includeSubfolders;
     KActionCollection *const m_actionCollection;
     QPointer<WhaleViewHost> m_host;
     QMetaObject::Connection m_hostConnection;
@@ -145,6 +155,7 @@ private:
     QMetaObject::Connection m_urlConnection;
     QMetaObject::Connection m_capabilitiesConnection;
     QMetaObject::Connection m_viewSelectionConnection;
+    QMetaObject::Connection m_contentScopeConnection;
     QHash<QString, QActionGroup *> m_gates;
     QHash<QString, QString> m_gateReasons;
 };

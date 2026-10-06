@@ -181,6 +181,9 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
     // Whale: view plugins. The host shows m_view or a plugin view in its place.
     m_viewHost = new WhaleViewHost(m_view, this);
     connect(m_viewHost, &WhaleViewHost::activationRequested, this, &DolphinViewContainer::activate);
+    connect(m_viewHost, &WhaleViewHost::messageRequested, this, [this](const QString &message) {
+        showMessage(message, KMessageWidget::Information); // Whale: e.g. why a drop was refused (F1)
+    });
     m_topLayout->addWidget(m_viewHost, positionFor.view, 0);
     m_topLayout->addWidget(m_filterBar, positionFor.filterBar, 0);
     if (GeneralSettings::showStatusBar() == GeneralSettings::EnumShowStatusBar::FullWidth) {

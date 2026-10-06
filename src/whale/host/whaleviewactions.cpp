@@ -12,6 +12,7 @@
 #include "dolphinviewbridge.h"
 #include "views/dolphinviewactionhandler.h"
 #include "whalecommandrouter.h"
+#include "whalecontentscope.h"
 #include "whaleview.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
@@ -24,6 +25,7 @@
 #include <KStandardAction>
 
 #include <KSelectAction>
+#include <KToggleAction>
 #include <QActionGroup>
 
 #include <QMenu>
@@ -33,6 +35,7 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinV
     , m_registry(new WhaleViewRegistry(this))
     , m_treeCache(new WhaleTreeCache(WhaleTreeCache::configuredLimits(), this))
     , m_switcher(actionCollection->add<KSelectAction>(QStringLiteral("whale_view_switcher")))
+    , m_includeSubfolders(actionCollection->add<KToggleAction>(QStringLiteral("whale_include_subfolders")))
     , m_actionCollection(actionCollection)
 {
     m_switcher->setText(i18nc("@action:inmenu View menu", "View Type"));
@@ -55,6 +58,18 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinV
 
     connect(m_switcher, &KSelectAction::actionTriggered, this, &WhaleViewActions::slotViewSelected);
 
+    // F1: the content scope of the file list, a property of its content, not a view.
+    m_includeSubfolders->setText(i18nc("@action:inmenu View menu", "Include Subfolders"));
+    m_includeSubfolders->setIcon(QIcon::fromTheme(QStringLiteral("folder-tree")));
+    m_includeSubfolders->setToolTip(i18nc("@info:tooltip", "Show the files of all subfolders in the file list, without the folders"));
+    m_includeSubfolders->setEnabled(false);
+    connect(m_includeSubfolders, &QAction::triggered, this, [this](bool checked) {
+        if (m_host && m_host->supportsRecursiveContent()) {
+            m_host->selectContentScope(checked ? WhaleContentScope::RecursiveFiles : WhaleContentScope::CurrentFolder);
+        }
+        updateContentScopeAction();
+    });
+
     // The toolbar's view settings dropdown lists the view modes first; the view type follows them.
     if (auto viewSettings = qobject_cast<KActionMenu *>(actionCollection->action(QStringLiteral("view_settings")))) {
         const auto entries = viewSettings->menu()->actions();
@@ -62,6 +77,7 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinV
             return action->isSeparator();
         });
         viewSettings->insertAction(firstSeparator != entries.cend() ? *firstSeparator : nullptr, m_switcher);
+        viewSettings->insertAction(firstSeparator != entries.cend() ? *firstSeparator : nullptr, m_includeSubfolders);
     }
 
     // T2: the handler's actions on selected items ask first whether they are routed.
@@ -92,6 +108,7 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
     disconnect(m_capabilitiesConnection);
     disconnect(m_urlConnection);
     disconnect(m_viewSelectionConnection);
+    disconnect(m_contentScopeConnection);
     m_host = host;
     if (host) {
         // Synchronously: a shortcut right after switching views must act on the new source.
@@ -110,12 +127,26 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
         });
         // Immediately, so a shortcut pressed right after a click finds the right state.
         m_selectionConnection = connect(host->bridge(), &DolphinViewBridge::hasSelectionChanged, this, &WhaleViewActions::updateGates);
-        m_urlConnection = connect(host->bridge(), &DolphinViewBridge::urlChanged, this, &WhaleViewActions::updateAvailableViews);
+        m_urlConnection = connect(host->bridge(), &DolphinViewBridge::urlChanged, this, [this]() {
+            updateAvailableViews();
+            updateContentScopeAction();
+        });
+        m_contentScopeConnection = connect(host, &WhaleViewHost::contentScopeChanged, this, &WhaleViewActions::updateContentScopeAction);
     }
     m_switcher->setEnabled(host);
     updateAvailableViews();
     updateCheckedView();
     updateGates();
+    updateContentScopeAction();
+}
+
+void WhaleViewActions::updateContentScopeAction()
+{
+    // Only the file list at a local folder can include subfolders; elsewhere the action is
+    // off, while the location keeps its scope (e.g. for when the file list is shown again).
+    const bool supported = m_host && m_host->supportsRecursiveContent();
+    m_includeSubfolders->setEnabled(supported);
+    m_includeSubfolders->setChecked(supported && m_host->contentScope() == WhaleContentScope::RecursiveFiles);
 }
 
 QStringList WhaleViewActions::gateableActions()
@@ -177,6 +208,11 @@ const QHash<QString, WhaleViewActions::RoutedAction> &WhaleViewActions::routedAc
 
 bool WhaleViewActions::routeAction(DolphinView *view, const QString &actionName)
 {
+    if (actionName == KStandardAction::name(KStandardAction::Paste)) {
+        // F1: no destination in a view of the files below its location.
+        WhaleViewHost *host = WhaleCommandRouter::hostOf(view);
+        return host && host->refusePaste();
+    }
     const auto routed = routedActions().constFind(actionName);
     if (routed == routedActions().constEnd() || routed->byDolphin) {
         return false;

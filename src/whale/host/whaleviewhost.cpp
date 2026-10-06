@@ -9,6 +9,7 @@
 #include "dolphinviewadapter.h"
 #include "dolphinviewbridge.h"
 #include "views/dolphinview.h"
+#include "whalerecursivecontent.h"
 #include "whaleviewactions.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
@@ -17,6 +18,7 @@
 #include "whaleviewregistry.h"
 
 #include <QApplication>
+#include <QDataStream>
 #include <QShowEvent>
 #include <QStackedLayout>
 
@@ -33,12 +35,21 @@ WhaleViewHost::WhaleViewHost(DolphinView *dolphinView, QWidget *parent)
     , m_bridge(new DolphinViewBridge(dolphinView, this))
     , m_dolphinViewContext(new WhaleViewContextImpl(m_bridge, this))
     , m_dolphinViewAdapter(new DolphinViewAdapter(dolphinView, m_dolphinViewContext, this))
+    , m_recursiveContent(new WhaleRecursiveContent(dolphinView, m_bridge, this))
 {
     m_stack->setContentsMargins(0, 0, 0, 0);
     m_stack->addWidget(dolphinView);
     setFocusProxy(dolphinView);
 
     connect(qApp, &QApplication::focusChanged, this, &WhaleViewHost::slotFocusChanged);
+    connect(m_recursiveContent, &WhaleRecursiveContent::requestMessage, this, &WhaleViewHost::messageRequested);
+    // A location the recursive content cannot show (e.g. a remote one reached by a redirection)
+    // ends it at once; which scope applies at a new location is decided with its view.
+    connect(m_bridge, &DolphinViewBridge::urlChanged, this, [this]() {
+        if (m_recursiveContent->isEnabled() && !supportsRecursiveContent()) {
+            updateRecursiveContent();
+        }
+    });
 }
 
 WhaleViewHost::~WhaleViewHost()
@@ -80,6 +91,7 @@ void WhaleViewHost::showDolphinView()
         m_dolphinView->setFocus();
     }
     m_dolphinViewAdapter->activate();
+    updateRecursiveContent();
 
     Q_EMIT currentViewChanged(dolphinViewId());
     notifyWindow();
@@ -114,6 +126,8 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
         return false;
     }
 
+    // Plugin views see the location's own items, never the file list's recursive content.
+    m_recursiveContent->setEnabled(false);
     auto context = std::make_unique<WhaleViewContextImpl>(m_bridge);
     if (auto actions = window()->findChild<WhaleViewActions *>()) {
         context->setTreeCache(actions->treeCache());
@@ -122,6 +136,7 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     QWidget *widget = view ? view->widget() : nullptr;
     if (!widget) {
         qCWarning(WhaleViewDebug) << "View plugin" << pluginId << "did not provide a view widget";
+        updateRecursiveContent();
         return false;
     }
 
@@ -178,6 +193,7 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     m_pluginView->activate();
 
     Q_EMIT currentViewChanged(pluginId);
+    Q_EMIT contentScopeChanged();
     notifyWindow();
     return true;
 }
@@ -220,6 +236,13 @@ WhaleViewsState WhaleViewHost::viewsState() const
 {
     WhaleViewsState views = m_views;
     views.activeViewId = currentViewId();
+    // F1: the content scope is the file list's state, kept while another view is shown.
+    const QByteArray fileList = fileListState();
+    if (fileList.isEmpty()) {
+        views.states.remove(dolphinViewId());
+    } else {
+        views.states.insert(dolphinViewId(), fileList);
+    }
     if (m_pluginView) {
         const QByteArray state = m_pluginView->saveState();
         if (state.isEmpty()) {
@@ -245,6 +268,8 @@ QByteArray WhaleViewHost::wrapLocationState(const QByteArray &dolphinState)
 
 QByteArray WhaleViewHost::unwrapLocationState(const QByteArray &locationState)
 {
+    // View and content scope are decided together; the recursive content follows once.
+    ++m_holdRecursiveContent;
     QByteArray dolphinState;
     WhaleViewsState views;
     if (WhalePersistence::unwrapLocationState(locationState, &dolphinState, &views)) {
@@ -254,9 +279,12 @@ QByteArray WhaleViewHost::unwrapLocationState(const QByteArray &locationState)
         // A new location, or Dolphin's own state: no stored states; the preferred view of the
         // location, otherwise the shown view stays.
         m_views = WhaleViewsState();
+        applyPreferredContentScope();
         applyPreferredView();
     }
     checkUrlSupported();
+    --m_holdRecursiveContent;
+    updateRecursiveContent();
     return dolphinState;
 }
 
@@ -300,9 +328,15 @@ void WhaleViewHost::showEvent(QShowEvent *event)
     QWidget::showEvent(event);
     // A new view area (window, tab, split view) shows the preferred view of its first
     // location, now that it is part of its window and can find the view plugins.
+    ++m_holdRecursiveContent;
+    if (m_contentScopeOrigin == QLatin1String("initial")) {
+        applyPreferredContentScope();
+    }
     if (m_initialPreferencePending) {
         applyPreferredView();
     }
+    --m_holdRecursiveContent;
+    updateRecursiveContent();
 }
 
 void WhaleViewHost::checkUrlSupported()
@@ -350,6 +384,7 @@ QString WhaleViewHost::viewOrigin() const
 
 void WhaleViewHost::applyViewsState(const WhaleViewsState &views, const QString &source)
 {
+    ++m_holdRecursiveContent;
     m_initialPreferencePending = false;
     m_applyingState = true;
     m_views = views;
@@ -379,6 +414,115 @@ void WhaleViewHost::applyViewsState(const WhaleViewsState &views, const QString 
     m_lastRestore = RestoreInfo{source, requested, currentViewId(), fallback};
     m_viewOrigin = fallback ? QStringLiteral("fallback") : source;
     m_applyingState = false;
+
+    // F1: the file list's content scope as it was; Whale data without it is the current folder.
+    WhaleContentScope scope = WhaleContentScope::CurrentFolder;
+    const QByteArray fileList = views.states.value(dolphinViewId());
+    if (!fileList.isEmpty()) {
+        QDataStream stream(fileList);
+        quint32 version = 0;
+        QString name;
+        stream >> version >> name;
+        if (stream.status() == QDataStream::Ok && version == 1) {
+            scope = WhaleContentScopes::fromName(name).value_or(WhaleContentScope::CurrentFolder);
+        } else {
+            qCWarning(WhaleViewDebug) << "Ignoring the file list's state of version" << version;
+        }
+    }
+    setContentScope(scope, source);
+    --m_holdRecursiveContent;
+    updateRecursiveContent();
+}
+
+QByteArray WhaleViewHost::fileListState() const
+{
+    if (m_contentScope == WhaleContentScope::CurrentFolder) {
+        return {}; // the default, as in data of older Whales
+    }
+    QByteArray data;
+    QDataStream stream(&data, QIODevice::WriteOnly);
+    stream << quint32(1) << WhaleContentScopes::name(m_contentScope);
+    return data;
+}
+
+WhaleContentScope WhaleViewHost::contentScope() const
+{
+    return m_contentScope;
+}
+
+void WhaleViewHost::selectContentScope(WhaleContentScope scope)
+{
+    // The user's choice: the scope of the location from now on (not inherited by subfolders).
+    WhaleViewPreferences::instance()->setContentScope(m_bridge->url(), scope);
+    setContentScope(scope, QStringLiteral("user"));
+}
+
+void WhaleViewHost::applyPreferredContentScope()
+{
+    const WhaleContentScope scope = WhaleViewPreferences::instance()->contentScope(m_bridge->url());
+    setContentScope(scope, scope == WhaleContentScope::CurrentFolder ? QStringLiteral("default") : QStringLiteral("preference"));
+}
+
+void WhaleViewHost::setContentScope(WhaleContentScope scope, const QString &origin)
+{
+    m_contentScopeOrigin = origin;
+    if (scope == m_contentScope) {
+        updateRecursiveContent();
+        return;
+    }
+    m_contentScope = scope;
+    updateRecursiveContent();
+    Q_EMIT contentScopeChanged();
+    // The session records the scope.
+    notifyWindow();
+}
+
+bool WhaleViewHost::supportsRecursiveContent() const
+{
+    return isDolphinViewShown() && m_bridge->url().isLocalFile();
+}
+
+bool WhaleViewHost::isRecursiveContentShown() const
+{
+    return m_recursiveContent->isEnabled();
+}
+
+QString WhaleViewHost::contentScopeOrigin() const
+{
+    return m_contentScopeOrigin;
+}
+
+WhaleRecursiveContent *WhaleViewHost::recursiveContent() const
+{
+    return m_recursiveContent;
+}
+
+bool WhaleViewHost::refusePaste()
+{
+    const QString refusal = m_recursiveContent->pasteRefusal();
+    if (refusal.isEmpty()) {
+        return false;
+    }
+    m_recursiveContent->explain(refusal);
+    return true;
+}
+
+void WhaleViewHost::updateRecursiveContent()
+{
+    if (m_holdRecursiveContent > 0) {
+        return;
+    }
+    const bool show = m_contentScope == WhaleContentScope::RecursiveFiles && supportsRecursiveContent();
+    if (show == m_recursiveContent->isEnabled()) {
+        return;
+    }
+    if (show) {
+        if (auto actions = window()->findChild<WhaleViewActions *>()) {
+            m_recursiveContent->setTreeCache(actions->treeCache());
+        }
+    }
+    m_recursiveContent->setEnabled(show);
+    Q_EMIT contentScopeChanged();
 }
 
 void WhaleViewHost::destroyPluginView()
