@@ -59,6 +59,26 @@ public:
     void loadDirectory(const QUrl &url);
 
     /**
+     * Whale: external items, e.g. the files of all folders below the directory.
+     * While enabled, the items of the model do not come from the directory lister but
+     * from setExternalItems(). The lister still loads the directory (root item, loading
+     * state, errors, redirections). Loading a directory, or loading it again, empties the
+     * model; directoryLoadingCompleted() then waits for the next setExternalItems().
+     * Enabling empties the model; disabling shows the lister's items of the directory again.
+     */
+    void setExternalItemsEnabled(bool enabled);
+    bool externalItemsEnabled() const;
+
+    /**
+     * Whale: makes the model contain exactly @p items, which must have unique URLs. Only
+     * while external items are enabled. Unchanged items stay, and with them the selection
+     * and the view's position; others are removed, inserted or refreshed (an item is
+     * identified by its URL), with the filters and sorting of the model. The items are
+     * not children of each other (no expansion).
+     */
+    void setExternalItems(const KFileItemList &items);
+
+    /**
      * Throws away all currently loaded items and refreshes the directory
      * by reloading all items again.
      */
@@ -342,6 +362,7 @@ private:
         PathRole,
         FolderRole,
         DeletionTimeRole,
+        RelativePathRole, // Whale: the item's folder relative to the directory
         // User visible roles available with Baloo:
         CommentRole,
         TagsRole,
@@ -601,6 +622,13 @@ private:
     // and done step after step in slotCompleted().
     QSet<QUrl> m_urlsToExpand;
 
+    // Whale: external items, see setExternalItemsEnabled().
+    bool m_externalItems = false;
+    bool m_applyingExternalItems = false;
+    bool m_externalItemsPending = false; // the directory was (re)loaded, its items are still to come
+    bool m_externalCompletionPending = false; // directoryLoadingCompleted() waits for them
+    bool m_listerItemsSkipped = false; // since the lister began loading, the model left out items it reported
+
     friend class KFileItemModelRolesUpdater; // Accesses emitSortProgress() method
     friend class KFileItemModelTest; // For unit testing
     friend class KFileItemModelBenchmark; // For unit testing
@@ -612,8 +640,8 @@ private:
 inline bool KFileItemModel::isRoleValueNatural(RoleType roleType)
 {
     return (roleType == TypeRole || roleType == ExtensionRole || roleType == TagsRole || roleType == CommentRole || roleType == TitleRole
-            || roleType == ArtistRole || roleType == GenreRole || roleType == AlbumRole || roleType == PathRole || roleType == DestinationRole
-            || roleType == OriginUrlRole || roleType == OwnerRole || roleType == GroupRole);
+            || roleType == ArtistRole || roleType == GenreRole || roleType == AlbumRole || roleType == PathRole || roleType == RelativePathRole
+            || roleType == DestinationRole || roleType == OriginUrlRole || roleType == OwnerRole || roleType == GroupRole);
 }
 
 inline bool KFileItemModel::nameLessThan(const ItemData *a, const ItemData *b)

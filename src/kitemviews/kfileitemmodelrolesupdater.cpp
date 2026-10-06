@@ -38,6 +38,7 @@
 #include <QPluginLoader>
 #include <QPointer>
 #include <QScopedValueRollback>
+#include <QSet>
 #include <QTimer>
 #include <chrono>
 
@@ -388,6 +389,7 @@ void KFileItemModelRolesUpdater::slotItemsInserted(const KItemRangeList &itemRan
     // Determine the sort role synchronously for as many items as possible.
     if (m_resolvableRoles.contains(m_model->sortRole())) {
         QList<QUrl> dirsWithAddedItems;
+        QSet<QUrl> knownDirs; // Whale: items of many folders (e.g. F1) made the lookup in the list quadratic
 
         int insertedCount = 0;
         for (const KItemRange &range : itemRanges) {
@@ -395,7 +397,8 @@ void KFileItemModelRolesUpdater::slotItemsInserted(const KItemRangeList &itemRan
             for (int i = insertedCount + range.index; i <= lastIndex; ++i) {
                 const auto fileItem = m_model->fileItem(i);
                 const auto fileItemParentFolderUrl = fileItem.url().adjusted(QUrl::RemoveFilename);
-                if (!dirsWithAddedItems.contains(fileItemParentFolderUrl)) {
+                if (!knownDirs.contains(fileItemParentFolderUrl)) {
+                    knownDirs.insert(fileItemParentFolderUrl);
                     dirsWithAddedItems.append(fileItemParentFolderUrl);
                 }
                 if (timer.elapsed() < MaxBlockTimeout) {

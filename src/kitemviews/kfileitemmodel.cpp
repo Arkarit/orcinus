@@ -397,6 +397,103 @@ void KFileItemModel::loadDirectory(const QUrl &url)
     m_dirLister->openUrl(url);
 }
 
+void KFileItemModel::setExternalItemsEnabled(bool enabled)
+{
+    if (enabled == m_externalItems) {
+        return;
+    }
+
+    // Whether the model leaves out items the lister has reported since it began loading the
+    // directory: when enabling, the lister's items it shows now; when disabling, the skipped ones.
+    const bool listerItemsLeftOut =
+        m_externalItems ? m_listerItemsSkipped : (!m_itemData.isEmpty() || !m_filteredItems.isEmpty() || !m_pendingItemsToInsert.isEmpty());
+    const bool completionPending = m_externalCompletionPending;
+
+    slotClear();
+    m_externalItems = enabled;
+    m_externalItemsPending = enabled;
+    m_listerItemsSkipped = enabled && listerItemsLeftOut;
+    if (enabled) {
+        return;
+    }
+
+    // The lister's items of the directory are back. If it has reported none since it began
+    // loading the directory, they all follow as usual.
+    if (listerItemsLeftOut) {
+        if (m_dirLister->isFinished()) {
+            const KFileItemList items = m_dirLister->items();
+            if (!items.isEmpty()) {
+                slotItemsAdded(directory(), items);
+            }
+            dispatchPendingItemsToInsert();
+        } else {
+            // Still loading: which of its items has the lister reported already? Load again.
+            m_dirLister->openUrl(m_dirLister->url(), KDirLister::Reload);
+            return;
+        }
+    }
+    if (completionPending) {
+        slotCompleted();
+    }
+}
+
+bool KFileItemModel::externalItemsEnabled() const
+{
+    return m_externalItems;
+}
+
+void KFileItemModel::setExternalItems(const KFileItemList &items)
+{
+    if (!m_externalItems) {
+        return;
+    }
+
+    dispatchPendingItemsToInsert();
+
+    // The current items, shown or filtered, by URL; what is left of them at the end is gone.
+    QHash<QUrl, KFileItem> previous;
+    previous.reserve(m_itemData.count() + m_filteredItems.count());
+    for (const ItemData *itemData : std::as_const(m_itemData)) {
+        previous.insert(itemData->item.url(), itemData->item);
+    }
+    for (auto it = m_filteredItems.cbegin(); it != m_filteredItems.cend(); ++it) {
+        previous.insert(it.key().url(), it.key());
+    }
+
+    KFileItemList added;
+    QList<QPair<KFileItem, KFileItem>> changed;
+    for (const KFileItem &item : items) {
+        const auto it = previous.find(item.url());
+        if (it == previous.end()) {
+            added.append(item);
+        } else {
+            if (!it->cmp(item)) {
+                changed.append({*it, item});
+            }
+            previous.erase(it);
+        }
+    }
+
+    m_applyingExternalItems = true;
+    if (!previous.isEmpty()) {
+        slotItemsDeleted(KFileItemList(previous.values()));
+    }
+    if (!changed.isEmpty()) {
+        slotRefreshItems(changed);
+    }
+    if (!added.isEmpty()) {
+        slotItemsAdded(directory(), added);
+        dispatchPendingItemsToInsert();
+    }
+    m_applyingExternalItems = false;
+
+    m_externalItemsPending = false;
+    if (m_externalCompletionPending) {
+        m_externalCompletionPending = false;
+        slotCompleted();
+    }
+}
+
 void KFileItemModel::refreshDirectory(const QUrl &url)
 {
     // Refresh all expanded directories first (Bug 295300)
@@ -1457,6 +1554,12 @@ void KFileItemModel::resortAllItems()
 
 void KFileItemModel::slotCompleted()
 {
+    if (m_externalItems && m_externalItemsPending) {
+        // Whale: the directory is loaded once its external items are there, too.
+        m_externalCompletionPending = true;
+        return;
+    }
+
     m_maximumUpdateIntervalTimer->stop();
     dispatchPendingItemsToInsert();
 
@@ -1498,6 +1601,10 @@ void KFileItemModel::slotCanceled()
 void KFileItemModel::slotItemsAdded(const QUrl &directoryUrl, const KFileItemList &items)
 {
     Q_ASSERT(!items.isEmpty());
+    if (m_externalItems && !m_applyingExternalItems) {
+        m_listerItemsSkipped = true; // Whale: the lister's items are not shown now
+        return;
+    }
 
     const QUrl parentUrl = m_expandedDirs.value(directoryUrl, directoryUrl.adjusted(QUrl::StripTrailingSlash));
 
@@ -1604,6 +1711,13 @@ int KFileItemModel::filterChildlessParents(KItemRangeList &removedItemRanges, co
 
 void KFileItemModel::slotItemsDeleted(const KFileItemList &items)
 {
+    if (m_externalItems && !m_applyingExternalItems) {
+        m_listerItemsSkipped = true; // Whale: the lister's items are not shown now, but the directory itself is
+        if (!items.findByUrl(directory()).isNull()) {
+            Q_EMIT currentDirectoryRemoved();
+        }
+        return;
+    }
     dispatchPendingItemsToInsert();
 
     QVector<int> indexesToRemove;
@@ -1676,6 +1790,10 @@ void KFileItemModel::slotItemsDeleted(const KFileItemList &items)
 void KFileItemModel::slotRefreshItems(const QList<QPair<KFileItem, KFileItem>> &items)
 {
     Q_ASSERT(!items.isEmpty());
+    if (m_externalItems && !m_applyingExternalItems) {
+        m_listerItemsSkipped = true; // Whale: the lister's items are not shown now
+        return;
+    }
 #ifdef KFILEITEMMODEL_DEBUG
     qCDebug(DolphinDebug) << "Refreshing" << items.count() << "items";
 #endif
@@ -1855,6 +1973,11 @@ void KFileItemModel::slotClear()
     }
 
     m_expandedDirs.clear();
+
+    // Whale: a directory is (re)loaded; its external items are still to come.
+    m_externalItemsPending = m_externalItems;
+    m_externalCompletionPending = false;
+    m_listerItemsSkipped = false;
 }
 
 void KFileItemModel::slotSortingChoiceChanged()
@@ -2058,6 +2181,7 @@ void KFileItemModel::prepareItemsForSorting(QList<ItemData *> &itemDataList)
     case DestinationRole:
     case PathRole:
     case FolderRole:
+    case RelativePathRole: // Whale
     case DeletionTimeRole:
         // These roles can be determined with retrieveData, and they have to be stored
         // in the QHash "values" for the sorting.
@@ -2383,6 +2507,18 @@ SmallHash KFileItemModel::retrieveData(const KFileItem &item, const ItemData *pa
             (item.url().scheme() == QLatin1String("trash")) ? QUrl::fromLocalFile(item.entry().stringValue(KIO::UDSEntry::UDS_EXTRA)) : item.targetUrl();
         QString folderName = parentUrl.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash).fileName();
         data.insert(sharedValue("folder"), folderName);
+    }
+
+    if (m_requestRole[RelativePathRole]) {
+        // Whale: the folder of the item relative to the directory, e.g. "assets/ui/"; empty
+        // for the directory's own items.
+        const QString directoryPath = directory().adjusted(QUrl::StripTrailingSlash).path() + QLatin1Char('/');
+        const QString folderPath = item.url().adjusted(QUrl::RemoveFilename).path();
+        QString relativePath;
+        if (item.url().scheme() == directory().scheme() && folderPath.startsWith(directoryPath)) {
+            relativePath = folderPath.mid(directoryPath.length());
+        }
+        data.insert(sharedValue("relativePath"), relativePath);
     }
 
     if (m_requestRole[DeletionTimeRole]) {
@@ -3251,6 +3387,7 @@ const KFileItemModel::RoleInfoMap *KFileItemModel::rolesInfoMap(int &count)
         { "width",               WidthRole,               kli18nc("@label", "Width"),                kli18nc("@label", "Video"),    KLazyLocalizedString(),                    true,            true  },
         { "path",                PathRole,                kli18nc("@label", "Path"),                 kli18nc("@label", "Other"),    KLazyLocalizedString(),                    false,           false },
         { "folder",              FolderRole,              kli18nc("@label", "Folder Name"),          kli18nc("@label", "Other"),    KLazyLocalizedString(),                    false,           false },
+        { "relativePath",        RelativePathRole,        kli18nc("@label", "Relative Path"),        kli18nc("@label", "Other"),    kli18nc("@tooltip", "The folder of an item relative to the current folder, e.g. with Include Subfolders."), false, false }, // Whale
         { "extension",           ExtensionRole,           kli18nc("@label", "File Extension"),       kli18nc("@label", "Other"),    KLazyLocalizedString(),                    false,           false },
         { "deletiontime",        DeletionTimeRole,        kli18nc("@label", "Deletion Time"),        kli18nc("@label", "Other"),    KLazyLocalizedString(),                    false,           false },
         { "destination",         DestinationRole,         kli18nc("@label", "Link Destination"),     kli18nc("@label", "Other"),    KLazyLocalizedString(),                    false,           false },
