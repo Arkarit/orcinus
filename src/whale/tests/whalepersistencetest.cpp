@@ -346,9 +346,12 @@ void WhalePersistenceTest::testSessionRestore()
     // A new window reads the session.
     m_mainWindow.reset(new DolphinMainWindow());
     m_mainWindow->resize(1000, 600);
+    // As KMainWindow::restore(): the session first, then the window is shown. A shown window
+    // without a tab must not get events (e.g. a clipboard change on Wayland: Dolphin's Paste
+    // action asks the active view area, which does not exist yet).
+    m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))->readProperties(group);
     m_mainWindow->show();
     QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
-    m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))->readProperties(group);
     page = m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))->currentTabPage();
     QVERIFY(page->splitViewEnabled());
     left = page->primaryViewContainer();
@@ -374,9 +377,12 @@ void WhalePersistenceTest::testOldSessionWithoutWhaleData()
 
     QTest::failOnWarning(QRegularExpression(QStringLiteral(".*Whale.*")));
     m_mainWindow.reset(new DolphinMainWindow());
+    // As KMainWindow::restore(): the session first, then the window is shown. A shown window
+    // without a tab must not get events (e.g. a clipboard change on Wayland: Dolphin's Paste
+    // action asks the active view area, which does not exist yet).
+    m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))->readProperties(group);
     m_mainWindow->show();
     QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
-    m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))->readProperties(group);
     container = m_mainWindow->activeViewContainer();
     QVERIFY(container->viewHost()->isDolphinViewShown());
     QTRY_VERIFY(container->view()->itemsCount() > 100);
