@@ -578,7 +578,7 @@ diese Datei aus.
 
 | Option | Beschreibung | Dolphin-Änderung | Bewertung |
 |---|---|---|---|
-| **T1** – View-lokale Auswahl + Kontextmenü mit expliziter Liste | Die Treemap hält ihre Auswahl selbst und meldet sie dem Host als `WhaleSelection` mit dem Flag „tief“. Der Host spiegelt nur den Anteil im Listing in die `DolphinView`. Rechtsklick → Whale baut ein **eigenes, reduziertes** Menü: `KFileItemActions` (Öffnen mit, Service-Menüs) + `WhaleFileOperations` auf der expliziten Liste (Papierkorb, Löschen, Kopieren, Pfad kopieren, Eigenschaften, „Im Ordner anzeigen“ = Host navigiert und markiert). Tastatur-Shortcuts der Standard-Actions sind in der Treemap deaktiviert (Capability `RecursiveContent` ⇒ Gating der Datei-Actions). | keine | **Empfohlen für die erste Treemap-Version.** Ist sicher, weil keine Aktion das falsche Ziel trifft. |
+| **T1** – View-lokale Auswahl + Kontextmenü mit expliziter Liste **(umgesetzt, siehe 14.18)** | Die Treemap hält ihre Auswahl selbst und meldet sie dem Host als `WhaleSelection` mit dem Flag „tief“. Der Host spiegelt nur den Anteil im Listing in die `DolphinView`. Rechtsklick → Whale baut ein **eigenes, reduziertes** Menü: `KFileItemActions` (Öffnen mit, Service-Menüs) + `WhaleFileOperations` auf der expliziten Liste (Papierkorb, Löschen, Kopieren, Pfad kopieren, Eigenschaften, „Im Ordner anzeigen“ = Host navigiert und markiert). Tastatur-Shortcuts der Standard-Actions sind in der Treemap deaktiviert (Capability `RecursiveContent` ⇒ Gating der Datei-Actions). | keine | **Empfohlen für die erste Treemap-Version.** Ist sicher, weil keine Aktion das falsche Ziel trifft. |
 | **T2** – Command-Routing | Die Datei-Slots in `DolphinViewActionHandler` (Rename, Trash, Delete, Duplicate, Properties, CopyPath: 6 Slots) und in `DolphinMainWindow` (Cut, Copy, Paste, `updateFileAndEditActions`, `slotSelectionChanged`, Compare, Add-to-Places …: etwa 12 Stellen) fragen eine Hilfsfunktion `activeSelection()` bzw. `activeFileOperations()` statt `view()->…` | etwa 20–30 einzeilige Änderungen in 2–3 viel geänderten Dateien | Erst entscheiden, wenn T1 im Alltag nicht reicht. Mechanisch, aber merge-relevant. |
 | **T3** – Selection-Override in `DolphinView::selectedItems()` | `DolphinView` liefert bei gesetztem Override eine externe Liste | wenige Zeilen in `dolphinview.cpp` | **Abgeraten.** `selectionMimeData` (`:2752`), das Inline-Rename und das „nächstes Item auswählen“ nach dem Löschen arbeiten mit Indizes. Es entstehen stille Inkonsistenzen in der Datei, die upstream am häufigsten geändert wird. |
 
@@ -809,6 +809,7 @@ Whale-Integration kommen in getrennte Commits.
 | **M7** | `WhalePreviewProvider` + Drag/Drop über `WhaleFileOperations` | – | Test-View zeigt Thumbnails; Drag aus der Test-View in die Dolphin-View (Split) und Drop in die Test-View kopieren bzw. verschieben korrekt |
 | **M8** | `WhaleTreeScanner` (lokal, `fts`, Thread, Abbruch, inkrementell, Cache; `KIO`-Fallback später) | – | `whaletreescannertest` mit `QTemporaryDir`-Bäumen: Größen, Symlinks (nicht folgen), Abbruch, keine Grenzen von Dateisystemen überschreiten (`FTS_XDEV`) |
 | **M9** | Treemap-Plugin: Squarified-Layout + Cushion-Rendering, Hover → Info-Panel, Doppelklick auf Ordner → `openUrl` oder internes Hineinzoomen (State), T1-Kontextmenü, eigener State (Wurzel, Tiefe, Farbmodus) **(umgesetzt ohne T1-Kontextmenü, siehe 14.17)** | – | `whaletreemaplayouttest` (deterministisches Layout); manuelle Abnahme: keine Datei-Action trifft ein falsches Ziel |
+| **T1** | Operationen auf tiefen Einträgen: `WhaleFileOperations` mit expliziten URLs (API 7), Treemap-Kontextmenü, Rescan nach Mutation **(umgesetzt, siehe 14.18)** | – | `whaledeepoperationstest`; MCP-Abnahme `test_t1_acceptance.py` (offscreen und Plasma/Wayland mit echter Eingabe) |
 | **M10** | *Optional:* T2 Command-Routing, falls T1 nicht reicht | `dolphinviewactionhandler.cpp`, `dolphinmainwindow.cpp`, `dolphintabpage.cpp` | Papierkorb, Kopieren usw. per Shortcut auf tiefen Treemap-Items |
 | **M11** | *Optional, upstreamfähig:* RolesUpdater einer unsichtbaren View pausieren | `kitemviews/kfileitemlistview.cpp` | nur bei messbarer Last aus M0; als eigener, upstream-tauglicher Commit |
 
@@ -1941,3 +1942,147 @@ unveränderten Stand M8b 1 von 6 Läufen, mit M9 3 von 10; offscreen stabil. Vor
 **Weiter offen:** O3 (View pro Ordner), M8c (Teilbäume aus Oberwurzeln, Live-Updates, Remote), M10 (T2),
 M11 (RolesUpdater pausieren). Ideen für später: Live-Aktualisierung der angezeigten Treemap über ein
 Invalidierungssignal, animiertes Zoomen, Tooltip, Layout im Worker bei sehr großen Flächen.
+
+### 14.18 Ergebnisse aus T1: Operationen auf tiefen Einträgen (2026-10-06)
+
+Commits `cf42f1b50` (API 7, Host), `38fcbedf3` (Treemap-Kontextmenü, Tests), `fcfe12aff` (Dev-MCP).
+**Keine Änderung an Dolphin-Dateien.** Kein globales Command-Routing: Whales Actions und ihre
+Shortcuts bleiben für die Treemap gesperrt (T2).
+
+**Grundsatz:** Die tiefe Auswahl gehört der View. Sie wird nicht in Dolphins Listing gepresst;
+Whales (Dolphins) Auswahl bleibt für tiefe Einträge leer (wie M9). Die View nennt die Einträge
+ihrer Operationen selbst, mit URLs, über `WhaleFileOperations`. Der Host führt sie mit Dolphins
+bzw. KDEs eigener Logik aus.
+
+**API-Version 7** (`WhaleFileOperations`, nur generische Erweiterungen; Metadaten aller Plugins
+kommen weiter aus der CMake-Variablen, exakte Versionsprüfung unverändert):
+
+| Erweiterung | Umsetzung im Host |
+|---|---|
+| `supportedOperations(urls)` | Regeln von `DolphinMainWindow::updateFileAndEditActions()` über `KFileItemListProperties`: Umbenennen/Ausschneiden nur mit `supportsMoving`, Papierkorb zusätzlich nur lokal, Löschen mit `supportsDeleting`; fehlende lokale Einträge: nur `ShowInFolder` (und das nur, wenn der Ordner existiert); der Ort der Ansicht und Ordner darüber: nie Umbenennen/Papierkorb/Löschen/Ausschneiden |
+| `openItems(urls)` | Bridge löst `DolphinView::itemActivated(KFileItem)` aus (3.2) → `DolphinViewContainer::slotItemActivated`: Ordner/Archive werden Ort (mit History, Modifier wie in Dolphin), Dateien per `KIO::OpenUrlJob` mit Rückfrage bei Programmen. Mehrere: Ordner in neuen Tabs, Dateien gemeinsam (wie `DolphinView::slotItemsActivated`) |
+| `openItemsWith(urls)` | `KIO::ApplicationLauncherJob` ohne Anwendung = KDEs „Öffnen mit“-Dialog (wie „Andere Anwendung…“ in `KFileItemActions`) |
+| `showItemInFolder(url)` | siehe unten |
+| `showProperties(urls)` | `KPropertiesDialog` wie `DolphinViewActionHandler::slotProperties` (mehrere Einträge gehen auch) |
+| `renameItems(urls)` | `KIO::RenameFileDialog` wie der Dialogpfad von `DolphinView::renameSelectedItems` (nie inline) |
+| `trashItems` / `deleteItems` | `KIO::DeleteOrTrashJob` mit `DefaultConfirmation` wie `DolphinView::trashSelectedItems/deleteSelectedItems`: Bestätigung nach Benutzereinstellung, Undo für den Papierkorb, Warnungen durch KIO, Fehler/Erfolg als Meldung im Ansichtsbereich (Bridge löst `DolphinView::errorMessage`/`operationCompletedMessage` aus) |
+| `copyItems` / `cutItems` | Zwischenablage wie `copySelectedItemsToClipboard`/`cutSelectedItemsToClipboard` (URLs + most local URLs, Portal-Export, Cut-Markierung); Whales Einfügen funktioniert danach normal |
+| `copyLocations` | Pfade als Text wie „Pfad kopieren“, eine Zeile pro Eintrag |
+| Signal `operationFinished(op, urls, result, newUrls)` | für Rename/Trash/Delete; `Done`/`Canceled`/`Failed`; bei Rename die neuen URLs |
+
+Jobs gehören dem Ansichtsbereich (Elternobjekt `DolphinView`), nicht der View: ein View-Wechsel
+bricht eine laufende Operation nicht ab; Meldungen hängen an der Bridge, das Signal am Context.
+Fehlende lokale Einträge werden vor der Operation mit KIOs eigener Formulierung gemeldet
+(`ERR_DOES_NOT_EXIST`), ohne Dialog.
+
+Nicht ergänzt (bewusst): Copy To/Move To (Ordnerwahl-Dialog; Kopieren/Ausschneiden + Einfügen
+deckt den Export ab), Duplicate, „Öffnen mit“-Untermenü mit Anwendungen, Service-Menüs/
+`KFileItemActions`-Plugins. Kein eigener Menü-Service: das Menü baut die View.
+
+**„Im Ordner anzeigen“** (wie Dolphins „Open Path“): Ordner = `KIO::upUrl` (ohne
+Schrägstrich am Ende). Ist er schon der Ort, wird der Eintrag sofort ausgewählt (bzw. markiert,
+falls noch geladen wird). Sonst wechselt die Shell per `urlActivated` (History, aktiver
+Ansichtsbereich). Weil `handleUrl` asynchron ist und `DolphinView::setUrl` Markierungen löscht,
+markiert die Bridge den Eintrag erst bei `DolphinView::urlChanged` für den Zielordner
+(`markUrlsAsSelected` + `markUrlAsCurrent`, d. h. Dolphins eigenes Auswählen nach dem Laden);
+bei `directoryLoadingCompleted` setzt sie die Auswahl notfalls selbst. Geht der Benutzer
+vorher woanders hin, verfällt der Auftrag. Die gezeigte View bleibt (Treemap bleibt Treemap,
+Datei ist dort Whales Auswahl, also ein Eintrag des Listings; nach Wechsel zur Dateiliste ist
+sie dort markiert). Entscheidung: kein automatischer View-Wechsel (wäre View-Typ-Politik im Host).
+
+**Treemap-Kontextmenü:** Rechtsklick (wählt den Eintrag vorher aus, wie in Dolphin) oder
+Menü-Taste (für die Auswahl; nötig für Ordner, die von ihren Einträgen verdeckt sind). Einträge
+mit Objektnamen: Datei `open`, `open_with`, `show_in_folder` („Show in Folder“), `copy`, `cut`,
+`copy_location`, `rename`, `trash`, `delete`, `properties`; Ordner ohne `open_with`, mit „Show in
+Parent Folder“. Nur was `supportedOperations` erlaubt, wird gezeigt (nicht deaktiviert); kein Menü
+für den Ort selbst, Leerfläche oder Ziele außerhalb; Rest-Zelle → Menü ihres Ordners (der
+ausgewählt wird). Keine Whale-Actions, keine Shortcuts im Menü. `popup()`, nicht `exec()`.
+Gilt einheitlich für tiefe und gelistete Einträge (ein gezeigtes Dolphin-Menü hätte wegen
+`RecursiveContent` nur gesperrte Datei-Actions).
+
+**Selection-Semantik:** unverändert Einzelauswahl wie M9 (kein `MultiSelection`). Tiefer Eintrag:
+Whales Auswahl leer, die Treemap hält ihre Auswahl. Gelisteter Eintrag: M9-Spiegelung.
+
+**Verhalten nach Mutation:** Variante A (automatischer Rescan). Bei `Done` und `Failed` (Teil-
+änderung möglich) scannt die Treemap neu (`startScan(true)`: Zoom und Auswahl bleiben, soweit es
+sie noch gibt; ein umbenannter ausgewählter Eintrag bleibt unter neuem Namen ausgewählt; ein
+entfernter verschwindet). `Canceled` ändert nichts. Keine inkrementelle Baumreparatur, kein M8c.
+Fund: Ein Rescan direkt nach dem Job konnte den alten Baum aus dem Cache bekommen, weil die
+inotify-Meldung zwar im Kernel liegt, der `QSocketNotifier` aber erst später liest.
+`WhaleTreeCache::lookup` liest daher vor jedem Treffer anstehende Ereignisse
+(`WhaleTreeWatch::processPendingEvents`, nicht blockierend). Das hilft auch F5.
+Properties-Dialog (Umbenennen/Rechte dort) meldet kein `operationFinished`; F5 genügt.
+
+**Split-Verhalten:** Operationen betreffen nur die genannten URLs; die rechte Hälfte behält Ort
+und Auswahl. Öffnen/„Im Ordner anzeigen“ aktivieren den Ansichtsbereich der View (`setActive`),
+Fokus landet in dessen Treemap. Getestet (Unit, MCP, echte Wayland-Eingabe).
+
+**Security/Gating:** unverändert M5/M9: `RecursiveContent` sperrt alle Actions auf ausgewählten
+Elementen (Entf, Umschalt+Entf, F2, Strg+X/C/D, Pfad kopieren, Vergleichen, in andere Hälfte
+kopieren/verschieben …), auch nach Operationen und bei offenem Menü (getestet, auch mit echter
+Shortcut-Verarbeitung). Zusätzlich verweigert der Host Entfernen/Umbenennen des Ortes und seiner
+Oberordner (Warnung im Log, `Failed`).
+
+**Grenze zu T2:** Nur das Treemap-Menü (und künftige View-eigene Bedienung) erreicht tiefe
+Einträge. Globale Shortcuts/Toolbar/Hauptmenü wissen nichts davon. Für T1 war **kein** Umleiten
+globaler Actions nötig.
+
+**Fehlerfälle:** verschwundener Eintrag (Meldung, `Failed`, Menü nur „Im Ordner anzeigen“),
+fehlende Rechte (Menüeinträge fehlen; trotzdem aufgerufen: KIO-Fehler, Datei bleibt),
+Abbruch (Bestätigung, Rename-Dialog → `Canceled`), Rename-Ziel existiert (KIOs Dialog bleibt
+offen mit „A file named … already exists.“), Elternordner weg (keine Operation), Symlinks
+(der Link selbst, auch defekte; Ziel bleibt), Ort selbst (verweigert). Papierkorb nicht verfügbar:
+KIO-Semantik (Angebot, endgültig zu löschen) – nicht automatisch getestet (bräuchte ein zweites
+Gerät außerhalb der Testordner).
+
+**Dev-MCP:** `treemap_context_menu`, `file_operation`, `answer_dialog`; `treemap_key Menu` wie eine
+echte Menü-Taste; Zustand `fileOperations`, `message`, `dialogs` (class/text/buttons/urls),
+`popupMenu.active`, Treemap `selectedMenu`/`openMenus`/`operationScans`/`lastOperation`.
+`test_t1_acceptance.py` (A Öffnen, B Im Ordner anzeigen, C Eigenschaften, D Umbenennen,
+E Papierkorb, F Löschen mit KIO-Bestätigung abgebrochen/bestätigt, G Gating, K Kopieren/
+Ausschneiden (nur offscreen), H Split, I Rescan/F5/Cache). **Echte Eingabe auf Wayland:**
+`--popups real` mit `wayland_real_input.py`: `ydotool` (laufender `ydotoold` des Benutzers),
+Zeigerposition über ein KWin-Skript (Ausgabe übers Journal), geregelt bis zum Ziel; geklickt
+wird erst, wenn die Treemap die Zielzelle als „hovered“ meldet; Menüeinträge mit echten
+Pfeil-/Enter-Tasten. Testfenster per PID gefunden und oben gehalten.
+
+**Funde unterwegs:**
+
+- Echte Menü-Taste (Wayland, geprüft mit PyQt-Probe und `ydotool`): Qt schickt erst ein
+  `QContextMenuEvent` (Keyboard), dann den Tastendruck. Eine zusätzliche `Key_Menu`-Behandlung
+  hätte zwei Menüs geöffnet; das Menü entsteht nur noch im `contextMenuEvent`. Die Abnahme prüft
+  `openMenus == 1`.
+- Synthetischer Rechtsklick (Qt 6.10): Das Fenster stellt das Kontextmenü-Ereignis dem Widget
+  unter der letzten *Bewegung* zu; eine Bewegung an dieselbe Position wird verworfen. Tests und
+  Dev-MCP bewegen daher erst einen Pixel daneben. `QTest::mouseClick` auf Widgets erzeugt gar
+  kein Kontextmenü-Ereignis.
+- Offscreen wird das Fenster nach Menü/Dialog nicht wieder aktiv; ein synthetischer Treemap-Klick
+  aktiviert es jetzt wie ein Fenstermanager.
+- Split-Animation: Zellen wandern kurz nach dem Öffnen/Schließen des Splits; die echte Eingabe
+  wartet auf stabile Canvas-Größe (die Hover-Prüfung hat das vorher korrekt abgefangen).
+- KIOs Löschbestätigung heißt „Delete Permanently“.
+
+**Tests:** `whaledeepoperationstest` (29 Testfunktionen) offscreen und auf Wayland grün
+(Zwischenablage nur offscreen). Volle Suite offscreen 55/56 (bekannter `testAccessibilityTree`).
+MCP: `test_t1_acceptance.py` offscreen (synthetische Popups und `--popups off`), auf Wayland mit
+`--popups off` und dreimal mit `--popups real` grün (56 Schritte, zuletzt am finalen Stand); M3–M7 und M9 auf Wayland grün.
+Wayland-Unit-Tests: `whaletreemaptest::testHover` scheitert dort – **vorbestehend**, am
+unveränderten M9-Stand `ff9e3c201` in eigenem Build identisch reproduziert (offscreen grün),
+dieselbe Ursache wie `whaleactionstest::testItemInfo`. `whale_dev_mcp_m7_e2e` offscreen einmal
+in 15 Läufen nach 0,6 s gescheitert, danach 14 grün; Ursache nicht ermittelt (früher Abbruch,
+vermutlich Start-Konkurrenz auf dem Bus), nicht T1-spezifisch.
+
+**Abweichungen vom Plan:**
+
+- Kein `KFileItemActions`/Service-Menüs im T1-Menü (Abschnitt 6 hatte sie genannt): „Öffnen mit“
+  als KDE-Dialog statt Untermenü. Copy To/Move To, Duplicate vertagt.
+- Das Treemap-Menü gilt auch für gelistete Einträge (statt Dolphins Menü).
+- „Im Ordner anzeigen“ wechselt nicht zur Dateiliste.
+- Nicht ausführbare Einträge werden ausgeblendet statt (wie in Dolphin) deaktiviert.
+
+**Vertagt auf T2:** Shortcuts (Entf, Umschalt+Entf, F2, Strg+C/X/D), Hauptmenü-/Toolbar-Actions
+auf tiefe Auswahl, Copy/Move in die andere Hälfte, Vergleichen, Mehrfachauswahl.
+
+**Weiter offen:** O3 (View pro Ordner), M8c (Live-Updates, Remote), M11 (RolesUpdater pausieren),
+Toolbar-Themen; Live-Aktualisierung einer zweiten, nicht operierenden Treemap auf denselben Baum
+(heute: Cache invalidiert, F5).
