@@ -26,8 +26,9 @@ import subprocess
 import sys
 import tempfile
 
-# Never offered; file operations that are offered (copy, trash, ...) are refused without a test profile.
-FORBIDDEN_ACTIONS = {"move_to_trash", "deletefile", "edit_paste", "duplicate", "create_dir", "compress"}
+# Never offered (Whale's own names); file operations that are offered (copy, trash, duplicate, ...) are
+# refused without a test profile.
+FORBIDDEN_ACTIONS = {"move_to_trash", "deletefile", "edit_paste", "create_dir", "compress"}
 
 
 sys.dont_write_bytecode = True  # no __pycache__ next to the sources

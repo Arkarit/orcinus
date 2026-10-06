@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9 and T1 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1 and T2 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -63,7 +63,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), and the file operations `copy`, `cut`, `paste`, `trash`, `delete` (see below). Disabled (gated) actions are refused. |
+| `trigger_action` | The same QActions as the menus, toolbar and shortcuts (since T2 also on a plugin view's own selection, see `command`). Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), and the file operations `copy`, `cut`, `paste`, `trash`, `delete`, `duplicate`, `copy_location`, `copy_to_other_pane`, `move_to_other_pane` (see below). Disabled (gated) actions are refused. |
 | `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
 | `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
 | `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
@@ -153,6 +153,12 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `treeCache` the window's tree scan cache (`hits`, `misses`, `joins`,
   `invalidations`, `evictions`, `notKept`, `entries`, `bytes`, `watchedFolders`,
   `runningScans`).
+- Commands (T2): `command` (window: the active pane's; also per pane) is what Whale's
+  actions on selected items act on: `source` (`file-list`, `plugin-mirrored` for a plugin
+  view that shows Whale's selection, `plugin` for a view with a selection of its own,
+  e.g. the treemap) and its `urls`. `actions.<name>.gate` says why an action is off,
+  e.g. `nothing selected`, `not supported for the selection`, `not routed to a view's own
+  selection`.
 - File operations (T1): `fileOperations` of a pane with a plugin view: `finished` (count)
   and `last` (`operation`, `result` done/canceled/failed, `urls`, `newUrls`) of what its
   `WhaleFileOperations` reported (rename, trash, delete); `message` the error or message
@@ -173,7 +179,8 @@ files open with a test "opener" that only logs the path.
 
 ## File operations
 
-`copy`, `cut`, `paste`, `trash`, `delete`, `rename_dialog`, `perform_drag_drop`,
+`copy`, `cut`, `paste`, `trash`, `delete`, `duplicate`, `copy_location`, `copy_to_other_pane`,
+`move_to_other_pane`, `rename_dialog`, `perform_drag_drop`,
 `choose_popup_entry`, `answer_dialog` and `file_operation` with `rename`, `trash`, `delete`,
 `copy`, `cut` or `copy_location` change files or the clipboard. Whale refuses them unless it was started with
 `WHALE_DEV_MCP_FILE_OPERATIONS=1` (`whale-dev-session.sh --file-operations`,
@@ -220,6 +227,9 @@ system itself.
   the target cell as hovered; menu entries are chosen with real Down/Enter keys. It raises
   the test window (found by its PID) above all others while it runs. `--popups off` checks
   the menus through `treemap.selectedMenu` and runs the operations through `file_operation`.
+- `test_t2_acceptance.py --platform "" --real-keys` presses F2 and Delete as real keys of
+  the session (`ydotool`), only while the test window is active and the treemap has the
+  focus; all other shortcuts go through the window's shortcuts (`treemap_key`).
 - The clipboard is the user's own outside of offscreen (also in a test profile, as it
   belongs to the compositor), so clipboard steps run offscreen only.
 - Only the current tab's panes are addressed.

@@ -21,6 +21,7 @@
 #include "search/bar.h"
 #include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
+#include "whalecommandrouter.h"
 #include "whaledevautomationdbus.h"
 #include "whalefileoperations.h"
 #include "whalefileoperationsimpl.h"
@@ -100,9 +101,8 @@ const QList<std::pair<QString, QByteArray>> &sortFields()
     return fields;
 }
 
-// Action IDs of the automation and the names of the actions in Whale. Only
-// actions that change no files: Delete, Trash, Cut, Copy, Paste and the like
-// stay out until plugin views share the host's selection (view plugins M4/M5).
+// Action IDs of the automation and the names of the actions in Whale, triggered as
+// the menus, toolbar and shortcuts do (since T2 also on a plugin view's own selection).
 const QList<std::pair<QString, QString>> &actions()
 {
     static const QList<std::pair<QString, QString>> list = {
@@ -127,6 +127,10 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("paste"), KStandardAction::name(KStandardAction::Paste)},
         {QStringLiteral("trash"), KStandardAction::name(KStandardAction::MoveToTrash)},
         {QStringLiteral("delete"), KStandardAction::name(KStandardAction::DeleteFile)},
+        {QStringLiteral("duplicate"), QStringLiteral("duplicate")},
+        {QStringLiteral("copy_location"), QStringLiteral("copy_location")},
+        {QStringLiteral("copy_to_other_pane"), QStringLiteral("copy_to_inactive_split_view")},
+        {QStringLiteral("move_to_other_pane"), QStringLiteral("move_to_inactive_split_view")},
     };
     return list;
 }
@@ -135,7 +139,15 @@ const QList<std::pair<QString, QString>> &actions()
 // Whale process was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1.
 const QStringList &fileOperations()
 {
-    static const QStringList ids = {QStringLiteral("copy"), QStringLiteral("cut"), QStringLiteral("paste"), QStringLiteral("trash"), QStringLiteral("delete")};
+    static const QStringList ids = {QStringLiteral("copy"),
+                                    QStringLiteral("cut"),
+                                    QStringLiteral("paste"),
+                                    QStringLiteral("trash"),
+                                    QStringLiteral("delete"),
+                                    QStringLiteral("duplicate"),
+                                    QStringLiteral("copy_location"),
+                                    QStringLiteral("copy_to_other_pane"),
+                                    QStringLiteral("move_to_other_pane")};
     return ids;
 }
 
@@ -464,6 +476,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("pluginPreviewRows"), pluginPreviewRows},
         {QStringLiteral("treemap"), treemap},
         {QStringLiteral("fileOperations"), paneFileOperations(container)},
+        {QStringLiteral("command"), commandState(container)},
         {QStringLiteral("message"), message},
         {QStringLiteral("previews"), panePreviews(container)},
         {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
@@ -551,6 +564,8 @@ QJsonObject WhaleDevAutomation::uiState() const
              {QStringLiteral("itemInfoIsDir"), m_itemInfoIsDir},
          }},
         {QStringLiteral("actions"), actionState()},
+        // T2: what Whale's actions on selected items act on now (the active pane's source).
+        {QStringLiteral("command"), active ? commandState(active) : QJsonValue(QJsonValue::Null)},
         {QStringLiteral("clipboard"), clipboardState()},
         {QStringLiteral("popupMenu"), popupMenu()},
         {QStringLiteral("dialogs"), dialogs()},
@@ -1724,6 +1739,19 @@ QJsonObject WhaleDevAutomation::treemapInput(int paneIndexArg, const QString &ac
         return result;
     }
     return failure(QStringLiteral("unknown treemap action \"%1\"").arg(action));
+}
+
+QJsonObject WhaleDevAutomation::commandState(DolphinViewContainer *container) const
+{
+    QJsonArray urls;
+    const QList<QUrl> selected = WhaleCommandRouter::selectedUrls(container->view());
+    for (const QUrl &url : selected) {
+        urls.append(url.toString());
+    }
+    return {
+        {QStringLiteral("source"), WhaleCommandRouter::sourceName(WhaleCommandRouter::source(container->view()))},
+        {QStringLiteral("urls"), urls},
+    };
 }
 
 QJsonValue WhaleDevAutomation::paneFileOperations(DolphinViewContainer *container) const

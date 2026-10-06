@@ -159,7 +159,9 @@ TOOLS = [
     {
         "name": "trigger_action",
         "description": "Triggers one of a fixed set of Whale actions on the active pane, only if Whale has it "
-        "enabled (view gating). copy, cut, paste, trash and delete change files or the clipboard and are refused "
+        "enabled (view gating), on what the menus, toolbar and shortcuts act on (T2: a plugin view's own selection, "
+        "see 'command' in the state). copy, cut, paste, trash, delete, duplicate, copy_location, copy_to_other_pane "
+        "and move_to_other_pane change files or the clipboard and are refused "
         "unless Whale was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1. rename opens Whale's "
         "rename path (inline in views that can, else the dialog: see rename_dialog); properties opens a dialog; "
         "show_preview toggles 'Show Previews' of the location.",
@@ -170,7 +172,9 @@ TOOLS = [
                     "type": "string",
                     "enum": ["focus_other_view", "go_up", "go_back", "go_forward", "edit_location", "select_all",
                              "invert_selection", "rename", "properties", "new_tab", "activate_next_tab",
-                             "activate_prev_tab", "show_preview", "copy", "cut", "paste", "trash", "delete"],
+                             "activate_prev_tab", "show_preview", "reload", "show_information_panel", "copy", "cut",
+                             "paste", "trash", "delete", "duplicate", "copy_location", "copy_to_other_pane",
+                             "move_to_other_pane"],
                 }
             },
             "required": ["action"],

@@ -239,6 +239,8 @@ private:
     QJsonValue panePreviews(DolphinViewContainer *container) const;
     /// What the file operations of the pane's plugin view have done (T1), see fileOperation().
     QJsonValue paneFileOperations(DolphinViewContainer *container) const;
+    /// The source and the items of Whale's actions on selected items in the pane (T2).
+    QJsonObject commandState(DolphinViewContainer *container) const;
     void watchFileOperations(QObject *operations) const;
     /// Delivers a drag with @p data to the view of @p target, see performDragDrop().
     QJsonObject deliverDrag(DolphinViewContainer *target, const QUrl &item, const QMimeData *data, Qt::KeyboardModifiers modifiers);

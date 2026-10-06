@@ -359,7 +359,15 @@ void WhaleDevAutomationTest::testOnlyNonDestructiveActions()
 
     // File operations are offered, but refused unless Whale runs for a test profile.
     qunsetenv("WHALE_DEV_MCP_FILE_OPERATIONS");
-    for (const QString &id : {QStringLiteral("copy"), QStringLiteral("cut"), QStringLiteral("paste"), QStringLiteral("trash"), QStringLiteral("delete")}) {
+    for (const QString &id : {QStringLiteral("copy"),
+                              QStringLiteral("cut"),
+                              QStringLiteral("paste"),
+                              QStringLiteral("trash"),
+                              QStringLiteral("delete"),
+                              QStringLiteral("duplicate"),
+                              QStringLiteral("copy_location"),
+                              QStringLiteral("copy_to_other_pane"),
+                              QStringLiteral("move_to_other_pane")}) {
         QVERIFY(ids.contains(id));
         const QJsonObject result = m_automation->triggerAction(id);
         QVERIFY(!result.value(QStringLiteral("ok")).toBool());
@@ -373,8 +381,8 @@ void WhaleDevAutomationTest::testOnlyNonDestructiveActions()
         QVERIFY(result.value(QStringLiteral("error")).toString().contains(QStringLiteral("WHALE_DEV_MCP_FILE_OPERATIONS")));
     }
 
+    // Whale's own action names are never IDs (the IDs above are refused without a test profile).
     const QStringList forbidden = {QStringLiteral("move_to_trash"),
-                                   QStringLiteral("duplicate"),
                                    QStringLiteral("create_dir"),
                                    QStringLiteral("edit_cut"),
                                    QStringLiteral("edit_paste"),

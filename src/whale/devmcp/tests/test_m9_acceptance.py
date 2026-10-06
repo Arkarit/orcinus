@@ -9,7 +9,7 @@ driven only through the dev MCP, with restarts done here as a user would start W
   A basic treemap        B hover and information   C navigation (folders, back/forward)
   D view state           E history                 F split view, focus, resizing
   G session restart      H cache (hit, invalidation, rescan)
-  I deep selection safety (no file action reaches a deep entry)
+  I deep selection: Whale's actions act on the treemap's own selection (T2)
   L loading and error states
 
 The test trees are made here (sparse files with one block each; no user data). Whale runs
@@ -250,7 +250,8 @@ def run(args, work):
         client.tool("treemap_select", pane=0, url=u("Code/project/build/app"))
         s.expect("F: a click into the treemap activates the left half", {
             "activePane": 0, "focus.role": "plugin:whale_treemap", "focus.pane": 0,
-            f"{tm()}.selected": u("Code/project/build/app"), "actions.deletefile.enabled": False})
+            f"{tm()}.selected": u("Code/project/build/app"), "actions.deletefile.enabled": True,
+            "command.source": "plugin", "command.urls": [u("Code/project/build/app")]})
         client.tool("activate_pane", pane=1)
         s.expect("F: right half active: the file list's actions", {"activePane": 1, "focus.pane": 1,
                                                                     "actions.sort.enabled": True,
@@ -313,39 +314,26 @@ def run(args, work):
                                                                "treeCache.misses": misses + 1})
         total += 77 * MB
 
-        # I: a deep selection never becomes the target of a file action
+        # I: since T2 Whale's actions act on the treemap's own selection, never on the hidden
+        # file list's (test_t2_acceptance.py carries them out)
         victim = root / "Pictures/2021/IMG_0007.jpg"
         client.tool("treemap_select", url=uri(victim))
-        state = s.expect("I: a deep file selected", {f"{tm()}.selected": uri(victim), f"{tm()}.selectedDeep": True,
-                                                     "panes.0.selectionCount": 0})
-        gate = "RecursiveContent: items outside the listing cannot be selected yet"
-        for action in ("deletefile", "movetotrash", "delete_shortcut", "edit_cut", "edit_copy", "renamefile", "duplicate",
-                       "copy_location", "compare_files"):
-            if state["actions"][action]["enabled"] or state["actions"][action]["gate"] != gate:
-                raise Failure(f"I: {action} is not gated: {state['actions'][action]}")
-        for key in ("Delete", "Shift+Delete", "F2", "Ctrl+X", "Ctrl+C", "Ctrl+D"):
-            result = json.loads(client.tool("treemap_key", key=key)[0]["text"])
-            if result.get("shortcut"):
-                raise Failure(f"I: {key} reached a shortcut")
-        for action in ("delete", "trash", "copy", "cut", "rename"):
-            error = client.tool_error("trigger_action", action=action)
-            if not error or "disabled" not in error:
-                raise Failure(f"I: trigger_action {action} was not refused: {error}")
-        s.expect("I: nothing happened", {"dialogs": [], "popupMenu": None, f"{tm()}.selected": uri(victim)})
-        if not victim.exists():
-            raise Failure("I: the deep file is gone")
-        trash = work / "profile" / "home" / ".local" / "share" / "Trash"
-        if trash.exists() and any(trash.rglob("IMG_0007*")):
-            raise Failure("I: the deep file is in the trash")
-        # A listed entry is Whale's selection, but the treemap still shows more than the listing.
+        state = s.expect("I: a deep file selected: the actions act on it", {
+            f"{tm()}.selected": uri(victim), f"{tm()}.selectedDeep": True, "panes.0.selectionCount": 0,
+            "command.source": "plugin", "command.urls": [uri(victim)]})
+        for action in ("deletefile", "movetotrash", "edit_cut", "edit_copy", "renamefile", "duplicate", "copy_location"):
+            if not state["actions"][action]["enabled"] or state["actions"][action]["gate"] is not None:
+                raise Failure(f"I: {action} does not act on the selection: {state['actions'][action]}")
+        if state["actions"]["compare_files"]["gate"] != "not routed to a view's own selection":
+            raise Failure(f"I: compare_files: {state['actions']['compare_files']}")
         client.tool("treemap_select", url=u("Archives"))
-        s.expect("I: a listed folder: still gated", {"panes.0.selectedNames": ["Archives"], "actions.movetotrash.enabled": False,
-                                                    "actions.movetotrash.gate": gate})
-        client.tool("treemap_key", key="Delete")
-        s.expect("I: Archives still there", {"panes.0.selectedNames": ["Archives"], "dialogs": []})
-        if not (root / "Archives").exists():
-            raise Failure("I: Archives is gone")
+        s.expect("I: a listed folder: Whale's selection too, the same items", {
+            "panes.0.selectedNames": ["Archives"], "command.urls": [u("Archives")], "actions.movetotrash.enabled": True})
         client.tool("treemap_key", key="Escape")
+        s.expect("I: nothing selected: the actions are off", {"command.urls": [], "actions.movetotrash.enabled": False,
+                                                             "actions.movetotrash.gate": "nothing selected"})
+        if not victim.exists() or not (root / "Archives").exists():
+            raise Failure("I: a file is gone")
 
         # L: loading and error states
         if args.loading_files:

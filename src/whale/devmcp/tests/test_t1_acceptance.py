@@ -8,7 +8,7 @@ treemap whale_treemap), driven only through the dev MCP.
 
   A open a deep file           B show in folder           C properties
   D rename                     E trash                    F delete (confirmation)
-  G gating: Whale's actions and shortcuts stay off for deep entries
+  G Whale's actions act on the deep entry (T2)
   H split view: an operation of the left treemap leaves the right half alone
   I reload: the treemap scans again after an operation; F5; the cache is not stale
   K copy and cut (offscreen only: elsewhere the clipboard is the user's)
@@ -41,8 +41,7 @@ import wayland_real_input
 
 FILE_MENU = ["open", "open_with", "show_in_folder", "copy", "cut", "copy_location", "rename", "trash", "delete", "properties"]
 FOLDER_MENU = ["open", "show_in_folder", "copy", "cut", "copy_location", "rename", "trash", "delete", "properties"]
-GATED = ["movetotrash", "deletefile", "delete_shortcut", "renamefile", "edit_cut", "edit_copy", "duplicate",
-         "copy_location", "compare_files", "copy_to_inactive_split_view", "move_to_inactive_split_view"]
+ROUTED = ["movetotrash", "deletefile", "renamefile", "edit_cut", "edit_copy", "duplicate", "copy_location"]
 
 # The text of each menu entry (offscreen, untranslated).
 ENTRY_TEXT = {"open": "Open", "open_with": "Open With…", "show_in_folder": "Show in Folder",
@@ -301,19 +300,14 @@ def run(args, work):
         if (root / "a/delete-me.txt").exists() or (trash / "delete-me.txt").exists():
             raise Failure("F: the file was not deleted for good")
 
-        # G: Whale's own actions and shortcuts stay off for a deep entry (T2 territory)
+        # G: since T2 Whale's own actions act on the deep entry too (test_t2_acceptance.py
+        # carries them out); the ones not routed stay off
         client.tool("treemap_select", url=u("a/deep.txt"))
-        conditions = {f"actions.{name}.enabled": False for name in GATED}
-        conditions.update({f"{tm()}.selectedDeep": True, "panes.0.selectionCount": 0})
-        s.expect("G: the actions on selected items are disabled", conditions)
-        before = client.state()["clipboard"]
-        for key in ("Delete", "Shift+Delete", "F2", "Ctrl+C", "Ctrl+X", "Ctrl+D"):
-            client.tool("treemap_key", key=key)
-        time.sleep(0.5)
-        s.expect("G: the shortcuts did nothing", {"dialogs": [], "clipboard": before, "url": url,
-                                                  f"{tm()}.selected": u("a/deep.txt")})
-        if not (root / "a/deep.txt").exists():
-            raise Failure("G: a shortcut reached the deep file")
+        conditions = {f"actions.{name}.enabled": True for name in ROUTED}
+        conditions.update({f"{tm()}.selectedDeep": True, "panes.0.selectionCount": 0, "command.source": "plugin",
+                           "command.urls": [u("a/deep.txt")], "actions.compare_files.enabled": False,
+                           "actions.show_target.enabled": False})
+        s.expect("G: Whale's actions act on the deep entry", conditions)
 
         # K: copy and cut. Only offscreen: elsewhere the clipboard is the user's own (the
         # compositor's), also in a test profile.

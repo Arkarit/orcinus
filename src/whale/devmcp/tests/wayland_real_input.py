@@ -28,6 +28,8 @@ KEY_DOWN = 108
 KEY_ENTER = 28
 KEY_ESC = 1
 KEY_COMPOSE = 127  # the Menu key
+KEY_F2 = 60
+KEY_DELETE = 111
 
 
 class RealInputUnavailable(Exception):
