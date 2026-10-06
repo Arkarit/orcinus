@@ -13,9 +13,11 @@
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewplugin.h"
+#include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
 
 #include <QApplication>
+#include <QShowEvent>
 #include <QStackedLayout>
 
 QString WhaleViewHost::dolphinViewId()
@@ -63,6 +65,7 @@ bool WhaleViewHost::isDolphinViewShown() const
 
 void WhaleViewHost::showDolphinView()
 {
+    m_initialPreferencePending = false;
     if (!m_pluginView) {
         return;
     }
@@ -82,8 +85,26 @@ void WhaleViewHost::showDolphinView()
     notifyWindow();
 }
 
+bool WhaleViewHost::selectView(const QString &viewId)
+{
+    if (viewId == dolphinViewId()) {
+        showDolphinView();
+    } else {
+        WhaleViewRegistry *viewRegistry = registry();
+        WhaleViewPlugin *plugin = viewRegistry ? viewRegistry->plugin(viewId) : nullptr;
+        if (!plugin || !showPluginView(viewId, plugin)) {
+            return false;
+        }
+    }
+    // The user's choice, unlike any automatic change of the view, is the view of the location.
+    WhaleViewPreferences::instance()->setPreferredView(m_bridge->url(), viewId);
+    m_viewOrigin = QStringLiteral("user");
+    return true;
+}
+
 bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plugin)
 {
+    m_initialPreferencePending = false;
     if (m_pluginView && m_pluginId == pluginId) {
         return true;
     }
@@ -227,13 +248,61 @@ QByteArray WhaleViewHost::unwrapLocationState(const QByteArray &locationState)
     QByteArray dolphinState;
     WhaleViewsState views;
     if (WhalePersistence::unwrapLocationState(locationState, &dolphinState, &views)) {
+        // Back/forward: the view as it was, even if the location prefers another one by now.
         applyViewsState(views, QStringLiteral("history"));
     } else {
-        // A new location, or Dolphin's own state: the shown view stays, with no stored states.
+        // A new location, or Dolphin's own state: no stored states; the preferred view of the
+        // location, otherwise the shown view stays.
         m_views = WhaleViewsState();
+        applyPreferredView();
     }
     checkUrlSupported();
     return dolphinState;
+}
+
+void WhaleViewHost::applyPreferredView()
+{
+    m_initialPreferencePending = false;
+    const QString preferred = WhaleViewPreferences::instance()->preferredView(m_bridge->url());
+    if (preferred.isEmpty()) {
+        m_viewOrigin = QStringLiteral("kept");
+        return;
+    }
+
+    // The outgoing view has only just seen this location; its state is not worth keeping.
+    m_applyingState = true;
+    bool fallback = false;
+    if (preferred == dolphinViewId()) {
+        showDolphinView();
+    } else if (!m_pluginView || m_pluginId != preferred) {
+        // A missing, incompatible or broken plugin, or one that does not support the location:
+        // the file list, quietly. The preference stays for when the plugin is back.
+        WhaleViewRegistry *viewRegistry = registry();
+        WhaleViewPlugin *plugin = viewRegistry && viewRegistry->pluginMetaData(preferred).isValid() ? viewRegistry->plugin(preferred) : nullptr;
+        if (!plugin || !showPluginView(preferred, plugin)) {
+            qCDebug(WhaleViewDebug) << "The preferred view" << preferred << "cannot show" << m_bridge->url() << "- showing the file list";
+            fallback = true;
+            showDolphinView();
+        }
+    }
+    m_applyingState = false;
+    m_lastRestore = RestoreInfo{QStringLiteral("preference"), preferred, currentViewId(), fallback};
+    m_viewOrigin = fallback ? QStringLiteral("fallback") : QStringLiteral("preference");
+}
+
+WhaleViewRegistry *WhaleViewHost::registry() const
+{
+    return window()->findChild<WhaleViewRegistry *>();
+}
+
+void WhaleViewHost::showEvent(QShowEvent *event)
+{
+    QWidget::showEvent(event);
+    // A new view area (window, tab, split view) shows the preferred view of its first
+    // location, now that it is part of its window and can find the view plugins.
+    if (m_initialPreferencePending) {
+        applyPreferredView();
+    }
 }
 
 void WhaleViewHost::checkUrlSupported()
@@ -249,6 +318,7 @@ void WhaleViewHost::checkUrlSupported()
     showDolphinView();
     m_applyingState = false;
     m_lastRestore = RestoreInfo{QStringLiteral("location"), requested, currentViewId(), true};
+    m_viewOrigin = QStringLiteral("fallback");
 }
 
 QByteArray WhaleViewHost::saveSessionState(const QList<WhaleViewHost *> &hosts)
@@ -273,8 +343,14 @@ WhaleViewHost::RestoreInfo WhaleViewHost::lastRestore() const
     return m_lastRestore;
 }
 
+QString WhaleViewHost::viewOrigin() const
+{
+    return m_viewOrigin;
+}
+
 void WhaleViewHost::applyViewsState(const WhaleViewsState &views, const QString &source)
 {
+    m_initialPreferencePending = false;
     m_applyingState = true;
     m_views = views;
     const QString requested = views.activeViewId.isEmpty() ? dolphinViewId() : views.activeViewId;
@@ -289,8 +365,8 @@ void WhaleViewHost::applyViewsState(const WhaleViewsState &views, const QString 
             m_pluginView->restoreState(state);
         }
     } else {
-        WhaleViewRegistry *registry = window()->findChild<WhaleViewRegistry *>();
-        WhaleViewPlugin *plugin = registry ? registry->plugin(requested) : nullptr;
+        WhaleViewRegistry *viewRegistry = registry();
+        WhaleViewPlugin *plugin = viewRegistry ? viewRegistry->plugin(requested) : nullptr;
         if (!plugin || !showPluginView(requested, plugin)) {
             // Missing, disabled, incompatible or broken: the file list. The view's stored
             // state stays in m_views, so it is written again and not lost.
@@ -301,6 +377,7 @@ void WhaleViewHost::applyViewsState(const WhaleViewsState &views, const QString 
     }
 
     m_lastRestore = RestoreInfo{source, requested, currentViewId(), fallback};
+    m_viewOrigin = fallback ? QStringLiteral("fallback") : source;
     m_applyingState = false;
 }
 

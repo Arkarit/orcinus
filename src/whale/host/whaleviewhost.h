@@ -22,6 +22,7 @@ class QStackedLayout;
 class WhaleView;
 class WhaleViewContextImpl;
 class WhaleViewPlugin;
+class WhaleViewRegistry;
 
 /**
  * @brief Shows the active view of one view area (DolphinViewContainer).
@@ -71,6 +72,15 @@ public:
     void showDolphinView();
 
     /**
+     * The user chose the view @p viewId (dolphinViewId() or a plugin ID) for the current
+     * location, e.g. in the view switcher: shows it and, if it could be shown, remembers it
+     * as the view of the location (WhaleViewPreferences). Automatic changes of the view
+     * (history, session, fallbacks, preferences) never go through here.
+     * @return False if the view could not be shown; nothing is remembered then.
+     */
+    bool selectView(const QString &viewId);
+
+    /**
      * Shows a new view created by @p plugin instead of the current view.
      * @return False if the plugin does not support the location (WhaleViewPlugin::
      *         supportsUrl()) or did not provide a view with a widget; the current view
@@ -87,9 +97,11 @@ public:
 
     /**
      * History: the location has changed. Shows the view stored in @p locationState and
-     * hands it its state; without Whale data (a new location, or an entry of an older
-     * Whale/Dolphin) the shown view stays. A plugin view that does not support the new
-     * location is replaced by the file list.
+     * hands it its state; the history has priority over the preferred view of the location.
+     * Without Whale data (a new location, or an entry of an older Whale/Dolphin) the view
+     * preferred at the location is shown (WhaleViewPreferences); without a preference the
+     * shown view stays. A plugin view that does not support the new location is replaced by
+     * the file list.
      * @return Dolphin's part of @p locationState for DolphinView::restoreState().
      */
     QByteArray unwrapLocationState(const QByteArray &locationState);
@@ -114,14 +126,23 @@ public:
      * How the last history or session restore went; for tests and development tools.
      */
     struct RestoreInfo {
-        /// "history" or "session", or "location" when a view could not show a new location;
-        /// empty if nothing was restored yet
+        /// "history" or "session", "preference" for the preferred view of a new location
+        /// (O3), or "location" when a view could not show a new location; empty if nothing
+        /// was restored yet
         QString source;
         QString requestedViewId;
         QString shownViewId;
         bool fallback = false; ///< the requested view could not be shown
     };
     RestoreInfo lastRestore() const;
+
+    /**
+     * What decided about the shown view: "user" (selectView()), "preference", "history",
+     * "session", "fallback" (the requested view could not be shown), "kept" (a new location
+     * without a preference: the view stayed), or "initial" (nothing decided yet). For tests
+     * and development tools.
+     */
+    QString viewOrigin() const;
 
     /**
      * Tells the host whether its view area is the active one. On activation a shown
@@ -166,7 +187,12 @@ Q_SIGNALS:
      */
     void viewSelectionChanged();
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private:
+    void applyPreferredView();
+    WhaleViewRegistry *registry() const;
     void applyViewsState(const WhaleViewsState &views, const QString &source);
     void keepPluginState();
     void notifyWindow();
@@ -199,6 +225,11 @@ private:
     // previous location and must not end up in m_views.
     bool m_applyingState = false;
     RestoreInfo m_lastRestore;
+    QString m_viewOrigin = QStringLiteral("initial");
+    // The first location of the view area did not go through unwrapLocationState(): its
+    // preferred view is shown once the host is part of its window, unless a session, the
+    // history or the user decided about the view before.
+    bool m_initialPreferencePending = true;
 };
 
 #endif

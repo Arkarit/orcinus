@@ -65,6 +65,13 @@ public:
      */
     WhaleViewPlugin *plugin(const QString &pluginId);
 
+    /**
+     * For tests and development tools: with @p available false the plugin @p pluginId is
+     * treated as missing (not listed, no metadata, no instance), as if it was uninstalled;
+     * with true it is back. A loaded instance is kept meanwhile.
+     */
+    void setPluginAvailable(const QString &pluginId, bool available);
+
 private:
     void scan();
 
@@ -72,6 +79,7 @@ private:
     QList<KPluginMetaData> m_plugins;
     QHash<QString, WhaleViewPlugin *> m_instances;
     QSet<QString> m_failedPluginIds;
+    QSet<QString> m_unavailablePluginIds;
 };
 
 #endif

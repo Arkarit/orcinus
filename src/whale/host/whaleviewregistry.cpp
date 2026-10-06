@@ -61,12 +61,24 @@ bool WhaleViewRegistry::isCompatible(const KPluginMetaData &metaData, QString *r
 QList<KPluginMetaData> WhaleViewRegistry::plugins()
 {
     scan();
-    return m_plugins;
+    if (m_unavailablePluginIds.isEmpty()) {
+        return m_plugins;
+    }
+    QList<KPluginMetaData> available;
+    for (const KPluginMetaData &metaData : std::as_const(m_plugins)) {
+        if (!m_unavailablePluginIds.contains(metaData.pluginId())) {
+            available.append(metaData);
+        }
+    }
+    return available;
 }
 
 KPluginMetaData WhaleViewRegistry::pluginMetaData(const QString &pluginId)
 {
     scan();
+    if (m_unavailablePluginIds.contains(pluginId)) {
+        return {};
+    }
     for (const KPluginMetaData &metaData : std::as_const(m_plugins)) {
         if (metaData.pluginId() == pluginId) {
             return metaData;
@@ -77,6 +89,10 @@ KPluginMetaData WhaleViewRegistry::pluginMetaData(const QString &pluginId)
 
 WhaleViewPlugin *WhaleViewRegistry::plugin(const QString &pluginId)
 {
+    if (m_unavailablePluginIds.contains(pluginId)) {
+        qCDebug(WhaleViewDebug) << "The view plugin" << pluginId << "is made unavailable";
+        return nullptr;
+    }
     if (WhaleViewPlugin *instance = m_instances.value(pluginId)) {
         return instance;
     }
@@ -99,6 +115,15 @@ WhaleViewPlugin *WhaleViewRegistry::plugin(const QString &pluginId)
 
     m_instances.insert(pluginId, result.plugin);
     return result.plugin;
+}
+
+void WhaleViewRegistry::setPluginAvailable(const QString &pluginId, bool available)
+{
+    if (available) {
+        m_unavailablePluginIds.remove(pluginId);
+    } else {
+        m_unavailablePluginIds.insert(pluginId);
+    }
 }
 
 void WhaleViewRegistry::scan()

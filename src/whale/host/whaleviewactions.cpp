@@ -316,8 +316,10 @@ void WhaleViewActions::slotRename()
 
 void WhaleViewActions::slotViewModeTriggered()
 {
+    // Choosing a view mode in a plugin view chooses the file list for the location. The mode
+    // itself is the file list's business (Dolphin's view properties), not a preferred view.
     if (m_host && !m_host->isDolphinViewShown()) {
-        m_host->showDolphinView();
+        m_host->selectView(WhaleViewHost::dolphinViewId());
     }
 }
 
@@ -337,12 +339,8 @@ void WhaleViewActions::slotViewSelected(QAction *action)
         return;
     }
 
-    const QString viewId = action->data().toString();
-    if (viewId == WhaleViewHost::dolphinViewId()) {
-        m_host->showDolphinView();
-    } else if (WhaleViewPlugin *plugin = m_registry->plugin(viewId)) {
-        m_host->showPluginView(viewId, plugin);
-    }
+    // The user's choice: it becomes the view of the location (O3).
+    m_host->selectView(action->data().toString());
     // Reflect the real state, e.g. if the plugin could not be loaded.
     updateCheckedView();
 }
@@ -359,8 +357,9 @@ void WhaleViewActions::updateAvailableViews()
         if (viewId == WhaleViewHost::dolphinViewId()) {
             continue;
         }
-        const bool requiresLocal = m_registry->pluginMetaData(viewId).value(QStringLiteral("X-Whale-RequiresLocal"), false);
-        action->setEnabled(local || !requiresLocal);
+        const KPluginMetaData metaData = m_registry->pluginMetaData(viewId);
+        const bool requiresLocal = metaData.value(QStringLiteral("X-Whale-RequiresLocal"), false);
+        action->setEnabled(metaData.isValid() && (local || !requiresLocal));
     }
 }
 

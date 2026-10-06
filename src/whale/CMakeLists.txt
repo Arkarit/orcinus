@@ -76,6 +76,7 @@ target_sources(whaleviewhost PRIVATE
     host/whaleviewactions.cpp
     host/whaleviewcontextimpl.cpp
     host/whaleviewhost.cpp
+    host/whaleviewpreferences.cpp
     host/whaleviewregistry.cpp
     host/whaleviewstate.cpp
 )
