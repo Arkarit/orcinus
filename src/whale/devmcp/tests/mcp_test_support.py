@@ -97,12 +97,13 @@ def install_test_opener(profile, log):
 
 
 def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False,
-                extra_plugin_dirs=()):
+                extra_plugin_dirs=(), confirm_delete=False):
     """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
     Without @p folder Whale restores its session (if it is the only Whale on the bus).
     @p plugin_dir may be None: then Whale finds no plugins of the build tree.
     With @p file_operations the dev MCP may change files and the clipboard, and deleting
-    needs no confirmation; only for throwaway test folders."""
+    needs no confirmation (with @p confirm_delete it does, as KDE's default); only for
+    throwaway test folders."""
     env = dict(os.environ)
     env.pop("WHALE_DEV_MCP_FILE_OPERATIONS", None)
     for name in ("config", "data", "cache", "state"):
@@ -116,7 +117,8 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
         # trash and test files on one device and the trash inside the profile.
         (profile / "home").mkdir(exist_ok=True)
         env["HOME"] = str(profile / "home")
-        (profile / "config" / "kiorc").write_text("[Confirmations]\nConfirmDelete=false\nConfirmTrash=false\n")
+        (profile / "config" / "kiorc").write_text(
+            f"[Confirmations]\nConfirmDelete={'true' if confirm_delete else 'false'}\nConfirmTrash=false\n")
     env.update({
         "XDG_CONFIG_HOME": str(profile / "config"),
         "XDG_DATA_HOME": str(profile / "data"),

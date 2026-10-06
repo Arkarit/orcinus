@@ -66,6 +66,8 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString TreemapInput(int pane, const QString &action, const QString &url, const QString &key);
     /// @p colorMode "fileType", "topFolder" or "" (unchanged); @p labels "true", "false" or "".
     Q_SCRIPTABLE QString TreemapSetOptions(int pane, const QString &colorMode, const QString &labels);
+    Q_SCRIPTABLE QString FileOperation(int pane, const QString &operation, const QStringList &urls);
+    Q_SCRIPTABLE QString AnswerDialog(const QString &text);
 
 private:
     WhaleDevAutomation *const m_automation;

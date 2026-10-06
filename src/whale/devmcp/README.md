@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7 and M9 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, shared `mcp_test_support.py`). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9 and T1 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -74,11 +74,14 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `request_preview` | Request previews of items through the preview provider of a pane's plugin view, as the view does |
 | `perform_drag_drop` | Drag the selection of a pane and drop it onto a folder item or the location of a pane (`copy`/`move`/`link`/`ask`); file operation, see below |
 | `choose_popup_entry` | Choose an entry of the open popup menu by text, e.g. "Copy Here" of the drop menu; file operation |
-| `treemap_hover` | Treemap (M9): move the pointer onto the cell of `url`, or off the treemap without `url` |
+| `treemap_hover` | Treemap (M9): move the pointer onto the cell of `url`, or off the treemap without `url`; the result has the cell's position in the window (`windowX`, `windowY`) |
 | `treemap_select` | Treemap: click into the cell of `url`, then Up until `url` itself is selected (deep entries too) |
 | `treemap_activate` | Treemap: `how=enter` (select, then Enter) or `how=double_click` on the cell of `url` |
 | `treemap_zoom` | Treemap: mouse wheel `in` at the cell of `url` (one level towards it) or `out` |
-| `treemap_key` | Treemap: a key (`Up`, `Return`, `+`, `Escape`, `Delete`, `Ctrl+C`, …); the window's shortcuts get it first; `result.shortcut` |
+| `treemap_key` | Treemap: a key (`Up`, `Return`, `+`, `Escape`, `Delete`, `Ctrl+C`, `Menu`, …); the window's shortcuts get it first; `result.shortcut`. `Menu` is delivered as Qt delivers a real one: a context menu event, then the key press (to an open menu) |
+| `treemap_context_menu` | Treemap (T1): right click into the cell of `url` (real input through the window): the deepest entry there is selected and the treemap's own context menu opens (`popupMenu`, `result.menuShown`) |
+| `file_operation` | T1: `operation` (`open`, `open_with`, `show_in_folder`, `properties`, `rename`, `trash`, `delete`, `copy`, `cut`, `copy_location`, or `supported`) on explicit `urls` through the `WhaleFileOperations` of the pane's plugin view, the host API its context menu calls; the items need not be listed. Changing ones are file operations (see below) |
+| `answer_dialog` | Press a button of an open dialog by its text, e.g. `Delete Permanently` of KIO's confirmation; file operation |
 | `treemap_set_options` | Treemap: `color_mode` (`fileType`/`topFolder`) and `labels` through the treemap's own controls |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
@@ -150,6 +153,14 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `treeCache` the window's tree scan cache (`hits`, `misses`, `joins`,
   `invalidations`, `evictions`, `notKept`, `entries`, `bytes`, `watchedFolders`,
   `runningScans`).
+- File operations (T1): `fileOperations` of a pane with a plugin view: `finished` (count)
+  and `last` (`operation`, `result` done/canceled/failed, `urls`, `newUrls`) of what its
+  `WhaleFileOperations` reported (rename, trash, delete); `message` the error or message
+  shown in the view area. `dialogs` list `type` (rename/properties/other), `class`,
+  `title`, `text` (the longest label, e.g. KIO's question), `buttons` and, for properties,
+  `urls`. `popupMenu.active` is the entry the keyboard is on. The treemap adds
+  `selectedMenu` (the entries of the context menu its selection would get, without showing
+  it), `openMenus` (visible context menus), `operationScans` and `lastOperation`.
 
 `wait_for_state` conditions map dotted paths into this state to expected JSON
 values, e.g. `{"panes.1.viewId": "whale_testlist", "focus.role": "plugin:whale_testlist"}`.
@@ -162,8 +173,9 @@ files open with a test "opener" that only logs the path.
 
 ## File operations
 
-`copy`, `cut`, `paste`, `trash`, `delete`, `rename_dialog`, `perform_drag_drop` and
-`choose_popup_entry` change files or the clipboard. Whale refuses them unless it was started with
+`copy`, `cut`, `paste`, `trash`, `delete`, `rename_dialog`, `perform_drag_drop`,
+`choose_popup_entry`, `answer_dialog` and `file_operation` with `rename`, `trash`, `delete`,
+`copy`, `cut` or `copy_location` change files or the clipboard. Whale refuses them unless it was started with
 `WHALE_DEV_MCP_FILE_OPERATIONS=1` (`whale-dev-session.sh --file-operations`,
 `mcp_test_support.start_whale(file_operations=True)`), which is meant for throwaway
 test folders only. Such a Whale gets a home inside its profile, so the trash is the
@@ -200,8 +212,16 @@ system itself.
   the UI, but not through simulated mouse or keyboard input (except the drag gesture
   of `perform_drag_drop` and the treemap tools, which send mouse input through the
   window like QTest and keys through the window's shortcuts first).
-- Popup menus (context menu, drop menu) need real input on Wayland; they are only
-  testable offscreen.
+- Popup menus (context menu, drop menu) need real input on Wayland (a synthesized click
+  has no input serial). Offscreen they work with synthesized input. On a Plasma/Wayland
+  session `test_t1_acceptance.py --platform "" --popups real` uses real input instead:
+  `wayland_real_input.py` moves the user's pointer with `ydotool` (a running `ydotoold`)
+  until a KWin script reports it at the target, and only clicks after the treemap reports
+  the target cell as hovered; menu entries are chosen with real Down/Enter keys. It raises
+  the test window (found by its PID) above all others while it runs. `--popups off` checks
+  the menus through `treemap.selectedMenu` and runs the operations through `file_operation`.
+- The clipboard is the user's own outside of offscreen (also in a test profile, as it
+  belongs to the compositor), so clipboard steps run offscreen only.
 - Only the current tab's panes are addressed.
 - The automation answers before Dolphin restores its session at start-up; wait for
   the restored state (e.g. `tabs.count`) before acting.

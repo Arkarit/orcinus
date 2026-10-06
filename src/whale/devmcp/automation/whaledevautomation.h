@@ -209,6 +209,23 @@ public:
      */
     QJsonObject treemapSetOptions(int pane, const QString &colorMode, const QString &labels);
 
+    /**
+     * Carries out @p operation on @p urls through the file operations of the pane's
+     * plugin view (WhaleFileOperations, T1), as the view does from its own context menu;
+     * the items need not be in the listing. @p operation is one of open, open_with,
+     * show_in_folder, properties, rename, trash, delete, copy, cut, copy_location, or
+     * supported (only reports supportedOperations()). rename, trash, delete, copy, cut
+     * and copy_location only with WHALE_DEV_MCP_FILE_OPERATIONS=1. Returns at once; the
+     * end of an operation that changes files is "fileOperations" in the pane's state.
+     */
+    QJsonObject fileOperation(int pane, const QString &operation, const QStringList &urls);
+
+    /**
+     * Presses the button @p text (without "&") of an open dialog, e.g. "Delete" of KIO's
+     * confirmation. Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, as it may confirm a deletion.
+     */
+    QJsonObject answerDialog(const QString &text);
+
 private:
     DolphinTabWidget *tabWidget() const;
     QList<DolphinViewContainer *> panes() const;
@@ -220,6 +237,9 @@ private:
     QJsonArray dialogs() const;
     QJsonObject paneState(DolphinViewContainer *container, int index) const;
     QJsonValue panePreviews(DolphinViewContainer *container) const;
+    /// What the file operations of the pane's plugin view have done (T1), see fileOperation().
+    QJsonValue paneFileOperations(DolphinViewContainer *container) const;
+    void watchFileOperations(QObject *operations) const;
     /// Delivers a drag with @p data to the view of @p target, see performDragDrop().
     QJsonObject deliverDrag(DolphinViewContainer *target, const QUrl &item, const QMimeData *data, Qt::KeyboardModifiers modifiers);
     QString focusRole(QWidget *focus, int *paneIndex) const;
@@ -249,6 +269,14 @@ private:
     // Answers to requestPreview(), newest last.
     QJsonArray m_previewResults;
     QList<QPointer<QObject>> m_watchedProviders;
+
+    // The finished operations of the WhaleFileOperations of plugin views (connected when
+    // the state is read or an operation is started).
+    struct FileOperationRecord {
+        int count = 0;
+        QJsonObject last;
+    };
+    mutable QHash<const QObject *, FileOperationRecord> m_fileOperations;
 };
 
 #endif

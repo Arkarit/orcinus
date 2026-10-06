@@ -203,4 +203,14 @@ QString WhaleDevAutomationDBus::TreemapSetOptions(int pane, const QString &color
     return toJson(m_automation->treemapSetOptions(pane, colorMode, labels));
 }
 
+QString WhaleDevAutomationDBus::FileOperation(int pane, const QString &operation, const QStringList &urls)
+{
+    return toJson(m_automation->fileOperation(pane, operation, urls));
+}
+
+QString WhaleDevAutomationDBus::AnswerDialog(const QString &text)
+{
+    return toJson(m_automation->answerDialog(text));
+}
+
 #include "moc_whaledevautomationdbus.cpp"

@@ -22,6 +22,7 @@
 #include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
 #include "whaledevautomationdbus.h"
+#include "whalefileoperations.h"
 #include "whalefileoperationsimpl.h"
 #include "whalepreviewproviderimpl.h"
 #include "whaletreecache.h"
@@ -36,6 +37,7 @@
 #include <KCoreDirLister>
 #include <KIO/Paste>
 #include <KIO/RenameFileDialog>
+#include <KMessageWidget>
 #include <KPropertiesDialog>
 #include <KSelectAction>
 #include <KSqueezedTextLabel>
@@ -49,6 +51,7 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QDBusConnection>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -59,9 +62,11 @@
 #include <QGraphicsView>
 #include <QJsonArray>
 #include <QKeySequence>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMetaEnum>
 #include <QMimeData>
 #include <QPixmap>
 #include <QPushButton>
@@ -397,6 +402,19 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
                                                                    {QStringLiteral("fallback"), restore.fallback},
                                                                };
 
+    // The message shown in the view area (errors of operations), not those of dialogs.
+    QString message;
+    const auto messageWidgets = container->findChildren<KMessageWidget *>();
+    for (const KMessageWidget *widget : messageWidgets) {
+        bool inDialog = false;
+        for (const QWidget *parent = widget->parentWidget(); parent && parent != container; parent = parent->parentWidget()) {
+            inDialog = inDialog || parent->isWindow();
+        }
+        if (!inDialog && widget->isVisible()) {
+            message = widget->text();
+        }
+    }
+
     QString statusText;
     if (auto statusBar = container->findChild<DolphinStatusBar *>()) {
         if (auto label = statusBar->findChild<KSqueezedTextLabel *>()) {
@@ -445,6 +463,8 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("pluginVisibleRows"), pluginVisibleRows},
         {QStringLiteral("pluginPreviewRows"), pluginPreviewRows},
         {QStringLiteral("treemap"), treemap},
+        {QStringLiteral("fileOperations"), paneFileOperations(container)},
+        {QStringLiteral("message"), message},
         {QStringLiteral("previews"), panePreviews(container)},
         {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
         {QStringLiteral("restore"), restoreState},
@@ -951,7 +971,15 @@ QJsonValue WhaleDevAutomation::popupMenu() const
         }
         texts.append(text);
     }
-    return QJsonObject{{QStringLiteral("entries"), entries}, {QStringLiteral("names"), names}, {QStringLiteral("texts"), texts}};
+    // The entry the keyboard is on (Up/Down), by name or text.
+    QJsonValue active = QJsonValue::Null;
+    if (const QAction *action = menu->activeAction()) {
+        active = action->objectName().isEmpty() ? action->text().remove(QLatin1Char('&')) : action->objectName();
+    }
+    return QJsonObject{{QStringLiteral("entries"), entries},
+                       {QStringLiteral("names"), names},
+                       {QStringLiteral("texts"), texts},
+                       {QStringLiteral("active"), active}};
 }
 
 QJsonArray WhaleDevAutomation::dialogs() const
@@ -964,12 +992,40 @@ QJsonArray WhaleDevAutomation::dialogs() const
             continue;
         }
         QString type = QStringLiteral("other");
+        QJsonArray urls;
         if (qobject_cast<KIO::RenameFileDialog *>(dialog)) {
             type = QStringLiteral("rename");
-        } else if (qobject_cast<KPropertiesDialog *>(dialog)) {
+        } else if (auto properties = qobject_cast<KPropertiesDialog *>(dialog)) {
             type = QStringLiteral("properties");
+            const KFileItemList items = properties->items();
+            for (const KFileItem &item : items) {
+                urls.append(item.url().toString());
+            }
         }
-        result.append(QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("title"), dialog->windowTitle()}});
+        QJsonArray buttons;
+        const auto boxes = dialog->findChildren<QDialogButtonBox *>();
+        for (const QDialogButtonBox *box : boxes) {
+            const auto boxButtons = box->buttons();
+            for (const QAbstractButton *button : boxButtons) {
+                if (button->isVisible()) {
+                    buttons.append(button->text().remove(QLatin1Char('&')));
+                }
+            }
+        }
+        // The text of a message box (e.g. KIO's confirmation).
+        QString text;
+        const auto labels = dialog->findChildren<QLabel *>();
+        for (const QLabel *label : labels) {
+            if (label->isVisible() && label->text().length() > text.length()) {
+                text = label->text();
+            }
+        }
+        result.append(QJsonObject{{QStringLiteral("type"), type},
+                                  {QStringLiteral("class"), QString::fromLatin1(dialog->metaObject()->className())},
+                                  {QStringLiteral("title"), dialog->windowTitle()},
+                                  {QStringLiteral("text"), text},
+                                  {QStringLiteral("buttons"), buttons},
+                                  {QStringLiteral("urls"), urls}});
     }
     return result;
 }
@@ -1533,15 +1589,28 @@ QJsonObject WhaleDevAutomation::treemapInput(int paneIndexArg, const QString &ac
         const QString text = (modifiers & ~Qt::ShiftModifier) || keyCode > 0xffff ? QString() : QKeySequence(combination.key()).toString().left(1);
         // As for a real key: the shortcuts of the window first, then the focused widget.
         *shortcut = qt_sendShortcutOverrideEvent(canvas, 0, keyCode, modifiers, text, false, 1);
+        if (!*shortcut && keyCode == Qt::Key_Menu) {
+            // For a real Menu key Qt sends a context menu event first, then the key press.
+            QContextMenuEvent menuEvent(QContextMenuEvent::Keyboard, canvas->rect().center(), canvas->mapToGlobal(canvas->rect().center()), modifiers);
+            QApplication::sendEvent(canvas, &menuEvent);
+        }
         if (!*shortcut) {
+            // A menu that opened has the keyboard.
+            QWidget *receiver = QApplication::activePopupWidget() ? QApplication::activePopupWidget() : canvas;
             QKeyEvent press(QEvent::KeyPress, keyCode, modifiers, text);
-            QApplication::sendEvent(canvas, &press);
+            QApplication::sendEvent(receiver, &press);
             QKeyEvent release(QEvent::KeyRelease, keyCode, modifiers, text);
-            QApplication::sendEvent(canvas, &release);
+            QApplication::sendEvent(receiver, &release);
         }
         return true;
     };
     auto click = [this, canvas](const QPoint &position) {
+        // A click into an inactive window activates it (the window manager does that; without
+        // one, offscreen, the window stays inactive after a dialog or menu has closed).
+        if (!canvas->window()->isActiveWindow()) {
+            canvas->window()->activateWindow();
+            QCoreApplication::processEvents();
+        }
         m_inputTime += 1000;
         sendMouse(canvas, QEvent::MouseMove, position, Qt::NoButton, Qt::NoButton, m_inputTime);
         sendMouse(canvas, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton, m_inputTime += 10);
@@ -1585,7 +1654,12 @@ QJsonObject WhaleDevAutomation::treemapInput(int paneIndexArg, const QString &ac
             return notShown();
         }
         sendMouse(canvas, QEvent::MouseMove, position, Qt::NoButton, Qt::NoButton, m_inputTime);
-        return ok();
+        QJsonObject result = ok();
+        // Where that is in the window, e.g. for real input from outside (tests on Wayland).
+        const QPoint inWindow = canvas->mapTo(canvas->window(), position);
+        result.insert(QStringLiteral("windowX"), inWindow.x());
+        result.insert(QStringLiteral("windowY"), inWindow.y());
+        return result;
     }
     if (action == QLatin1String("select")) {
         return select();
@@ -1598,6 +1672,23 @@ QJsonObject WhaleDevAutomation::treemapInput(int paneIndexArg, const QString &ac
         bool shortcut = false;
         pressKey(QStringLiteral("Return"), &shortcut);
         return ok();
+    }
+    if (action == QLatin1String("context_menu")) {
+        // A right click: the window makes the context menu event of the widget under the
+        // pointer, so the pointer moves there first (from one pixel off: a move to the
+        // position it is at already would be dropped).
+        QPoint position;
+        if (!cellCenter(&position)) {
+            return notShown();
+        }
+        m_inputTime += 1000;
+        sendMouse(canvas, QEvent::MouseMove, position + QPoint(1, 1), Qt::NoButton, Qt::NoButton, m_inputTime);
+        sendMouse(canvas, QEvent::MouseMove, position, Qt::NoButton, Qt::NoButton, m_inputTime += 10);
+        sendMouse(canvas, QEvent::MouseButtonPress, position, Qt::RightButton, Qt::RightButton, m_inputTime += 10);
+        sendMouse(canvas, QEvent::MouseButtonRelease, position, Qt::RightButton, Qt::NoButton, m_inputTime += 10);
+        QJsonObject result = ok();
+        result.insert(QStringLiteral("menuShown"), qobject_cast<QMenu *>(QApplication::activePopupWidget()) != nullptr);
+        return result;
     }
     if (action == QLatin1String("double_click")) {
         QPoint position;
@@ -1633,6 +1724,172 @@ QJsonObject WhaleDevAutomation::treemapInput(int paneIndexArg, const QString &ac
         return result;
     }
     return failure(QStringLiteral("unknown treemap action \"%1\"").arg(action));
+}
+
+QJsonValue WhaleDevAutomation::paneFileOperations(DolphinViewContainer *container) const
+{
+    WhaleViewContextImpl *context = container->viewHost()->pluginContext();
+    if (!context) {
+        return QJsonValue::Null;
+    }
+    QObject *operations = context->fileOperations();
+    watchFileOperations(operations);
+    const FileOperationRecord record = m_fileOperations.value(operations);
+    return QJsonObject{{QStringLiteral("finished"), record.count},
+                       {QStringLiteral("last"), record.last.isEmpty() ? QJsonValue(QJsonValue::Null) : record.last}};
+}
+
+void WhaleDevAutomation::watchFileOperations(QObject *object) const
+{
+    auto operations = qobject_cast<WhaleFileOperations *>(object);
+    if (!operations || m_fileOperations.contains(operations)) {
+        return;
+    }
+    m_fileOperations.insert(operations, FileOperationRecord());
+    connect(operations, &QObject::destroyed, this, [this, operations]() {
+        m_fileOperations.remove(operations);
+    });
+    connect(
+        operations,
+        &WhaleFileOperations::operationFinished,
+        this,
+        [this, operations](WhaleFileOperations::Operation operation, const QList<QUrl> &urls, WhaleFileOperations::Result result, const QList<QUrl> &newUrls) {
+            auto toArray = [](const QList<QUrl> &list) {
+                QJsonArray array;
+                for (const QUrl &url : list) {
+                    array.append(url.toString());
+                }
+                return array;
+            };
+            FileOperationRecord &record = m_fileOperations[operations];
+            ++record.count;
+            record.last = QJsonObject{
+                {QStringLiteral("seq"), record.count},
+                {QStringLiteral("operation"), QString::fromLatin1(QMetaEnum::fromType<WhaleFileOperations::Operation>().valueToKey(int(operation))).toLower()},
+                {QStringLiteral("result"), QString::fromLatin1(QMetaEnum::fromType<WhaleFileOperations::Result>().valueToKey(int(result))).toLower()},
+                {QStringLiteral("urls"), toArray(urls)},
+                {QStringLiteral("newUrls"), toArray(newUrls)},
+            };
+        });
+}
+
+QJsonObject WhaleDevAutomation::fileOperation(int paneIndexArg, const QString &operation, const QStringList &urlArgs)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    WhaleViewContextImpl *context = container->viewHost()->pluginContext();
+    if (!context) {
+        return failure(QStringLiteral("the pane shows no plugin view"));
+    }
+    static const QStringList changing = {QStringLiteral("rename"),
+                                         QStringLiteral("trash"),
+                                         QStringLiteral("delete"),
+                                         QStringLiteral("copy"),
+                                         QStringLiteral("cut"),
+                                         QStringLiteral("copy_location")};
+    if (changing.contains(operation) && !fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(QStringLiteral("file_operation ") + operation));
+    }
+    QList<QUrl> urls;
+    for (const QString &url : urlArgs) {
+        urls.append(QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile));
+    }
+    WhaleFileOperations *operations = context->fileOperations();
+    watchFileOperations(operations);
+
+    if (operation == QLatin1String("supported")) {
+        const WhaleFileOperations::Operations supported = operations->supportedOperations(urls);
+        const QMetaEnum names = QMetaEnum::fromType<WhaleFileOperations::Operation>();
+        QJsonArray list;
+        for (int i = 0; i < names.keyCount(); ++i) {
+            if (supported & WhaleFileOperations::Operation(names.value(i))) {
+                list.append(QString::fromLatin1(names.key(i)));
+            }
+        }
+        QJsonObject result = ok();
+        result.insert(QStringLiteral("supported"), list);
+        return result;
+    }
+    // Deferred: dialogs and menus of the operation must not block this answer.
+    const QHash<QString, std::function<void()>> calls = {
+        {QStringLiteral("open"),
+         [operations, urls]() {
+             operations->openItems(urls);
+         }},
+        {QStringLiteral("open_with"),
+         [operations, urls]() {
+             operations->openItemsWith(urls);
+         }},
+        {QStringLiteral("show_in_folder"),
+         [operations, urls]() {
+             operations->showItemInFolder(urls.value(0));
+         }},
+        {QStringLiteral("properties"),
+         [operations, urls]() {
+             operations->showProperties(urls);
+         }},
+        {QStringLiteral("rename"),
+         [operations, urls]() {
+             operations->renameItems(urls);
+         }},
+        {QStringLiteral("trash"),
+         [operations, urls]() {
+             operations->trashItems(urls);
+         }},
+        {QStringLiteral("delete"),
+         [operations, urls]() {
+             operations->deleteItems(urls);
+         }},
+        {QStringLiteral("copy"),
+         [operations, urls]() {
+             operations->copyItems(urls);
+         }},
+        {QStringLiteral("cut"),
+         [operations, urls]() {
+             operations->cutItems(urls);
+         }},
+        {QStringLiteral("copy_location"),
+         [operations, urls]() {
+             operations->copyLocations(urls);
+         }},
+    };
+    const auto call = calls.constFind(operation);
+    if (call == calls.constEnd()) {
+        return failure(QStringLiteral("unknown file operation \"%1\"").arg(operation));
+    }
+    if (urls.isEmpty()) {
+        return failure(QStringLiteral("no urls"));
+    }
+    QTimer::singleShot(0, operations, *call);
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::answerDialog(const QString &text)
+{
+    if (!fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(QStringLiteral("answer_dialog")));
+    }
+    const auto windows = QApplication::topLevelWidgets();
+    for (QWidget *window : windows) {
+        auto dialog = qobject_cast<QDialog *>(window);
+        if (!dialog || !dialog->isVisible()) {
+            continue;
+        }
+        const auto buttons = dialog->findChildren<QAbstractButton *>();
+        for (QAbstractButton *button : buttons) {
+            if (button->isVisible() && button->text().remove(QLatin1Char('&')) == text) {
+                if (!button->isEnabled()) {
+                    return failure(QStringLiteral("the button \"%1\" is disabled").arg(text));
+                }
+                button->click();
+                return ok();
+            }
+        }
+    }
+    return failure(QStringLiteral("no open dialog has a button \"%1\"").arg(text));
 }
 
 QJsonObject WhaleDevAutomation::treemapSetOptions(int paneIndexArg, const QString &colorMode, const QString &labels)

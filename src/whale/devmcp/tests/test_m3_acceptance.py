@@ -66,7 +66,7 @@ def run(args, work):
                           "trigger_action", "wait_for_state", "screenshot", "get_preview_state", "request_preview",
                           "perform_drag_drop", "choose_popup_entry", "set_split_ratio", "set_window_size",
                           "treemap_hover", "treemap_select", "treemap_activate", "treemap_zoom", "treemap_key",
-                          "treemap_set_options"}
+                          "treemap_set_options", "treemap_context_menu", "file_operation", "answer_dialog"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)

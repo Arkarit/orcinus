@@ -330,6 +330,39 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"pane": PANE, "key": {"type": "string"}}, "required": ["key"]},
     },
     {
+        "name": "treemap_context_menu",
+        "description": "Right-clicks the cell of url in the treemap with real mouse input: the deepest entry "
+        "there becomes the selection and the treemap's own context menu opens (popupMenu in the state; "
+        "result.menuShown). For a folder covered by its entries use treemap_select and treemap_key Menu. "
+        "Popup menus need real input on Wayland.",
+        "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}, "required": ["url"]},
+    },
+    {
+        "name": "file_operation",
+        "description": "T1: carries out an operation on explicit items (also deep below the location) through "
+        "the file operations of the pane's plugin view, as its own context menu does: open, open_with, "
+        "show_in_folder, properties, rename (dialog), trash, delete, copy, cut, copy_location; supported only "
+        "reports what is possible. rename/trash/delete/copy/cut/copy_location need WHALE_DEV_MCP_FILE_OPERATIONS=1. "
+        "Returns at once; panes.N.fileOperations.last reports the end of rename/trash/delete.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pane": PANE,
+                "operation": {"type": "string", "enum": ["open", "open_with", "show_in_folder", "properties", "rename",
+                                                         "trash", "delete", "copy", "cut", "copy_location", "supported"]},
+                "urls": {"type": "array", "items": {"type": "string"}},
+            },
+            "required": ["operation", "urls"],
+        },
+    },
+    {
+        "name": "answer_dialog",
+        "description": "Presses a button of an open dialog by its text (without '&'), e.g. 'Delete' in KIO's "
+        "confirmation. The open dialogs, their texts and buttons are 'dialogs' in the state. "
+        "Needs WHALE_DEV_MCP_FILE_OPERATIONS=1.",
+        "inputSchema": {"type": "object", "properties": {"text": {"type": "string"}}, "required": ["text"]},
+    },
+    {
         "name": "treemap_set_options",
         "description": "Sets the treemap's display options with its own controls.",
         "inputSchema": {
@@ -489,6 +522,13 @@ class Whale:
             return result(iface.TreemapInput(pane, "wheel_" + args["direction"], args.get("url", ""), ""))
         if tool == "treemap_key":
             return result(iface.TreemapInput(pane, "key", "", args["key"]))
+        if tool == "treemap_context_menu":
+            return result(iface.TreemapInput(pane, "context_menu", args["url"], ""))
+        if tool == "file_operation":
+            urls = dbus.Array([str(url) for url in args["urls"]], signature="s")
+            return result(iface.FileOperation(pane, args["operation"], urls))
+        if tool == "answer_dialog":
+            return result(iface.AnswerDialog(args["text"]))
         if tool == "treemap_set_options":
             labels = args.get("labels")
             return result(iface.TreemapSetOptions(pane, args.get("color_mode", ""), "" if labels is None else ("true" if labels else "false")))
