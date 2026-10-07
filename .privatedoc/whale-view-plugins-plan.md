@@ -2507,3 +2507,125 @@ zuerst" pro Ebene.
 **Weiter offen:** M8c (Teilbäume aus Oberwurzeln, inkrementelle Updates, Remote), M11 (RolesUpdater
 pausieren), Toolbar-Neugestaltung (Scope-Schalter sichtbarer), Chunking großer Einfügungen,
 `.hidden`-Dateien im Scanner, sichtbares Zurücksetzen der Präferenzen, Compare/`show_target` (T2-Rest).
+
+### 14.22 Abschluss: Finalisierung des View-Plugin-Branches (2026-10-07)
+
+Review- und Testrunde ohne neue Features. Stand: `feature/view-plugins`, 53 Commits vor `master` (`master`
+= `origin/master` = `e160f2980` ist Vorfahr, Merge ist ein Fast-Forward). Einziger neuer Code-Commit:
+`4faff6191` (Test-Fix, siehe unten).
+
+**Was der Branch kann:**
+
+- **View-Plugin-Architektur:** öffentliche API `libwhaleviewapi` (nur Qt/KF, keine Dolphin-/kitemviews-
+  Typen; Boundary-Lint), Host `whaleviewhost` (statisch, in `dolphinstatic`), Registry pro Hauptfenster,
+  `DolphinViewBridge` als einzige Klasse mit kitemviews-Zugriff. `DolphinView` bleibt das kompatible
+  Legacy-Backend (die „Dateiliste“, View-ID `dolphin`), Plugin-Views ersetzen sie sichtbar in der
+  View-Fläche; der Host kennt keine Treemap-Sonderfälle.
+- **API-Version 8**, exakte Übereinstimmung (Metadaten-Schlüssel `X-Whale-ViewApiVersion` und SOVERSION aus
+  einer CMake-Variable; Treemap, Test-Plugins und Falsch-Version-Test leiten sich davon ab).
+- **Produkt-Views:** Dateiliste (Icons/Compact/Details) und Treemap (`whale_treemap`). `Hello` und
+  `Test List` sind nur Test-Fixtures (`<build>/src/whale/tests/testviewplugins`), nie installiert.
+- **Auswahl:** drei getrennte Quellen – `file-list` (Dolphin), `plugin-mirrored` (Plugin spiegelt die
+  Auswahl des `DolphinView`, M4), `plugin` (eigene tiefe Auswahl bei `RecursiveContent`, T1/T2).
+- **Command-Routing (T2):** `WhaleCommandRouter` + zentrale Tabelle `WhaleViewActions::routedActions()`;
+  Dolphins Slots fragen zuerst den Router, Gates sperren nicht geroutete Actions; die versteckte
+  Dolphin-Auswahl gewinnt nie bei einer Plugin-Quelle.
+- **Persistenz:** Session (`WhaleViews`, `WHALESS\x01`), History (Hülle `WHALEVS\x01` um Dolphins
+  Location-State), O3 bevorzugte View pro Ort und F1-Scope pro Ort (`whaleviewpreferencesrc`, Gruppen
+  `[PreferredViews]` / `[ContentScopes]`), F1-Scope in History/Session als View-State der Dateiliste.
+  Vorrang: Session/History vor Präferenz; Präferenzen schreibt nur die Wahl des Benutzers.
+- **Rekursive Infrastruktur:** genau eine Rekursion (`WhaleTreeWalker`/fts im `WhaleTreeScanner`), geteilt
+  über `WhaleTreeCache` (Invalidierung per inotify, Budgets); Treemap und F1 (`WhaleRecursiveContent` →
+  Projektion → `KFileItemModel::setExternalItems`) sind Konsumenten, keine eigene Rekursion.
+- **F1 „Unterordner einbeziehen“:** Inhalts-Scope der Dateiliste (Icons/Compact/Details), lokal, nur
+  Dateien; Drop/Paste in rekursive Ansicht gesperrt und erklärt.
+- **Dev-MCP:** nur mit `WHALE_ENABLE_DEV_MCP=ON` (Default OFF) **und** `WHALE_DEV_MCP=1`; Dateioperationen
+  zusätzlich nur mit `WHALE_DEV_MCP_FILE_OPERATIONS=1`; nichts davon wird installiert.
+
+**Review-Ergebnis (Diff gegen `master`):**
+
+- Dolphin-Dateien außerhalb `src/whale`: 17 Dateien, +300/−14 Zeilen, jede Stelle mit „Whale“ markiert
+  und begründet (Host-Einbindung, T2-Delegationen, F1-Model-Erweiterung, `QSet` im RolesUpdater,
+  Session-/History-Haken, Menü-/Hamburger-Einträge, `rc`-Versionen 51/8). Dazu `CMakeLists.txt`
+  (Option `WHALE_ENABLE_DEV_MCP`, Whale-Katalog per `msgcat`), `cmake/WhaleDevMcpOffTest.cmake`.
+  Dolphins `po/` unverändert.
+- Keine Debug-Ausgaben im Produktcode (nur `qCWarning` für echte Fehlerfälle; `qInfo` nur in Tests), keine
+  hardcodierten lokalen Pfade oder Benutzerwerte, keine TODO/FIXME-Reste.
+- Test-Haken (`setVisitHookForTesting`, `setDragRunner`, `setPluginAvailable`) liegen im Host (statisch,
+  nicht öffentlich), nicht in der Plugin-API.
+- Historie: logisch, ein Commit pro Meilenstein, Doku-Commits getrennt, keine WIP-/Debug-Commits. Die
+  Zwischenstände mit API-Bumps oder Dolphin-Änderungen bauen einzeln mit Tests und Dev-MCP ohne Warnung
+  (geprüft: `93f1e63f0`, `cf42f1b50`, `2ed57098c`, `c3404ac36`, `461a99742`, `9fa715d1f`).
+- `clang-format` sauber, `dolphinui.rc`/`dolphinuiforphones.rc` wohlgeformt, SPDX in allen neuen Quellen
+  (`*.json.in` über `REUSE.toml` abgedeckt).
+
+**Teststrategie und Ergebnisse dieser Runde:**
+
+| Lauf | Ergebnis |
+|---|---|
+| Sauberer Produktbuild (neues Build-Verzeichnis, `BUILD_TESTING=ON`, Dev-MCP OFF) | baut, 0 Warnungen; ctest offscreen 50/51 |
+| Dev-Build `../build-whale` (Dev-MCP ON) | ctest offscreen 61/62 inkl. Boundary-/Dependency-Lint, `whale_dev_mcp_default_off`, Action-IDs, Scanner/Cache, Treemap, T1, T2, O3, F1 und MCP-E2E M3–F1 |
+| Whale-Unit-Tests auf echtem Plasma/Wayland | 16/18, nur die bekannten Altfehler |
+| MCP-Abnahmen auf echtem Wayland | M3, M4, M5, M6, M9, O3, F1 grün; M7 1× Flake, 3/3 Wiederholungen grün; T1 `--popups real`, T2 `--real-keys`, `test_f1_wayland_real.py` (echte Drags) grün |
+| Produktstart (installiert, ohne Dev-MCP, isoliertes Profil, offscreen + Wayland) | keine Whale-Warnungen; nur Umgebungs-/Portalmeldungen und Dolphins eigenes „Unknown class“ bei leerem Profil |
+| Produktdurchgang (Wayland, isoliertes Profil) | Views = [Dateiliste, Treemap]; Scope an in Details/Compact/Icons rekursiv, aus = Dolphin; Treemap; Split; Info-Panel mit Vorschau; Duplizieren |
+| State-Randfälle (isoliertes Profil) | unbekannte Plugin-ID → Dateiliste (`fallback`), Präferenz bleibt; kaputter Eintrag ignoriert; `trash:/`: Treemap und Scope verweigert, Dateiliste normal; Neustart/Session über M6/O3/F1-Abnahmen (privater Bus) |
+
+Hinweis Session-Restore beim Handtest: Läuft auf demselben Session-Bus schon ein Whale (Alltags- oder
+Dev-Whale), stellt Dolphins `main.cpp` bewusst keine Session wieder her (`instancesCount == 1`); deshalb
+laufen Neustart-Abnahmen auf einem privaten Bus.
+
+**Fix während der Finalisierung:** `4faff6191` – `whaletreemaptest::testSessionRestore` zeigte das neue
+Fenster noch vor `readProperties()` (die in `1b1f8c19f` für die anderen Tests entfernte Reihenfolge). Auf
+Wayland mit gefülltem Clipboard → `updatePasteAction()` ohne View-Container → SIGSEGV im Test. Nur Test,
+das Produkt stellt wie `KMainWindow::restore()` zuerst die Session her.
+
+**Bekannte Altfehler (keine Branch-Regression):**
+
+- `DolphinMainWindowTest::testAccessibilityTree` (offscreen; upstream identisch, Umgebung Kubuntu Qt/KF 6.24).
+- Wayland: `whaletreemaptest::testHover`, `whaleactionstest::testItemInfo` (seit M6/T1 so, Hover-Signal
+  ohne echte Zeigerbewegung).
+- Wayland-Timing: `whalepreviewtest`/`whaledeepoperationstest` können am Anfang eines vollen Laufs an
+  `qWaitForWindowActive` scheitern (Aktivierung durch KWin), einzeln und im Wiederholungslauf grün.
+- M7-Abnahme auf Wayland gelegentlich (Drag der Test-Liste), wie seit M8b beobachtet.
+- `filenamehighlightingviewtest` segfaultet auf echtem Wayland (seit vor M3, UX-002/Accessibility).
+
+**Performance-Sanity** (offscreen, wie 14.21): 100k Dateien Scan 185 ms, Projektion 274 ms, Model 260 ms;
+Scope an Details 721 ms (GUI-Pause 270 ms); Icons 737 ms (Pause 706 ms); Dolphin-Baseline 100k Details
+6596 ms. Treemap-Layout 100k (ein Ordner) 25 ms, Render 11,5 ms. Keine Regression.
+
+**Packaging/Installation:** Installiert werden zusätzlich zu Phase 1 nur `libwhaleviewapi.so.8`(+Link)
+und `plugins/whale/views/whale_treemap.so` (bei `/usr`: `qt6/plugins/whale/views`, Qt-Standardpfad). Keine
+Test-Plugins, kein Dev-MCP (Manifest geprüft, Produkt-Binary ohne Automation-Strings). Altlast im privaten
+Prefix `install-whale`: `libwhaleviewapi.so.1*` (M1, 2026-10-04) bleibt liegen, weil `cmake --install`
+nichts entfernt – bei Bedarf von Hand löschen; schadet nicht (anderes SONAME). Für die System-Installation
+via `global-install-whale.sh` kommen die drei Dateien neu ins Manifest.
+
+**Übersetzung:** `po-whale/de/whale.po` (6 F1-Texte) wird vor Dolphins Katalog gemischt und landet im
+installierten `whale.mo`. Die übrigen ≈ 30 Whale-Texte (View-Umschalter, Treemap-Menü/-Meldungen) sind
+noch nicht übersetzt (Englisch als Fallback) – Future Work.
+
+**Known Issues / Future Work (bewusst vertagt, nicht implementiert):**
+
+- **M8c:** Teilbäume aus einer gescannten Oberwurzel, inkrementelle Updates statt Rescan, Remote-Scanner,
+  Hardlink-Dedup, belegte statt logische Größe, Disk-Persistenz des Caches, fensterübergreifender Cache,
+  feinere Invalidierung.
+- **M11:** versteckte `DolphinView` billiger machen (RolesUpdater pausieren usw.).
+- **Toolbar:** View-/Scope-UX überarbeiten; doppelte/unschöne View-Auswahl (Dolphins Ansichtsmodi und
+  Whale-View-Umschalter nebeneinander); Scope-Schalter sichtbarer.
+- **Recursive Files:** „Recursive Files + Folders“ (Ordnerzeilen, Hierarchie, Drop auf Ordnerzeilen);
+  optional häppchenweises Einfügen für sehr große Icon-Views (≈ 0,7 s Pause bei 100k); `.hidden`-Dateien
+  im Scanner.
+- **T2-Rest:** Compare, `show_target`, Kopieren-nach/Verschieben-nach-Dialoge für die Plugin-Auswahl.
+- **O3-Rest:** sichtbares Zurücksetzen der Präferenzen; Vererbung optional.
+- **Future architecture:** dockbare / mehrfach instanzierbare Views, Workspace-Idee.
+- Kleinere: übrige Whale-Texte übersetzen; zweite Treemap ohne Live-Update; Statusleisten-Geometrie folgt
+  der versteckten View (kosmetisch); `supportsUrl()`/statische Capabilities im Umschalter nur teilweise
+  genutzt; `.privatedoc/whale-dev-mcp.md` ohne SPDX (wie andere private Doku auf `master`); Upstream-Kandidat
+  `updatePasteAction()` ohne aktiven Container (nur bei Fenster ohne Tab).
+
+**Merge-Readiness:** Keine echten Blocker gefunden (kein Absturz im Produkt, keine falsche Dateioperation,
+Session/History/Präferenzen robust gegen alte/ungültige Daten, Plugins laden, Dateiliste ohne Scope
+verhält sich wie Dolphin, keine Test-Plugins oder Dev-Automation im Produkt, API konsistent, keine
+Performance-Regression). **`feature/view-plugins` ist merge-ready** (Fast-Forward auf `master`; Merge und
+Push nur auf Anweisung).
