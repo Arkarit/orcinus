@@ -980,3 +980,75 @@ Optionen, `trash:/`, Zustandserhalt).
 - Toolbar: Der „View Settings“-Knopf zeigt in einer Plugin-View weiter das Icon des Dateilisten-Modus, und
   ein Klick auf den Hauptteil (Modus-Zyklus) tut dort nichts. Gehört zur Toolbar-Überarbeitung.
 - Hamburger-Menü: listet die Modi wie Dolphin über „Change View Mode >“.
+
+---
+
+# UX-005 – Nichts anlegen, wo kein Zielordner sichtbar ist; Cushion Treemap
+
+## Metadaten
+
+- Datum: 2026-10-07
+- Branch: `master` (Commits `2c8dd08e6`, `fdf3b8389`, `d6bc1c2d3`)
+- Bereich: Flat View („Show flat (no folders)“), Treemap, Create New, Paste, Duplicate, Drops,
+  Copy/Move to other view, Rückfragen beim Entfernen
+- View-API: unverändert 9
+
+## Ausgangslage
+
+Beim Benutzen fiel auf:
+
+- In Flat View und Treemap ließen sich über „Create New“ neue Dateien anlegen, und Paste war aktiv. Beide
+  Ansichten zeigen Einträge aus vielen Ordnern; wo ein neuer Eintrag landen würde (der Ort selbst), ist
+  dort nicht zu sehen.
+- Die Treemap lehnte Drops ab, aber ohne Erklärung. Die Flat View lehnte sie schon mit Meldung ab.
+- In der Treemap lässt sich eine tiefe Auswahl treffen, deren Inhalt man nicht unbedingt sieht. Papierkorb
+  und Ausschneiden liefen trotzdem ohne Rückfrage (KDE-Standard).
+- Ohne „Names“ sahen die „…“-Restzellen wie normale Kissen aus. Ein Klick wählt aber den Ordner aus, für
+  dessen kleine Einträge sie stehen. Das wirkte wie ein Bug.
+
+## Entscheidung
+
+1. **Diese Modi sind nicht read-only, legen aber nichts an.** Ohne eindeutigen Zielort sind Create New,
+   New Folder/File, Paste und Duplicate ausgegraut. Der Shortcut erklärt, warum (z. B. Strg+V, Strg+D),
+   ebenso ein trotzdem ausgelöster Befehl.
+2. **Drops werden in beiden Modi gleich abgelehnt:** einmal pro Drag erklärt; eigene Drags der Ansicht
+   werden still abgelehnt.
+3. **Kopieren/Verschieben in die andere Hälfte** ist gesperrt, wenn die Zielhälfte so ein Modus ist.
+4. **Erlaubt bleibt alles, was nichts an unklarem Ort anlegt:** Papierkorb, Löschen, Ausschneiden,
+   Kopieren, Umbenennen (bleibt im eigenen Ordner), Copy Location, Eigenschaften, Öffnen.
+5. **Treemap: Entfernen und Ausschneiden fragen immer** und listen die betroffenen Einträge, auch wenn der
+   Benutzer KDEs Rückfragen abgeschaltet hat. Flat View folgt weiter den KDE-Einstellungen (dort sieht man
+   jede Datei).
+6. **Restzellen** sind flach (kein Kissen) und tragen immer ein Ordner-Symbol, auch ohne „Names“.
+7. **Name:** „Cushion Treemap“ statt „Treemap“.
+
+## Erwogene und verworfene Alternativen
+
+- **In den Ort selbst anlegen/einfügen:** technisch eindeutig, aber für den Benutzer unsichtbar, wohin; der
+  neue Eintrag verschwindet in der Treemap ggf. als winzige Zelle oder in der Flat View zwischen Dateien
+  vieler Ordner.
+- **Ganz read-only:** würde Aufräumen verhindern, gerade der Zweck der Treemap.
+- **Einträge ausblenden statt ausgrauen:** gleiche Begründung wie UX-004 (Menü baut sich nicht um).
+- **Rückfrage auch in der Flat View:** dort ist jede betroffene Datei als Zeile sichtbar; KDEs Einstellung
+  reicht.
+- **„…“ als Text auch ohne „Names“ / drei-Punkte-Icon:** das Ordner-Symbol sagt direkter, dass der Klick den
+  Ordner wählt.
+
+## Testmatrix (automatisiert)
+
+Gating und Shortcut-Erklärung in Flat View und Treemap, Paste/Duplicate/Transfer abgelehnt ohne Wirkung,
+Treemap-Drops (fremd erklärt, eigener still), echte Rückfrage-Dialoge (Papierkorb, Löschen, Cut mit Liste),
+Restzellen-Rendering. Dev-MCP-Abnahmen T1/T2/M9/F1 beantworten die Rückfragen per `answer_dialog`.
+
+## Changelog-Entwurf
+
+- Views that show items from many folders (“Show flat (no folders)”, the treemap) no longer create items:
+  Create New, Paste, Duplicate and drops are disabled there, with an explanation.
+- The treemap always asks before moving to the trash, deleting or cutting, listing the items.
+- The treemap is now called “Cushion Treemap”; its cells for small entries show a folder icon.
+
+## Offen / Neubewertung
+
+- Deutsche Übersetzungen der neuen Meldungen fehlen noch in `po-whale/de/whale.po`.
+- Service-Menü-Aktionen im Kontextmenü der Flat View (z. B. Entpacken) bleiben verfügbar; sie arbeiten im
+  Ordner der Datei. Beobachten, ob das irritiert.

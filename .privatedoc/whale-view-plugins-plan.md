@@ -2666,3 +2666,52 @@ Branch `feature/view-menu-cleanup` (von `master` `f6726ab7a`): `3517b21b5` (Prod
 - **Hinweis Installation:** Die systemweit installierte Treemap (API 8) wird vom Build-Whale (API 9)
   abgelehnt; Tests stellen die Build-Plugin-Pfade deshalb vor die Systempfade. Für das private Prefix
   vor Nutzung neu installieren.
+- **Nachtrag `bc827f46b`:** „Show flat (no folders)“ wird beim Zurückwechseln aus einer Plugin-View in
+  die Dateiliste wieder aktiviert (`updateContentScopeAction()` auch bei `currentViewChanged`).
+
+### 14.24 Kein Anlegen ohne eindeutigen Zielort; Cushion Treemap (2026-10-07)
+
+Direkt auf `master` (nach `bc827f46b`), nicht gepusht: `2c8dd08e6` (Umbenennung), `fdf3b8389`
+(Restzellen), `d6bc1c2d3` (Zielort-Regel + Rückfragen). API bleibt 9. UX-Begründung:
+`whale-ux-diary.md` UX-005.
+
+- **`WhaleViewHost::hasDestination()`:** false, solange die Dateiliste flach zeigt (F1) oder eine
+  Plugin-View mit `RecursiveContent` sichtbar ist. Dazu `refusal(Refusal::Paste|Drop|Create|Transfer)`
+  (Texte der flachen Liste aus `WhaleRecursiveContent::refusal()`, eigene neutrale Texte für Plugin-Views)
+  und `refuse()` (Meldung im View-Bereich, gezählt in `WhaleRecursiveContent`, Dev-MCP
+  `contentScope.lastRefusal/refusals`). `refusePaste()` entfällt.
+- **Gating:** neue gateable Actions `new_menu`, `create_dir`, `create_file`, `create_subdir`, `edit_paste`
+  (vor „Selecting“, damit `onSelection` unverändert bleibt); zusammen mit `duplicate` Grund
+  „no destination folder“, unabhängig davon, ob die Dateiliste sichtbar ist. Gates folgen jetzt auch
+  `contentScopeChanged`. `routeAction()` lehnt diese Actions bei fehlendem Zielort ab (auch Duplicate über
+  Dolphins Handler-Hook, D-Bus).
+- **Shortcut-Erklärung:** `WhaleViewActions::setDisabledReasonHook()` an Dolphins
+  `DisabledActionNotifier`; `updateDisabledReasons()` setzt Whales Grund erneut, nachdem Dolphin eigene
+  Gründe gesetzt hat (`updatePasteAction()`, `slotWriteStateChanged()`-Timer). Beim Öffnen des Gates wird
+  der Grund gelöscht (Dolphins eigener kommt mit dessen nächstem Update zurück).
+- **Drops in Plugin-Views ohne Zielort:** Der Host setzt `acceptDrops` und bekommt alle Drops, die die
+  Widgets der View nicht annehmen (Qt sucht den ersten Vorfahren mit `acceptDrops`). Fremder Drag: einmal
+  erklärt; eigener Drag der View (`WhaleFileOperationsImpl::currentDragData()`) still abgelehnt. Annahme:
+  `RecursiveContent`-Views nehmen selbst keine Drops an. Die flache Liste behält ihren Viewport-Filter.
+- **Split View:** `copy/move_to_inactive_split_view` disabled mit Grund, wenn die Zielhälfte keinen Zielort
+  hat (`updateFileAndEditActions()`); `DolphinTabWidget` lehnt zusätzlich bei Ausführung ab (Meldung in der
+  Zielhälfte). Ändert die andere Hälfte erst danach Scope/View, greift nur die Ablehnung.
+- **Rückfragen (Treemap):** `WhaleFileOperationsImpl::setConfirmRemoval()` (vom Host bei fehlendem
+  Zielort gesetzt): Papierkorb/Löschen mit `KIO::AskUserActionInterface::ForceConfirmation`, Ausschneiden
+  mit nicht-modalem `KMessageDialog` (Liste relativ zum Ort). `setConfirmationRunner()` beantwortet die
+  Rückfragen in Tests; danach gelten die KIO-Einstellungen.
+- **Erlaubt bleiben** (Entscheidung des Benutzers): Umbenennen, Kopieren, Copy Location, Eigenschaften,
+  Öffnen, Papierkorb, Löschen, Ausschneiden. Service-Menü-Aktionen im Kontextmenü der flachen Liste
+  unverändert (arbeiten im Ordner der jeweiligen Datei).
+- **Treemap:** Name „Cushion Treemap“ (Plugin-JSON). Restzellen flach statt Kissen, immer mit weißem
+  `folder-symbolic` (8–24 px, ab 12 px Zellkante), unabhängig von „Names“; „…“ nur ohne Icon-Theme.
+- **Dolphin-Dateien:** `dolphinmainwindow.cpp` (Hook, 2 × `updateDisabledReasons()`, Zielhälften-Prüfung),
+  `dolphintabwidget.cpp` (2 Guards).
+- **Tests:** neu `whalerecursivecontenttest::testCreatingIsDisabled`,
+  `testCopyAndMoveIntoRecursiveAreRefused`, `whaletreemaptest::testDropsAreRefused`,
+  `whaledeepoperationstest::testRemovalIsAlwaysConfirmed`, `whaletreemaplayouttest::testRestCells`;
+  angepasst: Capability-Matrix, Routing (Duplicate/Paste/Transfer jetzt abgelehnt), Deep-Ops, Dev-MCP
+  T1/T2/M9/F1. Volle Matrix offscreen grün außer dem bekannten
+  `dolphinmainwindowtest::testAccessibilityTree` (auch auf `bc827f46b`). Wayland nicht getestet.
+- **Offen:** deutsche Übersetzungen der neuen Texte (Meldungen, Cut-Rückfrage) fehlen in
+  `po-whale/de/whale.po`; Gating der Zielhälfte folgt späteren Änderungen der anderen Hälfte nicht live.
