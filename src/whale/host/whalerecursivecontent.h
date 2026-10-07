@@ -97,6 +97,21 @@ public:
     Timing timing() const;
 
     /**
+     * What would create new items in the view, which has no destination folder.
+     */
+    enum class Refusal {
+        Paste,
+        Drop,
+        Create, ///< Create New, New Folder, Duplicate
+        Transfer, ///< copying or moving items here from the other half of a split view
+    };
+
+    /**
+     * @return The explanation for refusing @p kind in the view.
+     */
+    static QString refusal(Refusal kind);
+
+    /**
      * @return The explanation for refusing to paste into the view, or an empty string
      *         while it shows the location's own items.
      */
@@ -115,7 +130,8 @@ public:
     int refusalCount() const;
 
     /**
-     * Shows @p message as the explanation of a refused drop or paste (requestMessage()).
+     * Shows @p message as the explanation of a refused drop, paste or the like
+     * (requestMessage()); also for the plugin views of the host without a destination.
      */
     void explain(const QString &message);
 

@@ -16,6 +16,8 @@
 #include <QObject>
 #include <QPointer>
 
+#include <functional>
+
 class DolphinView;
 class DolphinViewActionHandler;
 class KActionCollection;
@@ -167,6 +169,21 @@ public:
     bool routeAction(DolphinView *view, const QString &actionName);
 
     /**
+     * Dolphin's explanation of disabled actions (DisabledActionNotifier), shown when the
+     * shortcut of a disabled action is pressed: @p hook(action, reason) explains @p action
+     * with @p reason. An empty reason means Whale does not disable the action any longer,
+     * and Dolphin's own explanation applies again.
+     */
+    using DisabledReasonHook = std::function<void(QAction *action, const QString &reason)>;
+    void setDisabledReasonHook(const DisabledReasonHook &hook);
+
+    /**
+     * Explains the actions disabled for a view area without a destination
+     * (WhaleViewHost::hasDestination()) again; for Dolphin after setting its own explanations.
+     */
+    void updateDisabledReasons();
+
+    /**
      * Called by the view areas of the window when they show another view, so the
      * session (which records the shown views) is saved again.
      */
@@ -215,6 +232,8 @@ private:
     QMetaObject::Connection m_contentScopeConnection;
     QHash<QString, QActionGroup *> m_gates;
     QHash<QString, QString> m_gateReasons;
+    DisabledReasonHook m_disabledReasonHook;
+    QStringList m_explainedGates; // the actions explained as disabled without a destination
 };
 
 #endif

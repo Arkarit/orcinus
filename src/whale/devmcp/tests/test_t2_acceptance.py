@@ -13,7 +13,7 @@ selection, here the treemap's deep selection), driven only through the dev MCP.
   G split view: the active half's selection, always
   H view switch: Treemap -> file list -> Treemap
   I copy/move to the other half      J safety (nothing selected, read-only, gone)
-  L duplicate (Ctrl+D, the menu action)
+  L no duplicate: a treemap has no destination folder (nothing is created in it)
 
 Shortcuts are pressed in the treemap through the window's shortcuts (treemap_key) and the
 menu/toolbar path is trigger_action: both are the same QActions. With --real-keys (a
@@ -21,6 +21,8 @@ Plasma/Wayland session) F2 and Delete are real key presses of the session (ydoto
 wayland_real_input.py), sent only while the test window is active and the treemap has the
 focus. The test tree is made here; Whale runs on a private D-Bus session bus with file
 operations allowed, a home and trash of its own, KDE's default confirmations and a test opener.
+In a treemap trashing, deleting and cutting always ask (the user may not see what a deep
+selection holds).
 """
 
 import argparse
@@ -38,7 +40,9 @@ sys.dont_write_bytecode = True  # no __pycache__ next to the sources
 from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
 import wayland_real_input
 
-ROUTED = ["movetotrash", "deletefile", "renamefile", "edit_cut", "edit_copy", "duplicate", "copy_location"]
+ROUTED = ["movetotrash", "deletefile", "renamefile", "edit_cut", "edit_copy", "copy_location"]
+# Nothing is created in a view of items from many folders.
+CREATING = ["duplicate", "edit_paste", "create_dir", "create_file", "new_menu"]
 
 
 def make_file(path, size=20000):
@@ -147,6 +151,7 @@ def run(args, work):
             "actions.movetotrash.gate": "nothing selected"})
         client.tool("treemap_select", url=u("deep/open.txt"))
         conditions = {f"actions.{name}.enabled": True for name in ROUTED}
+        conditions.update({f"actions.{name}.gate": "no destination folder" for name in CREATING})
         conditions.update({"command.source": "plugin", "command.urls": [u("deep/open.txt")], "panes.0.selectionCount": 0,
                            f"{tm()}.selectedDeep": True, "actions.compare_files.enabled": False})
         s.expect("A: a deep file: the treemap's selection, the actions act on it", conditions)
@@ -173,9 +178,12 @@ def run(args, work):
         if (root / "deep/rename-me.txt").exists() or not (root / "deep/renamed.txt").exists():
             raise Failure("C: wrong files")
 
-        # D: Delete trashes, Shift+Delete deletes after KIO's question
+        # D: Delete trashes, Shift+Delete deletes, both after KIO's question
         client.tool("treemap_select", url=u("deep/trash-me.txt"))
         key("Delete", wayland_real_input.KEY_DELETE)
+        s.expect("D: Delete asks, also against KDE's default", {"dialogs.0.buttons": {"$contains": "Move to Trash"}},
+                 focus=False)
+        client.tool("answer_dialog", text="Move to Trash")
         s.expect("D: Delete trashed it", {"panes.0.fileOperations.last.operation": "trash",
                                           "panes.0.fileOperations.last.result": "done",
                                           "panes.0.fileOperations.last.urls": [u("deep/trash-me.txt")],
@@ -215,14 +223,16 @@ def run(args, work):
         client.tool("close_dialogs")
         s.expect("F: closed again", {"dialogs": []})
 
-        # L: duplicate (Ctrl+D, and the menu action)
+        # L: no duplicate in a treemap (Ctrl+D explains it, the menu action is off)
         client.tool("treemap_select", url=u("deep/dup-me.txt"))
-        key("Ctrl+D")
-        wait_until("L: Ctrl+D duplicated the deep file", lambda: (root / "deep/dup-me copy.txt").exists())
-        client.tool("treemap_select", url=u("deep/dup-me.txt"))
-        client.tool("trigger_action", action="duplicate")
-        wait_until("L: the menu action duplicated it again (numbered)",
-                   lambda: len(list((root / "deep").glob("dup-me*"))) == 3)
+        s.expect("L: duplicate is off", {"actions.duplicate.enabled": False,
+                                         "actions.duplicate.gate": "no destination folder"})
+        client.tool("treemap_key", key="Ctrl+D")
+        if "disabled" not in (client.tool_error("trigger_action", action="duplicate") or ""):
+            raise Failure("L: duplicate was not refused")
+        time.sleep(0.3)
+        if len(list((root / "deep").glob("dup-me*"))) != 1:
+            raise Failure("L: duplicated anyway")
 
         # J: safety
         clear_selection()
@@ -303,7 +313,9 @@ def run(args, work):
             wait_until("E: pasted in the other half", lambda: (target / "copy-me.txt").exists())
             client.tool("treemap_select", pane=0, url=u("deep/move-me.txt"))
             key("Ctrl+X")
-            s.expect("E: Ctrl+X", {"clipboard.urls": [u("deep/move-me.txt")], "clipboard.cut": True})
+            s.expect("E: Ctrl+X asks first", {"dialogs.0.buttons": {"$contains": "Cut"}}, focus=False)
+            client.tool("answer_dialog", text="Cut")
+            s.expect("E: Ctrl+X", {"clipboard.urls": [u("deep/move-me.txt")], "clipboard.cut": True, "dialogs": []})
             client.tool("activate_pane", pane=1)
             client.tool("trigger_action", action="paste")
             wait_until("E: moved by pasting", lambda: (target / "move-me.txt").exists()

@@ -50,6 +50,7 @@
 #include <QLineEdit>
 #include <QMimeData>
 #include <QPushButton>
+#include <QShortcut>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
@@ -112,9 +113,10 @@ private Q_SLOTS:
     void testRename();
     void testTrashAndDelete();
     void testCopyCut();
-    void testDuplicate();
+    void testCreatingIsDisabled();
     void testProperties();
     void testCopyAndMoveToOtherPane();
+    void testCopyAndMoveIntoRecursiveAreRefused();
     void testDragOut();
 
     // Drops and Paste
@@ -795,20 +797,52 @@ void WhaleRecursiveContentTest::testCopyCut()
     QCOMPARE(QApplication::clipboard()->text(), path(QStringLiteral("root/a/b/c/three.txt")));
 }
 
-void WhaleRecursiveContentTest::testDuplicate()
+void WhaleRecursiveContentTest::testCreatingIsDisabled()
 {
     DolphinViewContainer *container = showMainWindow(url(QStringLiteral("root")));
     QVERIFY(container);
     QVERIFY(includeSubfolders(true));
     QVERIFY(waitForRecursive(container, 4));
     select(container, {url(QStringLiteral("root/a/b/c/three.txt"))});
+    const QStringList creating = {QStringLiteral("new_menu"),
+                                  QStringLiteral("create_dir"),
+                                  QStringLiteral("create_file"),
+                                  QStringLiteral("duplicate"),
+                                  KStandardAction::name(KStandardAction::Paste)};
+    auto viewActions = m_mainWindow->findChild<WhaleViewActions *>();
+    QVERIFY(viewActions);
+    // No destination among items from many folders: nothing can be created.
+    for (const QString &name : creating) {
+        QTRY_VERIFY2(!action(name)->isEnabled(), qPrintable(name));
+        QVERIFY2(!viewActions->gateReason(name).isEmpty(), qPrintable(name));
+    }
+    // Removing and moving away still work.
+    QTRY_VERIFY(action(KStandardAction::name(KStandardAction::Cut))->isEnabled());
+    QVERIFY(action(KStandardAction::name(KStandardAction::MoveToTrash))->isEnabled());
+
+    // The shortcut of a disabled action explains why (Dolphin's DisabledActionNotifier).
+    const QKeySequence duplicateKey = action(QStringLiteral("duplicate"))->shortcut();
+    QVERIFY(!duplicateKey.isEmpty());
+    const QList<QShortcut *> shortcuts = m_mainWindow->findChildren<QShortcut *>();
+    const auto shortcut = std::ranges::find_if(shortcuts, [&duplicateKey](const QShortcut *shortcut) {
+        return shortcut->key() == duplicateKey;
+    });
+    QVERIFY(shortcut != shortcuts.end());
+    Q_EMIT(*shortcut)->activated();
+    const QString refusal = WhaleRecursiveContent::refusal(WhaleRecursiveContent::Refusal::Create);
+    QTRY_VERIFY(std::ranges::any_of(container->findChildren<KMessageWidget *>(), [&refusal](const KMessageWidget *widget) {
+        return widget->text() == refusal && widget->isVisible();
+    }));
+
+    // In the current folder, Duplicate is Dolphin's again.
+    QVERIFY(includeSubfolders(false));
+    QVERIFY(waitForListing(container, 4));
+    select(container, {url(QStringLiteral("root/top.txt"))});
+    for (const QString &name : creating) {
+        QVERIFY2(viewActions->gateReason(name).isEmpty(), qPrintable(name));
+    }
     QTRY_VERIFY(action(QStringLiteral("duplicate"))->isEnabled());
-    action(QStringLiteral("duplicate"))->trigger();
-    // Next to the original, shown and selected.
-    QTRY_VERIFY(QFile::exists(path(QStringLiteral("root/a/b/c/three copy.txt"))));
-    QVERIFY(!QFile::exists(path(QStringLiteral("root/three copy.txt"))));
-    QVERIFY(waitForRecursive(container, 5));
-    QTRY_COMPARE(container->view()->selectedItems().urlList(), QList<QUrl>({url(QStringLiteral("root/a/b/c/three copy.txt"))}));
+    QTRY_VERIFY(action(QStringLiteral("create_dir"))->isEnabled());
 }
 
 void WhaleRecursiveContentTest::testProperties()
@@ -849,6 +883,32 @@ void WhaleRecursiveContentTest::testCopyAndMoveToOtherPane()
     QTRY_VERIFY(!QFile::exists(path(QStringLiteral("root/a/one.txt"))));
     QVERIFY(waitForRecursive(left, 3));
     QVERIFY(!right->viewHost()->isRecursiveContentShown()); // the halves are independent
+}
+
+void WhaleRecursiveContentTest::testCopyAndMoveIntoRecursiveAreRefused()
+{
+    DolphinViewContainer *left = showMainWindow(url(QStringLiteral("root")));
+    QVERIFY(left);
+    QVERIFY(includeSubfolders(true));
+    QVERIFY(waitForRecursive(left, 4));
+    DolphinViewContainer *right = openSplit(url(QStringLiteral("target")));
+    QVERIFY(right);
+    right->setActive(true);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer(), right);
+    QVERIFY(waitForListing(right, 1));
+
+    // Into the flat half: disabled, and refused if triggered anyway.
+    select(right, {url(QStringLiteral("target/existing.txt"))});
+    QTRY_VERIFY(!action(QStringLiteral("copy_to_inactive_split_view"))->isEnabled());
+    QVERIFY(!action(QStringLiteral("move_to_inactive_split_view"))->isEnabled());
+    QSignalSpy messages(left->viewHost(), &WhaleViewHost::messageRequested);
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow->findChild<DolphinTabWidget *>(), "copyToInactiveSplitView"));
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow->findChild<DolphinTabWidget *>(), "moveToInactiveSplitView"));
+    QCOMPARE(messages.count(), 2);
+    QCOMPARE(messages.first().first().toString(), WhaleRecursiveContent::refusal(WhaleRecursiveContent::Refusal::Transfer));
+    QTest::qWait(300);
+    QVERIFY(!QFile::exists(path(QStringLiteral("root/existing.txt"))));
+    QVERIFY(QFile::exists(path(QStringLiteral("target/existing.txt"))));
 }
 
 void WhaleRecursiveContentTest::testDragOut()
@@ -938,18 +998,15 @@ void WhaleRecursiveContentTest::testPasteIsRefused()
     QVERIFY(!host->recursiveContent()->pasteRefusal().isEmpty());
 
     if (QGuiApplication::platformName() == QLatin1String("offscreen")) {
-        // Something to paste: no operation, an explanation.
+        // Something to paste: still disabled.
         auto data = new QMimeData;
         data->setUrls({url(QStringLiteral("target/existing.txt"))});
         QApplication::clipboard()->setMimeData(data);
-        QTRY_VERIFY(action(KStandardAction::name(KStandardAction::Paste))->isEnabled());
+        QTest::qWait(100);
     }
-    if (action(KStandardAction::name(KStandardAction::Paste))->isEnabled()) {
-        action(KStandardAction::name(KStandardAction::Paste))->trigger();
-    } else {
-        // Outside offscreen the clipboard is the user's: Dolphin's Paste slot directly.
-        QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "paste"));
-    }
+    QVERIFY(!action(KStandardAction::name(KStandardAction::Paste))->isEnabled());
+    // Dolphin's Paste slot anyway (e.g. from a menu built before): no operation, an explanation.
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "paste"));
     QCOMPARE(messages.count(), 1);
     QCOMPARE(messages.first().first().toString(), host->recursiveContent()->pasteRefusal());
     QTest::qWait(300);
@@ -960,6 +1017,7 @@ void WhaleRecursiveContentTest::testPasteIsRefused()
     QVERIFY(waitForListing(container, 4));
     QVERIFY(host->recursiveContent()->pasteRefusal().isEmpty());
     if (QGuiApplication::platformName() == QLatin1String("offscreen")) {
+        QTRY_VERIFY(action(KStandardAction::name(KStandardAction::Paste))->isEnabled());
         action(KStandardAction::name(KStandardAction::Paste))->trigger();
         QTRY_VERIFY(QFile::exists(path(QStringLiteral("root/existing.txt"))));
     }

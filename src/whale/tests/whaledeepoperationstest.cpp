@@ -15,6 +15,7 @@
 #include "testhelpers.h"
 #include "views/dolphinview.h"
 #include "whalefileoperations.h"
+#include "whalefileoperationsimpl.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
 #include "whaleviewcontextimpl.h"
@@ -39,6 +40,7 @@
 #include <QContextMenuEvent>
 #include <QDialogButtonBox>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QMenu>
 #include <QMimeData>
 #include <QPushButton>
@@ -221,6 +223,7 @@ private Q_SLOTS:
     void testLocationIsProtected();
     void testSymlink();
     void testClipboard();
+    void testRemovalIsAlwaysConfirmed();
 
     // The treemap's context menu
     void testMenuOfDeepFile();
@@ -253,6 +256,7 @@ private:
     QTemporaryDir m_tmpHome;
     QString m_openerLog;
     QScopedPointer<TestDir> m_dir;
+    QList<WhaleFileOperations::Operation> m_confirmed;
     QScopedPointer<DolphinMainWindow> m_mainWindow;
 };
 
@@ -309,11 +313,18 @@ void WhaleDeepOperationsTest::init()
     m_dir->createFile(QStringLiteral("top.txt"), QByteArray(20000, 'o'));
     QFile::remove(m_openerLog);
     setConfirmations(false);
+    // Removing and cutting in a treemap are always confirmed: confirmed here, recorded.
+    m_confirmed.clear();
+    WhaleFileOperationsImpl::setConfirmationRunner([this](WhaleFileOperations::Operation operation, const QList<QUrl> &) {
+        m_confirmed.append(operation);
+        return true;
+    });
     m_mainWindow.reset(new DolphinMainWindow());
 }
 
 void WhaleDeepOperationsTest::cleanup()
 {
+    WhaleFileOperationsImpl::setConfirmationRunner({});
     // Dialogs of a failed test must not answer the next one.
     const auto windows = QApplication::topLevelWidgets();
     for (QWidget *window : windows) {
@@ -860,15 +871,72 @@ void WhaleDeepOperationsTest::testClipboard()
     data = QApplication::clipboard()->mimeData();
     QCOMPARE(KUrlMimeData::urlsFromMimeData(data), QList<QUrl>({deep}));
     QVERIFY(KIO::isClipboardDataCut(data));
+    QCOMPARE(m_confirmed, QList<WhaleFileOperations::Operation>({WhaleFileOperations::Operation::Cut}));
 
-    // Whale's own Paste (into the location) moves the cut file.
-    QTRY_VERIFY(action(KStandardAction::name(KStandardAction::Paste))->isEnabled());
-    action(KStandardAction::name(KStandardAction::Paste))->trigger();
-    QTRY_VERIFY(QFile::exists(path(QStringLiteral("deep.txt"))));
-    QTRY_VERIFY(!QFile::exists(path(QStringLiteral("a/deep.txt"))));
+    // No Paste into the treemap: it has no destination folder.
+    QTest::qWait(100);
+    QVERIFY(!action(KStandardAction::name(KStandardAction::Paste))->isEnabled());
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "paste"));
+    QTest::qWait(300);
+    QVERIFY(!QFile::exists(path(QStringLiteral("deep.txt"))));
+    QVERIFY(QFile::exists(path(QStringLiteral("a/deep.txt"))));
 
     ops->copyLocations({url(QStringLiteral("b/target.txt"))});
     QCOMPARE(QApplication::clipboard()->text(), path(QStringLiteral("b/target.txt")));
+}
+
+void WhaleDeepOperationsTest::testRemovalIsAlwaysConfirmed()
+{
+    // The user may not see which entries a treemap's selection holds: trash, delete and cut
+    // always ask, also when the user's settings say not to (KIO's confirmations are off here).
+    WhaleFileOperationsImpl::setConfirmationRunner({});
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    QVERIFY(showTreemap(container));
+    WhaleFileOperations *ops = operations(container);
+    QSignalSpy finished(ops, &WhaleFileOperations::operationFinished);
+
+    // KIO's confirmation, forced: canceled, nothing happens.
+    for (const auto operation : {Operation::Trash, Operation::Delete}) {
+        const QUrl target = url(operation == Operation::Trash ? QStringLiteral("a/trash-me.txt") : QStringLiteral("a/delete-me.txt"));
+        operation == Operation::Trash ? ops->trashItems({target}) : ops->deleteItems({target});
+        QDialog *confirmation = nullptr;
+        QTRY_VERIFY((confirmation = anyVisibleDialog()));
+        confirmation->reject();
+        QTRY_COMPARE(finished.count(), operation == Operation::Trash ? 1 : 2);
+        QCOMPARE(finished.last().at(2).value<Result>(), Result::Canceled);
+        QVERIFY(QFile::exists(target.toLocalFile()));
+    }
+
+    // Cut: Whale's question, with the entry's path below the location.
+    const bool ownClipboard = QGuiApplication::platformName() == QLatin1String("offscreen");
+    if (ownClipboard) {
+        QApplication::clipboard()->clear();
+    }
+    ops->cutItems({url(QStringLiteral("a/deep.txt"))});
+    QDialog *confirmation = nullptr;
+    QTRY_VERIFY((confirmation = anyVisibleDialog()));
+    auto list = confirmation->findChild<QListWidget *>();
+    QVERIFY(list);
+    QCOMPARE(list->count(), 1);
+    QCOMPARE(list->item(0)->text(), QStringLiteral("a/deep.txt"));
+    confirmation->reject();
+    QTRY_VERIFY(!anyVisibleDialog());
+    if (ownClipboard) {
+        const QMimeData *data = QApplication::clipboard()->mimeData();
+        QVERIFY(!data || KUrlMimeData::urlsFromMimeData(data).isEmpty());
+    }
+    ops->cutItems({url(QStringLiteral("a/deep.txt"))});
+    QTRY_VERIFY((confirmation = anyVisibleDialog()));
+    QVERIFY(accept(confirmation));
+    if (ownClipboard) {
+        QTRY_COMPARE(KUrlMimeData::urlsFromMimeData(QApplication::clipboard()->mimeData()), QList<QUrl>({url(QStringLiteral("a/deep.txt"))}));
+        QVERIFY(KIO::isClipboardDataCut(QApplication::clipboard()->mimeData()));
+    }
+    // Copying asks nothing.
+    ops->copyItems({url(QStringLiteral("a/deep.txt"))});
+    QTest::qWait(100);
+    QVERIFY(!anyVisibleDialog());
 }
 
 // The treemap's context menu -----------------------------------------------------
@@ -1067,10 +1135,10 @@ void WhaleDeepOperationsTest::testGlobalActionsFollowTheMenusEntry()
                                 KStandardAction::name(KStandardAction::RenameFile),
                                 KStandardAction::name(KStandardAction::Cut),
                                 KStandardAction::name(KStandardAction::Copy),
-                                QStringLiteral("duplicate"),
                                 QStringLiteral("copy_location")}) {
         QVERIFY2(action(name)->isEnabled(), qPrintable(name));
     }
+    QVERIFY(!action(QStringLiteral("duplicate"))->isEnabled()); // no destination folder
     QVERIFY(!action(QStringLiteral("compare_files"))->isEnabled());
     QVERIFY(!action(QStringLiteral("copy_to_inactive_split_view"))->isEnabled()); // no split view
     menu->close();

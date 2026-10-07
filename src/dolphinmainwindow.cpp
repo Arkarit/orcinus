@@ -41,6 +41,7 @@
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
 #include "whaleviewactions.h"
+#include "whaleviewhost.h"
 
 #include <KAboutApplicationDialog>
 #include <KAboutData>
@@ -209,6 +210,14 @@ DolphinMainWindow::DolphinMainWindow()
     m_disabledActionNotifier = new DisabledActionNotifier(this);
     connect(m_disabledActionNotifier, &DisabledActionNotifier::disabledActionTriggered, this, [this](const QAction *, const QString &reason) {
         m_activeViewContainer->showMessage(reason, KMessageWidget::Warning);
+    });
+    // Whale: why creating items is disabled in a view of items from many folders
+    m_whaleViewActions->setDisabledReasonHook([this](QAction *action, const QString &reason) {
+        if (!reason.isEmpty()) {
+            m_disabledActionNotifier->setDisabledReason(action, reason);
+        } else {
+            m_disabledActionNotifier->clearDisabledReason(action);
+        }
     });
 
     setupDockWidgets();
@@ -979,6 +988,7 @@ void DolphinMainWindow::updatePasteAction()
                                                     ? i18nc("@info", "Cannot paste: The clipboard is empty.")
                                                     : i18nc("@info", "Cannot paste: You do not have permission to write into this folder."));
     pasteAction->setText(pasteInfo.second);
+    m_whaleViewActions->updateDisabledReasons(); // Whale: no destination
 }
 
 void DolphinMainWindow::slotDirectoryLoadingCompleted()
@@ -1544,6 +1554,7 @@ void DolphinMainWindow::slotWriteStateChanged(bool isFolderWritable)
                                                     i18nc("@info", "Cannot create new folder: You do not have permission to create items in this folder."));
         m_disabledActionNotifier->setDisabledReason(actionCollection()->action(QStringLiteral("create_subdir")),
                                                     i18nc("@info", "Cannot create new subfolder: Select a single folder you can write to."));
+        m_whaleViewActions->updateDisabledReasons(); // Whale: no destination
     });
 }
 
@@ -2754,8 +2765,16 @@ void DolphinMainWindow::updateFileAndEditActions()
         const bool allNotTargetOrigin = std::all_of(list.cbegin(), list.cend(), [destUrl](const KFileItem &item) {
             return item.url().adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash) != destUrl;
         });
+        // Whale: no destination in a view of items from many folders
+        const DolphinViewContainer *destinationContainer = tabPage->primaryViewActive() ? tabPage->secondaryViewContainer() : tabPage->primaryViewContainer();
+        const QString whaleRefusal = destinationContainer->viewHost()->refusal(WhaleViewHost::Refusal::Transfer);
 
-        if (!allNotTargetOrigin) {
+        if (!whaleRefusal.isEmpty()) { // Whale
+            copyToOtherViewAction->setEnabled(false);
+            m_disabledActionNotifier->setDisabledReason(copyToOtherViewAction, whaleRefusal);
+            moveToOtherViewAction->setEnabled(false);
+            m_disabledActionNotifier->setDisabledReason(moveToOtherViewAction, whaleRefusal);
+        } else if (!allNotTargetOrigin) {
             copyToOtherViewAction->setEnabled(false);
             m_disabledActionNotifier->setDisabledReason(copyToOtherViewAction,
                                                         i18nc("@info", "Cannot copy to other view: The other view already contains these items."));

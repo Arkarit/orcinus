@@ -41,7 +41,7 @@ import wayland_real_input
 
 FILE_MENU = ["open", "open_with", "show_in_folder", "copy", "cut", "copy_location", "rename", "trash", "delete", "properties"]
 FOLDER_MENU = ["open", "show_in_folder", "copy", "cut", "copy_location", "rename", "trash", "delete", "properties"]
-ROUTED = ["movetotrash", "deletefile", "renamefile", "edit_cut", "edit_copy", "duplicate", "copy_location"]
+ROUTED = ["movetotrash", "deletefile", "renamefile", "edit_cut", "edit_copy", "copy_location"]
 
 # The text of each menu entry (offscreen, untranslated).
 ENTRY_TEXT = {"open": "Open", "open_with": "Open With…", "show_in_folder": "Show in Folder",
@@ -268,9 +268,11 @@ def run(args, work):
         if (root / "a/rename-me.txt").exists() or not (root / "a/renamed.txt").exists():
             raise Failure("D: the file system does not show the rename")
 
-        # E: move to the trash (no confirmation, KDE's default)
+        # E: move to the trash: in a treemap always confirmed (against KDE's default)
         menu.open(u("a/trash-me.txt"), FILE_MENU)
         menu.choose("trash")
+        s.expect("E: KIO asks first", {"dialogs.0.buttons": {"$contains": "Move to Trash"}}, focus=False)
+        client.tool("answer_dialog", text="Move to Trash")
         s.expect("E: trashed; the treemap scanned again, the selection went away", {
             "panes.0.fileOperations.last.operation": "trash", "panes.0.fileOperations.last.result": "done",
             f"{tm()}.operationScans": 2, f"{tm()}.status": "ready", f"{tm()}.selected": "",
@@ -306,7 +308,8 @@ def run(args, work):
         conditions = {f"actions.{name}.enabled": True for name in ROUTED}
         conditions.update({f"{tm()}.selectedDeep": True, "panes.0.selectionCount": 0, "command.source": "plugin",
                            "command.urls": [u("a/deep.txt")], "actions.compare_files.enabled": False,
-                           "actions.show_target.enabled": False})
+                           "actions.show_target.enabled": False, "actions.duplicate.enabled": False,
+                           "actions.duplicate.gate": "no destination folder"})
         s.expect("G: Whale's actions act on the deep entry", conditions)
 
         # K: copy and cut. Only offscreen: elsewhere the clipboard is the user's own (the
@@ -317,7 +320,11 @@ def run(args, work):
             s.expect("K: copied", {"clipboard.urls": [u("a/deep.txt")], "clipboard.cut": False})
             menu.open(u("a/deep.txt"), FILE_MENU)
             menu.choose("cut")
-            s.expect("K: cut", {"clipboard.urls": [u("a/deep.txt")], "clipboard.cut": True})
+            s.expect("K: cutting asks first", {"dialogs.0.buttons": {"$contains": "Cut"}}, focus=False)
+            client.tool("answer_dialog", text="Cut")
+            s.expect("K: cut", {"clipboard.urls": [u("a/deep.txt")], "clipboard.cut": True, "dialogs": []})
+            # A click into the treemap (offscreen nothing activates the window after a dialog).
+            client.tool("treemap_select", url=u("a/deep.txt"))
         else:
             print("skip  K: the clipboard is the user's own outside of offscreen")
 
@@ -333,6 +340,8 @@ def run(args, work):
         s.expect("H: right half active with its selection", {"activePane": 1, "panes.1.selection": [u("b/target.txt")]})
         menu.open(u("a/split-me.txt"), FILE_MENU)
         menu.choose("trash")
+        s.expect("H: KIO asks first", {"dialogs.0.buttons": {"$contains": "Move to Trash"}}, focus=False)
+        client.tool("answer_dialog", text="Move to Trash")
         s.expect("H: trashed from the left treemap; the right half unchanged", {
             "panes.0.fileOperations.last.operation": "trash", "panes.0.fileOperations.last.result": "done",
             "panes.0.fileOperations.last.urls": [u("a/split-me.txt")],

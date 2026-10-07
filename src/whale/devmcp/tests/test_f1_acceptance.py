@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 
 sys.dont_write_bytecode = True  # no __pycache__ next to the sources
 from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
@@ -140,20 +141,17 @@ def run(args, work):
         three, one = uri(root / "a/b/c/three.txt"), uri(root / "a/one.txt")
         client.tool("set_selection", pane=0, urls=[three, one])
         s.expect("F: two deep files selected", {"panes.0.selectionCount": 2, "panes.0.selection": {"$contains": three}})
-        client.tool("trigger_action", action="duplicate")
-        s.expect("F: duplicated next to the originals", {
-            "panes.0.itemCount": 6, "panes.0.contentScope.busy": False,
-            "panes.0.contentScope.relativeItems": {"$contains": "a/b/c/three copy.txt"}})
-        for name in ("a/b/c/three copy.txt", "a/one copy.txt"):
-            if not (root / name).exists():
-                raise Failure(f"F: {name} was not created")
-        if (root / "three copy.txt").exists():
-            raise Failure("F: a copy went to the location instead of the file's folder")
-        client.tool("set_selection", pane=0, urls=[uri(root / "a/b/c/three copy.txt"), uri(root / "a/one copy.txt")])
-        client.tool("trigger_action", action="trash")
-        s.expect("F: trashed again", {"panes.0.itemCount": 4, "panes.0.contentScope.relativeItems": by_name})
-        if (root / "a/one copy.txt").exists() or not (root / "a/one.txt").exists():
-            raise Failure("F: trash hit the wrong files")
+        # Nothing is created among items from many folders; removing and moving away work.
+        s.expect("F: no duplicate, no paste, no new items; trash and cut yes", {
+            "actions.duplicate.enabled": False, "actions.duplicate.gate": "no destination folder",
+            "actions.edit_paste.gate": "no destination folder", "actions.create_dir.gate": "no destination folder",
+            "actions.new_menu.gate": "no destination folder",
+            "actions.movetotrash.enabled": True, "actions.edit_cut.enabled": True})
+        if "disabled" not in (client.tool_error("trigger_action", action="duplicate") or ""):
+            raise Failure("F: duplicate was not refused")
+        time.sleep(0.3)
+        if (root / "a/one copy.txt").exists() or (root / "a/b/c/three copy.txt").exists():
+            raise Failure("F: duplicated anyway")
 
         # G: split view
         client.tool("set_split_view", enabled=True)
@@ -217,14 +215,13 @@ def run(args, work):
             client.tool("trigger_action", action="copy")
             client.tool("set_location", pane=0, url=r)
             client.tool("set_content_scope", pane=0, scope=RECURSIVE)
-            s.expect("K: with subfolders, something to paste", {
+            s.expect("K: with subfolders, something to paste: Paste is off (no destination folder)", {
                 "url": r, "panes.0.contentScope.shown": True, "panes.0.loading": False,
-                "panes.0.contentScope.pasteRefusal": {"$contains": ""}})
-            refusals = state(client)["panes"][0]["contentScope"]["refusals"]
-            client.tool("trigger_action", action="paste")
-            state_k = s.expect("K: Paste refused and explained", {"panes.0.contentScope.refusals": refusals + 1})
-            if state_k["panes"][0]["message"] != state_k["panes"][0]["contentScope"]["pasteRefusal"]:
-                raise Failure("K: the Paste explanation is not shown")
+                "panes.0.contentScope.pasteRefusal": {"$contains": ""},
+                "actions.edit_paste.enabled": False, "actions.edit_paste.gate": "no destination folder"})
+            if "disabled" not in (client.tool_error("trigger_action", action="paste") or ""):
+                raise Failure("K: Paste was not refused")
+            time.sleep(0.3)
             if (root / "existing.txt").exists():
                 raise Failure("K: the refused Paste copied a file")
             client.tool("set_content_scope", pane=0, scope=CURRENT)

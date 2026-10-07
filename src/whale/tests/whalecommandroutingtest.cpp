@@ -17,6 +17,7 @@
 #include "views/dolphinview.h"
 #include "whalecommandrouter.h"
 #include "whalefileoperations.h"
+#include "whalefileoperationsimpl.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
 #include "whaleviewcontext.h"
@@ -42,6 +43,7 @@
 #include <QMimeData>
 #include <QPointer>
 #include <QPushButton>
+#include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
 
@@ -195,6 +197,7 @@ private:
     QTemporaryDir m_tmpHome;
     QString m_openerLog;
     QScopedPointer<TestDir> m_dir;
+    QList<WhaleFileOperations::Operation> m_confirmed;
     QScopedPointer<DolphinMainWindow> m_mainWindow;
     OwnSelectionPlugin m_ownPlugin;
 };
@@ -257,11 +260,18 @@ void WhaleCommandRoutingTest::init()
     QFile::remove(m_openerLog);
     setConfirmations(false);
     GeneralSettings::setRenameInline(true);
+    // Removing and cutting in a treemap are always confirmed: confirmed here, recorded.
+    m_confirmed.clear();
+    WhaleFileOperationsImpl::setConfirmationRunner([this](WhaleFileOperations::Operation operation, const QList<QUrl> &) {
+        m_confirmed.append(operation);
+        return true;
+    });
     m_mainWindow.reset(new DolphinMainWindow());
 }
 
 void WhaleCommandRoutingTest::cleanup()
 {
+    WhaleFileOperationsImpl::setConfirmationRunner({});
     const auto windows = QApplication::topLevelWidgets();
     for (QWidget *window : windows) {
         if (auto dialog = qobject_cast<QDialog *>(window); dialog && dialog->isVisible()) {
@@ -531,7 +541,9 @@ void WhaleCommandRoutingTest::testEmptySelectionDisables()
          WhaleViewActions::gateableActions().mid(WhaleViewActions::gateableActions().indexOf(KStandardAction::name(KStandardAction::RenameFile)))) {
         if (QAction *gated = action(name)) {
             QVERIFY2(!gated->isEnabled(), qPrintable(name));
-            QCOMPARE(viewActions()->gateReason(name), QStringLiteral("nothing selected"));
+            // Duplicate creates an item: never in a view without a destination folder.
+            QCOMPARE(viewActions()->gateReason(name),
+                     name == QLatin1String("duplicate") ? QStringLiteral("no destination folder") : QStringLiteral("nothing selected"));
         }
     }
     // Triggered anyway (e.g. through D-Bus): nothing happens, no selection mode either.
@@ -553,12 +565,12 @@ void WhaleCommandRoutingTest::testDeepSelectionEnables()
                                 KStandardAction::name(KStandardAction::DeleteFile),
                                 KStandardAction::name(KStandardAction::Cut),
                                 KStandardAction::name(KStandardAction::Copy),
-                                QStringLiteral("duplicate"),
                                 QStringLiteral("copy_location"),
                                 QStringLiteral("properties")}) {
         QVERIFY2(action(name)->isEnabled(), qPrintable(name));
         QVERIFY2(viewActions()->gateReason(name).isEmpty(), qPrintable(name));
     }
+    QCOMPARE(viewActions()->gateReason(QStringLiteral("duplicate")), QStringLiteral("no destination folder"));
     // Not routed (yet): show the target of a link, compare.
     QCOMPARE(viewActions()->gateReason(QStringLiteral("show_target")), QStringLiteral("not routed to a view's own selection"));
     QCOMPARE(viewActions()->gateReason(QStringLiteral("compare_files")), QStringLiteral("not routed to a view's own selection"));
@@ -606,8 +618,7 @@ void WhaleCommandRoutingTest::testLocationIsProtected()
         for (const QString &name : {KStandardAction::name(KStandardAction::RenameFile),
                                     KStandardAction::name(KStandardAction::MoveToTrash),
                                     KStandardAction::name(KStandardAction::DeleteFile),
-                                    KStandardAction::name(KStandardAction::Cut),
-                                    QStringLiteral("duplicate")}) {
+                                    KStandardAction::name(KStandardAction::Cut)}) {
             QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
             QCOMPARE(viewActions()->gateReason(name), QStringLiteral("not supported for the selection"));
         }
@@ -810,19 +821,20 @@ void WhaleCommandRoutingTest::testCopyLocation()
 
 void WhaleCommandRoutingTest::testDuplicate()
 {
+    // A treemap has no destination folder: Duplicate is disabled, the shortcut explains it.
     DolphinViewContainer *container = showMainWindow();
     QVERIFY(container);
     QWidget *treemap = showTreemap(container);
     QVERIFY(treemap);
     QVERIFY(select(treemap, url(QStringLiteral("root/deep/dup-me.txt"))));
+    QVERIFY(!action(QStringLiteral("duplicate"))->isEnabled());
     QTest::keySequence(canvasOf(treemap), QKeySequence(Qt::CTRL | Qt::Key_D));
-    // Dolphin's own Duplicate: "name copy.ext" next to the item.
-    QTRY_VERIFY(QFile::exists(path(QStringLiteral("root/deep/dup-me copy.txt"))));
-    QVERIFY(QFile::exists(path(QStringLiteral("root/deep/dup-me.txt"))));
-    // Again: numbered, as Dolphin does.
-    QTRY_VERIFY(!treemapState(treemap).value(QStringLiteral("selected")).toString().isEmpty());
-    QTest::keySequence(canvasOf(treemap), QKeySequence(Qt::CTRL | Qt::Key_D));
-    QTRY_COMPARE(QDir(path(QStringLiteral("root/deep"))).entryList({QStringLiteral("dup-me*")}).count(), 3);
+    QTest::qWait(300);
+    QCOMPARE(QDir(path(QStringLiteral("root/deep"))).entryList({QStringLiteral("dup-me*")}).count(), 1);
+    // Triggered anyway (e.g. through D-Bus): the router carries nothing out either.
+    QVERIFY(viewActions()->routeAction(container->view(), QStringLiteral("duplicate")));
+    QTest::qWait(300);
+    QCOMPARE(QDir(path(QStringLiteral("root/deep"))).entryList({QStringLiteral("dup-me*")}).count(), 1);
 }
 
 void WhaleCommandRoutingTest::testSeveralItems()
@@ -875,13 +887,18 @@ void WhaleCommandRoutingTest::testCopyAndMoveToOtherPane()
     QCOMPARE(left->url(), url(QStringLiteral("root")));
     QCOMPARE(m_mainWindow->activeViewContainer(), left);
 
-    // Right active: its own selection goes to the left half (Dolphin's path), into the location.
+    // Right active: nothing goes into the treemap on the left, it has no destination folder.
     right->setActive(true);
     QTRY_COMPARE(m_mainWindow->activeViewContainer(), right);
     right->viewHost()->bridge()->setSelection(WhaleSelection({url(QStringLiteral("target/existing.txt"))}, url(QStringLiteral("target/existing.txt"))));
-    QTRY_VERIFY(copyTo->isEnabled());
-    copyTo->trigger();
-    QTRY_VERIFY(QFile::exists(path(QStringLiteral("root/existing.txt"))));
+    QTRY_VERIFY(!copyTo->isEnabled());
+    QVERIFY(!moveTo->isEnabled());
+    QSignalSpy messages(left->viewHost(), &WhaleViewHost::messageRequested);
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow->findChild<DolphinTabWidget *>(), "copyToInactiveSplitView"));
+    QCOMPARE(messages.count(), 1);
+    QCOMPARE(messages.first().first().toString(), left->viewHost()->refusal(WhaleViewHost::Refusal::Transfer));
+    QTest::qWait(300);
+    QVERIFY(!QFile::exists(path(QStringLiteral("root/existing.txt"))));
     // The treemap's deep selection was not copied this time.
     QVERIFY(!QFile::exists(path(QStringLiteral("target/open.txt"))));
 

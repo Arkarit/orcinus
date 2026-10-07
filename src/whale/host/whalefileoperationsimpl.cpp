@@ -11,6 +11,7 @@
 
 #include <KDirModel>
 #include <KFileItemListProperties>
+#include <KGuiItem>
 #include <KIO/ApplicationLauncherJob>
 #include <KIO/DeleteOrTrashJob>
 #include <KIO/Job>
@@ -18,7 +19,9 @@
 #include <KIO/Paste>
 #include <KIO/RenameFileDialog>
 #include <KLocalizedString>
+#include <KMessageDialog>
 #include <KPropertiesDialog>
+#include <KStandardGuiItem>
 #include <KUrlMimeData>
 
 #include <QApplication>
@@ -28,6 +31,7 @@
 #include <QFileInfo>
 #include <QIcon>
 #include <QMimeData>
+#include <QPointer>
 #include <QWidget>
 
 namespace
@@ -36,6 +40,18 @@ WhaleFileOperationsImpl::DragRunner &dragRunner()
 {
     static WhaleFileOperationsImpl::DragRunner runner;
     return runner;
+}
+
+WhaleFileOperationsImpl::ConfirmationRunner &confirmationRunner()
+{
+    static WhaleFileOperationsImpl::ConfirmationRunner runner;
+    return runner;
+}
+
+QPointer<QMimeData> &dragData()
+{
+    static QPointer<QMimeData> data;
+    return data;
 }
 }
 
@@ -52,6 +68,26 @@ void WhaleFileOperationsImpl::setDragRunner(const DragRunner &runner)
     dragRunner() = runner;
 }
 
+const QMimeData *WhaleFileOperationsImpl::currentDragData()
+{
+    return dragData().data();
+}
+
+void WhaleFileOperationsImpl::setConfirmRemoval(bool confirm)
+{
+    m_confirmRemoval = confirm;
+}
+
+bool WhaleFileOperationsImpl::confirmRemoval() const
+{
+    return m_confirmRemoval;
+}
+
+void WhaleFileOperationsImpl::setConfirmationRunner(const ConfirmationRunner &runner)
+{
+    confirmationRunner() = runner;
+}
+
 Qt::DropAction WhaleFileOperationsImpl::startDrag(const QList<QUrl> &urls, const QPixmap &pixmap)
 {
     QMimeData *data = m_bridge->createDragMimeData(urls);
@@ -63,6 +99,7 @@ Qt::DropAction WhaleFileOperationsImpl::startDrag(const QList<QUrl> &urls, const
     QObject *source = QApplication::activeWindow();
     auto drag = new QDrag(source ? source : this);
     drag->setMimeData(data);
+    dragData() = data; // the drag owns it
     QPixmap image = pixmap;
     if (image.isNull()) {
         const QList<QUrl> dragged = KUrlMimeData::urlsFromMimeData(data, KUrlMimeData::PreferKdeUrls);
@@ -273,8 +310,16 @@ void WhaleFileOperationsImpl::removeItems(Operation operation, const QList<QUrl>
     using Iface = KIO::AskUserActionInterface;
     const bool trash = operation == Operation::Trash;
     QWidget *widget = m_bridge->operationsWidget();
+    Iface::ConfirmationType confirmation = m_confirmRemoval ? Iface::ForceConfirmation : Iface::DefaultConfirmation;
+    if (m_confirmRemoval && confirmationRunner()) {
+        if (!confirmationRunner()(operation, urls)) {
+            Q_EMIT operationFinished(operation, urls, Result::Canceled, {});
+            return;
+        }
+        confirmation = Iface::DefaultConfirmation;
+    }
     // The job belongs to the view area, not to this view: switching views does not abort it.
-    auto job = new KIO::DeleteOrTrashJob(KDirModel::simplifiedUrlList(urls), trash ? Iface::Trash : Iface::Delete, Iface::DefaultConfirmation, widget);
+    auto job = new KIO::DeleteOrTrashJob(KDirModel::simplifiedUrlList(urls), trash ? Iface::Trash : Iface::Delete, confirmation, widget);
     job->setUiDelegate(KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoWarningHandlingEnabled, widget));
     connect(job, &KJob::result, m_bridge, [bridge = m_bridge, trash](KJob *job) {
         if (job->error() == 0) {
@@ -307,7 +352,43 @@ void WhaleFileOperationsImpl::cutItems(const QList<QUrl> &urls)
         qCWarning(WhaleViewDebug) << "Refusing to cut the location of the view area or a folder above it:" << urls;
         return;
     }
-    putOnClipboard(urls, true);
+    if (!m_confirmRemoval) {
+        putOnClipboard(urls, true);
+    } else if (confirmationRunner()) {
+        if (confirmationRunner()(Operation::Cut, urls)) {
+            putOnClipboard(urls, true);
+        }
+    } else {
+        confirmCut(urls);
+    }
+}
+
+void WhaleFileOperationsImpl::confirmCut(const QList<QUrl> &urls)
+{
+    // As KIO's confirmation of the trash: the items listed, here by their path below the
+    // location; not modal, so the window stays responsive.
+    const QString location = m_bridge->url().isLocalFile() ? m_bridge->url().toLocalFile() : QString();
+    QStringList names;
+    for (const QUrl &url : urls) {
+        names.append(url.isLocalFile() && !location.isEmpty() ? QDir(location).relativeFilePath(url.toLocalFile())
+                                                              : url.toDisplayString(QUrl::PreferLocalFile));
+    }
+    auto dialog = new KMessageDialog(KMessageDialog::QuestionTwoActions,
+                                     i18ncp("@info",
+                                            "Do you really want to cut this item? It is moved when you paste it.",
+                                            "Do you really want to cut these %1 items? They are moved when you paste them.",
+                                            urls.count()),
+                                     m_bridge->operationsWidget());
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setCaption(i18nc("@title:window", "Cut"));
+    dialog->setListWidgetItems(names);
+    dialog->setButtons(KGuiItem(i18nc("@action:button", "Cut"), QStringLiteral("edit-cut")), KStandardGuiItem::cancel());
+    connect(dialog, &QDialog::finished, this, [this, urls](int result) {
+        if (result == KMessageDialog::PrimaryAction) {
+            putOnClipboard(urls, true);
+        }
+    });
+    dialog->open();
 }
 
 void WhaleFileOperationsImpl::putOnClipboard(const QList<QUrl> &urls, bool cut) const

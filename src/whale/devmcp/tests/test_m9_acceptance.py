@@ -321,9 +321,13 @@ def run(args, work):
         state = s.expect("I: a deep file selected: the actions act on it", {
             f"{tm()}.selected": uri(victim), f"{tm()}.selectedDeep": True, "panes.0.selectionCount": 0,
             "command.source": "plugin", "command.urls": [uri(victim)]})
-        for action in ("deletefile", "movetotrash", "edit_cut", "edit_copy", "renamefile", "duplicate", "copy_location"):
+        for action in ("deletefile", "movetotrash", "edit_cut", "edit_copy", "renamefile", "copy_location"):
             if not state["actions"][action]["enabled"] or state["actions"][action]["gate"] is not None:
                 raise Failure(f"I: {action} does not act on the selection: {state['actions'][action]}")
+        # Nothing is created in a treemap: no destination folder.
+        for action in ("duplicate", "edit_paste", "create_dir"):
+            if state["actions"][action]["gate"] != "no destination folder":
+                raise Failure(f"I: {action} is not off without a destination: {state['actions'][action]}")
         if state["actions"]["compare_files"]["gate"] != "not routed to a view's own selection":
             raise Failure(f"I: compare_files: {state['actions']['compare_files']}")
         client.tool("treemap_select", url=u("Archives"))

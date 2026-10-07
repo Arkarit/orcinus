@@ -371,8 +371,12 @@ void WhaleActionsTest::testCapabilityMatrix_data()
                                      QStringLiteral("duplicate"),
                                      QStringLiteral("copy_location")};
     const QStringList selectionMode = {QStringLiteral("toggle_selection_mode")};
-    // (Paste is never gated, but Dolphin disables it while the clipboard is empty.)
+    // (Paste is gated only without a destination, but Dolphin disables it while the clipboard is empty.)
     const QStringList always = {QStringLiteral("properties")};
+    // Without a destination (items from many folders) nothing is created; Duplicate as well.
+    const QStringList creating = {QStringLiteral("new_menu"), QStringLiteral("create_dir"), QStringLiteral("create_file"), stdAction(KStandardAction::Paste)};
+    QStringList onSelectionWithoutDuplicate = onSelection;
+    onSelectionWithoutDuplicate.removeOne(QStringLiteral("duplicate"));
     // Only views that follow the setting (HiddenFiles) keep "Show Hidden Files".
     const QStringList hidden = {QStringLiteral("show_hidden_files")};
 
@@ -388,8 +392,9 @@ void WhaleActionsTest::testCapabilityMatrix_data()
     QTest::newRow("hidden files") << capsId << int(C::Selection | C::HostOrder | C::HiddenFiles) << (selecting + selectionMode)
                                   << (onSelection + order + hidden);
     // T2: the view's own selection (by default Whale's, a.txt) is routed; nothing removes the location.
-    QTest::newRow("recursive content") << capsId << int(C::Selection | C::MultiSelection | C::RecursiveContent) << (order + selectionMode + hidden)
-                                       << (selecting + always + onSelection);
+    QTest::newRow("recursive content") << capsId << int(C::Selection | C::MultiSelection | C::RecursiveContent)
+                                       << (order + selectionMode + hidden + creating + QStringList{QStringLiteral("duplicate")})
+                                       << (selecting + always + onSelectionWithoutDuplicate);
 }
 
 void WhaleActionsTest::testCapabilityMatrix()
@@ -413,7 +418,9 @@ void WhaleActionsTest::testCapabilityMatrix()
         QVERIFY2(!action(actionName)->isEnabled(), qPrintable(actionName));
         QVERIFY2(!viewActions()->gateReason(actionName).isEmpty(), qPrintable(actionName));
     }
-    QVERIFY(viewActions()->gateReason(stdAction(KStandardAction::Paste)).isEmpty());
+    if (!(capabilities & int(WhaleViewCapability::RecursiveContent))) {
+        QVERIFY(viewActions()->gateReason(stdAction(KStandardAction::Paste)).isEmpty());
+    }
     for (const QString &actionName : std::as_const(open)) {
         QVERIFY2(action(actionName), qPrintable(actionName));
         QVERIFY2(viewActions()->gateReason(actionName).isEmpty(), qPrintable(actionName + QLatin1String(": ") + viewActions()->gateReason(actionName)));

@@ -15,6 +15,7 @@
 
 class DolphinViewBridge;
 class QDrag;
+class QMimeData;
 
 /**
  * @brief The WhaleFileOperations of one view, carried out by the DolphinView of its
@@ -58,6 +59,28 @@ public:
      */
     static void setDragRunner(const DragRunner &runner);
 
+    /**
+     * @return The data of the drag a view started through Whale that is running now, else
+     *         null; a view without a destination refuses its own drag without a word.
+     */
+    static const QMimeData *currentDragData();
+
+    /**
+     * Moving to the trash, deleting and cutting are always confirmed by the user, with the
+     * items listed (a view whose deep selection the user may not see completely, e.g. a
+     * treemap). Off by default: the user's settings for the trash and deleting apply.
+     */
+    void setConfirmRemoval(bool confirm);
+    bool confirmRemoval() const;
+
+    using ConfirmationRunner = std::function<bool(Operation operation, const QList<QUrl> &urls)>;
+    /**
+     * Tests and development tools only: answers the confirmations of setConfirmRemoval()
+     * with @p runner (true: confirmed) instead of asking the user; a confirmed removal then
+     * follows the user's settings for the trash and deleting. An empty runner asks again.
+     */
+    static void setConfirmationRunner(const ConfirmationRunner &runner);
+
 private:
     /// The items of @p urls: as listed, else read from the file system (KFileItem(url)).
     KFileItemList itemsFor(const QList<QUrl> &urls) const;
@@ -68,8 +91,11 @@ private:
     void putOnClipboard(const QList<QUrl> &urls, bool cut) const;
     /// Moves to the trash or deletes, as DolphinView::trashSelectedItems() and deleteSelectedItems().
     void removeItems(Operation operation, const QList<QUrl> &urls);
+    /// Cuts @p urls if the user confirms it (setConfirmRemoval()).
+    void confirmCut(const QList<QUrl> &urls);
 
     DolphinViewBridge *const m_bridge;
+    bool m_confirmRemoval = false;
 };
 
 #endif

@@ -452,6 +452,9 @@ void DolphinTabWidget::copyToInactiveSplitView()
         return;
     }
 
+    if (tabPage->inactiveViewContainer()->viewHost()->refuse(WhaleViewHost::Refusal::Transfer)) {
+        return; // Whale: no destination in a view of items from many folders
+    }
     DolphinView *const inactiveView = tabPage->inactiveViewContainer()->view();
     inactiveView->copySelectedItems(selectedItems, inactiveView->url());
 }
@@ -468,6 +471,9 @@ void DolphinTabWidget::moveToInactiveSplitView()
         return;
     }
 
+    if (tabPage->inactiveViewContainer()->viewHost()->refuse(WhaleViewHost::Refusal::Transfer)) {
+        return; // Whale: no destination in a view of items from many folders
+    }
     DolphinView *const inactiveView = tabPage->inactiveViewContainer()->view();
     inactiveView->moveSelectedItems(selectedItems, inactiveView->url());
 }

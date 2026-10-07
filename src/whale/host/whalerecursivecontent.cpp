@@ -135,21 +135,37 @@ WhaleRecursiveContent::Timing WhaleRecursiveContent::timing() const
     return m_timing;
 }
 
+QString WhaleRecursiveContent::refusal(Refusal kind)
+{
+    switch (kind) {
+    case Refusal::Paste:
+        return i18nc("@info",
+                     "Cannot paste into a recursive view because no single destination folder is selected. "
+                     "Turn off “Show flat (no folders)” first.");
+    case Refusal::Drop:
+        return i18nc("@info",
+                     "Cannot drop files into a recursive view because it contains items from multiple folders. "
+                     "Turn off “Show flat (no folders)” to choose a destination.");
+    case Refusal::Create:
+        return i18nc("@info",
+                     "Cannot create new items in a recursive view because it contains items from multiple folders. "
+                     "Turn off “Show flat (no folders)” first.");
+    case Refusal::Transfer:
+        return i18nc("@info",
+                     "Cannot copy or move items into a recursive view because it contains items from multiple folders. "
+                     "Turn off “Show flat (no folders)” first.");
+    }
+    return {};
+}
+
 QString WhaleRecursiveContent::pasteRefusal() const
 {
-    if (!m_enabled) {
-        return {};
-    }
-    return i18nc("@info",
-                 "Cannot paste into a recursive view because no single destination folder is selected. "
-                 "Turn off “Show flat (no folders)” first.");
+    return m_enabled ? refusal(Refusal::Paste) : QString();
 }
 
 QString WhaleRecursiveContent::dropRefusal()
 {
-    return i18nc("@info",
-                 "Cannot drop files into a recursive view because it contains items from multiple folders. "
-                 "Turn off “Show flat (no folders)” to choose a destination.");
+    return refusal(Refusal::Drop);
 }
 
 QString WhaleRecursiveContent::lastRefusal() const

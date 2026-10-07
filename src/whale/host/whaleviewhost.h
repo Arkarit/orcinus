@@ -19,6 +19,7 @@
 class DolphinView;
 class DolphinViewAdapter;
 class DolphinViewBridge;
+class QMimeData;
 class QStackedLayout;
 class WhaleView;
 class WhaleViewContextImpl;
@@ -204,10 +205,35 @@ public:
     WhaleRecursiveContent *recursiveContent() const;
 
     /**
-     * F1: Paste into the view area. @return True if it is refused, because the file list
-     *         shows files of many folders (no destination); the user is told why.
+     * @return False while the shown view has no single destination folder for new items,
+     *         because it shows items from many folders: the file list showing the files below
+     *         the location (F1), or a plugin view with the RecursiveContent capability.
+     *         Creating, pasting, duplicating and dropping are refused then; removing items
+     *         and moving them away (Cut) still work.
      */
-    bool refusePaste();
+    bool hasDestination() const;
+
+    /**
+     * What would create new items in the view area.
+     */
+    enum class Refusal {
+        Paste, ///< Paste
+        Drop, ///< a drop
+        Create, ///< Create New, New Folder, Duplicate
+        Transfer, ///< copying or moving items here from the other half of a split view
+    };
+
+    /**
+     * @return The explanation for refusing @p kind, or an empty string if the view area
+     *         has a destination (hasDestination()).
+     */
+    QString refusal(Refusal kind) const;
+
+    /**
+     * @return True if @p kind is refused (hasDestination() is false); the user is told why
+     *         in the view area's message area.
+     */
+    bool refuse(Refusal kind);
 
     /**
      * Tells the host whether its view area is the active one. On activation a shown
@@ -265,6 +291,10 @@ Q_SIGNALS:
 
 protected:
     void showEvent(QShowEvent *event) override;
+    // Drops into a plugin view without a destination (its widgets do not accept drops).
+    void dragEnterEvent(QDragEnterEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
 
 private:
     void applyPreferredView();
@@ -281,6 +311,8 @@ private:
     void setContentScope(WhaleContentScope scope, const QString &origin);
     void updateRecursiveContent();
     QByteArray fileListState() const;
+    void updateDestinationGuards();
+    void refuseDrag(QDropEvent *event);
 
     DolphinView *const m_dolphinView;
     QStackedLayout *m_stack;
@@ -316,6 +348,9 @@ private:
     WhaleContentScope m_contentScope = WhaleContentScope::CurrentFolder;
     QString m_contentScopeOrigin = QStringLiteral("initial");
     int m_holdRecursiveContent = 0; // > 0 while view and scope are being decided together
+
+    // The drag over a plugin view without a destination that was explained already.
+    QPointer<const QMimeData> m_explainedDrag;
 };
 
 #endif

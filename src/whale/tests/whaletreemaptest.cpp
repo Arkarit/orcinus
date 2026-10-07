@@ -14,10 +14,12 @@
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
+#include "whalefileoperationsimpl.h"
 #include "whaletreecache.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
 #include "whaleviewapiversion.h"
+#include "whaleviewcontextimpl.h"
 #include "whaleviewhost.h"
 #include "whaleviewplugin.h"
 #include "whaleviewregistry.h"
@@ -30,7 +32,10 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDialog>
+#include <QDrag>
+#include <QDropEvent>
 #include <QListView>
+#include <QMimeData>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QStandardPaths>
@@ -103,6 +108,7 @@ private Q_SLOTS:
     void testSplitView();
     void testResize();
     void testCapabilityGating();
+    void testDropsAreRefused();
 
 private:
     DolphinViewContainer *showMainWindow(int expectedItems = 4);
@@ -115,6 +121,7 @@ private:
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
+    QList<WhaleFileOperations::Operation> m_confirmed;
     QScopedPointer<DolphinMainWindow> m_mainWindow;
 };
 
@@ -153,11 +160,18 @@ void WhaleTreemapTest::init()
     m_dir->createFile(QStringLiteral("media/song.flac"), QByteArray(15000, 's'));
     m_dir->createFile(QStringLiteral("empty.txt"), QByteArray());
     m_dir->createFile(QStringLiteral(".hidden"), QByteArray(5000, 'h'));
+    // Removing and cutting in a treemap are always confirmed: confirmed here, recorded.
+    m_confirmed.clear();
+    WhaleFileOperationsImpl::setConfirmationRunner([this](WhaleFileOperations::Operation operation, const QList<QUrl> &) {
+        m_confirmed.append(operation);
+        return true;
+    });
     m_mainWindow.reset(new DolphinMainWindow());
 }
 
 void WhaleTreemapTest::cleanup()
 {
+    WhaleFileOperationsImpl::setConfirmationRunner({});
     m_mainWindow.reset();
     if (m_dir) {
         QFile::setPermissions(m_dir->path() + QStringLiteral("/locked"), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
@@ -507,9 +521,10 @@ void WhaleTreemapTest::testDeepSelectionRoutesActions()
         QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
     }
 
-    // Shift+Delete deletes exactly the deep entry (no confirmation in this test).
+    // Shift+Delete deletes exactly the deep entry, always confirmed (here by the test).
     QTest::keySequence(canvasOf(view), QKeySequence(Qt::SHIFT | Qt::Key_Delete));
     QTRY_VERIFY(!QFile::exists(deepPath));
+    QCOMPARE(m_confirmed, QList<WhaleFileOperations::Operation>({WhaleFileOperations::Operation::Delete}));
     QVERIFY(QFile::exists(m_dir->path() + QStringLiteral("/big.bin")));
     QVERIFY(QFile::exists(m_dir->path() + QStringLiteral("/media/photos/p2.jpg")));
     const auto dialogs = QApplication::topLevelWidgets();
@@ -838,11 +853,86 @@ void WhaleTreemapTest::testCapabilityGating()
     for (const QString &name : {QStringLiteral("sort"), QStringLiteral("view_zoom_in"), QStringLiteral("show_preview"), QStringLiteral("movetotrash")}) {
         QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
     }
+    // Entries from many folders, no destination folder: nothing is created in the treemap.
+    QVERIFY(!container->viewHost()->hasDestination());
+    const QStringList creating = {QStringLiteral("new_menu"),
+                                  QStringLiteral("create_dir"),
+                                  QStringLiteral("create_file"),
+                                  QStringLiteral("duplicate"),
+                                  KStandardAction::name(KStandardAction::Paste)};
+    for (const QString &name : creating) {
+        QCOMPARE(actions->gateReason(name), QStringLiteral("no destination folder"));
+        QVERIFY2(!action(name)->isEnabled(), qPrintable(name));
+    }
     // Back in the file list, all of it is Dolphin's again.
     container->viewHost()->showDolphinView();
     QVERIFY(action(QStringLiteral("sort"))->isEnabled());
     QVERIFY(action(QStringLiteral("view_zoom_in"))->isEnabled());
     QVERIFY(actions->gateReason(QStringLiteral("sort")).isEmpty());
+    QVERIFY(container->viewHost()->hasDestination());
+    for (const QString &name : creating) {
+        QVERIFY2(actions->gateReason(name).isEmpty(), qPrintable(name));
+    }
+    QTRY_VERIFY(action(QStringLiteral("create_dir"))->isEnabled());
+}
+
+namespace
+{
+// A drag over @p widget as Qt delivers it to the drop target: @return whether it was accepted.
+bool sendDrag(QWidget *widget, const QPoint &position, const QMimeData *data)
+{
+    const Qt::DropActions actions = Qt::CopyAction | Qt::MoveAction | Qt::LinkAction;
+    QDragEnterEvent enter(position, actions, data, Qt::LeftButton, Qt::ControlModifier);
+    QCoreApplication::sendEvent(widget, &enter);
+    bool accepted = enter.isAccepted() && enter.dropAction() != Qt::IgnoreAction;
+    QDragMoveEvent move(position + QPoint(1, 0), actions, data, Qt::LeftButton, Qt::ControlModifier);
+    QCoreApplication::sendEvent(widget, &move);
+    accepted = accepted || (move.isAccepted() && move.dropAction() != Qt::IgnoreAction);
+    QDropEvent drop(position, actions, data, Qt::LeftButton, Qt::ControlModifier);
+    QCoreApplication::sendEvent(widget, &drop);
+    return accepted || (drop.isAccepted() && drop.dropAction() != Qt::IgnoreAction);
+}
+}
+
+void WhaleTreemapTest::testDropsAreRefused()
+{
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    QWidget *view = showTreemap(container);
+    QVERIFY(view);
+    WhaleViewHost *host = container->viewHost();
+    // The treemap's widgets do not take drops: Qt delivers them to the host (the first
+    // widget up the parents that accepts drops).
+    for (QWidget *widget = canvasOf(view); widget != host; widget = widget->parentWidget()) {
+        QVERIFY2(!widget->acceptDrops(), widget->metaObject()->className());
+    }
+    QVERIFY(host->acceptDrops());
+
+    // A drag from elsewhere: refused and explained once, as in a flat file list.
+    QSignalSpy messages(host, &WhaleViewHost::messageRequested);
+    QMimeData data;
+    data.setUrls({url(QStringLiteral("docs/report.pdf"))});
+    const QPoint position = host->mapFromGlobal(canvasOf(view)->mapToGlobal(cellRect(view, url(QStringLiteral("media"))).center()));
+    QVERIFY(!sendDrag(host, position, &data));
+    QCOMPARE(messages.count(), 1);
+    QCOMPARE(messages.first().first().toString(), host->refusal(WhaleViewHost::Refusal::Drop));
+    QVERIFY(!QFile::exists(m_dir->path() + QStringLiteral("/report.pdf")));
+    QVERIFY(!QFile::exists(m_dir->path() + QStringLiteral("/media/report.pdf")));
+
+    // The treemap's own drag passing over it is refused without a word.
+    bool ownAccepted = true;
+    WhaleFileOperationsImpl::setDragRunner([host, position, &ownAccepted](QDrag *drag) {
+        ownAccepted = sendDrag(host, position, drag->mimeData());
+        return Qt::IgnoreAction;
+    });
+    host->pluginContext()->fileOperations()->startDrag({url(QStringLiteral("big.bin"))});
+    WhaleFileOperationsImpl::setDragRunner({});
+    QVERIFY(!ownAccepted);
+    QCOMPARE(messages.count(), 1);
+
+    // The file list takes drops itself again.
+    host->showDolphinView();
+    QVERIFY(!host->acceptDrops());
 }
 
 QTEST_MAIN(WhaleTreemapTest)

@@ -9,6 +9,7 @@
 #include "dolphinviewadapter.h"
 #include "dolphinviewbridge.h"
 #include "views/dolphinview.h"
+#include "whalefileoperationsimpl.h"
 #include "whalerecursivecontent.h"
 #include "whaleviewactions.h"
 #include "whaleviewcontextimpl.h"
@@ -17,8 +18,11 @@
 #include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
 
+#include <KLocalizedString>
+
 #include <QApplication>
 #include <QDataStream>
+#include <QDropEvent>
 #include <QShowEvent>
 #include <QStackedLayout>
 
@@ -87,6 +91,7 @@ void WhaleViewHost::showDolphinView()
     // If the focus is in the plugin view, QStackedLayout moves it into the DolphinView.
     m_stack->setCurrentWidget(m_dolphinView);
     destroyPluginView();
+    updateDestinationGuards();
     if (m_active) {
         m_dolphinView->setFocus();
     }
@@ -174,12 +179,14 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     if (!state.isEmpty()) {
         m_pluginView->restoreState(state);
     }
+    updateDestinationGuards();
     connect(m_pluginView.get(), &WhaleView::capabilitiesChanged, this, [this]() {
         const WhaleViewCapabilities capabilities = m_pluginView->capabilities();
         m_pluginContext->setViewCapabilities(capabilities);
         if (!(capabilities & WhaleViewCapability::Selection)) {
             m_bridge->setSelection(WhaleSelection());
         }
+        updateDestinationGuards();
         Q_EMIT capabilitiesChanged();
     });
     connect(m_pluginView.get(), &WhaleView::selectedItemsChanged, this, &WhaleViewHost::viewSelectionChanged);
@@ -510,14 +517,98 @@ WhaleRecursiveContent *WhaleViewHost::recursiveContent() const
     return m_recursiveContent;
 }
 
-bool WhaleViewHost::refusePaste()
+bool WhaleViewHost::hasDestination() const
 {
-    const QString refusal = m_recursiveContent->pasteRefusal();
-    if (refusal.isEmpty()) {
+    if (m_pluginView) {
+        return !(m_pluginView->capabilities() & WhaleViewCapability::RecursiveContent);
+    }
+    return !m_recursiveContent->isEnabled();
+}
+
+QString WhaleViewHost::refusal(Refusal kind) const
+{
+    if (hasDestination()) {
+        return {};
+    }
+    if (!m_pluginView) {
+        return m_recursiveContent->refusal(kind == Refusal::Paste        ? WhaleRecursiveContent::Refusal::Paste
+                                               : kind == Refusal::Drop   ? WhaleRecursiveContent::Refusal::Drop
+                                               : kind == Refusal::Create ? WhaleRecursiveContent::Refusal::Create
+                                                                         : WhaleRecursiveContent::Refusal::Transfer);
+    }
+    switch (kind) {
+    case Refusal::Paste:
+        return i18nc("@info",
+                     "Cannot paste here because this view shows items from multiple folders. "
+                     "Switch to another view mode to choose a destination folder.");
+    case Refusal::Drop:
+        return i18nc("@info",
+                     "Cannot drop files here because this view shows items from multiple folders. "
+                     "Switch to another view mode to choose a destination folder.");
+    case Refusal::Create:
+        return i18nc("@info",
+                     "Cannot create new items here because this view shows items from multiple folders. "
+                     "Switch to another view mode to choose a destination folder.");
+    case Refusal::Transfer:
+        return i18nc("@info",
+                     "Cannot copy or move items into this view because it shows items from multiple folders. "
+                     "Switch to another view mode to choose a destination folder.");
+    }
+    return {};
+}
+
+bool WhaleViewHost::refuse(Refusal kind)
+{
+    const QString text = refusal(kind);
+    if (text.isEmpty()) {
         return false;
     }
-    m_recursiveContent->explain(refusal);
+    m_recursiveContent->explain(text);
     return true;
+}
+
+void WhaleViewHost::updateDestinationGuards()
+{
+    // The file list refuses drops itself (WhaleRecursiveContent); a plugin view's widgets do
+    // not accept drops without a destination, so they reach the host.
+    setAcceptDrops(m_pluginView && !hasDestination());
+    if (m_pluginContext) {
+        // The user may not see which entries a deep selection holds: removing or cutting
+        // them is always confirmed.
+        static_cast<WhaleFileOperationsImpl *>(m_pluginContext->fileOperations())->setConfirmRemoval(!hasDestination());
+    }
+}
+
+void WhaleViewHost::dragEnterEvent(QDragEnterEvent *event)
+{
+    refuseDrag(event);
+}
+
+void WhaleViewHost::dragMoveEvent(QDragMoveEvent *event)
+{
+    refuseDrag(event);
+}
+
+void WhaleViewHost::dropEvent(QDropEvent *event)
+{
+    refuseDrag(event);
+}
+
+void WhaleViewHost::refuseDrag(QDropEvent *event)
+{
+    event->setDropAction(Qt::IgnoreAction);
+    event->ignore();
+    if (hasDestination() || event->type() == QEvent::DragMove) {
+        return;
+    }
+    // A drag from elsewhere is explained once, when it enters (some platforms never deliver
+    // a refused drop) or is dropped anyway. The view's own drag leaves to other places.
+    const QMimeData *data = event->mimeData();
+    if (!data || data == m_explainedDrag.data() || data == WhaleFileOperationsImpl::currentDragData()) {
+        return;
+    }
+    m_explainedDrag = data;
+    refuse(Refusal::Drop);
 }
 
 void WhaleViewHost::updateRecursiveContent()

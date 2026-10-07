@@ -1162,7 +1162,7 @@ QJsonObject WhaleDevAutomation::actionState() const
 {
     auto viewActions = m_window->findChild<WhaleViewActions *>();
     QStringList names = WhaleViewActions::gateableActions();
-    names << KStandardAction::name(KStandardAction::Paste) << QStringLiteral("properties") << QStringLiteral("show_hidden_files");
+    names << QStringLiteral("properties");
     QJsonObject state;
     for (const QString &name : std::as_const(names)) {
         if (QAction *action = m_window->actionCollection()->action(name)) {

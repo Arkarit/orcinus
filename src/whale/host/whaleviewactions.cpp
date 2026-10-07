@@ -234,7 +234,10 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
             updateAvailableViews();
             updateContentScopeAction();
         });
-        m_contentScopeConnection = connect(host, &WhaleViewHost::contentScopeChanged, this, &WhaleViewActions::updateContentScopeAction);
+        m_contentScopeConnection = connect(host, &WhaleViewHost::contentScopeChanged, this, [this]() {
+            updateContentScopeAction();
+            updateGates(); // F1: no destination in a flat file list
+        });
     }
     updateAvailableViews();
     updateCheckedView();
@@ -269,6 +272,12 @@ QStringList WhaleViewActions::gateableActions()
         QStringLiteral("hidden_last"),
         QStringLiteral("additional_info"),
         QStringLiteral("group_by"),
+        // Creating items in the location (Duplicate below as well)
+        QStringLiteral("new_menu"),
+        QStringLiteral("create_dir"),
+        QStringLiteral("create_file"),
+        QStringLiteral("create_subdir"),
+        KStandardAction::name(KStandardAction::Paste),
         // Selecting
         KStandardAction::name(KStandardAction::SelectAll),
         QStringLiteral("invert_selection"),
@@ -286,6 +295,25 @@ QStringList WhaleViewActions::gateableActions()
         QStringLiteral("move_to_inactive_split_view"),
         QStringLiteral("compare_files"),
     };
+}
+
+namespace
+{
+// The actions that create items in the location, with what they are refused as.
+const QHash<QString, WhaleViewHost::Refusal> &creatingActions()
+{
+    static const QHash<QString, WhaleViewHost::Refusal> actions = {
+        {QStringLiteral("new_menu"), WhaleViewHost::Refusal::Create},
+        {QStringLiteral("create_dir"), WhaleViewHost::Refusal::Create},
+        {QStringLiteral("create_file"), WhaleViewHost::Refusal::Create},
+        {QStringLiteral("create_subdir"), WhaleViewHost::Refusal::Create},
+        {QStringLiteral("duplicate"), WhaleViewHost::Refusal::Create},
+        {KStandardAction::name(KStandardAction::Paste), WhaleViewHost::Refusal::Paste},
+    };
+    return actions;
+}
+
+const QString NoDestination = QStringLiteral("no destination folder");
 }
 
 const QHash<QString, WhaleViewActions::RoutedAction> &WhaleViewActions::routedActions()
@@ -311,10 +339,16 @@ const QHash<QString, WhaleViewActions::RoutedAction> &WhaleViewActions::routedAc
 
 bool WhaleViewActions::routeAction(DolphinView *view, const QString &actionName)
 {
-    if (actionName == KStandardAction::name(KStandardAction::Paste)) {
-        // F1: no destination in a view of the files below its location.
+    if (const auto creating = creatingActions().constFind(actionName); creating != creatingActions().constEnd()) {
+        // No destination in a view of items from many folders (gated; triggered anyway, e.g.
+        // through D-Bus or a menu built before).
         WhaleViewHost *host = WhaleCommandRouter::hostOf(view);
-        return host && host->refusePaste();
+        if (host && host->refuse(*creating)) {
+            return true;
+        }
+    }
+    if (actionName == KStandardAction::name(KStandardAction::Paste)) {
+        return false;
     }
     const auto routed = routedActions().constFind(actionName);
     if (routed == routedActions().constEnd() || routed->byDolphin) {
@@ -343,16 +377,21 @@ QString WhaleViewActions::gateReason(const QString &actionName) const
 void WhaleViewActions::updateGates()
 {
     QHash<QString, QString> reasons;
+    auto gate = [&reasons](const QStringList &names, const QString &reason) {
+        for (const QString &name : names) {
+            if (!reasons.contains(name)) {
+                reasons.insert(name, reason);
+            }
+        }
+    };
+    // Items from many folders (a flat file list, a treemap): nothing is created among them,
+    // since it could not be told where. Removing and cutting items still work.
+    if (m_host && !m_host->hasDestination()) {
+        gate(creatingActions().keys(), NoDestination);
+    }
     if (m_host && !m_host->isDolphinViewShown()) {
         using C = WhaleViewCapability;
         const WhaleViewCapabilities capabilities = m_host->currentView()->capabilities();
-        auto gate = [&reasons](const QStringList &names, const QString &reason) {
-            for (const QString &name : names) {
-                if (!reasons.contains(name)) {
-                    reasons.insert(name, reason);
-                }
-            }
-        };
 
         // Plugin views offer their own way of choosing items.
         gate({QStringLiteral("toggle_selection_mode"), QStringLiteral("toggle_selection_mode_tool_bar")},
@@ -431,6 +470,39 @@ void WhaleViewActions::updateGates()
             m_gates.insert(name, group);
         }
         group->setEnabled(!reasons.contains(name));
+    }
+    updateDisabledReasons();
+}
+
+void WhaleViewActions::setDisabledReasonHook(const DisabledReasonHook &hook)
+{
+    m_disabledReasonHook = hook;
+    updateDisabledReasons();
+}
+
+void WhaleViewActions::updateDisabledReasons()
+{
+    if (!m_disabledReasonHook) {
+        return;
+    }
+    // Recorded first: Dolphin may set its own explanations from the hook, which calls this again.
+    const QStringList wasExplained = m_explainedGates;
+    m_explainedGates.clear();
+    for (auto it = creatingActions().cbegin(); it != creatingActions().cend(); ++it) {
+        if (m_gateReasons.value(it.key()) == NoDestination) {
+            m_explainedGates.append(it.key());
+        }
+    }
+    for (auto it = creatingActions().cbegin(); it != creatingActions().cend(); ++it) {
+        QAction *action = m_actionCollection->action(it.key());
+        if (!action) {
+            continue;
+        }
+        if (m_explainedGates.contains(it.key())) {
+            m_disabledReasonHook(action, m_host->refusal(it.value()));
+        } else if (wasExplained.contains(it.key())) {
+            m_disabledReasonHook(action, QString());
+        }
     }
 }
 
