@@ -240,7 +240,7 @@ void WhaleTreemapTest::testDiscovery()
     WhaleViewRegistry *registry = viewActions()->registry();
     const KPluginMetaData metaData = registry->pluginMetaData(treemapId);
     QVERIFY(metaData.isValid());
-    QCOMPARE(metaData.name(), QStringLiteral("Treemap"));
+    QCOMPARE(metaData.name(), QStringLiteral("Cushion Treemap"));
     QVERIFY(!metaData.description().isEmpty());
     QCOMPARE(metaData.iconName(), QStringLiteral("folder-chart"));
     QCOMPARE(metaData.rawData().value(QLatin1String(WHALE_VIEW_API_VERSION_KEY)).toInt(), WHALE_VIEW_API_VERSION);

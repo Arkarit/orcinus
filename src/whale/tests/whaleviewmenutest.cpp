@@ -240,8 +240,9 @@ void WhaleViewMenuTest::testDirectViewModes()
     QMenu *menu = viewSettingsMenu();
     QVERIFY(menu);
     const QStringList texts = entryTexts(menu);
-    QCOMPARE(texts.mid(0, 5),
-             QStringList({QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Treemap"), QStringLiteral("-")}));
+    QCOMPARE(
+        texts.mid(0, 5),
+        QStringList({QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Cushion Treemap"), QStringLiteral("-")}));
     QVERIFY2(!texts.contains(QStringLiteral("View Type >")), qPrintable(texts.join(QLatin1Char('|'))));
     QVERIFY2(!texts.contains(QStringLiteral("File List")), qPrintable(texts.join(QLatin1Char('|'))));
     QVERIFY2(!texts.contains(QStringLiteral("Hello")) && !texts.contains(QStringLiteral("Test List")), qPrintable(texts.join(QLatin1Char('|'))));
@@ -280,7 +281,7 @@ void WhaleViewMenuTest::testDirectViewModes()
     // Again after the GUI was rebuilt (e.g. by configuring the toolbars), once.
     QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "saveNewToolbarConfig"));
     QCOMPARE(entryTexts(menuBarViewMenu()), menuTexts);
-    QCOMPARE(entryTexts(menuBarViewMenu()).count(QStringLiteral("Treemap")), 1);
+    QCOMPARE(entryTexts(menuBarViewMenu()).count(QStringLiteral("Cushion Treemap")), 1);
 
     // Dolphin's "Change View Mode" (context menu, hamburger menu) holds the same list.
     QCOMPARE(action(QStringLiteral("view_mode"))->menu()->actions(), viewActions()->viewModeActions());
@@ -347,7 +348,7 @@ void WhaleViewMenuTest::testSubmenuHoldsAllViewModes()
                           QStringLiteral("Details"),
                           QStringLiteral("Hello"),
                           QStringLiteral("Test List"),
-                          QStringLiteral("Treemap")}));
+                          QStringLiteral("Cushion Treemap")}));
     QCOMPARE(viewSettingsMenu()->actions().first(), viewModes);
     for (QAction *entry : viewActions()->viewModeActions()) {
         QVERIFY(!viewSettingsMenu()->actions().contains(entry));
@@ -549,7 +550,7 @@ void WhaleViewMenuTest::testLocations()
     QVERIFY(!treemapEntry->isEnabled());
     QCOMPARE(viewActions()->viewModeActions(), modes);
     QCOMPARE(entryTexts(viewSettingsMenu()).mid(0, 4),
-             QStringList({QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Treemap")}));
+             QStringList({QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Cushion Treemap")}));
     QCOMPARE(checkedViewModes().count(), 1);
     QVERIFY(!action(QStringLiteral("whale_include_subfolders"))->isEnabled());
     QVERIFY(action(QStringLiteral("show_preview"))->isEnabled());

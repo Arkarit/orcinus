@@ -3,7 +3,7 @@
         "Description": "Shows how the space below the folder is used, as nested cushions",
         "Icon": "folder-chart",
         "License": "GPL-2.0-or-later",
-        "Name": "Treemap",
+        "Name": "Cushion Treemap",
         "Version": "0.1"
     },
     "X-Whale-Capabilities": [
