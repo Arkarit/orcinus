@@ -9,6 +9,7 @@
 #include <QFontMetrics>
 #include <QMimeDatabase>
 #include <QPainter>
+#include <QPixmap>
 
 #include <algorithm>
 #include <cmath>
@@ -33,6 +34,20 @@ struct Surface {
     double y1 = 0;
     double y2 = 0;
 };
+
+// The icon on rest cells, in logical pixels.
+constexpr int RestIconMinSize = 8;
+constexpr int RestIconMaxSize = 24;
+
+// @p icon in one @p color (its shape only), as symbolic icons are drawn on colored ground.
+QPixmap monochrome(const QIcon &icon, int size, qreal devicePixelRatio, const QColor &color)
+{
+    QPixmap pixmap = icon.pixmap(QSize(size, size), devicePixelRatio);
+    QPainter painter(&pixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(QRectF(QPointF(0, 0), pixmap.deviceIndependentSize()), color);
+    return pixmap;
+}
 
 void addRidge(double from, double to, double height, double &linear, double &quadratic)
 {
@@ -179,6 +194,15 @@ QImage TreemapRenderer::render(const TreemapLayout &layout, const Options &optio
         const double red = color.red();
         const double green = color.green();
         const double blue = color.blue();
+        if (cell.isRest()) {
+            // Flat, unlike the cushions of entries: it stands for several small entries.
+            const double light = (Ambient + Diffuse * LightZ) / 220.0;
+            const QRgb flat = qRgb(std::min(255, int(red * light)), std::min(255, int(green * light)), std::min(255, int(blue * light)));
+            for (int y = top; y < bottom; ++y) {
+                std::fill_n(reinterpret_cast<QRgb *>(image.scanLine(y)) + left, right - left, flat);
+            }
+            continue;
+        }
         const Surface &surface = surfaces.at(index);
         for (int y = top; y < bottom; ++y) {
             const double ny = -(2 * surface.y2 * (y + 0.5) + surface.y1);
@@ -206,6 +230,33 @@ QImage TreemapRenderer::render(const TreemapLayout &layout, const Options &optio
         painter.drawRect(cell.rect.adjusted(0, 0, -1.0 / ratio, -1.0 / ratio));
     }
 
+    // The rest cells select their folder: always marked as such, also without labels.
+    const QFontMetrics restMetrics(options.font);
+    for (int index = 1; index < cells.count(); ++index) {
+        const TreemapLayout::Cell &cell = cells.at(index);
+        if (!cell.isRest()) {
+            continue;
+        }
+        const int extent = int(std::min(cell.rect.width(), cell.rect.height()));
+        if (options.restIcon.isNull()) {
+            if (cell.rect.width() >= restMetrics.horizontalAdvance(QStringLiteral("…")) + 4 && cell.rect.height() >= restMetrics.height()) {
+                painter.setFont(options.font);
+                painter.setPen(QColor(0, 0, 0, 150));
+                painter.drawText(cell.rect.translated(1, 1), Qt::AlignCenter, QStringLiteral("…"));
+                painter.setPen(Qt::white);
+                painter.drawText(cell.rect, Qt::AlignCenter, QStringLiteral("…"));
+            }
+            continue;
+        }
+        if (extent < RestIconMinSize + 4) {
+            continue;
+        }
+        const int size = std::min(RestIconMaxSize, extent * 3 / 5);
+        const QRectF box(cell.rect.center().x() - size / 2.0, cell.rect.center().y() - size / 2.0, size, size);
+        painter.drawPixmap(box.translated(1, 1).topLeft(), monochrome(options.restIcon, size, ratio, QColor(0, 0, 0, 150)));
+        painter.drawPixmap(box.topLeft(), monochrome(options.restIcon, size, ratio, Qt::white));
+    }
+
     if (options.showLabels) {
         QFont font = options.font;
         const QFontMetrics metrics(font);
@@ -226,11 +277,14 @@ QImage TreemapRenderer::render(const TreemapLayout &layout, const Options &optio
             if (cell.rect.width() < 24 || cell.rect.height() < lineHeight + 2) {
                 continue;
             }
-            const QString name = cell.isRest() ? QStringLiteral("…") : cell.node.name();
+            if (cell.isRest()) {
+                continue; // marked above
+            }
+            const QString name = cell.node.name();
             if (cell.isLeaf()) {
                 const QString text = metrics.elidedText(name, Qt::ElideMiddle, int(cell.rect.width() - 6));
                 // A name shortened to a few letters says nothing; then none.
-                if (text.isEmpty() || (text != name && text.length() < 7 && !cell.isRest())) {
+                if (text.isEmpty() || (text != name && text.length() < 7)) {
                     continue;
                 }
                 const qreal width = metrics.horizontalAdvance(text);

@@ -9,6 +9,8 @@
 #include "whaletreenode_p.h"
 
 #include <QElapsedTimer>
+#include <QIcon>
+#include <QPixmap>
 #include <QRandomGenerator>
 #include <QTest>
 
@@ -149,6 +151,7 @@ private Q_SLOTS:
     void testLargeTree_data();
     void testLargeTree();
     void testRenderer();
+    void testRestCells();
 };
 
 void WhaleTreemapLayoutTest::testSquarify()
@@ -590,6 +593,44 @@ void WhaleTreemapLayoutTest::testRenderer()
     TreemapLayout empty;
     empty.compute(WhaleTreeNode(), QRectF(0, 0, 50, 40));
     QCOMPARE(renderer.render(empty, options, 1.0).pixel(10, 10), qRgb(0, 0, 0));
+}
+
+void WhaleTreemapLayoutTest::testRestCells()
+{
+    // Many small files share a rest cell. It selects their folder, unlike a cushion of an
+    // entry: it is flat and always carries the icon, also without names.
+    QList<Spec> children{file("big", 200000)};
+    for (int i = 0; i < 10000; ++i) {
+        children.append(file("tiny" + QByteArray::number(i), 10));
+    }
+    TreemapLayout layout;
+    layout.compute(tree(children), QRectF(0, 0, 400, 300));
+    const auto rest = std::ranges::find_if(layout.cells(), &TreemapLayout::Cell::isRest);
+    QVERIFY(rest != layout.cells().end());
+    QVERIFY(rest->rect.width() >= 40 && rest->rect.height() >= 40);
+
+    TreemapRenderer renderer;
+    TreemapRenderer::Options options;
+    options.showLabels = false;
+    QPixmap solid(64, 64);
+    solid.fill(Qt::black);
+    options.restIcon = QIcon(solid);
+    const QImage image = renderer.render(layout, options, 1.0);
+    // The icon in white in the middle; around it one flat color.
+    QCOMPARE(QColor(image.pixel(rest->rect.center().toPoint())), QColor(Qt::white));
+    const QRgb flat = image.pixel((rest->rect.topLeft() + QPointF(2, 2)).toPoint());
+    QVERIFY(flat != qRgb(255, 255, 255));
+    QCOMPARE(image.pixel((rest->rect.bottomRight() - QPointF(3, 3)).toPoint()), flat);
+    QCOMPARE(image.pixel((rest->rect.topRight() + QPointF(-3, 2)).toPoint()), flat);
+
+    // Too small for the icon: just the flat cell.
+    TreemapLayout small;
+    small.compute(tree(children), QRectF(0, 0, 60, 40));
+    const auto smallRest = std::ranges::find_if(small.cells(), &TreemapLayout::Cell::isRest);
+    if (smallRest != small.cells().end() && std::min(smallRest->rect.width(), smallRest->rect.height()) < 12) {
+        const QImage tiny = renderer.render(small, options, 1.0);
+        QVERIFY(tiny.pixel(smallRest->rect.center().toPoint()) != qRgb(255, 255, 255));
+    }
 }
 
 QTEST_MAIN(WhaleTreemapLayoutTest)

@@ -522,6 +522,8 @@ TreemapRenderer::Options TreemapView::renderOptions() const
     TreemapRenderer::Options options;
     options.colorMode = m_colorMode;
     options.showLabels = m_showLabels;
+    // A rest cell selects the folder whose small entries it stands for.
+    options.restIcon = QIcon::fromTheme(QStringLiteral("folder-symbolic"));
     if (!m_zoomPath.isEmpty()) {
         // The colors stay those of the location's entries when zooming in.
         const QList<WhaleTreeNode> top = TreemapLayout::orderedChildren(m_tree);

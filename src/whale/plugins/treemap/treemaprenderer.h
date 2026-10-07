@@ -12,6 +12,7 @@
 #include <QColor>
 #include <QFont>
 #include <QHash>
+#include <QIcon>
 #include <QImage>
 #include <QPalette>
 
@@ -46,6 +47,9 @@ public:
         int topFolderPosition = -1;
         QFont font;
         QPalette palette;
+        /// Drawn on every rest cell large enough, also without labels: a rest cell selects
+        /// its folder. Without an icon an ellipsis is drawn.
+        QIcon restIcon;
     };
 
     /**
