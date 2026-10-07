@@ -209,6 +209,24 @@ void WhaleDevAutomationTest::testSetView()
     const QJsonObject pane = m_automation->uiState().value(QStringLiteral("panes")).toArray().at(0).toObject();
     QCOMPARE(pane.value(QStringLiteral("pluginRows")), pane.value(QStringLiteral("items")));
 
+    // The View menu: exactly the shown view's entry is checked; the view options follow it.
+    auto checkedModes = [this]() {
+        QStringList ids;
+        const QJsonArray modes = m_automation->uiState()[QStringLiteral("viewMenu")][QStringLiteral("modes")].toArray();
+        for (const QJsonValue &mode : modes) {
+            if (mode[QStringLiteral("checked")].toBool()) {
+                ids.append(mode[QStringLiteral("id")].toString());
+            }
+        }
+        return ids;
+    };
+    QCOMPARE(checkedModes(), QStringList{QStringLiteral("whale_testlist")});
+    const QJsonValue viewMenu = m_automation->uiState()[QStringLiteral("viewMenu")];
+    QCOMPARE(viewMenu[QStringLiteral("options")][QStringLiteral("flat")][QStringLiteral("enabled")].toBool(), false);
+    QCOMPARE(viewMenu[QStringLiteral("options")][QStringLiteral("previews")][QStringLiteral("enabled")].toBool(), true);
+    QCOMPARE(viewMenu[QStringLiteral("options")][QStringLiteral("hidden")][QStringLiteral("enabled")].toBool(), true);
+    QVERIFY(!strings(viewMenu[QStringLiteral("viewSettings")]).isEmpty());
+
     QVERIFY(m_automation->setView(0, QStringLiteral("dolphin")).value(QStringLiteral("ok")).toBool());
     QVERIFY(reaches(expect({
         {QStringLiteral("panes.0.viewId"), QStringLiteral("dolphin")},
@@ -262,7 +280,7 @@ void WhaleDevAutomationTest::testContentScope()
         {QStringLiteral("panes.0.contentScope.supported"), true},
         {QStringLiteral("panes.0.contentScope.pasteRefusal"), QJsonValue::Null},
     })));
-    // "Include Subfolders", as the user chooses it: the files below, relative to the location.
+    // "Show flat (no folders)", as the user chooses it: the files below, relative to the location.
     QVERIFY(m_automation->setContentScope(0, QStringLiteral("recursive-files")).value(QStringLiteral("ok")).toBool());
     QVERIFY(reaches(expect({
         {QStringLiteral("panes.0.contentScope.shown"), true},

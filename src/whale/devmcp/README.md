@@ -56,7 +56,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 |---|---|
 | `get_ui_state` | Full semantic state (see below) |
 | `get_focus_state` | Only the focus part |
-| `set_view` | `dolphin` or a view plugin ID in a pane; an automatic switch, or with `remember: true` the user's choice through the view switcher's entry (O3: becomes the location's preferred view) |
+| `set_view` | `dolphin` or a view plugin ID in a pane; an automatic switch, or with `remember: true` the user's choice through the view's View menu entry (for `dolphin` the entry of the file list's current mode, which chooses the file list only while another view is shown; O3: becomes the location's preferred view) |
 | `get_preferred_view` / `set_preferred_view` / `clear_preferred_view` | O3: the view remembered for a location (`view`, normalized `key`, `count`); setting it is like a choice in another window (shown views stay) |
 | `set_view_plugin_available` | Test hook: a view plugin is treated as missing (`available: false`) or back, in the window's registry |
 | `activate_pane` | Make a pane the active view area |
@@ -66,7 +66,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_location` | Navigate a pane through the location bar |
 | `set_filter_text` / `clear_filter` | Filter bar of a pane |
 | `set_hidden_files` | Setter, not a toggle |
-| `set_content_scope` | F1: `current-folder` or `recursive-files` for a pane's file list through "Include Subfolders" (the user's choice, remembered for the location); local folders only |
+| `set_content_scope` | F1: `current-folder` or `recursive-files` for a pane's file list through "Show flat (no folders)" (the user's choice, remembered for the location); local folders only |
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
@@ -160,6 +160,13 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `treeCache` the window's tree scan cache (`hits`, `misses`, `joins`,
   `invalidations`, `evictions`, `notKept`, `entries`, `bytes`, `watchedFolders`,
   `runningScans`).
+- View menu: `viewMenu` describes the view modes and view options as the View menus
+  offer them for the active pane: `placement` (`direct`: the modes are listed in the
+  menus; `submenu`: more than five, all in "View Modes"), `modes` (in menu order: `id`
+  `icons`/`compact`/`details` or a plugin ID, `text`, `checked`, `enabled`),
+  `viewSettings` (the entries of the toolbar's view settings dropdown, `-` for a
+  separator, `name >` for a submenu) and `options.flat`/`previews`/`hidden`
+  (`text`, `checked`, `enabled`, `gateReason`).
 - Commands (T2): `command` (window: the active pane's; also per pane) is what Whale's
   actions on selected items act on: `source` (`file-list`, `plugin-mirrored` for a plugin
   view that shows Whale's selection, `plugin` for a view with a selection of its own,
@@ -168,7 +175,7 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   selection`.
 - Preferred views (O3): `preferredView` of a pane is the view remembered for its location
   (`dolphin`, a plugin ID, or null); `viewOrigin` says what decided about the shown view:
-  `user` (the view switcher), `preference`, `history`, `session`, `fallback` (the
+  `user` (the View menu), `preference`, `history`, `session`, `fallback` (the
   requested view could not be shown), `kept` (a new location without a preference: the
   view stayed), `initial`. `restore.source` is `preference` after a preference was
   applied.

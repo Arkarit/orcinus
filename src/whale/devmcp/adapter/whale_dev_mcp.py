@@ -68,8 +68,9 @@ TOOLS = [
         "description": "Shows a view in a pane: \"dolphin\" (the built-in file list) or a view plugin ID such as "
         "\"whale_treemap\", or the test views \"whale_testlist\"/\"whale_hello\" when Whale runs with the test "
         "plugin directory (see availableViews in the state). By default an automatic switch "
-        "(nothing is remembered); remember=true is the user's choice in the view switcher, which makes it the "
-        "preferred view of the location (O3).",
+        "(nothing is remembered); remember=true is the user's choice of the view's View menu entry (for "
+        "\"dolphin\": the entry of the file list's current mode; a mode entry chooses the file list only while "
+        "another view is shown), which makes it the preferred view of the location (O3).",
         "inputSchema": {
             "type": "object",
             "properties": {"pane": PANE, "view": {"type": "string"}, "remember": {"type": "boolean"}},
@@ -157,7 +158,7 @@ TOOLS = [
     },
     {
         "name": "set_content_scope",
-        "description": "F1: the content scope of a pane's file list, through \"Include Subfolders\" as the user "
+        "description": "F1: the content scope of a pane's file list, through \"Show flat (no folders)\" as the user "
         "chooses it (the pane becomes active; the choice is remembered for the location): \"recursive-files\" "
         "(the files below the location, no folders) or \"current-folder\". Only for the file list at a local "
         "folder. See panes.N.contentScope in the state.",

@@ -11,7 +11,7 @@ dev MCP; restarts of Whale are done here, as a user would start it again.
   E session restart before preference, then preference   F split view, crossing over
   G missing plugin: fallback, preference kept, back       H clear the preference
 
-The view is chosen through Whale's view switcher (set_view with remember), like the user.
+The view is chosen through its View menu entry (set_view with remember), like the user.
 Whale runs on a private D-Bus session bus (the script starts one): Dolphin restores its
 session only when it is the only instance. Arguments as test_m6_acceptance.py.
 """
@@ -84,7 +84,7 @@ def run(args, work):
         s.expect("A: folder a, no preference: the file list", {
             "url": a, "panes.0.loading": False, "panes.0.viewId": "dolphin", "panes.0.preferredView": None})
         client.tool("set_view", pane=0, view=TREEMAP, remember=True)
-        s.expect("A: treemap chosen in the switcher, remembered", {
+        s.expect("A: treemap chosen in the View menu, remembered", {
             "panes.0.viewId": TREEMAP, "panes.0.preferredView": TREEMAP, "panes.0.viewOrigin": "user",
             "panes.0.treemap.status": "ready"})
         client.tool("set_location", pane=0, url=b)

@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of F1 ("Include Subfolders": the file list shows the files below its
+"""End-to-end check of F1 ("Show flat (no folders)": the file list shows the files below its
 location), driven only through the dev MCP; a restart of Whale is done here.
 
   A Details with subfolders, deep files shown     B Icons: the scope stays
@@ -106,7 +106,7 @@ def run(args, work):
         # A: Details with subfolders
         client.tool("trigger_action", action="view_details")
         client.tool("set_content_scope", pane=0, scope=RECURSIVE)
-        s.expect("A: Details, Include Subfolders: the files below, no folders", {
+        s.expect("A: Details, Show flat (no folders): the files below, no folders", {
             "url": r, "panes.0.loading": False, "panes.0.viewMode": "details", "panes.0.itemCount": 4,
             "panes.0.contentScope.shown": True, "panes.0.contentScope.scope": RECURSIVE,
             "panes.0.contentScope.origin": "user", "panes.0.contentScope.preferred": RECURSIVE,

@@ -69,8 +69,8 @@ public:
 
     /**
      * Shows @p viewId in a pane, as an automatic change (nothing is remembered). With
-     * @p remember like the user's choice in the view switcher, which makes it the preferred
-     * view of the location (O3).
+     * @p remember like the user's choice of the view's View menu entry (for the file list:
+     * the entry of its mode), which makes it the preferred view of the location (O3).
      */
     QJsonObject setView(int pane, const QString &viewId, bool remember = false);
     /// O3: the preferred view of @p url ("view" null if there is none) and its location key.
@@ -93,7 +93,7 @@ public:
     QJsonObject clearFilter(int pane);
     QJsonObject setHiddenFiles(int pane, bool shown);
     /// F1: @p scope "current-folder" or "recursive-files" for the file list of a pane, through
-    /// "Include Subfolders" as the user chooses it (remembered for the location).
+    /// "Show flat (no folders)" as the user chooses it (remembered for the location).
     QJsonObject setContentScope(int pane, const QString &scope);
     QJsonObject setSort(int pane, const QString &field, const QString &order, std::optional<bool> foldersFirst);
     QJsonObject triggerAction(const QString &actionId);
@@ -246,6 +246,8 @@ private:
     DolphinViewContainer *pane(int index, QString *error) const;
     int paneIndex(const DolphinViewContainer *container) const;
     QJsonValue popupMenu() const;
+    /// The view modes and view options as the View menus offer them.
+    QJsonValue viewMenuState() const;
     QJsonValue treeCacheState() const;
     QJsonValue clipboardState() const;
     QJsonArray dialogs() const;

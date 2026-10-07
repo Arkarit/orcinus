@@ -30,7 +30,7 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString UiState();
     Q_SCRIPTABLE QString FocusState();
     Q_SCRIPTABLE QStringList ActionIds();
-    /// @p remember: like the user's choice in the view switcher (the location's preferred view).
+    /// @p remember: like the user's choice in the View menu (the location's preferred view).
     Q_SCRIPTABLE QString SetView(int pane, const QString &viewId, bool remember);
     Q_SCRIPTABLE QString PreferredView(const QString &url);
     /// An empty @p viewId forgets the preference.

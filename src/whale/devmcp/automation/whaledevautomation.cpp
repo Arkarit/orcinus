@@ -40,6 +40,7 @@
 #include <KCoreDirLister>
 #include <KIO/Paste>
 #include <KIO/RenameFileDialog>
+#include <KLocalizedString>
 #include <KMessageWidget>
 #include <KPropertiesDialog>
 #include <KSelectAction>
@@ -618,11 +619,11 @@ QJsonObject WhaleDevAutomation::setContentScope(int paneIndexArg, const QString 
     if (!scope) {
         return failure(QStringLiteral("unknown scope \"%1\", expected current-folder or recursive-files").arg(scopeName));
     }
-    // As the user does: the pane becomes active, then "Include Subfolders".
+    // As the user does: the pane becomes active, then "Show flat (no folders)".
     container->setActive(true);
     QAction *action = m_window->actionCollection()->action(QStringLiteral("whale_include_subfolders"));
     if (!action || !action->isEnabled()) {
-        return failure(QStringLiteral("\"Include Subfolders\" is not available in this pane (file list at a local folder only)"));
+        return failure(QStringLiteral("\"Show flat (no folders)\" is not available in this pane (file list at a local folder only)"));
     }
     const bool recursive = *scope == WhaleContentScope::RecursiveFiles;
     if (action->isChecked() != recursive) {
@@ -694,6 +695,58 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("popupMenu"), popupMenu()},
         {QStringLiteral("dialogs"), dialogs()},
         {QStringLiteral("treeCache"), treeCacheState()},
+        {QStringLiteral("viewMenu"), viewMenuState()},
+    };
+}
+
+QJsonValue WhaleDevAutomation::viewMenuState() const
+{
+    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    if (!viewActions) {
+        return QJsonValue::Null;
+    }
+    auto entryState = [](const QAction *action) {
+        return QJsonObject{
+            {QStringLiteral("text"), KLocalizedString::removeAcceleratorMarker(action->text())},
+            {QStringLiteral("checked"), action->isChecked()},
+            {QStringLiteral("enabled"), action->isEnabled()},
+        };
+    };
+    QJsonArray modes;
+    const auto modeActions = viewActions->viewModeActions();
+    for (const QAction *action : modeActions) {
+        QJsonObject mode = entryState(action);
+        mode.insert(QStringLiteral("id"), viewActions->viewModeId(action));
+        modes.append(mode);
+    }
+    // The toolbar's view settings dropdown as the user sees it: "-" for a separator,
+    // "name >" for a submenu.
+    QJsonArray viewSettings;
+    if (QAction *dropdown = m_window->actionCollection()->action(QStringLiteral("view_settings")); dropdown && dropdown->menu()) {
+        const auto entries = dropdown->menu()->actions();
+        for (const QAction *entry : entries) {
+            if (entry->isVisible()) {
+                const QString text = KLocalizedString::removeAcceleratorMarker(entry->text());
+                viewSettings.append(entry->isSeparator() ? QStringLiteral("-") : entry->menu() ? text + QStringLiteral(" >") : text);
+            }
+        }
+    }
+    const bool submenu = viewActions->viewModeMenuEntries() != modeActions;
+    QJsonObject options;
+    for (const auto &[key, name] : {std::pair{QStringLiteral("flat"), QStringLiteral("whale_include_subfolders")},
+                                    std::pair{QStringLiteral("previews"), QStringLiteral("show_preview")},
+                                    std::pair{QStringLiteral("hidden"), QStringLiteral("show_hidden_files")}}) {
+        if (const QAction *action = m_window->actionCollection()->action(name)) {
+            QJsonObject option = entryState(action);
+            option.insert(QStringLiteral("gateReason"), viewActions->gateReason(name));
+            options.insert(key, option);
+        }
+    }
+    return QJsonObject{
+        {QStringLiteral("placement"), submenu ? QStringLiteral("submenu") : QStringLiteral("direct")},
+        {QStringLiteral("modes"), modes},
+        {QStringLiteral("viewSettings"), viewSettings},
+        {QStringLiteral("options"), options},
     };
 }
 
@@ -845,20 +898,15 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId,
     }
     WhaleViewHost *host = container->viewHost();
     if (remember) {
-        // The user's path: the entry of the view switcher, which acts on the active pane.
+        // The user's path: the entry of the view mode, which acts on the active pane. For
+        // the file list, the entry of its current mode.
         const QString hostViewId = viewId == dolphinId ? WhaleViewHost::dolphinViewId() : viewId;
-        auto switcher = qobject_cast<KSelectAction *>(m_window->actionCollection()->action(QStringLiteral("whale_view_switcher")));
-        QAction *entry = nullptr;
-        const auto entries = switcher ? switcher->actions() : QList<QAction *>();
-        for (QAction *candidate : entries) {
-            if (candidate->data().toString() == hostViewId) {
-                entry = candidate;
-            }
-        }
+        auto viewActions = m_window->findChild<WhaleViewActions *>();
+        container->setActive(true);
+        QAction *entry = viewActions ? viewActions->viewModeAction(hostViewId) : nullptr;
         if (!entry) {
             return failure(QStringLiteral("unknown view \"%1\"").arg(viewId));
         }
-        container->setActive(true);
         if (!entry->isEnabled()) {
             return failure(QStringLiteral("the view \"%1\" is not offered at this location").arg(viewId));
         }
