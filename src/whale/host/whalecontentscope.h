@@ -20,7 +20,7 @@
 enum class WhaleContentScope {
     /// The items of the location, as in Dolphin (the default).
     CurrentFolder,
-    /// The files below the location, in all its folders, without folders ("Include Subfolders").
+    /// The files below the location, in all its folders, without folders ("Show flat (no folders)").
     RecursiveFiles,
 };
 

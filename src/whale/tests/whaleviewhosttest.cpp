@@ -20,6 +20,7 @@
 #include "views/dolphinview.h"
 #include "views/dolphinviewactionhandler.h"
 #include "whaleview.h"
+#include "whaleviewactions.h"
 #include "whaleviewplugin.h"
 
 #include <KActionCollection>
@@ -27,7 +28,6 @@
 #include <KHamburgerMenu>
 #include <KIO/RenameFileDialog>
 #include <KLocalizedString>
-#include <KSelectAction>
 #include <KUrlComboBox>
 #include <KUrlNavigator>
 
@@ -230,17 +230,9 @@ DolphinViewContainer *WhaleViewHostTest::showMainWindow(const QUrl &url)
 
 QAction *WhaleViewHostTest::switcherAction(const QString &viewId) const
 {
-    auto switcher = qobject_cast<KSelectAction *>(m_mainWindow->actionCollection()->action(QStringLiteral("whale_view_switcher")));
-    if (!switcher) {
-        return nullptr;
-    }
-    const auto actions = switcher->actions();
-    for (QAction *action : actions) {
-        if (action->data().toString() == viewId) {
-            return action;
-        }
-    }
-    return nullptr;
+    // The view mode entry of the view; for the file list, the entry of its current mode.
+    auto viewActions = m_mainWindow->findChild<WhaleViewActions *>();
+    return viewActions ? viewActions->viewModeAction(viewId) : nullptr;
 }
 
 QWidget *WhaleViewHostTest::pluginWidget(DolphinViewContainer *container) const
@@ -252,24 +244,25 @@ QWidget *WhaleViewHostTest::pluginWidget(DolphinViewContainer *container) const
 void WhaleViewHostTest::testSwitcherListsViewsById()
 {
     QVERIFY(showMainWindow(m_dir->url()));
-    QAction *switcher = m_mainWindow->actionCollection()->action(QStringLiteral("whale_view_switcher"));
-    QVERIFY(switcher);
-    QVERIFY(switcher->isVisible());
-    QVERIFY(switcher->isEnabled());
+    auto viewActions = m_mainWindow->findChild<WhaleViewActions *>();
+    QVERIFY(viewActions);
+    QVERIFY(!m_mainWindow->actionCollection()->action(QStringLiteral("whale_view_switcher")));
 
     QAction *fileList = switcherAction(WhaleViewHost::dolphinViewId());
     QAction *hello = switcherAction(helloId);
     QVERIFY(fileList);
     QVERIFY(hello);
     QCOMPARE(hello->text(), QStringLiteral("Hello"));
+    QVERIFY(hello->isEnabled());
 
     // Every view appears once, even if a plugin is found in several plugin directories.
     QStringList ids;
-    const auto actions = qobject_cast<KSelectAction *>(switcher)->actions();
+    const auto actions = viewActions->viewModeActions();
     for (QAction *action : actions) {
-        ids.append(action->data().toString());
+        ids.append(viewActions->viewModeId(action));
     }
     QCOMPARE(ids.removeDuplicates(), 0);
+    QCOMPARE(ids.mid(0, 3), QStringList({QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details")}));
     QVERIFY(fileList->isChecked());
     QVERIFY(!hello->isChecked());
 }
@@ -278,20 +271,27 @@ void WhaleViewHostTest::testSwitcherIsReachable()
 {
     QVERIFY(showMainWindow(m_dir->url()));
     KActionCollection *ac = m_mainWindow->actionCollection();
-    QAction *switcher = ac->action(QStringLiteral("whale_view_switcher"));
+    QAction *hello = switcherAction(helloId);
 
-    // In the toolbar's view settings dropdown, right after the view modes.
+    // In the toolbar's view settings dropdown: with the test views there are more than
+    // five view modes, so all of them are in the "View Modes" submenu.
     auto viewSettings = qobject_cast<KActionMenu *>(ac->action(QStringLiteral("view_settings")));
     QVERIFY(viewSettings);
-    const auto entries = viewSettings->menu()->actions();
-    QCOMPARE(entries.indexOf(switcher), entries.indexOf(ac->action(QStringLiteral("details"))) + 1);
+    auto viewActions = m_mainWindow->findChild<WhaleViewActions *>();
+    QCOMPARE(viewActions->viewModeMenuEntries().count(), 1);
+    QAction *viewModes = viewActions->viewModeMenuEntries().first();
+    QCOMPARE(viewSettings->menu()->actions().first(), viewModes);
+    QVERIFY(viewModes->menu()->actions().contains(hello));
 
-    // In the hamburger menu when the view settings are not reachable from the toolbar.
+    // In the hamburger menu when the view settings are not reachable from the toolbar, with
+    // the file list's modes.
     auto hamburger = qobject_cast<KHamburgerMenu *>(ac->action(KStandardAction::name(KStandardAction::HamburgerMenu)));
     QVERIFY(hamburger);
     m_mainWindow->toolBar()->hide();
     QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "updateHamburgerMenu"));
-    QVERIFY(hamburger->menu()->actions().contains(switcher));
+    QAction *viewMode = ac->action(QStringLiteral("view_mode"));
+    QVERIFY(hamburger->menu()->actions().contains(viewMode));
+    QVERIFY(viewMode->menu()->actions().contains(hello));
 }
 
 void WhaleViewHostTest::testSwitchBetweenDolphinAndHello()

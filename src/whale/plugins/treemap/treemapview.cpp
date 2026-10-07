@@ -513,6 +513,7 @@ WhaleViewCapabilities TreemapView::capabilities() const
 {
     using C = WhaleViewCapability;
     // No Zoom: the host's zoom actions are about the file list; the treemap zooms itself.
+    // No HiddenFiles: the scan counts hidden entries, whatever "Show Hidden Files" says.
     return C::Selection | C::RecursiveContent | C::KeyboardNavigation;
 }
 

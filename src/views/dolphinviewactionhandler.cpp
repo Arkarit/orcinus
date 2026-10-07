@@ -514,6 +514,9 @@ QActionGroup *DolphinViewActionHandler::createFileItemRolesActionGroup(const QSt
 
 void DolphinViewActionHandler::slotViewModeActionTriggered(QAction *action)
 {
+    if (action->data().metaType() != QMetaType::fromType<DolphinView::Mode>()) {
+        return; // Whale: the entry of a plugin view, see setShownViewEntry()
+    }
     const DolphinView::Mode mode = action->data().value<DolphinView::Mode>();
     m_currentView->setViewMode(mode);
 
@@ -527,6 +530,11 @@ void DolphinViewActionHandler::slotViewModeActionTriggered(QAction *action)
 void DolphinViewActionHandler::setSelectionCommandRouter(const std::function<bool(DolphinView *, const QString &)> &router)
 {
     m_selectionCommandRouter = router;
+}
+
+void DolphinViewActionHandler::setShownViewEntry(const std::function<QAction *(DolphinView *)> &shownViewEntry)
+{
+    m_shownViewEntry = shownViewEntry;
 }
 
 void DolphinViewActionHandler::slotRename()
@@ -612,7 +620,8 @@ void DolphinViewActionHandler::updateViewActions()
 {
     QAction *viewModeAction = m_actionCollection->action(currentViewModeActionName());
     if (viewModeAction) {
-        viewModeAction->setChecked(true);
+        QAction *shownViewEntry = m_shownViewEntry ? m_shownViewEntry(m_currentView) : nullptr; // Whale: view plugins
+        (shownViewEntry ? shownViewEntry : viewModeAction)->setChecked(true);
 
         QAction *viewModeMenu = m_actionCollection->action(QStringLiteral("view_mode"));
         viewModeMenu->setIcon(viewModeAction->icon());

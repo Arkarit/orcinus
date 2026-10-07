@@ -26,7 +26,6 @@
 #include <KConfig>
 #include <KConfigGroup>
 #include <KLocalizedString>
-#include <KSelectAction>
 
 #include <QCheckBox>
 #include <QComboBox>
@@ -250,13 +249,8 @@ void WhaleTreemapTest::testDiscovery()
              QStringList({QStringLiteral("Selection"), QStringLiteral("RecursiveContent"), QStringLiteral("KeyboardNavigation")}));
     QVERIFY(registry->plugin(treemapId));
 
-    // Offered in the view switcher.
-    auto switcher = qobject_cast<KSelectAction *>(action(QStringLiteral("whale_view_switcher")));
-    QVERIFY(switcher);
-    const auto entries = switcher->actions();
-    QVERIFY(std::any_of(entries.cbegin(), entries.cend(), [](const QAction *entry) {
-        return entry->data().toString() == treemapId;
-    }));
+    // Offered as a view mode.
+    QVERIFY(viewActions()->viewModeAction(treemapId));
 }
 
 void WhaleTreemapTest::testSupportsUrl()
@@ -281,14 +275,7 @@ void WhaleTreemapTest::testNonLocalFallsBack()
     QVERIFY(container);
     WhaleViewHost *host = container->viewHost();
     QVERIFY(showTreemap(container));
-    auto switcher = qobject_cast<KSelectAction *>(action(QStringLiteral("whale_view_switcher")));
-    QAction *treemapEntry = nullptr;
-    const auto entries = switcher->actions();
-    for (QAction *entry : entries) {
-        if (entry->data().toString() == treemapId) {
-            treemapEntry = entry;
-        }
-    }
+    QAction *treemapEntry = viewActions()->viewModeAction(treemapId);
     QVERIFY(treemapEntry && treemapEntry->isEnabled());
 
     // A location the treemap cannot show: the file list shows it.

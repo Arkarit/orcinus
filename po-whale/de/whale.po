@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: whale\n"
-"PO-Revision-Date: 2026-10-06 00:00+0200\n"
+"PO-Revision-Date: 2026-10-07 00:00+0200\n"
 "Last-Translator: Whale contributors\n"
 "Language-Team: German\n"
 "Language: de\n"
@@ -16,8 +16,13 @@ msgstr ""
 
 #: whale/host/whaleviewactions.cpp
 msgctxt "@action:inmenu View menu"
-msgid "Include Subfolders"
-msgstr "Unterordner einbeziehen"
+msgid "Show flat (no folders)"
+msgstr "Flach anzeigen (ohne Ordner)"
+
+#: whale/host/whaleviewactions.cpp
+msgctxt "@action:inmenu View menu"
+msgid "View Modes"
+msgstr "Ansichtsmodi"
 
 #: whale/host/whaleviewactions.cpp
 msgctxt "@info:tooltip"
@@ -28,20 +33,20 @@ msgstr "Die Dateien aller Unterordner in der Dateiliste anzeigen, ohne die Ordne
 msgctxt "@info"
 msgid ""
 "Cannot paste into a recursive view because no single destination folder is "
-"selected. Turn off “Include Subfolders” first."
+"selected. Turn off “Show flat (no folders)” first."
 msgstr ""
 "In eine rekursive Ansicht kann nicht eingefügt werden, weil kein eindeutiger "
-"Zielordner ausgewählt ist. Schalte zuerst „Unterordner einbeziehen“ aus."
+"Zielordner ausgewählt ist. Schalte zuerst „Flach anzeigen (ohne Ordner)“ aus."
 
 #: whale/host/whalerecursivecontent.cpp
 msgctxt "@info"
 msgid ""
 "Cannot drop files into a recursive view because it contains items from "
-"multiple folders. Turn off “Include Subfolders” to choose a destination."
+"multiple folders. Turn off “Show flat (no folders)” to choose a destination."
 msgstr ""
 "Dateien können nicht in eine rekursive Ansicht abgelegt werden, weil sie "
-"Inhalte aus mehreren Ordnern enthält. Schalte „Unterordner einbeziehen“ aus, "
-"um ein Ziel auszuwählen."
+"Inhalte aus mehreren Ordnern enthält. Schalte „Flach anzeigen (ohne Ordner)“ "
+"aus, um ein Ziel auszuwählen."
 
 #: kitemviews/kfileitemmodel.cpp
 msgctxt "@label"
@@ -51,8 +56,8 @@ msgstr "Relativer Pfad"
 #: kitemviews/kfileitemmodel.cpp
 msgctxt "@tooltip"
 msgid ""
-"The folder of an item relative to the current folder, e.g. with Include "
-"Subfolders."
+"The folder of an item relative to the current folder, e.g. with “Show flat "
+"(no folders)”."
 msgstr ""
-"Der Ordner eines Eintrags relativ zum aktuellen Ordner, z. B. mit "
-"„Unterordner einbeziehen“."
+"Der Ordner eines Eintrags relativ zum aktuellen Ordner, z. B. mit „Flach "
+"anzeigen (ohne Ordner)“."

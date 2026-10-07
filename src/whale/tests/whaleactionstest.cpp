@@ -372,19 +372,23 @@ void WhaleActionsTest::testCapabilityMatrix_data()
                                      QStringLiteral("copy_location")};
     const QStringList selectionMode = {QStringLiteral("toggle_selection_mode")};
     // (Paste is never gated, but Dolphin disables it while the clipboard is empty.)
-    const QStringList always = {QStringLiteral("properties"), QStringLiteral("show_hidden_files")};
+    const QStringList always = {QStringLiteral("properties")};
+    // Only views that follow the setting (HiddenFiles) keep "Show Hidden Files".
+    const QStringList hidden = {QStringLiteral("show_hidden_files")};
 
-    QTest::newRow("file list") << QStringLiteral("dolphin") << 0 << QStringList() << (zoom + order + selecting + onSelection + selectionMode + always);
+    QTest::newRow("file list") << QStringLiteral("dolphin") << 0 << QStringList() << (zoom + order + selecting + onSelection + selectionMode + always + hidden);
     QTest::newRow("test list") << testListId << 0 << (zoom + QStringList{QStringLiteral("group_by")} + selectionMode)
-                               << (order + selecting + onSelection + always + QStringList{QStringLiteral("show_preview")});
-    QTest::newRow("hello: no capabilities") << helloId << 0 << (zoom + order + selecting + onSelection + selectionMode) << always;
+                               << (order + selecting + onSelection + always + hidden + QStringList{QStringLiteral("show_preview")});
+    QTest::newRow("hello: no capabilities") << helloId << 0 << (zoom + order + selecting + onSelection + selectionMode + hidden) << always;
     QTest::newRow("zoom, previews, grouping") << capsId << int(C::Selection | C::MultiSelection | C::HostOrder | C::Zoom | C::Previews | C::Grouping)
-                                              << selectionMode
+                                              << (selectionMode + hidden)
                                               << (zoom + order + selecting + onSelection
                                                   + QStringList{QStringLiteral("show_preview"), QStringLiteral("group_by")});
     QTest::newRow("single selection") << capsId << int(C::Selection | C::HostOrder) << (selecting + selectionMode) << (onSelection + order);
+    QTest::newRow("hidden files") << capsId << int(C::Selection | C::HostOrder | C::HiddenFiles) << (selecting + selectionMode)
+                                  << (onSelection + order + hidden);
     // T2: the view's own selection (by default Whale's, a.txt) is routed; nothing removes the location.
-    QTest::newRow("recursive content") << capsId << int(C::Selection | C::MultiSelection | C::RecursiveContent) << (order + selectionMode)
+    QTest::newRow("recursive content") << capsId << int(C::Selection | C::MultiSelection | C::RecursiveContent) << (order + selectionMode + hidden)
                                        << (selecting + always + onSelection);
 }
 

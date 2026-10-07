@@ -188,7 +188,7 @@ target_include_directories(whaleviewpreferencestest PRIVATE ${CMAKE_SOURCE_DIR}/
 target_compile_definitions(whaleviewpreferencestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaleviewpreferencestest whale_treemap whale_testlist)
 
-# F1: "Include Subfolders", the file list showing the files below its location.
+# F1: "Show flat (no folders)", the file list showing the files below its location.
 ecm_add_test(whalerecursivecontenttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whalerecursivecontenttest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
@@ -196,3 +196,14 @@ target_include_directories(whalerecursivecontenttest PRIVATE ${CMAKE_SOURCE_DIR}
 target_compile_definitions(whalerecursivecontenttest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whalerecursivecontenttest whale_treemap)
 set_tests_properties(whalerecursivecontenttest PROPERTIES TIMEOUT 600)
+
+# The View menus: one level of view modes (a common submenu for more than five), the view
+# options enabled by what the shown view supports.
+ecm_add_test(whaleviewmenutest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaleviewmenutest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaleviewmenutest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaleviewmenutest PRIVATE
+    WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
+    WHALE_TEST_DYNAMIC_PLUGIN_DIR="${WHALE_TEST_DYNAMIC_PLUGIN_DIR}")
+add_dependencies(whaleviewmenutest whale_treemap whale_testlist whale_hello whale_test_dynamic)

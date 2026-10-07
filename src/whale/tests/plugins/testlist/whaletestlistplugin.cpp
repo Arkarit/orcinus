@@ -427,7 +427,7 @@ public:
     WhaleViewCapabilities capabilities() const override
     {
         using C = WhaleViewCapability;
-        return C::HostOrder | C::Selection | C::MultiSelection | C::KeyboardNavigation | C::Previews | C::Drag | C::Drop;
+        return C::HostOrder | C::Selection | C::MultiSelection | C::KeyboardNavigation | C::Previews | C::Drag | C::Drop | C::HiddenFiles;
     }
 
 protected:

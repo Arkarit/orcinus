@@ -19,8 +19,9 @@
 class DolphinView;
 class DolphinViewActionHandler;
 class KActionCollection;
-class KSelectAction;
+class KActionMenu;
 class KToggleAction;
+class KXMLGUIClient;
 class QAction;
 class QActionGroup;
 class WhaleViewHost;
@@ -28,12 +29,24 @@ class WhaleTreeCache;
 class WhaleViewRegistry;
 
 /**
- * @brief The view actions of a main window: the view switcher and the gating of
+ * @brief The view actions of a main window: the view modes and the gating of
  * Dolphin's actions for plugin views.
  *
  * Owns the WhaleViewRegistry of the window and switches the view of the
  * active view area between the built-in file list and the plugin views.
  * Views are identified by their plugin ID, never by their display name.
+ *
+ * View modes: the user chooses from one list, viewModeActions(): the file list's modes
+ * Icons, Compact and Details (Dolphin's actions), then one entry per plugin view in the
+ * registry's order. Built-in and plugin views are alike to the user; the entries are one
+ * exclusive group (Dolphin's "view_mode"), so exactly the shown one is checked. Up to
+ * MaxDirectViewModes entries are listed directly in the View menus, more go into one
+ * "View Modes" submenu together (viewModeMenuEntries()). Entries of views that cannot show
+ * the location are disabled, not hidden, and count as well.
+ *
+ * View options: "Show flat (no folders)", "Show Previews" and "Show Hidden Files" stay
+ * visible and are disabled while the shown view does not honor them
+ * (WhaleViewHost::supportsViewOption()); their settings are kept meanwhile.
  *
  * Gating: while the active view area shows a plugin view, Dolphin's actions that
  * the view cannot honor (WhaleViewCapabilities) are disabled, so they never act on
@@ -51,7 +64,7 @@ class WhaleViewRegistry;
  * ask routeAction() first, Dolphin's action states are computed from the routed items,
  * and the gates follow the operations the view's file operations support for them.
  *
- * Content scope (F1): "Include Subfolders" (whale_include_subfolders) switches the file
+ * Content scope (F1): "Show flat (no folders)" (whale_include_subfolders) switches the file
  * list of the active view area between the location's items and the files below it. Paste
  * into a view area that shows the files below its location is refused with an explanation.
  */
@@ -61,8 +74,9 @@ class WhaleViewActions : public QObject
 
 public:
     /**
-     * Adds the view switcher to @p actionCollection and to its "view_settings" menu,
-     * so it must be created after the actions of the DolphinViewActionHandler.
+     * Adds the plugin views to the view modes of @p actionCollection and arranges its
+     * "view_settings" menu, so it must be created after the actions of the
+     * DolphinViewActionHandler.
      */
     WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent);
     ~WhaleViewActions() override;
@@ -73,6 +87,45 @@ public:
     void setCurrentHost(WhaleViewHost *host);
 
     WhaleViewRegistry *registry() const;
+
+    /**
+     * Up to this many view modes are listed directly in the View menus.
+     */
+    static constexpr int MaxDirectViewModes = 5;
+
+    /**
+     * @return The view modes in their order: Dolphin's "icons", "compact" and "details",
+     *         then the entries of the plugin views. Each is checkable; the one of the shown
+     *         view (and file list mode) is checked.
+     */
+    QList<QAction *> viewModeActions() const;
+
+    /**
+     * @return The entry of the view mode @p id ("icons", "compact", "details" or a plugin
+     *         ID; see viewModeId()), or nullptr. For WhaleViewHost::dolphinViewId(): the entry
+     *         of the file list's mode in the active view area.
+     */
+    QAction *viewModeAction(const QString &id) const;
+
+    /**
+     * @return The ID of the view mode @p action: the action name of a file list mode, or
+     *         the plugin ID.
+     */
+    QString viewModeId(const QAction *action) const;
+
+    /**
+     * @return The entries the View menus list for the view modes: viewModeActions(), or with
+     *         more than MaxDirectViewModes of them the "View Modes" submenu holding them all.
+     */
+    QList<QAction *> viewModeMenuEntries() const;
+
+    /**
+     * Puts viewModeMenuEntries() into the View menu of @p client's XML GUI (the menu bar),
+     * as a group of their own before "Sort By". Again whenever the client's GUI was rebuilt.
+     * (Not with an XML GUI action list: those end up at a shifted position in a menu that is
+     * merged with KDE's standard View menu.)
+     */
+    void plugViewModes(KXMLGUIClient *client);
 
     /**
      * @return The tree scans shared by the views of this window.
@@ -135,7 +188,8 @@ Q_SIGNALS:
     void commandSelectionChanged(const KFileItemList &items);
 
 private:
-    void slotViewSelected(QAction *action);
+    void slotViewSelected(QAction *entry);
+    void arrangeViewSettingsMenu(KActionMenu *viewSettings);
     void updateCheckedView();
     void updateAvailableViews();
     void updateGates();
@@ -146,7 +200,10 @@ private:
 
     WhaleViewRegistry *m_registry;
     WhaleTreeCache *m_treeCache;
-    KSelectAction *m_switcher;
+    QList<QAction *> m_viewModes;
+    QHash<QString, QAction *> m_pluginViewEntries;
+    KActionMenu *m_viewModesMenu = nullptr;
+    QAction *m_viewModesSeparator;
     KToggleAction *m_includeSubfolders;
     KActionCollection *const m_actionCollection;
     QPointer<WhaleViewHost> m_host;

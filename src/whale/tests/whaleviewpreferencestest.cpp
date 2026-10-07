@@ -24,7 +24,6 @@
 #include <KConfig>
 #include <KConfigGroup>
 #include <KLocalizedString>
-#include <KSelectAction>
 
 #include <QCryptographicHash>
 #include <QFile>
@@ -165,14 +164,8 @@ WhaleViewRegistry *WhaleViewPreferencesTest::registry() const
 
 QAction *WhaleViewPreferencesTest::switcherEntry(const QString &viewId) const
 {
-    auto switcher = qobject_cast<KSelectAction *>(m_mainWindow->actionCollection()->action(QStringLiteral("whale_view_switcher")));
-    const auto entries = switcher ? switcher->actions() : QList<QAction *>();
-    for (QAction *entry : entries) {
-        if (entry->data().toString() == viewId) {
-            return entry;
-        }
-    }
-    return nullptr;
+    // The view mode entry of the view; for the file list, the entry of its current mode.
+    return m_mainWindow->findChild<WhaleViewActions *>()->viewModeAction(viewId);
 }
 
 bool WhaleViewPreferencesTest::choose(const QString &viewId)
@@ -398,9 +391,12 @@ void WhaleViewPreferencesTest::testOnlyTheUserChoiceIsRemembered()
     host->showDolphinView();
     QCOMPARE(preferences()->count(), 0);
 
-    // Choosing the view that is shown already confirms it as the location's view.
+    // The file list's modes choose nothing while the file list is shown (testFileListModes).
     QVERIFY(choose(fileListId));
-    QCOMPARE(preferences()->preferredView(url(QStringLiteral("a"))), fileListId);
+    QCOMPARE(preferences()->count(), 0);
+    QVERIFY(choose(testListId));
+    QCOMPARE(preferences()->preferredView(url(QStringLiteral("a"))), testListId);
+    // Choosing the view that is shown already confirms it as the location's view.
     QVERIFY(choose(testListId));
     QCOMPARE(preferences()->preferredView(url(QStringLiteral("a"))), testListId);
     QCOMPARE(preferences()->count(), 1);
@@ -562,7 +558,10 @@ void WhaleViewPreferencesTest::testSplitView()
     right->setActive(true);
     navigate(right, url(QStringLiteral("b")));
     QVERIFY(right->viewHost()->isDolphinViewShown());
+    // (A mode of the file list chooses the file list when another view is shown.)
+    QVERIFY(choose(testListId));
     QVERIFY(choose(fileListId));
+    QCOMPARE(preferences()->preferredView(url(QStringLiteral("b"))), fileListId);
     QCOMPARE(left->viewHost()->currentViewId(), treemapId);
 
     // Crossing over: each side shows the other location's view.

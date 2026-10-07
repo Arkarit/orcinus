@@ -142,6 +142,10 @@ void WhaleViewRegistry::scan()
             qCWarning(WhaleViewDebug).noquote() << "Ignoring view plugin" << metaData.fileName() << ":" << reason;
         }
     }
+    // A stable order for the menus, whatever order the plugin directories are read in.
+    std::stable_sort(m_plugins.begin(), m_plugins.end(), [](const KPluginMetaData &a, const KPluginMetaData &b) {
+        return a.pluginId() < b.pluginId();
+    });
 }
 
 #include "moc_whaleviewregistry.cpp"

@@ -220,6 +220,7 @@ DolphinMainWindow::DolphinMainWindow()
 
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
+    m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
     stateChanged(QStringLiteral("new_file"));
 
     if (QAction *aboutAction = actionCollection()->action(KStandardAction::name(KStandardAction::AboutApp))) {
@@ -1642,7 +1643,10 @@ void DolphinMainWindow::updateHamburgerMenu()
         menu->addAction(ac->action(QStringLiteral("view_mode")));
     }
     if (!toolBar()->isVisible() || !toolbarActions.contains(ac->action(QStringLiteral("view_settings")))) {
-        menu->addAction(ac->action(QStringLiteral("whale_view_switcher"))); // Whale: view plugins
+        // Whale: the view modes include the plugin views, so they are offered here as well.
+        if (!menu->actions().contains(ac->action(QStringLiteral("view_mode")))) {
+            menu->addAction(ac->action(QStringLiteral("view_mode")));
+        }
         menu->addAction(ac->action(QStringLiteral("whale_include_subfolders"))); // Whale: F1
         menu->addAction(ac->action(QStringLiteral("show_hidden_files")));
         menu->addAction(ac->action(QStringLiteral("sort")));
@@ -3202,6 +3206,7 @@ bool DolphinMainWindow::addHamburgerMenuToToolbar()
     KXMLGUIFactory::saveConfigFile(domDocument, xmlFile());
     reloadXML();
     createGUI();
+    m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
     return true;
     // Make sure to also remove the <KXMLGUIFactory> and <QDomDocument> include
     // whenever this method is removed (maybe in the year ~2026).
@@ -3218,6 +3223,7 @@ void DolphinMainWindow::saveNewToolbarConfig()
     KXmlGuiWindow::saveNewToolbarConfig(); // Applies the new config. This has to be called first
                                            // because the rest of this method decides things
                                            // based on the new config.
+    m_whaleViewActions->plugViewModes(this); // Whale: the GUI was rebuilt
     auto navigators = static_cast<DolphinNavigatorsWidgetAction *>(actionCollection()->action(QStringLiteral("url_navigators")));
 
     m_tabWidget->currentTabPage()->insertNavigatorsWidget(navigators);

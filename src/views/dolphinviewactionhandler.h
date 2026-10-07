@@ -67,6 +67,13 @@ public:
     void setSelectionCommandRouter(const std::function<bool(DolphinView *, const QString &)> &router);
 
     /**
+     * Whale: view plugins. The view mode actions ("view_mode") also hold the plugin views.
+     * Asked with the view for the entry of a plugin view shown in its place, which is
+     * checked instead of the view's mode (nullptr: the file list is shown).
+     */
+    void setShownViewEntry(const std::function<QAction *(DolphinView *)> &shownViewEntry);
+
+    /**
      * Returns the name of the action for the current viewmode
      */
     QString currentViewModeActionName() const;
@@ -301,6 +308,7 @@ private:
     KActionCollection *m_actionCollection;
     DolphinView *m_currentView;
     std::function<bool(DolphinView *, const QString &)> m_selectionCommandRouter; // Whale: view plugins
+    std::function<QAction *(DolphinView *)> m_shownViewEntry; // Whale: view plugins
 
     QHash<QByteArray, KToggleAction *> m_sortByActions;
     QHash<QByteArray, KToggleAction *> m_visibleRoles;

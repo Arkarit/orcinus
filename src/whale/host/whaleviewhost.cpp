@@ -482,6 +482,19 @@ bool WhaleViewHost::supportsRecursiveContent() const
     return isDolphinViewShown() && m_bridge->url().isLocalFile();
 }
 
+bool WhaleViewHost::supportsViewOption(ViewOption option) const
+{
+    switch (option) {
+    case ViewOption::FlatContent:
+        return supportsRecursiveContent();
+    case ViewOption::Previews:
+        return currentView()->capabilities() & WhaleViewCapability::Previews;
+    case ViewOption::HiddenFiles:
+        return currentView()->capabilities() & WhaleViewCapability::HiddenFiles;
+    }
+    return false;
+}
+
 bool WhaleViewHost::isRecursiveContentShown() const
 {
     return m_recursiveContent->isEnabled();

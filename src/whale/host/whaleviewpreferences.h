@@ -38,7 +38,7 @@
  * Nothing here knows whether a view exists: a preference for a missing plugin is kept, so
  * it applies again once the plugin is back.
  *
- * F1: the content scope of the file list ("Include Subfolders") is remembered per location
+ * F1: the content scope of the file list ("Show flat (no folders)") is remembered per location
  * the same way but separately, in the group "ContentScopes": the preferred view and the
  * preferred scope never mix. Only RecursiveFiles is written; CurrentFolder is the default
  * and removes the entry.

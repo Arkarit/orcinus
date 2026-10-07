@@ -172,6 +172,22 @@ public:
     bool supportsRecursiveContent() const;
 
     /**
+     * The options of the View menu that change what the shown view displays.
+     */
+    enum class ViewOption {
+        FlatContent, ///< "Show flat (no folders)": the content scope of the file list (F1)
+        Previews, ///< "Show Previews"
+        HiddenFiles, ///< "Show Hidden Files"
+    };
+
+    /**
+     * @return True if the shown view honors @p option at the current location: the
+     *         capabilities of the shown view (the file list has all of them), and for
+     *         FlatContent supportsRecursiveContent(). The option's setting is kept either way.
+     */
+    bool supportsViewOption(ViewOption option) const;
+
+    /**
      * F1: @return True if the file list shows the files below the location now.
      */
     bool isRecursiveContentShown() const;

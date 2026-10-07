@@ -14,7 +14,7 @@
 #include <functional>
 
 /**
- * @brief The files of a scanned tree as a flat list of KFileItems (F1, "Include Subfolders").
+ * @brief The files of a scanned tree as a flat list of KFileItems (F1, "Show flat (no folders)").
  *
  * The tree comes from WhaleTreeScanner, so recursion, hidden entries, file system borders
  * and symbolic links follow the scanner's rules; nothing walks the file system again. Only

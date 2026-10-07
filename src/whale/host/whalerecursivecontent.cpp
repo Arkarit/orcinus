@@ -142,14 +142,14 @@ QString WhaleRecursiveContent::pasteRefusal() const
     }
     return i18nc("@info",
                  "Cannot paste into a recursive view because no single destination folder is selected. "
-                 "Turn off “Include Subfolders” first.");
+                 "Turn off “Show flat (no folders)” first.");
 }
 
 QString WhaleRecursiveContent::dropRefusal()
 {
     return i18nc("@info",
                  "Cannot drop files into a recursive view because it contains items from multiple folders. "
-                 "Turn off “Include Subfolders” to choose a destination.");
+                 "Turn off “Show flat (no folders)” to choose a destination.");
 }
 
 QString WhaleRecursiveContent::lastRefusal() const

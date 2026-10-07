@@ -35,7 +35,7 @@ struct Result;
 
 /**
  * @brief The file list of a view area showing the files below its location (F1,
- * "Include Subfolders", WhaleContentScope::RecursiveFiles).
+ * "Show flat (no folders)", WhaleContentScope::RecursiveFiles).
  *
  * The file list stays Dolphin's own (Icons, Compact, Details, with its selection,
  * actions, previews, sorting, filter and drags); only its items change. While enabled,

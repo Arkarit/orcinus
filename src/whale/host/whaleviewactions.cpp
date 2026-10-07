@@ -10,6 +10,7 @@
 
 #include "dolphin_generalsettings.h"
 #include "dolphinviewbridge.h"
+#include "views/dolphinview.h"
 #include "views/dolphinviewactionhandler.h"
 #include "whalecommandrouter.h"
 #include "whalecontentscope.h"
@@ -28,62 +29,91 @@
 #include <KToggleAction>
 #include <QActionGroup>
 
+#include <KXMLGUIClient>
+#include <KXMLGUIFactory>
 #include <QMenu>
+#include <QToolButton>
+
+#include <optional>
+
+namespace
+{
+// The mode of the file list that a view mode entry chooses, if it is one of the file list's.
+std::optional<DolphinView::Mode> fileListMode(const QAction *action)
+{
+    if (action->data().metaType() != QMetaType::fromType<DolphinView::Mode>()) {
+        return std::nullopt;
+    }
+    return action->data().value<DolphinView::Mode>();
+}
+}
 
 WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent)
     : QObject(parent)
     , m_registry(new WhaleViewRegistry(this))
     , m_treeCache(new WhaleTreeCache(WhaleTreeCache::configuredLimits(), this))
-    , m_switcher(actionCollection->add<KSelectAction>(QStringLiteral("whale_view_switcher")))
+    , m_viewModesSeparator(new QAction(this))
     , m_includeSubfolders(actionCollection->add<KToggleAction>(QStringLiteral("whale_include_subfolders")))
     , m_actionCollection(actionCollection)
 {
-    m_switcher->setText(i18nc("@action:inmenu View menu", "View Type"));
-    m_switcher->setIcon(QIcon::fromTheme(QStringLiteral("view-choose")));
-    m_switcher->setToolBarMode(KSelectAction::MenuMode);
-
-    QAction *fileList =
-        m_switcher->addAction(QIcon::fromTheme(QStringLiteral("view-list-details")), i18nc("@item:inmenu View type: the built-in file list", "File List"));
-    fileList->setData(WhaleViewHost::dolphinViewId());
-
+    m_viewModesSeparator->setSeparator(true);
+    // The view modes: the file list's modes, then the plugin views, in one exclusive group.
+    auto viewModeGroup = qobject_cast<KSelectAction *>(actionCollection->action(QStringLiteral("view_mode")));
+    for (const QString &mode : {QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details")}) {
+        if (QAction *action = actionCollection->action(mode)) {
+            m_viewModes.append(action);
+            // Choosing a view mode of the file list shows the file list.
+            connect(action, &QAction::triggered, this, &WhaleViewActions::slotViewModeTriggered);
+        }
+    }
     const auto plugins = m_registry->plugins();
     for (const KPluginMetaData &metaData : plugins) {
-        QAction *action = m_switcher->addAction(QIcon::fromTheme(metaData.iconName()), metaData.name());
-        action->setData(metaData.pluginId());
+        auto entry = new QAction(QIcon::fromTheme(metaData.iconName()), metaData.name(), this);
+        entry->setData(metaData.pluginId());
+        entry->setCheckable(true);
+        entry->setEnabled(false);
+        if (viewModeGroup) {
+            viewModeGroup->addAction(entry);
+        }
+        connect(entry, &QAction::triggered, this, [this, entry]() {
+            slotViewSelected(entry);
+        });
+        m_viewModes.append(entry);
+        m_pluginViewEntries.insert(metaData.pluginId(), entry);
+    }
+    if (m_viewModes.count() > MaxDirectViewModes) {
+        m_viewModesMenu = new KActionMenu(QIcon::fromTheme(QStringLiteral("view-choose")), i18nc("@action:inmenu View menu", "View Modes"), this);
+        m_viewModesMenu->setPopupMode(QToolButton::InstantPopup);
+        for (QAction *action : std::as_const(m_viewModes)) {
+            m_viewModesMenu->addAction(action);
+        }
     }
 
-    // Without any plugin view there is nothing to switch.
-    m_switcher->setVisible(!plugins.isEmpty());
-    m_switcher->setEnabled(false);
-
-    connect(m_switcher, &KSelectAction::actionTriggered, this, &WhaleViewActions::slotViewSelected);
-
     // F1: the content scope of the file list, a property of its content, not a view.
-    m_includeSubfolders->setText(i18nc("@action:inmenu View menu", "Include Subfolders"));
+    m_includeSubfolders->setText(i18nc("@action:inmenu View menu", "Show flat (no folders)"));
     m_includeSubfolders->setIcon(QIcon::fromTheme(QStringLiteral("folder-tree")));
     m_includeSubfolders->setToolTip(i18nc("@info:tooltip", "Show the files of all subfolders in the file list, without the folders"));
     m_includeSubfolders->setEnabled(false);
     connect(m_includeSubfolders, &QAction::triggered, this, [this](bool checked) {
-        if (m_host && m_host->supportsRecursiveContent()) {
+        if (m_host && m_host->supportsViewOption(WhaleViewHost::ViewOption::FlatContent)) {
             m_host->selectContentScope(checked ? WhaleContentScope::RecursiveFiles : WhaleContentScope::CurrentFolder);
         }
         updateContentScopeAction();
     });
 
-    // The toolbar's view settings dropdown lists the view modes first; the view type follows them.
     if (auto viewSettings = qobject_cast<KActionMenu *>(actionCollection->action(QStringLiteral("view_settings")))) {
-        const auto entries = viewSettings->menu()->actions();
-        const auto firstSeparator = std::find_if(entries.cbegin(), entries.cend(), [](const QAction *action) {
-            return action->isSeparator();
-        });
-        viewSettings->insertAction(firstSeparator != entries.cend() ? *firstSeparator : nullptr, m_switcher);
-        viewSettings->insertAction(firstSeparator != entries.cend() ? *firstSeparator : nullptr, m_includeSubfolders);
+        arrangeViewSettingsMenu(viewSettings);
     }
 
-    // T2: the handler's actions on selected items ask first whether they are routed.
     if (actionHandler) {
+        // T2: the handler's actions on selected items ask first whether they are routed.
         actionHandler->setSelectionCommandRouter([this](DolphinView *view, const QString &actionName) {
             return routeAction(view, actionName);
+        });
+        // The handler checks the entry of a shown plugin view instead of the file list's mode.
+        actionHandler->setShownViewEntry([this](DolphinView *view) -> QAction * {
+            const WhaleViewHost *host = WhaleCommandRouter::hostOf(view);
+            return host && !host->isDolphinViewShown() ? m_pluginViewEntries.value(host->currentViewId()) : nullptr;
         });
     }
 
@@ -91,12 +121,82 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinV
     if (QAction *rename = actionCollection->action(KStandardAction::name(KStandardAction::RenameFile))) {
         connect(rename, &QAction::triggered, this, &WhaleViewActions::slotRename);
     }
-    // Choosing a view mode of the file list shows the file list.
-    for (const QString &mode : {QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details")}) {
-        if (QAction *action = actionCollection->action(mode)) {
-            connect(action, &QAction::triggered, this, &WhaleViewActions::slotViewModeTriggered);
+}
+
+void WhaleViewActions::arrangeViewSettingsMenu(KActionMenu *viewSettings)
+{
+    // The toolbar's view settings dropdown: the view modes, the order and additional
+    // information of the items, then the options of what the view shows.
+    QMenu *menu = viewSettings->menu();
+    const auto entries = menu->actions();
+    const auto firstSeparator = std::find_if(entries.cbegin(), entries.cend(), [](const QAction *action) {
+        return action->isSeparator();
+    });
+    QAction *beforeSeparator = firstSeparator != entries.cend() ? *firstSeparator : nullptr;
+    if (m_viewModesMenu) {
+        for (QAction *action : std::as_const(m_viewModes)) {
+            menu->removeAction(action);
+        }
+        menu->insertAction(beforeSeparator, m_viewModesMenu);
+    } else {
+        for (QAction *action : std::as_const(m_viewModes)) {
+            if (!menu->actions().contains(action)) {
+                menu->insertAction(beforeSeparator, action);
+            }
         }
     }
+
+    QAction *showPreview = m_actionCollection->action(QStringLiteral("show_preview"));
+    if (showPreview && menu->actions().contains(showPreview)) {
+        menu->insertSeparator(showPreview);
+        menu->insertAction(showPreview, m_includeSubfolders);
+    } else {
+        menu->insertAction(beforeSeparator, m_includeSubfolders);
+    }
+}
+
+QList<QAction *> WhaleViewActions::viewModeActions() const
+{
+    return m_viewModes;
+}
+
+QAction *WhaleViewActions::viewModeAction(const QString &id) const
+{
+    const bool fileList = id == WhaleViewHost::dolphinViewId();
+    if (fileList && !m_host) {
+        return nullptr;
+    }
+    for (QAction *action : m_viewModes) {
+        if (fileList ? fileListMode(action) == std::optional(m_host->dolphinView()->viewMode()) : viewModeId(action) == id) {
+            return action;
+        }
+    }
+    return nullptr;
+}
+
+QString WhaleViewActions::viewModeId(const QAction *action) const
+{
+    const QString pluginId = m_pluginViewEntries.key(const_cast<QAction *>(action));
+    return pluginId.isEmpty() ? action->objectName() : pluginId;
+}
+
+QList<QAction *> WhaleViewActions::viewModeMenuEntries() const
+{
+    return m_viewModesMenu ? QList<QAction *>{m_viewModesMenu} : m_viewModes;
+}
+
+void WhaleViewActions::plugViewModes(KXMLGUIClient *client)
+{
+    auto menu = client->factory() ? qobject_cast<QMenu *>(client->factory()->container(QStringLiteral("view"), client)) : nullptr;
+    QAction *sort = m_actionCollection->action(QStringLiteral("sort"));
+    if (!menu || !sort || !menu->actions().contains(sort)) {
+        return;
+    }
+    const QList<QAction *> entries = viewModeMenuEntries() << m_viewModesSeparator;
+    for (QAction *entry : entries) {
+        menu->removeAction(entry);
+    }
+    menu->insertActions(sort, entries);
 }
 
 WhaleViewActions::~WhaleViewActions() = default;
@@ -133,7 +233,6 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
         });
         m_contentScopeConnection = connect(host, &WhaleViewHost::contentScopeChanged, this, &WhaleViewActions::updateContentScopeAction);
     }
-    m_switcher->setEnabled(host);
     updateAvailableViews();
     updateCheckedView();
     updateGates();
@@ -142,11 +241,11 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
 
 void WhaleViewActions::updateContentScopeAction()
 {
-    // Only the file list at a local folder can include subfolders; elsewhere the action is
-    // off, while the location keeps its scope (e.g. for when the file list is shown again).
-    const bool supported = m_host && m_host->supportsRecursiveContent();
-    m_includeSubfolders->setEnabled(supported);
-    m_includeSubfolders->setChecked(supported && m_host->contentScope() == WhaleContentScope::RecursiveFiles);
+    // Only the file list at a local folder can show the files below; elsewhere the action
+    // is disabled, while the location keeps its scope (e.g. for when the file list is shown
+    // again), so the action still shows it.
+    m_includeSubfolders->setEnabled(m_host && m_host->supportsViewOption(WhaleViewHost::ViewOption::FlatContent));
+    m_includeSubfolders->setChecked(m_host && m_host->contentScope() == WhaleContentScope::RecursiveFiles);
 }
 
 QStringList WhaleViewActions::gateableActions()
@@ -160,6 +259,7 @@ QStringList WhaleViewActions::gateableActions()
         KStandardAction::name(KStandardAction::ZoomOut),
         QStringLiteral("view_zoom_reset"),
         QStringLiteral("show_preview"),
+        QStringLiteral("show_hidden_files"),
         // Order and additional information of the items
         QStringLiteral("sort"),
         QStringLiteral("folders_first"),
@@ -258,8 +358,12 @@ void WhaleViewActions::updateGates()
             gate({KStandardAction::name(KStandardAction::ZoomIn), KStandardAction::name(KStandardAction::ZoomOut), QStringLiteral("view_zoom_reset")},
                  QStringLiteral("no Zoom capability"));
         }
-        if (!(capabilities & C::Previews)) {
+        // The settings stay as they are while disabled (QActionGroup gates keep the state).
+        if (!m_host->supportsViewOption(WhaleViewHost::ViewOption::Previews)) {
             gate({QStringLiteral("show_preview")}, QStringLiteral("no Previews capability"));
+        }
+        if (!m_host->supportsViewOption(WhaleViewHost::ViewOption::HiddenFiles)) {
+            gate({QStringLiteral("show_hidden_files")}, QStringLiteral("no HiddenFiles capability"));
         }
         if (!(capabilities & C::HostOrder)) {
             gate({QStringLiteral("sort"),
@@ -353,7 +457,8 @@ void WhaleViewActions::slotRename()
 void WhaleViewActions::slotViewModeTriggered()
 {
     // Choosing a view mode in a plugin view chooses the file list for the location. The mode
-    // itself is the file list's business (Dolphin's view properties), not a preferred view.
+    // itself is the file list's business (Dolphin's view properties), not a preferred view,
+    // so switching modes within the file list chooses nothing (O3).
     if (m_host && !m_host->isDolphinViewShown()) {
         m_host->selectView(WhaleViewHost::dolphinViewId());
     }
@@ -369,14 +474,14 @@ WhaleTreeCache *WhaleViewActions::treeCache() const
     return m_treeCache;
 }
 
-void WhaleViewActions::slotViewSelected(QAction *action)
+void WhaleViewActions::slotViewSelected(QAction *entry)
 {
     if (!m_host) {
         return;
     }
 
     // The user's choice: it becomes the view of the location (O3).
-    m_host->selectView(action->data().toString());
+    m_host->selectView(m_pluginViewEntries.key(entry));
     // Reflect the real state, e.g. if the plugin could not be loaded.
     updateCheckedView();
 }
@@ -385,26 +490,30 @@ void WhaleViewActions::updateAvailableViews()
 {
     // Views that declare "X-Whale-RequiresLocal" are offered for local locations only;
     // their metadata says so without loading them. (WhaleViewPlugin::supportsUrl() is
-    // asked when a view is about to be shown, see WhaleViewHost.)
+    // asked when a view is about to be shown, see WhaleViewHost.) The entries of views
+    // that are not offered stay in the menus, disabled.
     const bool local = m_host && m_host->bridge()->url().isLocalFile();
-    const auto actions = m_switcher->actions();
-    for (QAction *action : actions) {
-        const QString viewId = action->data().toString();
-        if (viewId == WhaleViewHost::dolphinViewId()) {
-            continue;
-        }
-        const KPluginMetaData metaData = m_registry->pluginMetaData(viewId);
+    for (auto it = m_pluginViewEntries.cbegin(); it != m_pluginViewEntries.cend(); ++it) {
+        const KPluginMetaData metaData = m_registry->pluginMetaData(it.key());
         const bool requiresLocal = metaData.value(QStringLiteral("X-Whale-RequiresLocal"), false);
-        action->setEnabled(metaData.isValid() && (local || !requiresLocal));
+        it.value()->setEnabled(m_host && metaData.isValid() && (local || !requiresLocal));
     }
 }
 
 void WhaleViewActions::updateCheckedView()
 {
-    const QString viewId = m_host ? m_host->currentViewId() : WhaleViewHost::dolphinViewId();
-    const auto actions = m_switcher->actions();
-    for (QAction *action : actions) {
-        action->setChecked(action->data().toString() == viewId);
+    if (!m_host) {
+        return;
+    }
+    if (!m_host->isDolphinViewShown()) {
+        if (QAction *entry = m_pluginViewEntries.value(m_host->currentViewId())) {
+            entry->setChecked(true);
+            return;
+        }
+    }
+    // The file list: the entry of its mode (as DolphinViewActionHandler::updateViewActions()).
+    if (QAction *action = viewModeAction(WhaleViewHost::dolphinViewId())) {
+        action->setChecked(true);
     }
 }
 

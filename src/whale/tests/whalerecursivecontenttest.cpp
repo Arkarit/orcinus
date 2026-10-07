@@ -79,7 +79,7 @@ KFileItemModel *modelOf(DolphinView *view)
 }
 
 /**
- * F1: "Include Subfolders" — the file list (Icons, Compact, Details) shows the files below
+ * F1: "Show flat (no folders)" — the file list (Icons, Compact, Details) shows the files below
  * its location (WhaleContentScope::RecursiveFiles), with Dolphin's own selection, actions,
  * sorting, filter and drags; drops and Paste into it are refused.
  */

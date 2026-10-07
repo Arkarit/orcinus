@@ -46,6 +46,11 @@ enum class WhaleViewCapability : quint32 {
     /// WhaleFileOperations (e.g. from its own context menu).
     RecursiveContent = 1 << 9,
     KeyboardNavigation = 1 << 10, ///< The view can be operated with the keyboard. (Informative.)
+    /// The view follows the "Show Hidden Files" setting: it shows hidden items only while
+    /// the setting is on. Views that show the host's items (WhaleViewContext::items())
+    /// follow it, because the host lists hidden items only then. Without it, the action is
+    /// disabled while the view is shown.
+    HiddenFiles = 1 << 11,
 };
 Q_DECLARE_FLAGS(WhaleViewCapabilities, WhaleViewCapability)
 Q_DECLARE_OPERATORS_FOR_FLAGS(WhaleViewCapabilities)
