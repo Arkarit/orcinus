@@ -2629,3 +2629,40 @@ Session/History/Präferenzen robust gegen alte/ungültige Daten, Plugins laden, 
 verhält sich wie Dolphin, keine Test-Plugins oder Dev-Automation im Produkt, API konsistent, keine
 Performance-Regression). **`feature/view-plugins` ist merge-ready** (Fast-Forward auf `master`; Merge und
 Push nur auf Anweisung).
+
+### 14.23 View-Menü-Cleanup: View-Modi in einer Ebene, Optionen nach Capability (2026-10-07)
+
+Branch `feature/view-menu-cleanup` (von `master` `f6726ab7a`): `3517b21b5` (Produkt + Tests), `c83bb4d7e`
+(Dev-MCP). UX-Begründung: `whale-ux-diary.md` UX-004.
+
+- **Eine View-Mode-Liste** `WhaleViewActions::viewModeActions()`: Dolphins `icons`/`compact`/`details`, dann
+  ein `QAction` pro Plugin-View (Registry, jetzt nach Plugin-ID sortiert). Die Plugin-Einträge stecken in
+  Dolphins exklusiver `view_mode`-Gruppe (damit auch in „Change View Mode“ von Kontext- und Hamburger-Menü).
+  `whale_view_switcher` und der Eintrag „File List“ entfallen. `viewModeAction(id)`/`viewModeId()`;
+  `viewModeAction(dolphinViewId())` = Eintrag des aktuellen Dateilisten-Modus.
+- **Grenze:** `MaxDirectViewModes = 5`; darüber ein `KActionMenu` „View Modes“ mit allen Modi
+  (`viewModeMenuEntries()`). Gezählt werden alle Einträge (auch disabled). Anzahl steht pro Fenster fest.
+- **Dolphin-Dateien:** `DolphinViewActionHandler::setShownViewEntry()` (Hook, damit `updateViewActions()`
+  den Plugin-Eintrag statt des Modus markiert) + Guard in `slotViewModeActionTriggered()` für
+  Plugin-Einträge; `dolphinmainwindow.cpp`: `plugViewModes()` nach `setupGUI`, nach
+  `addHamburgerMenuToToolbar()`s `createGUI()` und in `saveNewToolbarConfig()`; Hamburger zeigt
+  `view_mode` statt des Switchers; `dolphinui.rc` v52 / `dolphinuiforphones.rc` v9 (View-Menü umgruppiert).
+  Menüleiste: Einträge vor „Sort By“ eingefügt (eine `ActionList` landete im mit `ui_standards.rc`
+  gemergten Menü an verschobener Position).
+- **Capabilities:** `WhaleViewHost::supportsViewOption(FlatContent|Previews|HiddenFiles)`; neue Capability
+  `HiddenFiles` → **API 9** (exakt). Dateiliste (Adapter) und Test-List deklarieren sie, Treemap nicht
+  (zählt versteckte Einträge immer). `show_hidden_files` ist jetzt gateable. Flat: enabled =
+  `supportsRecursiveContent()`, Haken = gespeicherter Scope (auch wenn disabled).
+- **O3:** Ein Dateilisten-Modus wählt die Dateiliste nur aus einer Plugin-View heraus (wie bisher); die
+  frühere Bestätigung der sichtbaren Dateiliste über „File List“ entfällt (Test angepasst).
+- **Texte:** „Show flat (no folders)“, „View Modes“ + DE in `po-whale/de/whale.po`; F1-Meldungen und der
+  `relativePath`-Tooltip nennen den neuen Namen.
+- **Dev-MCP:** State `viewMenu` (placement, modes, viewSettings, options); `set_view remember` über den
+  View-Mode-Eintrag.
+- **Tests:** `whaleviewmenutest` (neu, 15 Fälle, offscreen und Wayland grün); volle Matrix offscreen grün
+  außer dem bekannten `dolphinmainwindowtest::testAccessibilityTree`; Wayland bekannt
+  `whaleactionstest::testItemInfo`. Dev-MCP-Abnahmen O3/F1/T1/T2/M9 offscreen grün; Wayland-Sequenz per
+  Dev-MCP grün (ohne ydotool, Menü nicht real aufgeklappt).
+- **Hinweis Installation:** Die systemweit installierte Treemap (API 8) wird vom Build-Whale (API 9)
+  abgelehnt; Tests stellen die Build-Plugin-Pfade deshalb vor die Systempfade. Für das private Prefix
+  vor Nutzung neu installieren.

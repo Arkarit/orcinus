@@ -876,3 +876,107 @@ License: GNU General Public License Version 2
 
 > **About dialog:** The About dialog now credits both the Dolphin developers and the Whale fork,
 > each with its own homepage and license.
+
+---
+
+# UX-004 – View-Modi in einer Ebene, Darstellungsoptionen nach Capability
+
+## Metadaten
+
+- Datum: 2026-10-07
+- Branch: `feature/view-menu-cleanup` (Commits `3517b21b5` Produkt, `c83bb4d7e` Dev-MCP)
+- Bereich: Toolbar-Dropdown „View Settings“, Menüleiste „View“, Hamburger-Menü, Kontextmenü „Change View Mode“
+- View-API: 8 → 9 (neue Capability `HiddenFiles`)
+
+## Ausgangslage
+
+Nach M2–F1 bot das View-Menü die Ansicht doppelt verschachtelt an:
+
+```text
+Icons
+Compact
+Details
+View Type >
+    File List
+    Treemap
+Include Subfolders
+```
+
+„File List“ und „Icons/Compact/Details“ beschrieben dieselbe Sache auf zwei Ebenen. In einer Plugin-View
+waren zwei Einträge gleichzeitig markiert (z. B. „Details“ und „Treemap“). Optionen, die die aktive View
+gar nicht nutzt, sahen benutzbar aus: „Show Hidden Files“ war in der Treemap aktiv, obwohl der Treemap-Scan
+versteckte Einträge unabhängig davon immer mitzählt.
+
+## Entscheidung
+
+1. **Eine Liste von View-Modi:** Icons, Compact, Details, danach die Plugin-Views (Registry-Reihenfolge,
+   stabil nach Plugin-ID sortiert). Built-in und Plugin sind für den Benutzer gleichwertig; die Dateiliste
+   erscheint nicht zusätzlich als eigener Eintrag. Genau ein Eintrag ist markiert.
+2. **Bis 5 Modi direkt, ab 6 gemeinsam in „View Modes >“:** nie nur die Plugins im Untermenü und nie wieder
+   `File List → Icons/…`. Es zählen die sichtbaren Einträge, egal ob enabled oder disabled. Ein View, der den
+   Ort nicht zeigen kann (Treemap in `trash:/`), bleibt ausgegraut sichtbar und zählt mit.
+3. **Gruppierung nach UX:** View-Modi | Zoom, Sort By, Group By, Show Additional Information |
+   Show flat (no folders), Show Previews, Show Hidden Files | Restore/Adjust.
+4. **„Include Subfolders“ heißt jetzt „Show flat (no folders)“** (deutsch „Flach anzeigen (ohne Ordner)“)
+   und steht direkt über „Show Previews“. Semantik und Persistenz (F1/O3) sind unverändert.
+5. **Darstellungsoptionen nach Capability:** Die aktive View sagt über `WhaleViewHost::supportsViewOption()`
+   (Capabilities der View; die Dateiliste hat alle), ob sie Flat (nur Dateiliste an lokalem Ort), Previews
+   (`Previews`) und Hidden Files (neu: `HiddenFiles`) unterstützt. Keine Abfrage nach View-ID.
+
+## Warum nicht unterstützte Optionen sichtbar ausgegraut bleiben
+
+- Der Benutzer sieht, dass es die Funktion gibt, sie in dieser View aber nicht wirkt. Verschwindende
+  Einträge würden das Menü beim View-Wechsel umbauen (Muskelgedächtnis, Shortcuts-Anzeige).
+- Der Zustand bleibt sichtbar: Ein ausgegrauter Haken zeigt, was beim Zurückwechseln wieder gilt. Nichts
+  wird automatisch ausgeschaltet oder überschrieben (Previews, Hidden, Flat-Scope bleiben gespeichert).
+- Ein aktiver, aber wirkungsloser Schalter wäre eine falsche UI. Deshalb ist „Show Hidden Files“ in der
+  Treemap ausgegraut, solange sie die Einstellung nicht respektiert (sie zählt versteckte Einträge mit,
+  „es geht um Platz“).
+
+## Warum keine Trennung Built-in vs. Plugin
+
+Für den Benutzer ist „wie sehe ich diesen Ordner“ eine Frage. Ob ein Modus aus Dolphin oder aus einem
+Plugin kommt, ist eine technische Herkunft. Eine eigene „View Type“-Ebene zwang dazu, zuerst eine
+Architekturentscheidung zu treffen („Dateiliste oder Plugin?“) und danach den Modus.
+
+## Menüleiste und KDE-Standardmenü
+
+Die Menüleiste ist mit KDEs `ui_standards.rc` gemergt, das „Zoom In“ fest an den Anfang des View-Menüs
+setzt. Die View-Modi stehen dort deshalb als eigene Gruppe **nach** der Zoom-Gruppe, vor „Sort By“. Eine
+XML-GUI-`ActionList` landete in diesem gemergten Menü an verschobener Position, daher fügt Whale die
+Einträge deterministisch vor „Sort By“ ein (neu nach jedem GUI-Neuaufbau).
+
+## Erwogene und verworfene Alternativen
+
+- **Plugins in ein eigenes Untermenü, Built-ins direkt:** genau die verworfene Trennung.
+- **Nicht unterstützte Optionen ausblenden:** siehe oben.
+- **Treemap an „Show Hidden Files“ anbinden:** braucht API (Kontext kennt die Einstellung nicht) und ändert
+  die Aussage der Treemap (Platzbedarf ohne Dotfiles wäre irreführend). Vertagt; mit `HiddenFiles` kann
+  die Treemap das später einfach deklarieren.
+- **Icons/Compact/Details schreiben bei sichtbarer Dateiliste eine O3-Präferenz:** verworfen, weil O3
+  ausdrücklich festlegt, dass Moduswechsel innerhalb der Dateiliste keine View-Wahl sind. Nebenwirkung: Die
+  sichtbare Dateiliste lässt sich nicht mehr „bestätigen“ (früher über den Eintrag „File List“). Ein Modus
+  aus einer Plugin-View heraus wählt die Dateiliste weiterhin für den Ort.
+
+## Testmatrix (automatisiert)
+
+`whaleviewmenutest` (neu): direkte Liste (4 Produkt-Modi, kein „View Type“, kein „File List“, keine
+Test-Views), Grenze 4/5 direkt, 6/7 im gemeinsamen „View Modes“, genau ein Haken über alle Wechsel,
+Haken bleibt nach Dolphins `updateViewActions()`, Optionen in Dateiliste/Treemap, Zustandserhalt
+Previews/Hidden/Flat über Treemap-Wechsel inkl. O3/F1-Persistenz, lokale URL/`trash:/`, History und Split.
+Angepasst: `whaleactionstest` (Capability-Matrix mit `HiddenFiles`), `whaleviewhosttest`,
+`whaleviewpreferencestest`, `whaletreemaptest`, Dev-MCP-Test. Wayland: Dev-MCP-Sequenz (Modi, Treemap,
+Optionen, `trash:/`, Zustandserhalt).
+
+## Changelog-Entwurf
+
+- The View menus list all view modes (Icons, Compact, Details, Treemap, …) in one level; with more than
+  five they share one “View Modes” submenu.
+- “Include Subfolders” is now “Show flat (no folders)”, next to “Show Previews” and “Show Hidden Files”.
+- Options the current view cannot use stay visible but disabled, and keep their setting.
+
+## Offen / Neubewertung
+
+- Toolbar: Der „View Settings“-Knopf zeigt in einer Plugin-View weiter das Icon des Dateilisten-Modus, und
+  ein Klick auf den Hauptteil (Modus-Zyklus) tut dort nichts. Gehört zur Toolbar-Überarbeitung.
+- Hamburger-Menü: listet die Modi wie Dolphin über „Change View Mode >“.
