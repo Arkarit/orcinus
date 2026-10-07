@@ -215,6 +215,9 @@ void WhaleViewActions::setCurrentHost(WhaleViewHost *host)
         m_hostConnection = connect(host, &WhaleViewHost::currentViewChanged, this, [this]() {
             updateCheckedView();
             updateGates();
+            // "Show flat (no folders)" depends on the shown view as well, not only on the
+            // location and the scope.
+            updateContentScopeAction();
             notifyCommandSelection();
         });
         m_capabilitiesConnection = connect(host, &WhaleViewHost::capabilitiesChanged, this, [this]() {

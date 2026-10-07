@@ -81,6 +81,7 @@ private Q_SLOTS:
     void testOptionsInFileList();
     void testOptionsInTreemap();
     void testOptionSettingsAreKept();
+    void testFlatEnabledAfterTreemap();
     void testLocations();
     void testHistoryAndSplitView();
 
@@ -496,6 +497,40 @@ void WhaleViewMenuTest::testOptionSettingsAreKept()
     QVERIFY(dolphinView->hiddenFilesShown());
     QTRY_VERIFY(host->isRecursiveContentShown());
     QCOMPARE(host->contentScopeOrigin(), QStringLiteral("user"));
+}
+
+void WhaleViewMenuTest::testFlatEnabledAfterTreemap()
+{
+    // With the location's own items (no scope change on the way back), "Show flat (no
+    // folders)" is enabled again once the file list is shown again.
+    DolphinViewContainer *container = showMainWindow(url(QStringLiteral("a")));
+    QVERIFY(container);
+    QAction *flat = action(QStringLiteral("whale_include_subfolders"));
+    QVERIFY(flat->isEnabled());
+    QVERIFY(!flat->isChecked());
+    QVERIFY(choose(treemapId));
+    QVERIFY(!flat->isEnabled());
+    QVERIFY(choose(QStringLiteral("details")));
+    QVERIFY(container->viewHost()->isDolphinViewShown());
+    QVERIFY(flat->isEnabled());
+    QVERIFY(!flat->isChecked());
+
+    // Also when the file list comes back without the user (history).
+    QVERIFY(choose(treemapId));
+    container->setUrl(url(QStringLiteral("b")));
+    QTRY_COMPARE(container->url(), url(QStringLiteral("b")));
+    QVERIFY(choose(QStringLiteral("icons")));
+    action(KStandardAction::name(KStandardAction::Back))->trigger();
+    QTRY_COMPARE(container->viewHost()->currentViewId(), treemapId);
+    QVERIFY(!flat->isEnabled());
+    action(KStandardAction::name(KStandardAction::Forward))->trigger();
+    QTRY_VERIFY(container->viewHost()->isDolphinViewShown());
+    QTRY_COMPARE(container->url(), url(QStringLiteral("b")));
+    QVERIFY(flat->isEnabled());
+
+    // Toggling it works again.
+    flat->trigger();
+    QTRY_VERIFY(container->viewHost()->isRecursiveContentShown());
 }
 
 void WhaleViewMenuTest::testLocations()
