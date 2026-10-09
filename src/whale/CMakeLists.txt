@@ -107,6 +107,21 @@ target_link_libraries(whaleviewhost PUBLIC
     KF6::XmlGui
 )
 
+########### File View Toolbar, part of the application ###############
+
+# Built into dolphinstatic: the toolbar belongs to DolphinViewContainer, which lives there.
+# See .privatedoc/whale-multi-toolbar-plan.md.
+target_sources(dolphinstatic PRIVATE
+    toolbars/whalecontainercommands.cpp
+    toolbars/whalefileviewtoolbar.cpp
+    toolbars/whalefileviewtoolbarclient.cpp
+    toolbars/whaletoolbarlayout.cpp
+    toolbars/whaletoolbarmanager.cpp
+    toolbars/whaleviewcommandscope.cpp
+    toolbars/whaletoolbars.qrc
+)
+target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars)
+
 ########### plugins ###############
 
 # The test views (Hello, Test List) are test fixtures: they are built with the tests into a
