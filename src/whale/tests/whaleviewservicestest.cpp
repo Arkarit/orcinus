@@ -17,6 +17,7 @@
 #include "views/dolphinviewactionhandler.h"
 #include "whaletreecache.h"
 #include "whaleviewactions.h"
+#include "whaleviewcommandscope.h"
 #include "whaleviewhost.h"
 #include "whaleviewregistry.h"
 
@@ -204,7 +205,7 @@ void WhaleViewServicesTest::testServicesOwnRegistryAndCache()
 void WhaleViewServicesTest::testWindowActionsUseServices()
 {
     QVERIFY(windowActions());
-    QCOMPARE(m_mainWindow->findChildren<WhaleViewActions *>().count(), 1);
+    QCOMPARE(m_mainWindow->findChildren<WhaleViewActions *>(QString(), Qt::FindDirectChildrenOnly).count(), 1);
     QCOMPARE(windowActions()->services(), services());
     QCOMPARE(windowActions()->registry(), services()->registry());
     QCOMPARE(windowActions()->treeCache(), services()->treeCache());
@@ -216,11 +217,15 @@ void WhaleViewServicesTest::testWindowActionsUseServices()
 void WhaleViewServicesTest::testSecondActionSetSharesServices()
 {
     showSplit();
+    if (QTest::currentTestFailed()) {
+        return; // no window to test with (e.g. not activated under Wayland)
+    }
     const BoundActionSet set = createBoundActionSet(m_right);
     QCOMPARE(set.actions->services(), services());
     QCOMPARE(set.actions->registry(), windowActions()->registry());
     QCOMPARE(set.actions->treeCache(), windowActions()->treeCache());
-    QCOMPARE(m_mainWindow->findChildren<WhaleViewActions *>().count(), 2);
+    // The window's set, the bound one of this test, and one per shown File View Toolbar.
+    QCOMPARE(m_mainWindow->findChildren<WhaleViewActions *>().count(), 2 + m_mainWindow->findChildren<WhaleViewCommandScope *>().count());
     QCOMPARE(m_mainWindow->findChildren<WhaleViewRegistry *>().count(), 1);
     QCOMPARE(m_mainWindow->findChildren<WhaleTreeCache *>().count(), 1);
     QCOMPARE(m_mainWindow->findChildren<WhaleViewServices *>().count(), 1);
@@ -235,6 +240,9 @@ void WhaleViewServicesTest::testSecondActionSetSharesServices()
 void WhaleViewServicesTest::testPluginAvailabilityIsShared()
 {
     showSplit();
+    if (QTest::currentTestFailed()) {
+        return; // no window to test with (e.g. not activated under Wayland)
+    }
     const BoundActionSet set = createBoundActionSet(m_right);
     WhaleViewRegistry *registry = services()->registry();
     WhaleViewPlugin *plugin = registry->plugin(treemapId);
@@ -250,6 +258,9 @@ void WhaleViewServicesTest::testPluginAvailabilityIsShared()
 void WhaleViewServicesTest::testDeletingSecondActionSetKeepsServices()
 {
     showSplit();
+    if (QTest::currentTestFailed()) {
+        return; // no window to test with (e.g. not activated under Wayland)
+    }
     BoundActionSet set = createBoundActionSet(m_right);
     QPointer<WhaleViewServices> kept = services();
     QPointer<WhaleViewRegistry> registry = services()->registry();
@@ -310,6 +321,9 @@ void WhaleViewServicesTest::testHostNeedsNoActionSet()
 void WhaleViewServicesTest::testViewAreasShareTreeCache()
 {
     showSplit();
+    if (QTest::currentTestFailed()) {
+        return; // no window to test with (e.g. not activated under Wayland)
+    }
     WhaleTreeCache *cache = services()->treeCache();
     WhaleViewPlugin *plugin = services()->registry()->plugin(treemapId);
     QVERIFY(m_left->viewHost()->showPluginView(treemapId, plugin));
@@ -324,6 +338,9 @@ void WhaleViewServicesTest::testViewAreasShareTreeCache()
 void WhaleViewServicesTest::testBoundActionSetStaysOnItsHost()
 {
     showSplit();
+    if (QTest::currentTestFailed()) {
+        return; // no window to test with (e.g. not activated under Wayland)
+    }
     const BoundActionSet set = createBoundActionSet(m_right);
     m_left->setActive(true);
     QTRY_VERIFY(m_left->isActive());
@@ -352,6 +369,9 @@ void WhaleViewServicesTest::testBoundActionSetStaysOnItsHost()
 void WhaleViewServicesTest::testBoundActionSetWithoutShortcuts()
 {
     showSplit();
+    if (QTest::currentTestFailed()) {
+        return; // no window to test with (e.g. not activated under Wayland)
+    }
     m_left->view()->setPreviewsShown(true);
     const BoundActionSet set = createBoundActionSet(m_right);
 

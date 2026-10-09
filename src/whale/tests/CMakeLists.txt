@@ -75,6 +75,13 @@ target_include_directories(whaleviewservicestest PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_compile_definitions(whaleviewservicestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaleviewservicestest whale_treemap)
 
+ecm_add_test(whalefileviewtoolbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalefileviewtoolbartest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalefileviewtoolbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalefileviewtoolbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalefileviewtoolbartest whale_treemap)
+
 ecm_add_test(whaleactionstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleactionstest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
@@ -173,6 +180,18 @@ add_test(
         "result=\$(grep -rnE 'findChild(ren)?<WhaleViewActions' '${CMAKE_CURRENT_SOURCE_DIR}/../host'); \
          if [ -n \"\$result\" ]; then \
              echo 'The view host must use WhaleViewServices, not look up WhaleViewActions:'; \
+             echo \"\$result\"; \
+             exit 1; \
+         fi"
+)
+# Lint: the toolbars must not depend on there being two views (a left/right or primary/
+# secondary one); a file view is one instance among any number, also in a dock later.
+add_test(
+    NAME whale_toolbars_no_pane_sides
+    COMMAND bash -c
+        "result=\$(grep -rniwE 'primary[a-z]*|secondary[a-z]*|inactiveViewContainer|left|right' '${CMAKE_CURRENT_SOURCE_DIR}/../toolbars'); \
+         if [ -n \"\$result\" ]; then \
+             echo 'The toolbar code must not refer to the sides of a split view:'; \
              echo \"\$result\"; \
              exit 1; \
          fi"
