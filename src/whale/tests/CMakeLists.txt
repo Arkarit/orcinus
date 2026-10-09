@@ -68,6 +68,13 @@ target_include_directories(whaleselectiontest PRIVATE ${CMAKE_SOURCE_DIR}/src/te
 target_compile_definitions(whaleselectiontest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaleselectiontest whale_testlist)
 
+ecm_add_test(whaleviewservicestest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaleviewservicestest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaleviewservicestest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaleviewservicestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whaleviewservicestest whale_treemap)
+
 ecm_add_test(whaleactionstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleactionstest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
@@ -154,6 +161,18 @@ add_test(
         "result=\$(grep -rnE '#include [<\"](dolphin|kitemviews|views/|settings/|kfileitemmodel|kitemlist|dolphinview)' '${CMAKE_CURRENT_SOURCE_DIR}/../api' '${CMAKE_CURRENT_SOURCE_DIR}/../plugins' '${CMAKE_CURRENT_SOURCE_DIR}/plugins'); \
          if [ -n \"\$result\" ]; then \
              echo 'The Whale view plugin API and the view plugins must only use Qt, KDE Frameworks and the API itself:'; \
+             echo \"\$result\"; \
+             exit 1; \
+         fi"
+)
+# Lint: a view area must not look up an action set of its window; there may be several
+# (the window's, and one per view area). Window-wide things come from WhaleViewServices.
+add_test(
+    NAME whale_view_host_no_action_lookup
+    COMMAND bash -c
+        "result=\$(grep -rnE 'findChild(ren)?<WhaleViewActions' '${CMAKE_CURRENT_SOURCE_DIR}/../host'); \
+         if [ -n \"\$result\" ]; then \
+             echo 'The view host must use WhaleViewServices, not look up WhaleViewActions:'; \
              echo \"\$result\"; \
              exit 1; \
          fi"
