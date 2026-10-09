@@ -1040,3 +1040,181 @@ Keine inhaltlichen Abweichungen. Präzisierungen:
 TB1 ist abgeschlossen. Der Benutzer sieht keine Änderung (keine Toolbar-, Menü-, Shortcut- oder
 Settings-Änderung). **TB2 ist ohne weiteres Architektur-Refactoring möglich** und wartet auf das
 Go des Benutzers.
+
+---
+
+## 26. TB2-Ergebnisse (2026-10-10)
+
+Branch `feature/multi-toolbar`. TB1 wurde am 2026-10-10 gepusht (bis 3adef5d70). TB2 ist
+**nicht** gepusht. Commits: b9fb1fe90 (Toolbar-Grundlage und Laufzeit), 38cb0c6c6 (Tests und
+Lint). Plugin-API bleibt Version 9.
+
+### 26.1 Klassen (`src/whale/toolbars/`, in `dolphinstatic` gebaut)
+
+| Klasse / Datei | Aufgabe |
+|---|---|
+| `WhaleToolbarDescriptor` | Art einer Toolbar: id (`global`/`file-view`), Anzeigename, `<ToolBar>`, RC-Datei, Ziel (`ActiveView`/`OwnFileView`), erlaubte Actions |
+| `WhaleToolbarLayout` | liest `<Action>`, `<Separator/>`, `<Spacer/>` aus einer `<ToolBar>`. Die Semantik ist dieselbe, die KEditToolBar schreibt (Attribute wie `name="separator_0"` werden ignoriert, getestet). |
+| `WhaleFileViewToolbarClient` | `KXMLGUIClient` für `whalefileviewtoolbarui.rc` (Ressource `:/kxmlgui5/whale/`, Benutzerkopie in `kxmlgui5/whale/`) |
+| `WhaleToolbarManager` | genau einer pro Fenster, direktes Kind (`ensure()`/`of()` wie die Services). Kennt die Descriptoren und das gemeinsame Layout, Signal `fileViewLayoutChanged()` |
+| `WhaleFileViewToolBar` | `KToolBar` pro `DolphinViewContainer`, baut sich aus dem Layout |
+| `WhaleViewCommandScope` | gebundenes Action-Set einer View (private Collection) |
+| `WhaleContainerCommands` | Back/Forward (mit History-Menü), Up, Home, Reload, Stop mit festem Container |
+
+Nicht gebaut, weil für TB2 unnötig: Configurator, Prototyp-Actions des Clients und ein
+`KXMLGUIBuilder`. Die kommen in TB4, wenn der Client in die Fabrik geht.
+
+### 26.2 Ownership und Lebenszyklus
+
+```text
+DolphinMainWindow ─┬─ WhaleViewServices (TB1)
+                   └─ WhaleToolbarManager ── unique_ptr<WhaleFileViewToolbarClient>
+DolphinViewContainer ── WhaleFileViewToolBar (Zeile 0 des Layouts)
+                          └─ WhaleViewCommandScope (lazy, beim ersten showEvent)
+                               ├─ KActionCollection "whale-file-view" (nie in der Fabrik)
+                               ├─ WhaleContainerCommands
+                               ├─ DolphinViewActionHandler (setCurrentView einmalig + updateViewActions)
+                               └─ WhaleViewActions (Services des Fensters, setCurrentHost einmalig)
+```
+
+- Der Client ist kein QObject und wird vom Manager per `unique_ptr` gehalten. Es gibt keinen
+  Client auf dem Stack und keinen in der Fabrik. Damit kann es den Double-free aus dem TB0-Spike
+  nicht geben. TB4 muss ihn bei `QDialog::finished` wieder aus der Fabrik nehmen.
+- Manager und Services entstehen lazy beim ersten Anzeigen einer Toolbar bzw. mit den
+  Fenster-Actions. Eine Pane-Liste gibt es nirgends.
+- Split öffnen, schließen, Tab öffnen und schließen: Die Toolbar entsteht und stirbt mit ihrem
+  Container. Getestet mit 5 Split-Zyklen und 3 Tab-Zyklen, mit QPointer auf Toolbar, Scope und
+  Actions.
+- Ein dritter Container in einem `QDockWidget` des Fensters funktioniert (Test): Er bekommt eine
+  Toolbar, dieselben Services und denselben Manager, und Up/Back zielen richtig.
+- Session-Restore (Tab-Widget `saveProperties`/`readProperties`) erzeugt beide Toolbars
+  korrekt.
+- Lint `whale_toolbars_no_pane_sides`: `src/whale/toolbars` enthält weder
+  primary/secondary noch left/right noch `inactiveViewContainer`.
+
+### 26.3 Default-Layout und Darstellung
+
+`whalefileviewtoolbarui.rc` (Version 1): `go_back, go_forward, go_up, view_redisplay,
+<Spacer/>, view_settings`. Die Benutzerkopie gilt nach XML-GUI-Regeln (Test). Nicht erlaubte
+IDs (z. B. `basic_actions`) werden übergangen. Erlaubt sind in TB2: die sechs genannten
+plus `go_home` und `stop`.
+
+Darstellung: kleine Icons (16 px), Icon-only, für alle Instanzen gleich. Gesetzt über
+`KToolBar::applySettings()` auf Benutzer-Ebene, daher bleibt es auch bei KDE-Stilwechseln.
+Nicht verschiebbar. Kein Kontextmenü (`Qt::PreventContextMenu`), weil KToolBars Menü ein
+MainWindow als Parent braucht und QToolBars Menü ans Fenster weitergereicht würde.
+
+### 26.4 Targeting, Shortcuts, Aktivierung
+
+- Jede Action zielt auf den eigenen Container. Getestet:
+  - Back in B bei aktivem A navigiert nur B;
+  - Back in A navigiert nur A;
+  - `trigger()` ohne Klick (also ohne Aktivierung) wirkt trotzdem auf die eigene View;
+  - Reload lädt nur die eigene View neu;
+  - Alt+Links wirkt auf die aktive View.
+- Keine Shortcuts. Der Scope leert am Ende seines Konstruktors die ganze Collection. Der Test
+  prüft alle erreichbaren Actions rekursiv inklusive Menüs (über 50 pro Instanz) und schlägt bei
+  jedem Shortcut fehl. Die globalen Shortcuts bleiben. Alt+. und F5 lösen bei zwei sichtbaren
+  Toolbars keinen „ambiguous“-Dialog aus.
+- Ein Maus-Druck auf einen Button aktiviert die Pane (Event-Filter auf den Buttons). Der Befehl
+  zielt unabhängig davon auf die eigene View. Navigation aktiviert ohnehin (TB0).
+- Nicht übernommen: Mittelklick für „in neuem Tab“ (Back/Forward/Up) und das
+  `urlRefreshed`-Signal beim Reload (Terminal-Panel). Beides sind Signale bzw. Slots des
+  MainWindow und kommen ggf. in TB3. Die History-Menüs zeigen den Pfad statt Dolphins
+  Places-Namen, weil `DolphinMainWindow::urlNavigatorHistoryAction` privat ist.
+
+### 26.5 Zustand und Cushion Treemap
+
+- Back/Forward folgen `historyChanged` der eigenen History, Up der eigenen URL, Stop
+  `directoryLoadingStarted/Completed` der eigenen View, und `restore_view_settings_default`
+  folgt `viewSettingsChanged` (das setzt sonst das MainWindow).
+- `view_settings` besteht aus den Actions der Instanz (Test: enthält nicht die globalen).
+  Beispiel A = Details, B = Cushion Treemap: A hat Details checked, B Cushion Treemap. In B sind
+  Hidden, Previews, Flat, Sort und Zoom-in disabled, in A enabled. Ein Wechsel in B zurück zur
+  File List behält dieselbe Toolbar-Instanz und übernimmt den neuen Zustand.
+- **Gefundener und behobener Fehler (Wayland-Abnahme, auch vom Benutzer gesehen: Menü am
+  Fensterrand abgeschnitten):** `DolphinViewActionHandler` hängt das `view_settings`-Menü an
+  `QApplication::activeWindow()`
+  (`viewSettings->menu()->setParent(QApplication::activeWindow())`, Upstream-Commit 1b292eb01).
+  `QWidget::setParent()` entfernt dabei den Popup-Typ. Entsteht der Scope in einem aktiven
+  Fenster, z. B. beim Split-Öffnen, wurde das Menü zu einem Kind-Widget im Fenster und dort
+  abgeschnitten gezeichnet. Fix im Scope: Das Menü wird ein Popup mit dem eigenen Fenster als
+  Parent. Der Accessibility-Zweck des Hacks bleibt erhalten. Test
+  `testViewSettingsMenuIsPopup`; das tatsächliche Öffnen wird nur offscreen geprüft, auf
+  Wayland mit echter Eingabe abgenommen.
+- **Upstream-Befund dabei:** Dasselbe betrifft das **globale** Menü eines zweiten
+  `DolphinMainWindow`, das erzeugt wird, während ein anderes aktiv ist. Dessen Menü wird dann
+  Kind des **anderen** Fensters (offscreen nachgewiesen). Das ist nicht Teil von TB2 und ein
+  Ticket-Kandidat.
+- Geteilte ViewProperties (`GlobalViewProps`) bleiben unverändert und sind Future Work. Die
+  Toolbar zeigt immer den tatsächlichen Zustand ihrer View.
+
+### 26.6 Performance und Lifetime
+
+- Kosten wie in TB0 gemessen: etwa 66 Actions und 1,6 ms pro angezeigter View. Nie angezeigte
+  Tabs kosten nichts.
+- Pro Scope gibt es 3 Qt-Warnungen „Attempt to insert null action“ aus `basic_actions` des
+  Handlers (wie in `DolphinPart`). `basic_actions` wird nicht angeboten, Dummy-Actions gibt es
+  bewusst nicht.
+- **ASan/UBSan:** separater Build `../build-whale-asan` (RelWithDebInfo,
+  `ECM_ENABLE_SANITIZERS=address;undefined`, ohne Dev-MCP).
+  - `whalefileviewtoolbartest` und `whaleviewservicestest`: 0 Befunde.
+  - `whaleactionstest`, `whaletreemaptest`, `whalerecursivecontenttest`, `whaleviewhosttest`:
+    ASan sauber. UBSan meldet „downcast“ bei Objekten in der Zerstörung (Test-Plugin
+    `TestListWidget`, `WhaleViewHost`-Lambdas), auf TB1 in **identischer** Anzahl (6/4/2/4),
+    also vorbestehend.
+  - Mit `CMAKE_BUILD_TYPE=Debug` bricht jeder Test mit mehreren Fenstern pro Prozess in Dolphins
+    `Admin::WorkerIntegration::createActAsAdminAction` ab. Grund: Ein `Q_ASSERT` liest den
+    statischen `instance`-Zeiger eines schon zerstörten Fensters (heap-use-after-free,
+    upstream). Deshalb läuft ASan auf RelWithDebInfo. Ebenfalls ein Ticket-Kandidat.
+
+### 26.7 Tests und Abnahme
+
+- Neu: `whalefileviewtoolbartest` mit 15 Testfunktionen: Layout-Parser, Default- und
+  Benutzerlayout, eine Toolbar pro View inklusive Platzierung und Accessibility, Split- und
+  Tab-Lebenszyklus, Action-Identität und Shortcuts, Targeting, unabhängiger Navigationszustand,
+  View Settings mit Treemap, Menü als Popup, kein Shortcut-Dialog, dritter Container,
+  Session-Restore, Fenster schließen.
+- Der TB1-Test zählt jetzt die Action-Sets der Toolbars mit.
+- Regression offscreen: alle 36 Whale-Tests grün, inklusive aller Dev-MCP-Acceptances (M3–M9,
+  T1, T2, O3, F1) und aller Lints.
+- Gesamtsuite offscreen: nur der bekannte Altfehler
+  `dolphinmainwindowtest::testAccessibilityTree`, mit identischen Meldungen wie auf master. Da
+  er früh abbricht, prüft der neue Test die Accessibility-Kette der Toolbar-Buttons selbst (Name
+  plus Hauptfenster als Vorfahre).
+- Wayland (Unit-Tests):
+  - `whalefileviewtoolbartest` 5 × grün;
+  - rot nur die bekannten `whaleactionstest::testItemInfo` und `whaletreemaptest::testHover`;
+  - `whaleselectiontest::testRenameSelected` schlug einmal fehl, danach 6/6 grün auf TB2 und
+    6/6 auf TB1, also nicht zuzuordnen (Wayland-Flake);
+  - sporadisch schlägt `qWaitForWindowActive` fehl (Wayland-Aktivierung). Die neuen Tests
+    brechen dann sauber ab, statt mit Nullzeigern weiterzulaufen, und räumen eine Test-RC-Datei
+    immer in `cleanup()` weg.
+- Echte Plasma/Wayland-Abnahme (Dev-MCP-Session, echte Klicks über ydotool):
+  - eine Pane und Split, Details links, Cushion Treemap rechts (Screenshots);
+  - Back links bei aktiver rechter Pane navigiert links und aktiviert links (3 ×);
+  - View-Settings-Menüs links und rechts öffnen mit dem richtigen Zustand. Rechts sind in der
+    Treemap Sort, Group, Additional Info, Flat, Previews, Hidden und Restore disabled.
+  - neuer Tab, Split schließen: genau eine Toolbar bleibt;
+  - im Log nur die erwarteten Null-Action-Warnungen.
+  - Ein früher Klick ohne Navigation ließ sich nicht reproduzieren. Wahrscheinlichste Ursache
+    war das damals noch fehlerhafte, im Fenster liegende Menü.
+
+### 26.8 Dolphin-Diff
+
+Nur `src/dolphinviewcontainer.cpp`: `LayoutStructure` um `whaleFileViewToolBar = 0` erweitert
+(übrige Zeilen +1), eine Zeile zum Erzeugen/Einhängen, ein Include (+11/−8). Die
+Build-Verkabelung liegt in `src/whale/CMakeLists.txt` (`target_sources(dolphinstatic …)`).
+`src/CMakeLists.txt` und `dolphinmainwindow.cpp` sind unverändert.
+
+### 26.9 Abweichungen vom Plan
+
+- Prototyp-Actions, Builder und Configurator kommen erst in TB4 (keine leeren Hüllen).
+- `allowedActions` ist in TB2 auf Navigation plus `view_settings` begrenzt. TB3 erweitert.
+- Neu gegenüber dem Plan: Korrektur des Popup-Typs beim `view_settings`-Menü (26.5).
+- Kontextmenü vorerst keins (Plan 7: eigenes Menü kommt mit TB4/TB5).
+
+### 26.10 Bewertung
+
+TB2 ist abgeschlossen. Die Laufzeit-Toolbar existiert stabil, zielt korrekt und braucht keinen
+globalen Active-View-Zustand. **TB3 ist möglich**, auf das Go des Benutzers.
