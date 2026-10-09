@@ -22,6 +22,7 @@ class DolphinTabWidget;
 class DolphinViewContainer;
 class QMimeData;
 class QWidget;
+class WhaleViewActions;
 
 /**
  * @brief Development-only introspection and control of a Whale main window.
@@ -249,6 +250,7 @@ private:
     /// The view modes and view options as the View menus offer them.
     QJsonValue viewMenuState() const;
     QJsonValue treeCacheState() const;
+    WhaleViewActions *windowViewActions() const;
     QJsonValue clipboardState() const;
     QJsonArray dialogs() const;
     QJsonObject paneState(DolphinViewContainer *container, int index) const;

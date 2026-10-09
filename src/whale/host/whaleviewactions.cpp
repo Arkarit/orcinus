@@ -19,6 +19,7 @@
 #include "whaleviewdebug.h"
 #include "whaleviewhost.h"
 #include "whaleviewregistry.h"
+#include "whaleviewservices.h"
 
 #include <KActionCollection>
 #include <KActionMenu>
@@ -48,14 +49,22 @@ std::optional<DolphinView::Mode> fileListMode(const QAction *action)
 }
 }
 
-WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent)
+WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QWidget *window)
+    : WhaleViewActions(WhaleViewServices::ensure(window), actionCollection, actionHandler, window)
+{
+}
+
+WhaleViewActions::WhaleViewActions(WhaleViewServices *services, KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent)
     : QObject(parent)
-    , m_registry(new WhaleViewRegistry(this))
-    , m_treeCache(new WhaleTreeCache(WhaleTreeCache::configuredLimits(), this))
+    , m_services(services)
     , m_viewModesSeparator(new QAction(this))
     , m_includeSubfolders(actionCollection->add<KToggleAction>(QStringLiteral("whale_include_subfolders")))
     , m_actionCollection(actionCollection)
 {
+    Q_ASSERT(m_services);
+    // A view area that shows another view changes the session; the window listens here.
+    connect(m_services, &WhaleViewServices::viewChanged, this, &WhaleViewActions::sessionChanged);
+
     m_viewModesSeparator->setSeparator(true);
     // The view modes: the file list's modes, then the plugin views, in one exclusive group.
     auto viewModeGroup = qobject_cast<KSelectAction *>(actionCollection->action(QStringLiteral("view_mode")));
@@ -66,7 +75,7 @@ WhaleViewActions::WhaleViewActions(KActionCollection *actionCollection, DolphinV
             connect(action, &QAction::triggered, this, &WhaleViewActions::slotViewModeTriggered);
         }
     }
-    const auto plugins = m_registry->plugins();
+    const auto plugins = m_services->registry()->plugins();
     for (const KPluginMetaData &metaData : plugins) {
         auto entry = new QAction(QIcon::fromTheme(metaData.iconName()), metaData.name(), this);
         entry->setData(metaData.pluginId());
@@ -364,11 +373,6 @@ void WhaleViewActions::notifyCommandSelection()
     }
 }
 
-void WhaleViewActions::notifyViewChanged()
-{
-    Q_EMIT sessionChanged();
-}
-
 QString WhaleViewActions::gateReason(const QString &actionName) const
 {
     return m_gateReasons.value(actionName);
@@ -539,14 +543,27 @@ void WhaleViewActions::slotViewModeTriggered()
     }
 }
 
+WhaleViewServices *WhaleViewActions::services() const
+{
+    return m_services;
+}
+
 WhaleViewRegistry *WhaleViewActions::registry() const
 {
-    return m_registry;
+    return m_services->registry();
 }
 
 WhaleTreeCache *WhaleViewActions::treeCache() const
 {
-    return m_treeCache;
+    return m_services->treeCache();
+}
+
+void WhaleViewActions::clearShortcuts(KActionCollection *actionCollection)
+{
+    const auto actions = actionCollection->actions();
+    for (QAction *action : actions) {
+        action->setShortcuts({});
+    }
 }
 
 void WhaleViewActions::slotViewSelected(QAction *entry)
@@ -569,7 +586,7 @@ void WhaleViewActions::updateAvailableViews()
     // that are not offered stay in the menus, disabled.
     const bool local = m_host && m_host->bridge()->url().isLocalFile();
     for (auto it = m_pluginViewEntries.cbegin(); it != m_pluginViewEntries.cend(); ++it) {
-        const KPluginMetaData metaData = m_registry->pluginMetaData(it.key());
+        const KPluginMetaData metaData = m_services->registry()->pluginMetaData(it.key());
         const bool requiresLocal = metaData.value(QStringLiteral("X-Whale-RequiresLocal"), false);
         it.value()->setEnabled(m_host && metaData.isValid() && (local || !requiresLocal));
     }

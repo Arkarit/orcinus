@@ -26,9 +26,11 @@ class KToggleAction;
 class KXMLGUIClient;
 class QAction;
 class QActionGroup;
+class QWidget;
 class WhaleViewHost;
 class WhaleTreeCache;
 class WhaleViewRegistry;
+class WhaleViewServices;
 
 /**
  * @brief The view actions of a main window: the view modes and the gating of
@@ -78,16 +80,33 @@ public:
     /**
      * Adds the plugin views to the view modes of @p actionCollection and arranges its
      * "view_settings" menu, so it must be created after the actions of the
-     * DolphinViewActionHandler.
+     * DolphinViewActionHandler. Uses the view services @p services of the window; it
+     * does not own them.
      */
-    WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent);
+    WhaleViewActions(WhaleViewServices *services, KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QObject *parent);
+
+    /**
+     * The action set of the main window @p window: as above, with the window's view
+     * services (WhaleViewServices::ensure()).
+     */
+    WhaleViewActions(KActionCollection *actionCollection, DolphinViewActionHandler *actionHandler, QWidget *window);
     ~WhaleViewActions() override;
 
     /**
-     * Sets the host of the active view area. The switcher shows and changes its view.
+     * Sets the host whose view the actions show and change. Nothing else changes it: the
+     * window's action set follows the active view area because the window calls this on
+     * every change; an action set bound to one view area calls it once.
      */
     void setCurrentHost(WhaleViewHost *host);
 
+    /**
+     * @return The view services this action set uses.
+     */
+    WhaleViewServices *services() const;
+
+    /**
+     * @return The view plugin registry of the window (from services()).
+     */
     WhaleViewRegistry *registry() const;
 
     /**
@@ -130,9 +149,17 @@ public:
     void plugViewModes(KXMLGUIClient *client);
 
     /**
-     * @return The tree scans shared by the views of this window.
+     * @return The tree scans shared by the views of this window (from services()).
      */
     WhaleTreeCache *treeCache() const;
+
+    /**
+     * Removes the shortcuts of all actions in @p actionCollection. For the action sets bound
+     * to one view area: their actions act on that view, while a shortcut acts on the active
+     * view through the window's actions. Visible actions with the same shortcut as the
+     * window's would make it ambiguous (KXmlGui then shows a message and triggers nothing).
+     */
+    static void clearShortcuts(KActionCollection *actionCollection);
 
     /**
      * @return Why the gating disables the action @p actionName for the shown view, or
@@ -183,16 +210,11 @@ public:
      */
     void updateDisabledReasons();
 
-    /**
-     * Called by the view areas of the window when they show another view, so the
-     * session (which records the shown views) is saved again.
-     */
-    void notifyViewChanged();
-
 Q_SIGNALS:
     /**
-     * Is emitted when a view area of the window shows another view. Like a changed
-     * location, this is a reason to save the session.
+     * Is emitted when a view area of the window shows another view (forwarded from
+     * WhaleViewServices::viewChanged()). Like a changed location, this is a reason to save
+     * the session.
      */
     void sessionChanged();
 
@@ -215,8 +237,7 @@ private:
     void notifyCommandSelection();
     void updateContentScopeAction();
 
-    WhaleViewRegistry *m_registry;
-    WhaleTreeCache *m_treeCache;
+    WhaleViewServices *const m_services;
     QList<QAction *> m_viewModes;
     QHash<QString, QAction *> m_pluginViewEntries;
     KActionMenu *m_viewModesMenu = nullptr;

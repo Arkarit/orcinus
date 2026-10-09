@@ -35,6 +35,7 @@
 #include "whaleviewhost.h"
 #include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
+#include "whaleviewservices.h"
 
 #include <KActionCollection>
 #include <KCoreDirLister>
@@ -641,8 +642,8 @@ QJsonObject WhaleDevAutomation::uiState() const
     }
 
     QJsonArray views{dolphinId};
-    if (auto viewActions = m_window->findChild<WhaleViewActions *>()) {
-        const auto plugins = viewActions->registry()->plugins();
+    if (WhaleViewServices *services = WhaleViewServices::of(m_window)) {
+        const auto plugins = services->registry()->plugins();
         for (const KPluginMetaData &metaData : plugins) {
             views.append(metaData.pluginId());
         }
@@ -701,7 +702,7 @@ QJsonObject WhaleDevAutomation::uiState() const
 
 QJsonValue WhaleDevAutomation::viewMenuState() const
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    auto viewActions = windowViewActions();
     if (!viewActions) {
         return QJsonValue::Null;
     }
@@ -750,13 +751,20 @@ QJsonValue WhaleDevAutomation::viewMenuState() const
     };
 }
 
+WhaleViewActions *WhaleDevAutomation::windowViewActions() const
+{
+    // The window's action set (acting on the active view) is a direct child of the window;
+    // action sets bound to one view area live inside their view area.
+    return m_window->findChild<WhaleViewActions *>(QString(), Qt::FindDirectChildrenOnly);
+}
+
 QJsonValue WhaleDevAutomation::treeCacheState() const
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
-    if (!viewActions) {
+    WhaleViewServices *services = WhaleViewServices::of(m_window);
+    if (!services) {
         return QJsonValue::Null;
     }
-    const WhaleTreeCache::Statistics statistics = viewActions->treeCache()->statistics();
+    const WhaleTreeCache::Statistics statistics = services->treeCache()->statistics();
     return QJsonObject{
         {QStringLiteral("hits"), statistics.hits},
         {QStringLiteral("misses"), statistics.misses},
@@ -901,7 +909,7 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId,
         // The user's path: the entry of the view mode, which acts on the active pane. For
         // the file list, the entry of its current mode.
         const QString hostViewId = viewId == dolphinId ? WhaleViewHost::dolphinViewId() : viewId;
-        auto viewActions = m_window->findChild<WhaleViewActions *>();
+        auto viewActions = windowViewActions();
         container->setActive(true);
         QAction *entry = viewActions ? viewActions->viewModeAction(hostViewId) : nullptr;
         if (!entry) {
@@ -920,8 +928,8 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId,
         host->showDolphinView();
         return ok();
     }
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
-    WhaleViewPlugin *plugin = viewActions ? viewActions->registry()->plugin(viewId) : nullptr;
+    WhaleViewServices *services = WhaleViewServices::of(m_window);
+    WhaleViewPlugin *plugin = services ? services->registry()->plugin(viewId) : nullptr;
     if (!plugin) {
         return failure(QStringLiteral("unknown view \"%1\"").arg(viewId));
     }
@@ -960,11 +968,11 @@ QJsonObject WhaleDevAutomation::setPreferredView(const QString &url, const QStri
 
 QJsonObject WhaleDevAutomation::setViewPluginAvailable(const QString &viewId, bool available)
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
-    if (!viewActions) {
-        return failure(QStringLiteral("no view actions"));
+    WhaleViewServices *services = WhaleViewServices::of(m_window);
+    if (!services) {
+        return failure(QStringLiteral("no view services"));
     }
-    viewActions->registry()->setPluginAvailable(viewId, available);
+    services->registry()->setPluginAvailable(viewId, available);
     return ok();
 }
 
@@ -1160,7 +1168,7 @@ QJsonObject WhaleDevAutomation::activateItems(int paneIndexArg, const QStringLis
 
 QJsonObject WhaleDevAutomation::actionState() const
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    auto viewActions = windowViewActions();
     QStringList names = WhaleViewActions::gateableActions();
     names << QStringLiteral("properties");
     QJsonObject state;

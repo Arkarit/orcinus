@@ -80,6 +80,7 @@ target_sources(whaleviewhost PRIVATE
     host/whaleviewhost.cpp
     host/whaleviewpreferences.cpp
     host/whaleviewregistry.cpp
+    host/whaleviewservices.cpp
     host/whaleviewstate.cpp
 )
 
