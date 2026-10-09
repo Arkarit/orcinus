@@ -1,7 +1,8 @@
 # Whale Multi-Toolbar – Architektur- und Umbauplan
 
 Stand: 2026-10-08, Branch `feature/multi-toolbar-plan` (abgezweigt von `master` = 5fc824a41).
-Nur Analyse und Plan, keine Produktimplementierung.
+Nur Analyse und Plan, keine Produktimplementierung. **Nachtrag 2026-10-09: TB0-Ergebnisse in
+Abschnitt 24**; sie bestätigen den Plan und präzisieren einige Punkte (dort jeweils mit Verweis).
 
 Alle Aussagen zu Dolphin beziehen sich auf den Code in diesem Stand. Aussagen zu KXmlGui beziehen
 sich auf den Quellcode von **KXmlGui 6.24.0** (installierte Version, Tag `v6.24.0`, im Scratchpad
@@ -846,3 +847,72 @@ das einzige vorbereitende Refactoring (TB1) betrifft Whale-Code. Es gibt keinen 
   von `DolphinViewActionHandler` (Präzedenz `DolphinPart`) und `WhaleViewActions` stark
   entschärft; das Risiko (Seiteneffekte einer Zweitinstanz, Shortcut-Entzug, Speicher) klärt TB0
   mit wenig Aufwand, bevor Produktcode entsteht.
+
+---
+
+## 24. TB0-Ergebnisse (2026-10-09)
+
+Spike auf dem lokalen Wegwerf-Branch `feature/multi-toolbar-tb0-spike` (Commit 72def271c, **nie
+pushen, nie mergen**): `src/whale/spike/whaletb0spike.{h,cpp}`, `whaletb0spikeui.rc`, Hooks in
+`dolphinviewcontainer.cpp` (LayoutStructure + 1 Zeile) und `dolphinmainwindow.cpp`
+(Configure Toolbars umgehängt), Messtest `src/whale/tests/whaletb0spiketest.cpp` (12 Tests, alle
+grün, offscreen). Bestehende Suites mit Spike: `whaleactionstest`, `whaleviewhosttest`,
+`whaleviewmenutest`, `whalecommandroutingtest`, `whalepersistencetest`, `whaleselectiontest`,
+`dolphinviewbridgetest` grün; `dolphinmainwindowtest` nur mit dem bekannten Altfehler
+`testAccessibilityTree` (nicht gegen master neu verglichen). Screenshot (offscreen, Split): jede
+Pane zeigt ihre eigene Leiste `Back | Previews <Spacer> View Settings`; Back links ausgegraut
+(keine History), rechts aktiv.
+
+### 24.1 Antworten auf die TB0-Fragen
+
+| Frage | Ergebnis | Folge für den Plan |
+|---|---|---|
+| Funktioniert eine zweite `DolphinViewActionHandler`-Instanz pro View? | **Ja.** Zustand pro View korrekt (Previews, Hidden, View-Modus, Auswahl), Trigger wirkt nur auf die eigene View, `view_settings`-Menü besteht aus den Actions der Instanz. | 5.3 bestätigt. |
+| Initialzustand | `setCurrentView()` setzt den Action-Zustand **nicht**; der Besitzer muss danach `updateViewActions()` aufrufen (macht heute `DolphinMainWindow::updateViewActions`). | Scope ruft es nach dem Binden auf (TB2). |
+| Shortcuts nicht entzogen | 17 Instanz-Actions haben Default-Shortcuts. Bei sichtbaren Instanzen öffnet KXmlGuis Konfliktprüfung beim Shortcut einen **modalen Dialog** „The key sequence 'Alt+.' is ambiguous … No action will be triggered.“ – auch die globale Action wirkt dann nicht. | Entzug ist **Pflicht** (5.3), Test bleibt als Regressionstest. |
+| Shortcuts entzogen | Alt+. wirkt nur auf die aktive View, keine Mehrdeutigkeit. | bestätigt |
+| `basic_actions`-Nulls | 3 × „QWidget::insertAction: Attempt to insert null action“ pro Scope (Cut/Copy/Paste fehlen in der Instanz-Collection); das Menü der Instanz enthält nur Rename/Trash/Properties. | Im Scope Cut/Copy/Paste **vor** dem Handler als C-Kommandos anlegen oder `basic_actions` nicht anbieten und die Warnung in Tests verbieten (TB3). |
+| findChild-Problem | Mit zwei Scopes gibt es **3 `WhaleViewActions` und 3 `WhaleViewRegistry`** (und 3 TreeCaches) pro Fenster. `findChild` liefert zufällig die richtige (direktes Kind des Fensters wird zuerst gefunden), die Registry und der Cache werden aber pro Instanz neu angelegt. | TB1 (`WhaleViewServices` herauslösen) ist notwendig, nicht nur Kosmetik. |
+| Kosten pro Scope | 66 Actions, 255 QObjects, ~1,6 ms (RelWithDebInfo, offscreen); globale Collection: 153 Actions. | Lazy-Erzeugung beim ersten Anzeigen reicht; kein weiterer Optimierungsbedarf. |
+| Plugin-Views | Treemap rechts: `show_hidden_files`/`show_preview` nur rechts disabled, links und global (links aktiv) enabled; Plugin-Eintrag nur in der rechten Instanz checked; „Details“ in der rechten Instanz schaltet nur rechts zurück. | 12 bestätigt. |
+| Split-Lebenszyklus | Ohne Split 1, mit Split 2, Split schließen → zweite Toolbar zerstört; neuer Tab bekommt seine eigene. Gleiches Layout, verschiedene QAction-Objekte. | 7 bestätigt. |
+| Configure Toolbars mit temporärem Client | Combo „Main Toolbar“ / „File View Toolbar“ (Suffix-Kosmetik greift), Available der File View = nur Prototypen, Insert + Apply schreibt `~/.local/share/kxmlgui5/whale/<rc>` und baut beide Instanzen neu, Hauptleiste unverändert (8 Actions), nach Schließen ist der Client wieder aus der Fabrik, `KMainWindow::toolBars()` = 1. | 8.1–8.3 bestätigt. |
+| Cancel ohne Apply | schreibt nichts | 8.5 bestätigt |
+| Defaults | Frage „Do you really want to reset all toolbars of this application to their default? The changes will be applied immediately.“; danach sind **beide** lokalen Dateien gelöscht, auch wenn File View gewählt war. | 8.4 bestätigt (E3 bleibt). |
+
+### 24.2 Neue Befunde
+
+1. **Navigation aktiviert die Pane – immer.** Auch ein programmgesteuertes Back in der inaktiven
+   Pane (ohne Klick) macht sie aktiv: `DolphinView::setUrl → urlChanged → sichtbarer
+   DolphinUrlNavigator → activated → DolphinViewContainer::activate`. Dolphin unterdrückt das
+   nur in `DolphinViewContainer::redirect()` (`blockActivation`). Folge für E4: Bei allen
+   Navigations-Actions (Back/Forward/Up/Home, Ordner öffnen) ist die Aktivierung durch Dolphin
+   schon festgelegt; „Toolbar-Klick aktiviert“ (Empfehlung E4) ist damit nur konsequent. Würde
+   man E4 = nein wählen, müsste man Dolphins Verhalten ändern. Empfehlung bleibt: **ja**.
+2. **Dolphin selbst nutzt „aktivieren und weiterleiten“.** `DolphinViewContainer` baut für
+   „Authorization required“ eine eigene Action, weil `actAsAdminAction()` „always refers to the
+   active view instead of this->m_view“, und löst dann `setActive(true); actAsAdminAction->trigger();`
+   aus (`dolphinviewcontainer.cpp`, um Zeile 1090). Das ist genau der Fallback aus 4.2 Nr. 4 –
+   ein Präzedenzfall in Dolphin.
+3. **Lebensdauer des temporären Clients an `QDialog::finished` koppeln, nicht an `destroyed`.**
+   `destroyed` kommt auch, wenn der Dialog als Kind des Fensters in dessen Destruktor zerstört wird;
+   dann ist `KXmlGuiWindow` samt Fabrik schon weg → SIGSEGV (im Spike reproduziert und behoben).
+   Für TB4: zusätzlich im Destruktor des Configurators aufräumen, ohne die Fabrik anzufassen,
+   wenn das Fenster schon zerstört wird.
+4. **Gemeinsame View-Properties.** Mit Whales Default „gleiche Ansicht für alle Ordner“
+   (`GlobalViewProps`) teilen sich beide Panes Previews/Hidden/Modus persistent: Lädt eine View
+   ihre Properties neu, übernimmt sie die zuletzt von der anderen geschriebenen Werte. Die
+   Toolbars zeigen trotzdem immer den **tatsächlichen** Zustand ihrer View; die Tests für
+   unabhängigen Zustand brauchen aber `GlobalViewProps=false` und verschiedene Ordner. Kein
+   Toolbar-Problem, aber für die UX-Erwartung wichtig (UX-Diary-Kandidat beim Umbau).
+5. **Rename ohne Auswahl ist in der File List enabled** (startet Dolphins Selection Mode). Das
+   ist Dolphin-Semantik, keine Toolbar-Abweichung; die Plan-Formulierung in 6 („Rename/Trash
+   enabled nach Auswahl“) gilt für Plugin-Views (Gates), nicht für die File List.
+
+### 24.3 Bewertung
+
+TB0 bestätigt die Architektur ohne Änderungen am Grundansatz. Kein Blocker. Präzisierungen für
+TB1–TB4: `updateViewActions()` nach dem Binden (TB2), Shortcut-Entzug als Pflicht mit
+Regressionstest (TB2), `basic_actions`-Behandlung (TB3), `WhaleViewServices` notwendig (TB1),
+Client-Lebensdauer über `finished` (TB4). **Nächster Schritt: TB1** (verhaltensneutrales
+Refactoring von `WhaleViewActions`), auf dem Go des Benutzers. Den Spike-Branch nach TB4 löschen.
