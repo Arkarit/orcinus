@@ -916,3 +916,127 @@ TB1–TB4: `updateViewActions()` nach dem Binden (TB2), Shortcut-Entzug als Pfli
 Regressionstest (TB2), `basic_actions`-Behandlung (TB3), `WhaleViewServices` notwendig (TB1),
 Client-Lebensdauer über `finished` (TB4). **Nächster Schritt: TB1** (verhaltensneutrales
 Refactoring von `WhaleViewActions`), auf dem Go des Benutzers. Den Spike-Branch nach TB4 löschen.
+
+---
+
+## 25. TB1-Ergebnisse (2026-10-09)
+
+Branch `feature/multi-toolbar` (von `master` = 5fc824a41, mit den beiden Plan-Commits als
+86969c4a0 / 54d1a5fb8 vorneweg). Commits: 9a66c9819 (Refactoring), 5ab89feef (Tests + Lint).
+Nicht gepusht, nicht gemergt. **Keine Dolphin-Datei geändert, Plugin-API bleibt Version 9.**
+
+### 25.1 Ownership
+
+```text
+DolphinMainWindow
+├─ WhaleViewServices        (genau 1, direktes Kind des Fensters, kein Singleton)
+│   ├─ WhaleViewRegistry    (Plugin-Discovery einmal pro Fenster)
+│   └─ WhaleTreeCache       (M8b-Semantik unverändert, pro Fenster)
+└─ WhaleViewActions         (die des Fensters, aktive View; benutzt die Services, besitzt sie nicht)
+```
+
+- Erzeugt werden die Services von `WhaleViewServices::ensure(window)`, aufgerufen vom
+  bisherigen Konstruktor `WhaleViewActions(collection, handler, window)`. Den ruft
+  `DolphinMainWindow` unverändert auf (`this` passt jetzt auf die `QWidget*`-Überladung). So
+  bleibt `dolphinmainwindow.cpp` unberührt, und Owner ist trotzdem das Fenster.
+- Lebensdauer: Die Services werden nach `WhaleViewActions` als Kind des Fensters angelegt und
+  daher nach ihnen zerstört (Qt löscht Kinder in Anlegereihenfolge). Tab-Widget und View-Bereiche
+  sind noch früher angelegt und sterben zuerst. Es gibt keine manuellen Deletes. Tests prüfen das
+  Aufräumen per QPointer.
+- Jedes Fenster hat eigene Services. Registry und Cache werden nicht fensterübergreifend geteilt
+  (Test).
+
+### 25.2 Was verschoben wurde
+
+| vorher | nachher | Grund |
+|---|---|---|
+| `WhaleViewActions::m_registry` | `WhaleViewServices::registry()` | fensterweit |
+| `WhaleViewActions::m_treeCache` | `WhaleViewServices::treeCache()` | fensterweit |
+| `WhaleViewActions::notifyViewChanged()` (vom Host per findChild aufgerufen) | `WhaleViewServices::notifyViewChanged()` → Signal `viewChanged()`; `WhaleViewActions` leitet es als bisheriges `sessionChanged()` weiter | Die Session ist fensterweit; das Signal bleibt, damit `DolphinMainWindow` unverändert bleibt. |
+
+Nicht verschoben, weil pro Action-Set: Plugin-Einträge der View-Modi, „View Modes“-Untermenü,
+„Show flat“, Gates, Disabled-Reason-Hook, Rename-Weiterleitung. `WhaleViewActions::registry()`
+und `treeCache()` bleiben als delegierende Bequemlichkeit (Tests, Dev-MCP-Altcode).
+
+### 25.3 Bindung von WhaleViewActions
+
+- Neu ist der Konstruktor `WhaleViewActions(WhaleViewServices *, KActionCollection *,
+  DolphinViewActionHandler *, QObject *parent)` für Sets, deren Eltern-Objekt nicht das Fenster
+  ist, z. B. eine spätere File View Toolbar.
+- `setCurrentHost()` ist die einzige Bindung. Die Klasse folgt der aktiven View nicht selbst.
+  Das tut das Fenster, indem es `setCurrentHost` bei jedem Wechsel aufruft. Ein an View X
+  gebundenes Set ruft es einmal auf (dokumentiert, Test `testBoundActionSetStaysOnItsHost`).
+- `WhaleViewActions::clearShortcuts(KActionCollection *)` ist der vorbereitete Helper für TB2.
+- TB0-Befund `updateViewActions()` nach dem Binden ist im Test-Helper umgesetzt und
+  geprüft. Im Produkt gehört er in den Scope von TB2.
+
+### 25.4 Entfernte findChild-Abhängigkeiten
+
+- `WhaleViewHost`: 3 × `window()->findChild<WhaleViewActions *>()` (TreeCache für Plugin-Kontext,
+  TreeCache für F1-Inhalt, Session-Benachrichtigung) und 1 × `window()->findChild<WhaleViewRegistry
+  *>()` sind ersetzt durch `WhaleViewServices::of(this)`. Dahinter steckt eine Suche nur unter
+  den **direkten** Kindern des Fensters nach dem dort eindeutigen Service-Objekt.
+- Dev-MCP: Registry, Cache und Plugin-Availability laufen über die Services. Die UI-Abfragen
+  (View-Menü, Gate-Gründe, `set_view remember=true`) nutzen `windowViewActions()`, also das Set
+  als direktes Kind des Fensters. Gebundene Sets liegen später im View-Bereich.
+- Neuer Lint `whale_view_host_no_action_lookup` (ctest): `src/whale/host` darf
+  `findChild(ren)<WhaleViewActions` nicht enthalten. Er hätte die 3 alten Stellen in master
+  gefunden.
+- Tests suchen weiter per `findChild<WhaleViewActions*>()`. Das ist unkritisch, weil Qt die
+  direkten Kinder zuerst prüft und es im Produkt bisher nur ein Set gibt. In TB2 auf die
+  direkte Suche umstellen, falls ein Test dann ein gebundenes Set im Fenster hat.
+
+### 25.5 Tests
+
+Neu: `whaleviewservicestest` (12 Testfunktionen, offscreen und 3 × Wayland grün) deckt die
+geforderten Punkte 1–16 ab:
+
+- ein Service pro Fenster; zwei Fenster haben zwei verschiedene Services;
+- Registry und Cache sind Kinder der Services;
+- das Fenster-Set benutzt die Services und besitzt nichts davon;
+- ein zweites, gebundenes Set (eigene Collection, eigener Handler) teilt die Services; danach
+  gibt es pro Fenster 1 Registry, 1 Cache und 2 Action-Sets;
+- Plugin-Availability ist für beide Sets identisch;
+- das zweite Set löschen lässt Services und Fenster-Set funktionsfähig;
+- das Fenster schließen räumt alles auf;
+- ein Host in einem Fenster mit Services, aber **ohne** Action-Set, findet die Plugins und meldet
+  View-Wechsel; ohne Services gibt es wie bisher keine Plugins;
+- zwei View-Bereiche teilen den Cache (Treemap links = Miss, rechts = Hit/Join);
+- ein gebundenes Set bleibt bei Aktivierungswechseln auf Host B, während das Fenster-Set
+  wechselt, und seine Einträge wirken nur auf B;
+- ohne Shortcuts: Alt+. wirkt auf die aktive View, kein „ambiguous“-Dialog, die globalen
+  Shortcuts sind unverändert;
+- `updateViewActions()` nach dem Binden ergibt den Zustand der eigenen View.
+
+Regression:
+- **Offscreen:** alle 34 Whale-Tests grün, inklusive Dev-MCP-Acceptance M3, M4, M5, M6, M7, M9,
+  T1, T2, O3, F1, der Lints `whale_view_api_boundary`, `whale_view_plugin_dependencies`,
+  `whale_identity_regressions`, `whale_dev_mcp_default_off` und des neuen Lints.
+- **Gesamtsuite offscreen:** 65 Tests, davon 2 rot:
+  - `folderspaneltest`: Timeout unter `-j4`, allein grün.
+  - `dolphinmainwindowtest::testAccessibilityTree`: bekannter Altfehler. Gegen master (detached
+    gebaut) mit **identischer** Meldung verglichen, sowohl im Gesamtlauf („computed value …
+    baseline“) als auch einzeln („QToolButton's accessibleInterface …“).
+- **Wayland (Whale-Unit-Tests, -j1):** rot sind nur die bekannten Altfehler
+  `whaleactionstest::testItemInfo` und `whaletreemaptest::testHover`.
+- Neuer Test-Gotcha: Ein nie angezeigtes `DolphinMainWindow` stürzt unter Wayland bei einer
+  Clipboard-Änderung in `updatePasteAction()` ab (bekannt). Der Fenster-lose Host-Test verwirft
+  deshalb vorher das Hauptfenster aus `init()`.
+
+### 25.6 Abweichungen vom Plan
+
+Keine inhaltlichen Abweichungen. Präzisierungen:
+- Die Session-Benachrichtigung wanderte mit in die Services. Sie war der dritte
+  findChild-Lookup des Hosts und ist fensterweit.
+- Die Services werden über `ensure()` aus dem Konstruktor von `WhaleViewActions` angelegt, statt
+  im MainWindow. Das spart die Dolphin-Änderung, Owner bleibt das Fenster.
+- `of()` ist bewusst eine Suche unter den direkten Kindern, kein expliziter Zeiger. Grund: Der
+  Host entsteht in `DolphinViewContainer` (Dolphin) vor seiner Einbettung ins Fenster. Ein
+  expliziter Zeiger bräuchte einen Dolphin-Hook. Eindeutig ist die Suche trotzdem, weil es genau
+  ein Service-Objekt pro Fenster gibt.
+
+### 25.7 Bewertung
+
+TB1 ist abgeschlossen. Der Benutzer sieht keine Änderung (keine Toolbar-, Menü-, Shortcut- oder
+Settings-Änderung). **TB2 ist ohne weiteres Architektur-Refactoring möglich** und wartet auf das
+Go des Benutzers.
