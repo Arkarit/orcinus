@@ -142,3 +142,30 @@ Erster Befund, noch nicht analysiert:
 - Noch klären: Begrenzung bei sehr tiefen oder großen Bäumen (Abbruch, Tiefenlimit?), Verhalten bei
   Netzwerk-Ordnern, und ob Alt+Klick mit dem Fenster-Verschieben des Fenstermanagers kollidiert
   (KWin nutzt dafür standardmäßig Meta, andere Umgebungen teils Alt).
+
+## 9. Modus, der Symlinks auf Ordner stets auflöst
+
+Öffnet man einen Symlink auf einen Ordner, zeigt Whale wie Dolphin den Pfad über den Symlink an
+(`ordner-1/ordner-symlink/…`), nicht den echten Zielpfad. Ein optionaler Modus würde beim Öffnen
+stets zum aufgelösten Ziel navigieren.
+
+Bereits für Dolphin vorgeschlagen (2025-05-23):
+<https://discuss.kde.org/t/dolphin-option-to-follow-symlinked-folders-when-opened/34671>
+- Anlass dort: Der angezeigte Pfad ist verwirrend, Geschwisterordner des Ziels sind nicht
+  erreichbar, und Dolphin soll sich wie das Terminal (`cd -P`) verhalten.
+- Gegenstimmen: Der Symlink-Pfad ist ein gültiger Pfad, automatisches Auflösen würde andere Nutzer
+  überraschen. Deshalb höchstens als Option.
+- Laut `meven` im Thread wäre ein Patch annehmbar, hat für die Maintainer aber niedrige Priorität.
+  Ein Bugreport oder Merge Request ist dort nicht verlinkt.
+- Genannte Behelfe: Kontextmenü „Ziel anzeigen“, „Zu Orte hinzufügen“, `.desktop`-Datei mit
+  `Type=Link`, Bind-Mounts. Der Vorschlagende wünscht sich das Verhalten von „Ziel anzeigen“ im
+  selben Fenster und beim normalen Öffnen.
+
+Erster Befund, noch nicht analysiert:
+- „Ziel anzeigen“ gibt es schon: `DolphinMainWindow::showTarget()` (`src/dolphinmainwindow.cpp:610`)
+  löst `linkDest()` des selektierten Eintrags auf und prüft das Ziel per `KIO::stat`. Die Logik
+  ließe sich vermutlich wiederverwenden.
+- Noch klären: An welcher Stelle auflösen (nur beim Aktivieren eines Symlink-Eintrags oder bei jeder
+  URL-Änderung, also auch bei getippten Pfaden, Orten, Lesezeichen und aufgeklappten Bäumen)?
+  Verhalten von „Zurück“/„Nach oben“, Symlink-Ketten, relative und defekte Links, nicht lokale URLs.
+  Kandidat für einen Merge Request bei KDE.
