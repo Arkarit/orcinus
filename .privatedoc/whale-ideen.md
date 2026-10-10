@@ -124,3 +124,21 @@ Erster Befund, noch nicht analysiert:
   Thumbnail-Größe)? Schließt KIO das Thumbnail-Verzeichnis selbst schon irgendwo aus?
   Für den Thumbnail-Ordner wäre eine eingebaute Standardregel sinnvoll, unabhängig von
   Nutzereinstellungen; das wäre auch ein Kandidat für einen Merge Request bei KDE (oder bei KIO).
+
+## 8. Alt+Klick auf den Ausklapppfeil klappt die ganze Hierarchie ein oder aus
+
+Ein Klick auf den Ausklapppfeil (Details-Ansicht, Ordner-Panel) mit gedrückter Alt-Taste klappt
+nicht nur den Ordner selbst, sondern die komplette Hierarchie darunter aus bzw. wieder ein.
+
+Erster Befund, noch nicht analysiert:
+- Der Klick auf den Pfeil landet in `KItemListController::onRelease()`
+  (`src/kitemviews/kitemlistcontroller.cpp:1928–1931`, `isAboveExpansionToggle()`), das nur
+  `m_model->setExpanded(index, !expanded)` für diesen einen Eintrag aufruft. Die Modifier werden an
+  dieser Stelle bisher nicht ausgewertet.
+- Rekursives Ausklappen ist asynchron: `KFileItemModel::setExpanded()` stößt nur das Laden des
+  Ordners an, die Unterordner sind erst danach bekannt. Es bräuchte also einen Mechanismus, der
+  nachgeladene Unterordner weiter ausklappt (ähnlich `expandParentDirectories()` bzw.
+  `m_urlsToExpand`).
+- Noch klären: Begrenzung bei sehr tiefen oder großen Bäumen (Abbruch, Tiefenlimit?), Verhalten bei
+  Netzwerk-Ordnern, und ob Alt+Klick mit dem Fenster-Verschieben des Fenstermanagers kollidiert
+  (KWin nutzt dafür standardmäßig Meta, andere Umgebungen teils Alt).
