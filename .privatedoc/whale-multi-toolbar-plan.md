@@ -1218,3 +1218,150 @@ Build-Verkabelung liegt in `src/whale/CMakeLists.txt` (`target_sources(dolphinst
 
 TB2 ist abgeschlossen. Die Laufzeit-Toolbar existiert stabil, zielt korrekt und braucht keinen
 globalen Active-View-Zustand. **TB3 ist möglich**, auf das Go des Benutzers.
+
+---
+
+## 27. TB3-Ergebnisse (2026-10-11)
+
+Branch `feature/multi-toolbar`, **nicht** gepusht. Commits: 1f8a95d45 (Action-Satz, Routing,
+Zustand), 5b82ccf7c (Tests). Plugin-API bleibt Version 9. TB4 ist nicht begonnen.
+
+### 27.1 Erlaubter Action-Satz
+
+Eine Definition: `WhaleViewCommandScope::allowedActions()` (35 IDs, alle identisch mit den
+globalen IDs, per Test geprüft). Der Descriptor der File View Toolbar, die Toolbars und die Tests
+lesen nur diese Liste. `WhaleViewCommandScope::action(id)` liefert ausschließlich erlaubte
+Actions; die private Collection enthält mehr, weil der Handler alle Dolphin-View-Actions erzeugt.
+
+| Gruppe | IDs | Weg |
+|---|---|---|
+| Darstellung | `icons`, `compact`, `details`, `view_mode`, `view_settings`, `view_zoom_in`, `view_zoom_out`, `view_zoom_reset`, `zoom`, `show_preview`, `show_hidden_files`, `sort`, `folders_first`, `hidden_last`, `group_by`, `additional_info`, `view_properties`, `restore_view_settings_default` | H (Handler-Zweitinstanz) |
+| Darstellung | `whale_include_subfolders` | W (`WhaleViewActions`) |
+| Navigation/Zustand | `go_back`, `go_forward`, `go_up`, `go_home`, `view_redisplay`, `stop`, `toggle_filter`, `show_filter_bar` | C (`WhaleContainerCommands`) |
+| Auswahl | `renamefile`, `movetotrash`, `deletefile`, `duplicate`, `properties`, `copy_location` | H + T2-Router |
+| Auswahl | `edit_select_all`, `invert_selection` | C |
+
+Text, Icon, Tooltip und Menü-Charakter kommen aus den echten lokalen Actions (dieselben Klassen
+bzw. dieselben i18n-Texte wie global). TB4 kann die Prototypen daraus ableiten, z. B. aus einem
+Scope oder aus den globalen Actions gleicher ID.
+
+Die Einträge der Plugin-Views (z. B. Cushion Treemap) haben keine Action-ID und sind deshalb
+nicht einzeln in eine Toolbar legbar. Sie sind über `view_settings` und `view_mode` erreichbar.
+Ob sie eigene IDs bekommen, ist eine Frage für TB4.
+
+**Bewusst ausgeschlossen** (unverändert global): `url_navigators`, `replace_location`,
+`editable_location`, `split_view`, `split_stash`, `split_view_menu`, `popout_split_view`,
+`toggle_search`, `hamburger_menu`, `compare_files`, `copy_to_inactive_split_view`,
+`move_to_inactive_split_view`, `focus_inactive_split_view`, `edit_undo`, `edit_redo`,
+Tab-/Fenster-/Panel-/Einstellungs-/Hilfe-Actions, außerdem `edit_cut`, `edit_copy`,
+`edit_paste`, `create_dir`, `create_file`, `new_menu`, `toggle_selection_mode(_tool_bar)`,
+`open_terminal(_here)`, `open_preferred_search_tool`, `manage_disk_space`, `basic_actions`,
+`delete_shortcut`. Keine davon musste mitgelöst werden.
+
+Das Default-Layout (`whalefileviewtoolbarui.rc`) ist unverändert.
+
+### 27.2 Zustand pro View
+
+- Handler-Actions und Gates: wie in TB2, jetzt für den ganzen Satz getestet. Die Gates des
+  eigenen `WhaleViewActions` erfassen auch die neuen lokalen `edit_select_all` und
+  `invert_selection`, weil die Container-Kommandos vor dem ersten `updateGates()` in der
+  Collection stehen.
+- **Auswahl-Actions:** neuer kleiner State-Provider `WhaleViewCommandScope::updateSelectionActions()`.
+  Er spiegelt `DolphinMainWindow::updateFileAndEditActions()` für die eigene View, mit
+  `WhaleCommandRouter::selectedItems(eigeneView)` (also inklusive Deep Selection). Auslöser:
+  `DolphinView::selectionChanged` und `WhaleViewActions::commandSelectionChanged` des eigenen
+  Sets. Der Handler selbst setzt diese Zustände nicht, das macht global das MainWindow.
+- Filter: `toggle_filter` folgt `showFilterBarChanged` des eigenen Containers.
+- Restore Defaults und Stop: wie in TB2 (`viewSettingsChanged`, Ladesignale der eigenen View).
+- Disabled bleibt sichtbar: Keine Action wird aus Toolbar oder Menü entfernt (Test).
+
+### 27.3 Auswahl, Deep Selection, „kein eindeutiges Ziel“
+
+- Rename/Trash/Delete/Duplicate/Copy Location wirken nur auf die Auswahl der eigenen View. Bei
+  einer Plugin-View mit eigener Auswahl (Treemap) gehen sie über den T2-Router an deren
+  `WhaleFileOperations`. Getestet: Datei links ausgewählt, Deep Selection rechts, Papierkorb
+  rechts entfernt nur das tiefe Item; die Rückfrage der Treemap bleibt.
+- Die Schutzregeln sind unverändert: In Flat und Treemap bleibt `duplicate` durch das Gate
+  „no destination folder“ disabled. Paste, Create New und Drop sind nicht im lokalen Satz.
+- Ein Auslösen der Selection-Mode-Leiste gibt es lokal nicht. Der Handler bittet um das Verlassen
+  des Selection Mode nach einer Aktion; das führt der Scope für den eigenen Container aus.
+
+### 27.4 Disabled-Reasons
+
+Dolphins `DisabledActionNotifier` hängt an Shortcuts. Lokale Actions haben keine, also gibt es
+dort keinen Auslöser. Lösung ohne neue Infrastruktur: Ein **Klick auf einen disabled Button**
+der File View Toolbar zeigt die Erklärung in der Message-Leiste **des eigenen Containers**
+(`DolphinViewContainer::showMessage`, dieselbe Leiste wie beim Notifier). Der Event-Filter der
+Toolbar bekommt den Klick auch bei disabled Buttons.
+
+Erklärt wird nur, wofür es global schon eine Erklärung gibt (`WhaleViewCommandScope::disabledReason()`):
+- kein Ziel (Flat/Treemap) für `duplicate`: Text aus `WhaleViewHost::refusal()`, geliefert über
+  den vorhandenen `DisabledReasonHook` des eigenen `WhaleViewActions`;
+- fehlende Rechte für `renamefile`, `deletefile`, `duplicate`: Dolphins Texte.
+
+Capability-Gates (Hidden/Preview/Zoom/Sort in der Treemap) und „nichts ausgewählt“ haben wie
+global keine Erklärung.
+
+### 27.5 Navigation und Reload
+
+- **Mittelklick** auf Back, Forward, Up, Home und auf Einträge der History-Menüs öffnet das Ziel
+  als Hintergrund-Tab (`DolphinMainWindow::openNewTab`), mit History und URL des eigenen
+  Containers. Dolphins `MiddleClickActionEventFilter` wird wiederverwendet. Ohne History-Ziel
+  passiert nichts.
+- **Reload:** `X->reload()`, danach `urlRefreshed(url)` des Fensters, aber nur, wenn X die aktive
+  View ist. Das Signal ist fensterweit und für die aktive View gedacht (einziger Empfänger:
+  Terminal-Panel). Ein echter Klick aktiviert die Pane vorher, erfüllt die Bedingung also immer.
+  Ein programmatisches Auslösen für eine inaktive View lädt neu, meldet aber nichts.
+
+### 27.6 Shortcuts, Menüs, mehrere Fenster
+
+- Alle lokalen Actions und Unter-Actions sind shortcut-frei; der Test läuft jetzt über den
+  ganzen Satz. Globale Shortcuts bleiben, kein „ambiguous“-Dialog.
+- Alle Menüs der lokalen Actions (view_settings, view_mode, Sort, Group, Additional Info,
+  Back/Forward-History) sind Popups; ein Parent, falls vorhanden, liegt im eigenen Fenster. Test
+  mit drei Containern in zwei Fenstern, das zweite Fenster entsteht bei aktivem ersten.
+- Jedes Fenster nutzt eigene Services und einen eigenen Manager (Test).
+
+### 27.7 Tests und Abnahme
+
+- `whalefileviewtoolbartest`: 26 Testfunktionen (11 neu): erlaubte und ausgeschlossene Actions,
+  unabhängiger Zustand (View Mode, Preview, Hidden, Flat, Sort, Group, Zoom, Restore),
+  Plugin-Gates über drei View-Wechsel, Auswahl pro View, Deep Selection, Disabled-Reasons,
+  Filter, Mittelklick, Reload, Stop, Menüs/zweites Fenster.
+- Offscreen: alle 36 Whale-Tests grün (Unit, Lints, Dev-MCP-Acceptances). `whale_dev_mcp_m7_e2e`
+  schlug einmal bei parallelem Lauf (`-j4`) fehl, einzeln und mit `-j2` grün.
+- Wayland: `whalefileviewtoolbartest` 3 × grün.
+- ASan/UBSan (`../build-whale-asan`): `whalefileviewtoolbartest` und `whaleviewservicestest`
+  0 Befunde. `whaleactionstest`, `whaleviewhosttest`, `whalecommandroutingtest`: ASan sauber,
+  UBSan nur die bekannten Meldungen aus Test-Plugin und `WhaleViewHost`-Lambdas (6/4/6).
+- **Altfehler, getrennt:** `dolphinmainwindowtest` schlägt in `testAccessibilityTree` und
+  `testThumbnailAfterRename` fehl und hängt danach in `testViewModeAfterDynamicView`. Auf dem
+  TB2-Stand (4ce9094d1) ist das Bild identisch; einzeln laufen die beiden letzten grün. Der
+  Hänger war in 26.7 noch nicht notiert.
+- Echte Plasma/Wayland-Abnahme (Dev-Whale mit eigenem Profil, erweitertes Benutzerlayout,
+  echte Klicks über ydotool): Dateiliste links, Cushion Treemap rechts;
+  - `details`, Hidden und Flat per Klick links ändern nur links;
+  - Auswahl links aktiviert nur links die Auswahl-Buttons;
+  - Klick auf disabled `duplicate` zeigt den Grund in der jeweils eigenen Pane (Flat links,
+    Treemap rechts), die andere bleibt ohne Meldung;
+  - Treemap-Deep-Selection: Papierkorb rechts fragt nach und entfernt nur das tiefe Item;
+  - Mittelklick Back/Up öffnet das Ziel der eigenen Pane als Hintergrund-Tab;
+  - Reload, View-Settings-Menüs beider Panes (echte Popups, richtiger Zustand), Split-Zyklen,
+    Tab-Wechsel; Log ohne Warnungen außer den bekannten.
+  - Nicht auf Wayland geprüft: zweites Fenster (nur offscreen im Test).
+
+### 27.8 Dolphin-Diff und Abweichungen
+
+Dolphin-Diff: **0 Dateien.** Geändert sind nur `src/whale/toolbars/` (6 Dateien) und der Test.
+
+Abweichungen vom Auftrag:
+- Lokale Auswahl-Actions sind ohne Auswahl **disabled**, global bleiben sie enabled und starten
+  den Selection Mode. `properties` bleibt lokal enabled und zeigt ohne Auswahl den Ordner.
+- Disabled-Reasons erscheinen auf Klick statt auf Shortcut (27.4).
+- `view_redisplay` meldet `urlRefreshed` nur für die aktive View (27.5).
+- Plugin-View-Einträge sind nicht einzeln platzierbar (27.1).
+
+### 27.9 Bewertung
+
+TB3 ist abgeschlossen. Der lokale Action-Satz ist vollständig, zielt explizit auf die eigene
+View und braucht keinen Active-View-Zustand. **TB4-ready: ja**, auf das Go des Benutzers.
