@@ -13,6 +13,7 @@
 class DolphinViewContainer;
 class KActionCollection;
 class KToolBarPopupAction;
+class MiddleClickActionEventFilter;
 class QAction;
 
 /**
@@ -20,8 +21,12 @@ class QAction;
  *
  * DolphinMainWindow's navigation actions act on the active view. These do the same on the
  * view they were created for, whichever view is active: "go_back", "go_forward" (with their
- * history menus), "go_up", "go_home", "view_redisplay" and "stop", with the window's action
+ * history menus), "go_up", "go_home", "view_redisplay", "stop", "toggle_filter",
+ * "show_filter_bar", "edit_select_all" and "invert_selection", with the window's action
  * names. Their state comes from that view only.
+ *
+ * A middle click on Back, Forward, Up, Home or an entry of a history menu opens its
+ * location in a new tab, as in the window's toolbar (middleClickFilter()).
  */
 class WhaleContainerCommands : public QObject
 {
@@ -34,6 +39,18 @@ public:
     WhaleContainerCommands(DolphinViewContainer *container, KActionCollection *actionCollection, QObject *parent);
     ~WhaleContainerCommands() override;
 
+    /**
+     * @return The event filter for a toolbar that shows the actions: it opens the location
+     *         of a middle-clicked navigation action in a new tab.
+     */
+    QObject *middleClickFilter() const;
+
+    /**
+     * Opens the location that the navigation action @p action would go to in a new tab of
+     * the window, in the background. Nothing for other actions.
+     */
+    void openInNewTab(QAction *action);
+
 private:
     void goBack();
     void goForward();
@@ -41,6 +58,10 @@ private:
     void goHome();
     void reload();
     void stop();
+    void toggleFilterBar();
+    void showFilterBar();
+    void selectAll();
+    void invertSelection();
 
     void updateHistory();
     void updateUp();
@@ -50,7 +71,10 @@ private:
     KToolBarPopupAction *m_back;
     KToolBarPopupAction *m_forward;
     QAction *m_up;
+    QAction *m_home;
     QAction *m_stop;
+    QAction *m_toggleFilter;
+    MiddleClickActionEventFilter *m_middleClickFilter;
 };
 
 #endif

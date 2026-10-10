@@ -7,6 +7,7 @@
 #include "whalefileviewtoolbar.h"
 
 #include "dolphinviewcontainer.h"
+#include "whalecontainercommands.h"
 #include "whaletoolbarmanager.h"
 #include "whaleviewcommandscope.h"
 
@@ -15,6 +16,8 @@
 #include <KIconLoader>
 
 #include <QActionEvent>
+#include <QMouseEvent>
+#include <QToolButton>
 
 WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
     : KToolBar(container, false, false)
@@ -47,6 +50,8 @@ void WhaleFileViewToolBar::showEvent(QShowEvent *event)
     if (!m_scope && m_container) {
         // Shown means part of its window by now: the window's services and toolbar manager.
         m_scope = new WhaleViewCommandScope(m_container, this);
+        // Middle click on Back, Forward, Up or Home: in a new tab.
+        installEventFilter(m_scope->commands()->middleClickFilter());
         connect(WhaleToolbarManager::ensure(window()), &WhaleToolbarManager::fileViewLayoutChanged, this, &WhaleFileViewToolBar::rebuild);
         rebuild();
     }
@@ -60,7 +65,6 @@ void WhaleFileViewToolBar::rebuild()
         return;
     }
     clear();
-    const QStringList allowed = manager->descriptor(WhaleToolbarDescriptor::fileViewId()).allowedActions;
     const auto entries = manager->fileViewLayout().entries();
     for (const WhaleToolbarLayout::Entry &entry : entries) {
         switch (entry.type) {
@@ -75,7 +79,8 @@ void WhaleFileViewToolBar::rebuild()
             break;
         }
         case WhaleToolbarLayout::Entry::Type::Action:
-            if (QAction *action = m_scope->action(entry.actionId); action && allowed.contains(entry.actionId)) {
+            // Only what a File View Toolbar may show (WhaleViewCommandScope::allowedActions()).
+            if (QAction *action = m_scope->action(entry.actionId)) {
                 addAction(action);
             }
             break;
@@ -97,8 +102,19 @@ bool WhaleFileViewToolBar::eventFilter(QObject *watched, QEvent *event)
 {
     // Working with the toolbar of a view makes it the active view, as clicking into the view
     // or its location bar does. The actions act on this view in any case.
-    if (event->type() == QEvent::MouseButtonPress && m_container && !m_container->isActive()) {
-        m_container->setActive(true);
+    if (event->type() == QEvent::MouseButtonPress && m_container) {
+        if (!m_container->isActive()) {
+            m_container->setActive(true);
+        }
+        // A disabled button: tell why, in this view's message area. (The window does that for
+        // the shortcut of a disabled action, in the active view; the actions here have none.)
+        auto button = qobject_cast<QToolButton *>(watched);
+        if (button && m_scope && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton) {
+            const QString reason = m_scope->disabledReason(button->defaultAction());
+            if (!reason.isEmpty()) {
+                m_container->showMessage(reason, KMessageWidget::Warning);
+            }
+        }
     }
     return KToolBar::eventFilter(watched, event);
 }

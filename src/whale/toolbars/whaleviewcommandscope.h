@@ -7,8 +7,10 @@
 #ifndef WHALEVIEWCOMMANDSCOPE_H
 #define WHALEVIEWCOMMANDSCOPE_H
 
+#include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QStringList>
 
 class DolphinViewActionHandler;
 class DolphinViewContainer;
@@ -33,6 +35,14 @@ class WhaleViewActions;
  *
  * The private collection is never part of the window's XML GUI factory, so its actions are
  * not listed in Find Action or Configure Keyboard Shortcuts.
+ *
+ * Only the actions of allowedActions() are offered (action()); the collection holds more,
+ * because the handler creates all of Dolphin's view actions.
+ *
+ * Actions on selected items ("renamefile", "movetotrash" …) act on the selection of this
+ * view (for a plugin view with a selection of its own: on that, WhaleCommandRouter) and are
+ * disabled without one. They never start the selection mode, which belongs to the window's
+ * actions.
  */
 class WhaleViewCommandScope : public QObject
 {
@@ -42,19 +52,43 @@ public:
     WhaleViewCommandScope(DolphinViewContainer *container, QObject *parent);
     ~WhaleViewCommandScope() override;
 
+    /**
+     * @return The names of the actions a File View Toolbar can show: the one definition of
+     *         that set (for the toolbars, their configuration and the tests). The names are
+     *         those of the window's actions.
+     */
+    static QStringList allowedActions();
+
     DolphinViewContainer *container() const;
     KActionCollection *actionCollection() const;
+
+    /**
+     * @return The action @p name of this view, or nullptr if there is none or it is not one
+     *         of allowedActions().
+     */
     QAction *action(const QString &name) const;
     WhaleViewActions *viewActions() const;
+    WhaleContainerCommands *commands() const;
+
+    /**
+     * @return Why @p action of this view is disabled, as a message for the user, or an empty
+     *         string if it is enabled or there is nothing to explain. The message belongs
+     *         into the message area of this view.
+     */
+    QString disabledReason(const QAction *action) const;
 
 private:
     void updateRestoreDefaultsAction(bool isDefault);
+    void updateSelectionActions();
+    void setDisabledReason(const QString &name, const QString &reason);
 
     QPointer<DolphinViewContainer> m_container;
     KActionCollection *m_actionCollection;
     WhaleContainerCommands *m_commands;
     DolphinViewActionHandler *m_actionHandler;
     WhaleViewActions *m_viewActions;
+    QHash<const QAction *, QString> m_disabledReasons; // Dolphin's, by the state of the selection
+    QHash<const QAction *, QString> m_whaleDisabledReasons; // no destination; they come first
 };
 
 #endif

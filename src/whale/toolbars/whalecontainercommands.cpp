@@ -6,8 +6,11 @@
 
 #include "whalecontainercommands.h"
 
+#include "dolphinmainwindow.h"
 #include "dolphinurlnavigator.h"
 #include "dolphinviewcontainer.h"
+#include "global.h"
+#include "middleclickactioneventfilter.h"
 #include "views/dolphinview.h"
 
 #include <KActionCollection>
@@ -43,7 +46,10 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
     , m_back(createHistoryAction(KStandardAction::Back, actionCollection))
     , m_forward(createHistoryAction(KStandardAction::Forward, actionCollection))
     , m_up(KStandardAction::up(this, &WhaleContainerCommands::goUp, actionCollection))
+    , m_home(KStandardAction::home(this, &WhaleContainerCommands::goHome, actionCollection))
     , m_stop(actionCollection->addAction(QStringLiteral("stop")))
+    , m_toggleFilter(actionCollection->addAction(QStringLiteral("toggle_filter")))
+    , m_middleClickFilter(new MiddleClickActionEventFilter(this))
 {
     Q_ASSERT(container);
     m_back->setToolTip(i18nc("@info", "Go back"));
@@ -57,7 +63,11 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
         fillHistoryMenu(m_forward, -1);
     });
 
-    KStandardAction::home(this, &WhaleContainerCommands::goHome, actionCollection);
+    // A middle click opens the location in a new tab (DolphinMainWindow does the same for
+    // its toolbar and its history menus).
+    connect(m_middleClickFilter, &MiddleClickActionEventFilter::actionMiddleClicked, this, &WhaleContainerCommands::openInNewTab);
+    m_back->popupMenu()->installEventFilter(m_middleClickFilter);
+    m_forward->popupMenu()->installEventFilter(m_middleClickFilter);
 
     QAction *redisplay = KStandardAction::redisplay(this, &WhaleContainerCommands::reload, actionCollection);
     redisplay->setAutoRepeat(false);
@@ -68,6 +78,30 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
     m_stop->setIcon(QIcon::fromTheme(QStringLiteral("process-stop")));
     m_stop->setEnabled(false);
     connect(m_stop, &QAction::triggered, this, &WhaleContainerCommands::stop);
+
+    // The filter bar of this view: texts and icon as the window's actions.
+    QAction *showFilter = actionCollection->addAction(QStringLiteral("show_filter_bar"));
+    showFilter->setText(i18nc("@action:inmenu Tools", "Filter…"));
+    showFilter->setToolTip(i18nc("@info:tooltip", "Show Filter Bar"));
+    showFilter->setIcon(QIcon::fromTheme(QStringLiteral("view-filter")));
+    connect(showFilter, &QAction::triggered, this, &WhaleContainerCommands::showFilterBar);
+
+    m_toggleFilter->setText(i18nc("@action:inmenu", "Toggle Filter Bar"));
+    m_toggleFilter->setIconText(i18nc("@action:intoolbar", "Filter"));
+    m_toggleFilter->setIcon(showFilter->icon());
+    m_toggleFilter->setToolTip(showFilter->toolTip());
+    m_toggleFilter->setCheckable(true);
+    m_toggleFilter->setChecked(container->isFilterBarVisible());
+    connect(m_toggleFilter, &QAction::triggered, this, &WhaleContainerCommands::toggleFilterBar);
+    connect(container, &DolphinViewContainer::showFilterBarChanged, m_toggleFilter, &QAction::setChecked);
+
+    // Selecting in this view. (The window's Select All selects the text of a focused
+    // location bar instead; that stays with the window's action.)
+    KStandardAction::selectAll(this, &WhaleContainerCommands::selectAll, actionCollection);
+    QAction *invert = actionCollection->addAction(QStringLiteral("invert_selection"));
+    invert->setText(i18nc("@action:inmenu Edit", "Invert Selection"));
+    invert->setIcon(QIcon::fromTheme(QStringLiteral("edit-select-invert")));
+    connect(invert, &QAction::triggered, this, &WhaleContainerCommands::invertSelection);
 
     // The state of this view only.
     connect(container->urlNavigatorInternalWithHistory(), &KUrlNavigator::historyChanged, this, &WhaleContainerCommands::updateHistory);
@@ -121,8 +155,16 @@ void WhaleContainerCommands::goHome()
 
 void WhaleContainerCommands::reload()
 {
-    if (m_container) {
-        m_container->reload();
+    if (!m_container) {
+        return;
+    }
+    m_container->reload();
+    // As DolphinMainWindow::reloadView(): the window announces a reload of its active view
+    // (its terminal panel refreshes then). That signal is about the active view only, so a
+    // reload of another view is not announced.
+    auto window = qobject_cast<DolphinMainWindow *>(m_container->window());
+    if (window && window->activeViewContainer() == m_container) {
+        Q_EMIT window->urlRefreshed(m_container->url());
     }
 }
 
@@ -130,6 +172,72 @@ void WhaleContainerCommands::stop()
 {
     if (m_container) {
         m_container->view()->stopLoading();
+    }
+}
+
+void WhaleContainerCommands::toggleFilterBar()
+{
+    if (m_container) {
+        m_container->setFilterBarVisible(!m_container->isFilterBarVisible());
+        m_toggleFilter->setChecked(m_container->isFilterBarVisible());
+    }
+}
+
+void WhaleContainerCommands::showFilterBar()
+{
+    if (m_container) {
+        m_container->setFilterBarVisible(true);
+    }
+}
+
+void WhaleContainerCommands::selectAll()
+{
+    if (m_container) {
+        m_container->view()->selectAll();
+    }
+}
+
+void WhaleContainerCommands::invertSelection()
+{
+    if (m_container) {
+        m_container->view()->invertSelection();
+    }
+}
+
+QObject *WhaleContainerCommands::middleClickFilter() const
+{
+    return m_middleClickFilter;
+}
+
+void WhaleContainerCommands::openInNewTab(QAction *action)
+{
+    auto window = m_container ? qobject_cast<DolphinMainWindow *>(m_container->window()) : nullptr;
+    if (!window || !action) {
+        return;
+    }
+    // As DolphinMainWindow::slotToolBarActionMiddleClicked() and
+    // slotBackForwardActionMiddleClicked(), with the history and location of this view.
+    const KUrlNavigator *navigator = m_container->urlNavigatorInternalWithHistory();
+    int historyIndex = -1;
+    QUrl url;
+    if (action == m_back) {
+        historyIndex = navigator->historyIndex() + 1;
+    } else if (action == m_forward) {
+        historyIndex = navigator->historyIndex() - 1;
+    } else if (action == m_up) {
+        url = KIO::upUrl(m_container->url());
+    } else if (action == m_home) {
+        url = Dolphin::homeUrl();
+    } else if (m_back->popupMenu()->actions().contains(action) || m_forward->popupMenu()->actions().contains(action)) {
+        historyIndex = action->data().toInt();
+    } else {
+        return;
+    }
+    if (historyIndex >= 0 && historyIndex < navigator->historySize()) {
+        url = navigator->locationUrl(historyIndex);
+    }
+    if (url.isValid()) {
+        window->openNewTab(url);
     }
 }
 
@@ -164,6 +272,7 @@ void WhaleContainerCommands::fillHistoryMenu(KToolBarPopupAction *action, int di
     for (int i = current + direction, entries = 0; i >= 0 && i < navigator->historySize() && entries < MaxHistoryEntries; i += direction, ++entries) {
         const QUrl url = navigator->locationUrl(i);
         QAction *entry = menu->addAction(QIcon::fromTheme(KIO::iconNameForUrl(url)), url.toDisplayString(QUrl::PreferLocalFile));
+        entry->setData(i); // the history index, for a middle click
         const int steps = (i - current) * direction;
         connect(entry, &QAction::triggered, this, [this, steps, direction]() {
             for (int step = 0; step < steps; ++step) {

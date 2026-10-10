@@ -7,6 +7,7 @@
 #include "whaletoolbarmanager.h"
 
 #include "whalefileviewtoolbarclient.h"
+#include "whaleviewcommandscope.h"
 
 #include <KLocalizedString>
 
@@ -53,16 +54,7 @@ QList<WhaleToolbarDescriptor> WhaleToolbarManager::descriptors() const
     fileView.xmlGuiToolBar = WhaleFileViewToolbarClient::toolBarName();
     fileView.rcFile = WhaleFileViewToolbarClient::rcFile();
     fileView.target = WhaleToolbarDescriptor::Target::OwnFileView;
-    // TB2: the navigation of the view and its view settings; TB3 completes the set.
-    fileView.allowedActions = {
-        QStringLiteral("go_back"),
-        QStringLiteral("go_forward"),
-        QStringLiteral("go_up"),
-        QStringLiteral("go_home"),
-        QStringLiteral("view_redisplay"),
-        QStringLiteral("stop"),
-        QStringLiteral("view_settings"),
-    };
+    fileView.allowedActions = WhaleViewCommandScope::allowedActions();
     return {global, fileView};
 }
 
