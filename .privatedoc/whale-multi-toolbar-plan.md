@@ -1365,3 +1365,217 @@ Abweichungen vom Auftrag:
 
 TB3 ist abgeschlossen. Der lokale Action-Satz ist vollständig, zielt explizit auf die eigene
 View und braucht keinen Active-View-Zustand. **TB4-ready: ja**, auf das Go des Benutzers.
+
+---
+
+## 28. TB4-Ergebnisse (2026-10-13)
+
+Branch `feature/multi-toolbar`, **nicht** gepusht. Commits: 0e72ca5d7 (Settings-Integration),
+d8e6b854c (Tests). Plugin-API bleibt Version 9. TB5 ist nicht begonnen. Die interaktive
+Wayland-Abnahme steht noch aus (28.12), sie braucht die Freigabe des Benutzers.
+
+### 28.1 Configurator
+
+`WhaleToolbarConfigurator` (`src/whale/toolbars/whaletoolbarconfigurator.{h,cpp}`), genau einer
+pro Hauptfenster, direktes Kind (`install()`/`of()` wie Manager und Services).
+
+- `install(window, saveNewToolbarConfig)` hängt die vorhandene Standard-Action „Configure
+  Toolbars…“ um (disconnect/connect wie beim About-Dialog). Die Action wird im eigenen
+  `actionCollection()` des Fensters per `KStandardAction::name()` gefunden, keine globale Suche.
+  Das Kontextmenü der Hauptleiste benutzt dieselbe Action und landet damit im selben Dialog.
+- `configure(descriptorId)` öffnet KDEs `KEditToolBar(guiFactory())` unverändert, mit
+  `setDefaultToolBar()` für die Vorauswahl (`global` → `mainToolBar`, `file-view` →
+  `whaleFileViewToolBar`). Ist der Dialog schon offen, kommt er nach vorn, die Auswahl bleibt.
+- Kein eigener Dialog, kein eigener Umschalter. Der Dialog bleibt wie bei KDE nicht-modal.
+
+### 28.2 Temporärer Client und Factory-Lifetime
+
+Abweichung von der Skizze in 8.3: Der Client des Managers (liest das Layout zur Laufzeit) geht
+**nie** in die Fabrik. Für den Dialog gibt es einen **eigenen** Client derselben Datei,
+`WhaleFileViewToolbarEditClient` (privat in der `.cpp`, abgeleitet von
+`WhaleFileViewToolbarClient`), mit den Prototyp-Actions und einem eigenen Builder. Damit
+existieren die Prototypen überhaupt nur, solange der Dialog offen ist.
+
+```text
+configure()      → Client erzeugen (unique_ptr im Configurator) → guiFactory()->addClient()
+                 → KEditToolBar anlegen, show()
+QDialog::finished → guiFactory()->removeClient() → Client löschen → Dialog deleteLater()
+```
+
+- Aufgeräumt wird bei `finished` (OK, Cancel, Schließen, Esc), nicht bei `destroyed`.
+- Wird das Fenster mit offenem Dialog zerstört, ist die Fabrik schon weg und hat den Client
+  losgelassen (`~KXMLGUIFactory` setzt `factory` der Clients auf null). Der Destruktor des
+  Configurators fasst die Fabrik nicht an; Client und Template-Leiste gehen mit ihm. Keine
+  KXmlGui-Warnung, kein Befund unter ASan.
+- Der Builder (`TemplateBuilder`) baut `<ToolBar>` als versteckte `KToolBar` **ohne Parent**.
+  Sie hängt nicht im Fenster (`KMainWindow::toolBars()` bleibt 1) und wird beim Entfernen des
+  Clients gelöscht. Nebenwirkung: Solange der Dialog offen ist, steht sie in
+  `QApplication::topLevelWidgets()` (nie sichtbar, kein natives Fenster).
+
+### 28.3 Neuer Befund: Reihenfolge der Fabrik-Clients
+
+Nicht im Plan und nicht im TB0-Spike gesehen (dort nur ein Apply):
+
+- `KEditToolBarWidget::rebuildKXMLGUIClients()` nimmt den **ersten** Client der Fabrik als
+  Fenster und mischt nur bei ihm `ui_standards.rc` ein.
+- `KXmlGuiWindow::saveNewToolbarConfig()` entfernt das Fenster und fügt es wieder an, also
+  **hinten**. Nach dem ersten Apply steht ein anderer Client vorn (schon ohne Whale:
+  `KDEPrivate::ToolBarHandler`, mit Terminal-Panel die KonsolePart).
+- In Dolphin fällt das nicht auf, weil ein Apply immer die Hauptleiste geändert und damit das
+  gemischte Dokument lokal gespeichert hat. Mit einer zweiten Toolbar gibt es Applys, die nur
+  die File View Toolbar ändern: Das Fenster wurde dann beim **zweiten** Apply ohne
+  `ui_standards.rc` neu gebaut, zwei Menüs fehlten (im Test reproduziert: 6 statt 8).
+
+Abhilfe im Configurator, nach `saveNewToolbarConfig()`: Alle Clients, die vor dem Fenster
+stehen, werden entfernt und wieder angefügt (dasselbe, was KEditToolBar beim Speichern mit allen
+Clients tut). Danach steht das Fenster wieder vorn. Test `testApplyTwice` mit einem
+zusätzlichen Fremd-Client. Upstream-Ticket-Kandidat, hier nicht gemeldet.
+
+### 28.4 Combo und Labels
+
+- Die Combo ist KDEs eigene und erscheint automatisch: „Main Toolbar“, „File View Toolbar“.
+- Kosmetik: `polishToolBarNames()` entfernt nur Suffixe, die exakt „ <gui-name>“ eines
+  Fabrik-Clients sind (`<dolphin>`, `<whale_fileview>`). Nur Texte, die Zuordnung bleibt
+  indexbasiert bei KDE. Greift es nicht mehr, sieht man die Suffixe, sonst ändert sich nichts.
+- Nach **Defaults** baut KEditToolBar sein Widget neu; die Kosmetik läuft deshalb auch nach
+  jedem `newToolBarConfig` (Test).
+
+### 28.5 Available Actions und Prototypen
+
+- Main Toolbar: unverändert die Collection des Fensters, keine Filterung.
+- File View Toolbar: genau `WhaleViewCommandScope::allowedActions()` (35), keine zweite Liste.
+  Die Prototypen entstehen in einer Schleife über diese Liste und übernehmen Text, Icon-Text,
+  Tooltip, Icon, Priority und Checkable von der **Fenster-Action gleicher ID**. Keine
+  Einzeldefinitionen.
+- Prototypen sind eigene `QAction`-Objekte ohne Funktion, weder die Fenster-Actions noch die
+  Actions einer Pane (Test). Keine Toolbar zeigt je einen Prototyp.
+- Die Fabrik wendet beim Hinzufügen die `ActionProperties` der Datei auf die Prototypen an,
+  nimmt sie aber nie zurück. Deshalb werden die Prototypen bei jedem `clientRemoved` neu aus
+  den Fenster-Actions gefüllt; nach Defaults zeigt der Dialog wieder die Standardtexte.
+- Grenze: Hat der Benutzer Text oder Icon derselben Action in der **Hauptleiste** geändert,
+  zeigt der Dialog diesen Text auch als Ausgangswert der File-View-Liste. Die Toolbars der
+  Panes zeigen den echten Standard. Rein kosmetisch im Dialog.
+
+### 28.6 Apply / OK / Cancel / Defaults
+
+Alles KDE-nativ, keine eigene Undo-Schicht. Bei `newToolBarConfig`:
+
+1. `DolphinMainWindow::saveNewToolbarConfig()` wie bisher (Navigator-Widget, View-Modi im
+   View-Menü, Hamburger, erlaubte Toolbar-Bereiche).
+2. Client-Reihenfolge herstellen (28.3).
+3. `WhaleToolbarManager::reloadAllFileViewLayouts()`: alle Manager des Prozesses lesen die Datei
+   neu, alle File View Toolbars bauen sich neu auf. Kein Neustart.
+4. Combo-Kosmetik.
+
+Getestet: Apply nur File View (Datei geschrieben, beide Panes sofort, Hauptleiste und
+`dolphinui.rc` unberührt), beide Toolbars in einem Apply, Cancel ohne Apply (keine Datei),
+Apply + Änderung + Cancel (Angewendetes bleibt), OK, dreimal Apply hintereinander.
+
+**Defaults:** KDE-Semantik bewusst übernommen. Rückfrage „… reset all toolbars of this
+application …“; Abbrechen ändert nichts; nach Bestätigung sind beide lokalen Dateien weg und
+Hauptleiste und alle File View Toolbars zeigen sofort die Defaults, auch wenn File View gewählt
+war. Der Dialog bleibt offen und arbeitet weiter. E3 (eigener „Reset File View Toolbar“) bleibt
+offen für später.
+
+### 28.7 ActionProperties
+
+- `WhaleToolbarLayout` liest zusätzlich `<ActionProperties>` der Datei: `text`, `iconText`,
+  `toolTip`, `icon`, `priority`. Andere Attribute werden nicht übernommen, **Shortcuts nie**.
+  Die Properties gehören zum Layout-Vergleich, eine reine Text-Änderung löst also den Neuaufbau
+  aus.
+- `WhaleViewCommandScope::applyActionProperties()` setzt sie auf die Actions der eigenen View
+  und merkt sich die Originalwerte. Beim nächsten Aufbau werden zuerst alle Originale
+  wiederhergestellt (anders als bei KXmlGui zeigt die Toolbar nach Defaults sofort wieder das
+  Original). Icon-Text und Tooltip, die vorher aus dem Text abgeleitet waren, sind danach
+  wieder abgeleitet.
+- Getestet: „Change Text…“ über den echten KDE-Unterdialog → beide Panes, auch nach „Neustart“
+  (neues Fenster); die Fenster-Action gleichen Namens und die Hauptleiste bleiben unverändert.
+- „Change Icon…“: KDEs Icon-Auswahl (`KIconDialog`) wird im Test nicht bedient. Getestet ist der
+  Weg ab dem Attribut `icon="…"` in der Datei: beide Panes, Dialog behält es beim Speichern,
+  Defaults stellt das Icon wieder her, Fenster-Action unverändert.
+- Grenze wie bei KDE: Actions, deren Icon oder Text der Code später selbst ändert (z. B. das
+  Icon von `view_mode`), überschreiben eine Benutzeränderung beim nächsten Zustandswechsel.
+- Die File View Toolbar ist Icon-only; ein geänderter Text ist dort nur im Dialog sichtbar und
+  dann, wenn die Darstellung später Text zeigt (E7).
+
+### 28.8 Kontextmenü
+
+Die File View Toolbar hat ein eigenes Menü mit genau einem Eintrag „Configure File View
+Toolbar…“. Er öffnet denselben Dialog mit „File View Toolbar“ vorausgewählt, auch per
+Rechtsklick auf einen Button. Das Menü der Fenster-Toolbars/Panels öffnet sich dort nicht mehr
+zusätzlich. Kein „Configure Toolbars…“ daneben (wäre derselbe Dialog), kein Hide, kein Reset.
+
+### 28.9 Shortcuts, Find Action, Shortcut-Dialog
+
+- Prototypen haben nie Shortcuts: Sie entstehen ohne, sind als nicht konfigurierbar markiert,
+  und nach jedem `clientAdded` der Fabrik wird ihre Collection geleert (Schutz gegen
+  Shortcut-Schemata und gegen `shortcut="…"` in der Datei; getestet mit genau so einer Datei
+  und nach Apply).
+- Kein „ambiguous shortcut“ bei offenem Dialog: Alt+. und F5 wirken auf die aktive View (Test
+  mit aktivem Hauptfenster).
+- **Find Action** (KCommandBar) listet alle Fabrik-Clients. Solange der Dialog offen ist, ist
+  die Action `open_kcommand_bar` dieses Fensters disabled und bekommt danach ihren vorherigen
+  Zustand zurück. Andere Fenster sind nicht betroffen.
+- **Configure Keyboard Shortcuts:** Dolphin übergibt dem Dialog nur die eigene Collection (und
+  die der KonsolePart), nicht die Fabrik. Die Prototypen erscheinen dort nie.
+- Nach `finished` ist der Client aus der Fabrik und gelöscht, die Prototypen existieren nicht
+  mehr (Test mit QPointer).
+
+### 28.10 Mehrere Fenster
+
+Jedes Fenster hat eigenen Configurator, eigenen Dialog (Parent = eigenes Fenster) und eigenen
+temporären Client in der eigenen Fabrik. Zwei Dialoge gleichzeitig funktionieren. Apply in
+Fenster A aktualisiert auch die File View Toolbars von Fenster B (eine Konfiguration); die
+**Hauptleiste** von B bleibt wie bei KDE bis zum Neustart alt. Fenster B schließen, während A
+konfiguriert: kein Problem. Andere Prozesse lesen erst beim nächsten Start.
+
+### 28.11 Tests
+
+- Neu: `whaletoolbarconfigtest`, 21 Testfunktionen, bedient den echten `KEditToolBar` im
+  Testprozess (Combo, Listen, Buttons, Unterdialoge): Combo/Labels/Vorauswahl, Available
+  Actions beider Toolbars, Apply/OK/Cancel-Kombinationen, zweimal Apply, Separator/Spacer-
+  Roundtrip, neues Fenster, zwei Fenster, Change Text, Icon, Defaults, 12 × Öffnen/Schließen,
+  Fenster zerstören mit offenem Dialog (4 Varianten), Shortcuts, Find Action, Kontextmenü,
+  Hauptleiste nach Apply.
+- Offscreen: alle 36 Whale-Tests grün (Unit, Lints, alle Dev-MCP-Acceptances M3–M9, T1, T2, O3,
+  F1), `clang-format` sauber.
+- Gesamtsuite offscreen: nur `dolphinmainwindowtest` rot, Bild wie in 27.7
+  (`testAccessibilityTree`, `testThumbnailAfterRename`, danach Hänger); alle Funktionen ab
+  `testViewModeAfterDynamicView` laufen einzeln grün.
+- **ASan/UBSan** (`../build-whale-asan`, offscreen): `whaletoolbarconfigtest`,
+  `whalefileviewtoolbartest`, `whaleviewservicestest` mit 0 Befunden. Ein Lauf mit
+  Leak-Erkennung zeigt keine Leaks aus dem neuen Code.
+- Während TB4 gab es kein ydotool, keine Wayland-Fenster und keine Eingabe auf dem Desktop.
+
+### 28.12 Wayland-Abnahme (offen, nur nach Freigabe)
+
+Offscreen nicht prüfbar und deshalb noch offen:
+
+- Dialog erscheint auf Plasma korrekt über dem richtigen Fenster; Combo umschalten mit Maus.
+- Drag & Drop zwischen den Listen des Dialogs.
+- „Change Icon…“ mit KDEs Icon-Auswahl (im Test nicht bedient).
+- Rechtsklick auf die File View Toolbar: Menü an der Mausposition, als echtes Popup.
+- Sichtprüfung nach Apply/Defaults in beiden Panes, auch mit Cushion Treemap in einer Pane.
+- Zweites Fenster auf Wayland.
+
+### 28.13 Dolphin-Diff und Abweichungen
+
+Dolphin-Diff: nur `src/dolphinmainwindow.cpp`, **4 Zeilen** (ein Include, ein Aufruf von
+`WhaleToolbarConfigurator::install()` über 3 Zeilen). Keine weitere Dolphin-Datei, kein Header.
+
+Abweichungen vom Plan bzw. Auftrag:
+- Eigener temporärer Client statt des Manager-Clients in der Fabrik (28.2).
+- Client-Reihenfolge nach jedem Apply herstellen (28.3), neu.
+- Find Action ist bei offenem Dialog disabled (28.9); sichtbare Kleinigkeit.
+- Vorauswahl wird nicht nachgezogen, wenn der Dialog schon offen ist (28.1).
+- „Change Icon…“ ist nur ab dem geschriebenen Attribut getestet (28.7).
+- Nicht gemacht, wie verlangt: Migration, neue Defaults, Sichtbarkeits-Setting, Reset-Eintrag,
+  Location Bar, Änderungen am Action-Satz oder Routing.
+
+Der Spike-Branch `feature/multi-toolbar-tb0-spike` existiert noch lokal (laut 24.3 nach TB4
+löschen); nicht angefasst.
+
+### 28.14 Bewertung
+
+TB4 ist offscreen abgeschlossen. **TB5-ready: ja**, vorbehaltlich der Wayland-Abnahme (28.12)
+und auf das Go des Benutzers.
