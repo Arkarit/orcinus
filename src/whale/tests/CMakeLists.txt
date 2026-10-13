@@ -82,6 +82,12 @@ target_include_directories(whalefileviewtoolbartest PRIVATE ${CMAKE_SOURCE_DIR}/
 target_compile_definitions(whalefileviewtoolbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whalefileviewtoolbartest whale_treemap)
 
+ecm_add_test(whaletoolbarconfigtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaletoolbarconfigtest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaletoolbarconfigtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaletoolbarconfigtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+
 ecm_add_test(whaleactionstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleactionstest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
