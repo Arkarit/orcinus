@@ -7,10 +7,15 @@
 #ifndef WHALEVIEWCOMMANDSCOPE_H
 #define WHALEVIEWCOMMANDSCOPE_H
 
+#include "whaletoolbarlayout.h"
+
 #include <QHash>
+#include <QIcon>
 #include <QObject>
 #include <QPointer>
 #include <QStringList>
+
+#include <optional>
 
 class DolphinViewActionHandler;
 class DolphinViewContainer;
@@ -77,7 +82,25 @@ public:
      */
     QString disabledReason(const QAction *action) const;
 
+    /**
+     * Gives the actions of this view the texts and icons the user chose for them in
+     * Configure Toolbars (@p properties by action ID), and gives all others back what they
+     * had before. The window's actions of the same names are not touched.
+     */
+    void applyActionProperties(const QHash<QString, WhaleToolbarLayout::ActionProperties> &properties);
+
 private:
+    // What an action had before applyActionProperties() changed it. A null string: the
+    // action derived it from its text.
+    struct OriginalProperties {
+        QPointer<QAction> action;
+        std::optional<QString> text;
+        std::optional<QString> iconText;
+        std::optional<QString> toolTip;
+        std::optional<QIcon> icon;
+        std::optional<int> priority;
+    };
+
     void updateRestoreDefaultsAction(bool isDefault);
     void updateSelectionActions();
     void setDisabledReason(const QString &name, const QString &reason);
@@ -89,6 +112,7 @@ private:
     WhaleViewActions *m_viewActions;
     QHash<const QAction *, QString> m_disabledReasons; // Dolphin's, by the state of the selection
     QHash<const QAction *, QString> m_whaleDisabledReasons; // no destination; they come first
+    QList<OriginalProperties> m_originalProperties;
 };
 
 #endif

@@ -61,6 +61,12 @@ public:
      */
     void reloadFileViewLayout();
 
+    /**
+     * Reads the configuration of the File View Toolbar again in all windows: it is one
+     * configuration for the application.
+     */
+    static void reloadAllFileViewLayouts();
+
 Q_SIGNALS:
     void fileViewLayoutChanged();
 

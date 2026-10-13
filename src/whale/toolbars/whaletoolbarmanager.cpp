@@ -13,14 +13,23 @@
 
 #include <QWidget>
 
+namespace
+{
+QList<WhaleToolbarManager *> s_managers;
+}
+
 WhaleToolbarManager::WhaleToolbarManager(QWidget *window)
     : QObject(window)
     , m_fileViewClient(std::make_unique<WhaleFileViewToolbarClient>())
     , m_fileViewLayout(m_fileViewClient->layout())
 {
+    s_managers.append(this);
 }
 
-WhaleToolbarManager::~WhaleToolbarManager() = default;
+WhaleToolbarManager::~WhaleToolbarManager()
+{
+    s_managers.removeOne(this);
+}
 
 WhaleToolbarManager *WhaleToolbarManager::ensure(QWidget *window)
 {
@@ -81,6 +90,14 @@ void WhaleToolbarManager::reloadFileViewLayout()
     if (layout != m_fileViewLayout) {
         m_fileViewLayout = layout;
         Q_EMIT fileViewLayoutChanged();
+    }
+}
+
+void WhaleToolbarManager::reloadAllFileViewLayouts()
+{
+    const auto managers = s_managers;
+    for (WhaleToolbarManager *manager : managers) {
+        manager->reloadFileViewLayout();
     }
 }
 

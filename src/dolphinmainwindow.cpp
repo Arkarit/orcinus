@@ -40,6 +40,7 @@
 #include "views/draganddrophelper.h"
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
+#include "whaletoolbarconfigurator.h"
 #include "whaleviewactions.h"
 #include "whaleviewhost.h"
 
@@ -230,6 +231,9 @@ DolphinMainWindow::DolphinMainWindow()
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
+    WhaleToolbarConfigurator::install(this, [this]() {
+        saveNewToolbarConfig();
+    }); // Whale: Configure Toolbars with the File View Toolbar
     stateChanged(QStringLiteral("new_file"));
 
     if (QAction *aboutAction = actionCollection()->action(KStandardAction::name(KStandardAction::AboutApp))) {

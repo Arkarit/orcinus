@@ -206,6 +206,78 @@ void WhaleViewCommandScope::updateSelectionActions()
     setDisabledReason(duplicate, selected ? i18nc("@info", "Cannot duplicate here: You do not have permission to create items in this folder.") : QString());
 }
 
+void WhaleViewCommandScope::applyActionProperties(const QHash<QString, WhaleToolbarLayout::ActionProperties> &properties)
+{
+    for (const OriginalProperties &original : std::as_const(m_originalProperties)) {
+        QAction *action = original.action;
+        if (!action) {
+            continue;
+        }
+        if (original.text) {
+            action->setText(*original.text);
+        }
+        if (original.iconText) {
+            action->setIconText(*original.iconText);
+        }
+        if (original.toolTip) {
+            action->setToolTip(*original.toolTip);
+        }
+        if (original.icon) {
+            action->setIcon(*original.icon);
+        }
+        if (original.priority) {
+            action->setPriority(QAction::Priority(*original.priority));
+        }
+    }
+    m_originalProperties.clear();
+
+    for (auto it = properties.cbegin(); it != properties.cend(); ++it) {
+        QAction *action = this->action(it.key());
+        if (!action) {
+            continue;
+        }
+        const WhaleToolbarLayout::ActionProperties &changed = it.value();
+        OriginalProperties original;
+        original.action = action;
+        // First what the action has, then the changes: its icon text and tooltip follow its
+        // text as long as they were not set (resetting them tells).
+        if (changed.contains(QStringLiteral("text"))) {
+            original.text = action->text();
+        }
+        if (changed.contains(QStringLiteral("iconText"))) {
+            const QString iconText = action->iconText();
+            action->setIconText(QString());
+            original.iconText = action->iconText() == iconText ? QString() : iconText;
+        }
+        if (changed.contains(QStringLiteral("toolTip"))) {
+            const QString toolTip = action->toolTip();
+            action->setToolTip(QString());
+            original.toolTip = action->toolTip() == toolTip ? QString() : toolTip;
+        }
+        if (changed.contains(QStringLiteral("icon"))) {
+            original.icon = action->icon();
+        }
+        if (changed.contains(QStringLiteral("priority"))) {
+            original.priority = int(action->priority());
+        }
+        m_originalProperties.append(original);
+
+        for (auto property = changed.cbegin(); property != changed.cend(); ++property) {
+            if (property.key() == QLatin1String("text")) {
+                action->setText(property.value());
+            } else if (property.key() == QLatin1String("iconText")) {
+                action->setIconText(property.value());
+            } else if (property.key() == QLatin1String("toolTip")) {
+                action->setToolTip(property.value());
+            } else if (property.key() == QLatin1String("icon")) {
+                action->setIcon(QIcon::fromTheme(property.value()));
+            } else if (property.key() == QLatin1String("priority")) {
+                action->setPriority(QAction::Priority(property.value().toInt()));
+            }
+        }
+    }
+}
+
 WhaleViewActions *WhaleViewCommandScope::viewActions() const
 {
     return m_viewActions;

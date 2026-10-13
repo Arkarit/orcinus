@@ -25,6 +25,8 @@ class WhaleViewCommandScope;
  * The actions are created when the toolbar is shown for the first time, so views that are
  * never shown (other tabs) cost nothing. Pressing a button activates the view, as clicking
  * into it or its location bar does; the actions do not depend on that.
+ *
+ * Its context menu opens Configure Toolbars with the File View Toolbar chosen.
  */
 class WhaleFileViewToolBar : public KToolBar
 {
@@ -42,6 +44,7 @@ public:
 protected:
     void showEvent(QShowEvent *event) override;
     void actionEvent(QActionEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:

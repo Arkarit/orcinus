@@ -8,8 +8,40 @@
 
 #include <QDomDocument>
 
-WhaleToolbarLayout::WhaleToolbarLayout(const QList<Entry> &entries)
+namespace
+{
+QHash<QString, WhaleToolbarLayout::ActionProperties> actionPropertiesOf(const QDomDocument &document)
+{
+    static const QStringList taken = {QStringLiteral("text"),
+                                      QStringLiteral("iconText"),
+                                      QStringLiteral("toolTip"),
+                                      QStringLiteral("icon"),
+                                      QStringLiteral("priority")};
+    QHash<QString, WhaleToolbarLayout::ActionProperties> result;
+    // XML GUI compares these two tag names without case.
+    for (QDomElement properties = document.documentElement().firstChildElement(); !properties.isNull(); properties = properties.nextSiblingElement()) {
+        if (properties.tagName().compare(QLatin1String("ActionProperties"), Qt::CaseInsensitive) != 0) {
+            continue;
+        }
+        for (QDomElement action = properties.firstChildElement(); !action.isNull(); action = action.nextSiblingElement()) {
+            const QString id = action.attribute(QStringLiteral("name"));
+            if (id.isEmpty() || action.tagName().compare(QLatin1String("Action"), Qt::CaseInsensitive) != 0) {
+                continue;
+            }
+            for (const QString &property : taken) {
+                if (action.hasAttribute(property)) {
+                    result[id].insert(property, action.attribute(property));
+                }
+            }
+        }
+    }
+    return result;
+}
+}
+
+WhaleToolbarLayout::WhaleToolbarLayout(const QList<Entry> &entries, const QHash<QString, ActionProperties> &actionProperties)
     : m_entries(entries)
+    , m_actionProperties(actionProperties)
 {
 }
 
@@ -36,7 +68,7 @@ WhaleToolbarLayout WhaleToolbarLayout::fromDocument(const QDomDocument &document
             }
             // <text> is the toolbar's name; <ActionList> and <Merge> do not occur here.
         }
-        return WhaleToolbarLayout(entries);
+        return WhaleToolbarLayout(entries, actionPropertiesOf(document));
     }
     return {};
 }
@@ -44,6 +76,11 @@ WhaleToolbarLayout WhaleToolbarLayout::fromDocument(const QDomDocument &document
 QList<WhaleToolbarLayout::Entry> WhaleToolbarLayout::entries() const
 {
     return m_entries;
+}
+
+QHash<QString, WhaleToolbarLayout::ActionProperties> WhaleToolbarLayout::actionProperties() const
+{
+    return m_actionProperties;
 }
 
 QStringList WhaleToolbarLayout::toStringList() const

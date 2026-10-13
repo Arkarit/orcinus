@@ -8,14 +8,18 @@
 
 #include "dolphinviewcontainer.h"
 #include "whalecontainercommands.h"
+#include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaleviewcommandscope.h"
 
 #include <KConfig>
 #include <KConfigGroup>
 #include <KIconLoader>
+#include <KLocalizedString>
 
 #include <QActionEvent>
+#include <QContextMenuEvent>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QToolButton>
 
@@ -26,9 +30,6 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
     Q_ASSERT(container);
     setObjectName(QStringLiteral("whaleFileViewToolBar"));
     setMovable(false);
-    // No context menu for now: KToolBar's needs a main window as parent, and QToolBar's would
-    // be passed on to the window. (Configure/hide come with the settings, TB4/TB5.)
-    setContextMenuPolicy(Qt::PreventContextMenu);
     // Small icons without text, as the user's settings of this toolbar (they stay when KDE's
     // toolbar style changes). Every File View Toolbar looks the same.
     KConfig settings(QString(), KConfig::SimpleConfig);
@@ -65,7 +66,10 @@ void WhaleFileViewToolBar::rebuild()
         return;
     }
     clear();
-    const auto entries = manager->fileViewLayout().entries();
+    const WhaleToolbarLayout layout = manager->fileViewLayout();
+    // What the user changed about the actions in Configure Toolbars, for this view's actions.
+    m_scope->applyActionProperties(layout.actionProperties());
+    const auto entries = layout.entries();
     for (const WhaleToolbarLayout::Entry &entry : entries) {
         switch (entry.type) {
         case WhaleToolbarLayout::Entry::Type::Separator:
@@ -96,6 +100,25 @@ void WhaleFileViewToolBar::actionEvent(QActionEvent *event)
             button->installEventFilter(this);
         }
     }
+}
+
+void WhaleFileViewToolBar::contextMenuEvent(QContextMenuEvent *event)
+{
+    // A menu of its own: KToolBar's needs a main window as parent, and QToolBar would pass the
+    // event on to the window, which answers with the menu of its own toolbars and panels.
+    event->accept();
+    WhaleToolbarConfigurator *configurator = WhaleToolbarConfigurator::of(this);
+    if (!configurator) {
+        return; // not in a window with Configure Toolbars
+    }
+    auto menu = new QMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    QAction *configure = menu->addAction(QIcon::fromTheme(QStringLiteral("configure-toolbars")), i18nc("@action:inmenu", "Configure File View Toolbar…"));
+    configure->setObjectName(QStringLiteral("whale_configure_file_view_toolbar"));
+    connect(configure, &QAction::triggered, configurator, [configurator]() {
+        configurator->configure(WhaleToolbarDescriptor::fileViewId());
+    });
+    menu->popup(event->globalPos());
 }
 
 bool WhaleFileViewToolBar::eventFilter(QObject *watched, QEvent *event)

@@ -19,9 +19,10 @@
  * user's toolbar on a newer installed version. One configuration for the toolbars of all
  * file views.
  *
- * Lifetime: owned by WhaleToolbarManager (never on the stack). It is not part of the
- * window's XML GUI factory; Configure Toolbars (TB4) will add it to the factory while the
- * dialog is open and must remove it again before the client or the window goes away.
+ * Lifetime: owned by WhaleToolbarManager (never on the stack), which reads the layout with
+ * it. That client is never part of the window's XML GUI factory. Configure Toolbars uses a
+ * client of its own for the same file (WhaleToolbarConfigurator), which is part of the
+ * factory while the dialog is open.
  */
 class WhaleFileViewToolbarClient : public KXMLGUIClient
 {
