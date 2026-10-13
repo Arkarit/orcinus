@@ -1372,7 +1372,7 @@ View und braucht keinen Active-View-Zustand. **TB4-ready: ja**, auf das Go des B
 
 Branch `feature/multi-toolbar`, **nicht** gepusht. Commits: 0e72ca5d7 (Settings-Integration),
 d8e6b854c (Tests). Plugin-API bleibt Version 9. TB5 ist nicht begonnen. Die interaktive
-Wayland-Abnahme steht noch aus (28.12), sie braucht die Freigabe des Benutzers.
+Wayland-Abnahme ist nach Freigabe erfolgt (28.12).
 
 ### 28.1 Configurator
 
@@ -1547,16 +1547,27 @@ konfiguriert: kein Problem. Andere Prozesse lesen erst beim nächsten Start.
   Leak-Erkennung zeigt keine Leaks aus dem neuen Code.
 - Während TB4 gab es kein ydotool, keine Wayland-Fenster und keine Eingabe auf dem Desktop.
 
-### 28.12 Wayland-Abnahme (offen, nur nach Freigabe)
+### 28.12 Wayland-Abnahme (2026-10-13, nach Freigabe)
 
-Offscreen nicht prüfbar und deshalb noch offen:
+Plasma/Wayland, Dev-Whale mit eigenem Profil, echte Eingabe über ydotool, nur in den Fenstern
+der Test-Whale. Geprüft wurden nur die offscreen nicht abdeckbaren Punkte. Split: Dateiliste
+in einer Pane, Cushion Treemap in der anderen.
 
-- Dialog erscheint auf Plasma korrekt über dem richtigen Fenster; Combo umschalten mit Maus.
-- Drag & Drop zwischen den Listen des Dialogs.
-- „Change Icon…“ mit KDEs Icon-Auswahl (im Test nicht bedient).
-- Rechtsklick auf die File View Toolbar: Menü an der Mausposition, als echtes Popup.
-- Sichtprüfung nach Apply/Defaults in beiden Panes, auch mit Cushion Treemap in einer Pane.
-- Zweites Fenster auf Wayland.
+| Prüfung | Ergebnis |
+|---|---|
+| Dialog öffnen (Fenster-Action), Combo mit der Maus umschalten | Dialog liegt über dem eigenen Fenster; Combo-Popup ist ein echtes Popup mit „Main Toolbar“ / „File View Toolbar“ ohne Suffix; Wechsel lädt die Listen |
+| Action per Pfeil (`compact`) und per Drag & Drop (`details`) einfügen, Apply | beide Wege funktionieren; Datei geschrieben; beide Panes (auch die Treemap-Pane) zeigen sofort das neue Layout, Hauptleiste unverändert |
+| Rechtsklick auf die File View Toolbar (beide Panes) | echtes Popup exakt an der Mausposition, ein Eintrag; öffnet den Dialog mit „File View Toolbar“ vorausgewählt |
+| „Change Text…“ (getippt) und „Change Icon…“ mit KDEs Icon-Auswahl, Apply | `<Action icon="acrobat" iconText="Parent" name="go_up"/>` in der Datei; beide Panes zeigen das neue Icon |
+| Änderung + Cancel | Datei bytegleich, Toolbars unverändert |
+| Defaults | Rückfrage „… reset all toolbars of this application …“; nach „Reset“ lokale Datei weg, beide Panes zeigen sofort Default-Layout und Original-Icon, Dialog bleibt offen mit „File View Toolbar“ gewählt |
+
+Log der Test-Whale: nur die bekannten Null-Action-Warnungen und QtDBus-Hinweise der
+Abfragen, keine KXmlGui-Warnung.
+
+Nicht auf Wayland geprüft: **zweites Fenster**. „New Window“ startet einen eigenen Prozess; zwei
+Fenster in einem Prozess sind nur offscreen im Test abgedeckt (28.10). Sichtbar wurde dabei
+nichts Neues. Nach der Abnahme ist die Test-Whale beendet, es läuft keine GUI-Automation mehr.
 
 ### 28.13 Dolphin-Diff und Abweichungen
 
@@ -1568,7 +1579,8 @@ Abweichungen vom Plan bzw. Auftrag:
 - Client-Reihenfolge nach jedem Apply herstellen (28.3), neu.
 - Find Action ist bei offenem Dialog disabled (28.9); sichtbare Kleinigkeit.
 - Vorauswahl wird nicht nachgezogen, wenn der Dialog schon offen ist (28.1).
-- „Change Icon…“ ist nur ab dem geschriebenen Attribut getestet (28.7).
+- „Change Icon…“ ist im automatischen Test nur ab dem geschriebenen Attribut abgedeckt (28.7),
+  mit KDEs Icon-Auswahl auf Wayland abgenommen (28.12).
 - Nicht gemacht, wie verlangt: Migration, neue Defaults, Sichtbarkeits-Setting, Reset-Eintrag,
   Location Bar, Änderungen am Action-Satz oder Routing.
 
@@ -1577,5 +1589,5 @@ löschen); nicht angefasst.
 
 ### 28.14 Bewertung
 
-TB4 ist offscreen abgeschlossen. **TB5-ready: ja**, vorbehaltlich der Wayland-Abnahme (28.12)
-und auf das Go des Benutzers.
+TB4 ist abgeschlossen, offscreen und auf Wayland abgenommen. **TB5-ready: ja**, auf das Go des
+Benutzers.
