@@ -15,8 +15,8 @@
 
 set -euo pipefail
 
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-build_dir="$(cd -- "${script_dir}/.." && pwd)/build-whale-system"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+build_dir="$(cd -- "${script_dir}/.." && pwd -P)/build-whale-system"
 prefix=/usr
 
 stage_dir="$(mktemp -d)"
