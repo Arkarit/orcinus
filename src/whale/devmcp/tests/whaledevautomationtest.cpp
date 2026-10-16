@@ -13,6 +13,7 @@
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
+#include "whaletoolbarsettings.h"
 #include "whaleview.h"
 #include "whaleviewhost.h"
 
@@ -72,6 +73,9 @@ private Q_SLOTS:
     void testSetSelection();
     void testWaitForState();
     void testScreenshot();
+    void testToolbarState();
+    void testToolbarErrors();
+    void testToolbarsOfTwoWindows();
 
 private:
     /// Waits until the conditions hold; prints the mismatches otherwise.
@@ -120,6 +124,7 @@ void WhaleDevAutomationTest::init()
 
 void WhaleDevAutomationTest::cleanup()
 {
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
     m_automation = nullptr;
     m_window.reset();
     m_dir.reset();
@@ -560,6 +565,131 @@ void WhaleDevAutomationTest::testScreenshot()
     const QImage image = QImage::fromData(m_automation->screenshot(), "PNG");
     QVERIFY(!image.isNull());
     QCOMPARE(image.size(), m_window->size() * m_window->devicePixelRatio());
+}
+
+namespace
+{
+QJsonObject paneToolbar(const QJsonObject &state, int pane)
+{
+    return state.value(QStringLiteral("panes")).toArray().at(pane).toObject().value(QStringLiteral("toolbar")).toObject();
+}
+
+QStringList actionKeys(const QJsonObject &toolbar)
+{
+    QStringList keys;
+    const QJsonArray actions = toolbar.value(QStringLiteral("actions")).toArray();
+    for (const QJsonValue &action : actions) {
+        keys.append(action.toObject().value(QStringLiteral("actionKey")).toString());
+    }
+    return keys;
+}
+
+QString errorOf(const QJsonObject &result)
+{
+    return result.value(QStringLiteral("ok")).toBool() ? QString() : result.value(QStringLiteral("error")).toString();
+}
+}
+
+void WhaleDevAutomationTest::testToolbarState()
+{
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.initialized"), true}})));
+    const QJsonObject state = m_automation->uiState();
+    const QJsonObject toolbar = paneToolbar(state, 0);
+    const QString id = toolbar.value(QStringLiteral("instanceId")).toString();
+    QVERIFY(id.startsWith(QLatin1String("view-")));
+    QCOMPARE(toolbar.value(QStringLiteral("ownerView")).toString(), QStringLiteral("dolphin"));
+    QCOMPARE(toolbar.value(QStringLiteral("visible")).toBool(), true);
+    QCOMPARE(strings(toolbar.value(QStringLiteral("layout"))),
+             QStringList({QStringLiteral("go_back"),
+                          QStringLiteral("go_forward"),
+                          QStringLiteral("go_up"),
+                          QStringLiteral("view_redisplay"),
+                          QStringLiteral("|"),
+                          QStringLiteral("view_settings")}));
+    // The same ID and the same objects as long as the view lives.
+    const QJsonObject again = paneToolbar(m_automation->uiState(), 0);
+    QCOMPARE(again.value(QStringLiteral("instanceId")).toString(), id);
+    QCOMPARE(actionKeys(again), actionKeys(toolbar));
+    const QJsonObject toolbars = state.value(QStringLiteral("toolbars")).toObject();
+    QCOMPARE(toolbars.value(QStringLiteral("global")).toObject().value(QStringLiteral("visible")).toBool(), true);
+    QCOMPARE(toolbars.value(QStringLiteral("fileViewsVisible")).toBool(), true);
+    QCOMPARE(toolbars.value(QStringLiteral("instances")).toArray().count(), 1);
+    QCOMPARE(state.value(QStringLiteral("toolbarDialog")).toObject(), QJsonObject({{QStringLiteral("open"), false}}));
+
+    // A view that is created hidden has no actions; reading the state does not create them.
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    QVERIFY(m_automation->setSplitView(true).value(QStringLiteral("ok")).toBool());
+    QVERIFY(reaches(expect({{QStringLiteral("paneCount"), 2}, {QStringLiteral("panes.1.toolbar.visible"), false}})));
+    for (int i = 0; i < 3; ++i) {
+        QCOMPARE(paneToolbar(m_automation->uiState(), 1).value(QStringLiteral("initialized")).toBool(), false);
+    }
+    QVERIFY(paneToolbar(m_automation->uiState(), 1).value(QStringLiteral("actions")).toArray().isEmpty());
+    QVERIFY(paneToolbar(m_automation->uiState(), 1).value(QStringLiteral("instanceId")).toString() != id);
+}
+
+void WhaleDevAutomationTest::testToolbarErrors()
+{
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.initialized"), true}})));
+    QVERIFY(
+        errorOf(m_automation->triggerToolbarAction(QStringLiteral("view-999999"), QStringLiteral("go_up"), QString())).contains(QStringLiteral("instanceId")));
+    QVERIFY(errorOf(m_automation->triggerToolbarAction(QStringLiteral("3"), QStringLiteral("go_up"), QString())).contains(QStringLiteral("no pane")));
+    QVERIFY(
+        errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("split_view"), QString())).contains(QStringLiteral("unknown action")));
+    QVERIFY(
+        errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("go_home"), QString())).contains(QStringLiteral("not in this toolbar")));
+    // Nothing to go forward to.
+    QVERIFY(errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("go_forward"), QString())).contains(QStringLiteral("disabled")));
+    QVERIFY(
+        errorOf(m_automation->triggerToolbarAction(QStringLiteral("global"), QStringLiteral("url_navigators"), QString())).contains(QStringLiteral("widget")));
+    QVERIFY(errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("go_up"), QStringLiteral("x"))).contains(QStringLiteral("no menu")));
+    QVERIFY(errorOf(m_automation->configureToolbars({{QStringLiteral("apply"), true}})).contains(QStringLiteral("not open")));
+    QVERIFY(errorOf(m_automation->configureToolbars({{QStringLiteral("select"), QStringLiteral("left")}})).contains(QStringLiteral("unknown toolbar")));
+    // Up works: the view still reacts after all of them.
+    QVERIFY(errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("go_up"), QString())).isEmpty());
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.actions.1.enabled"), false}, {QStringLiteral("panes.0.toolbar.actions.0.enabled"), true}})));
+}
+
+void WhaleDevAutomationTest::testToolbarsOfTwoWindows()
+{
+    // Two main windows of one process (Whale's "New Window" starts a new process).
+    QScopedPointer<DolphinMainWindow> other(new DolphinMainWindow());
+    other->openDirectories({QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub"))}, false);
+    other->resize(1000, 700);
+    other->show();
+    QVERIFY(QTest::qWaitForWindowActive(other.data()));
+    auto otherAutomation = new WhaleDevAutomation(other.data());
+    QVERIFY(QTest::qWaitFor([otherAutomation]() {
+        return otherAutomation->evaluate(QJsonObject{{QStringLiteral("panes.0.toolbar.initialized"), true}, {QStringLiteral("panes.0.loading"), false}})
+            .value(QStringLiteral("matched"))
+            .toBool();
+    }));
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.initialized"), true}})));
+    const QJsonObject mine = paneToolbar(m_automation->uiState(), 0);
+    const QJsonObject theirs = paneToolbar(otherAutomation->uiState(), 0);
+    const QString myId = mine.value(QStringLiteral("instanceId")).toString();
+    const QString theirId = theirs.value(QStringLiteral("instanceId")).toString();
+    QVERIFY(myId != theirId);
+    for (const QString &key : actionKeys(mine)) {
+        QVERIFY(!actionKeys(theirs).contains(key));
+    }
+    // Each window knows its own views only.
+    QVERIFY(errorOf(m_automation->triggerToolbarAction(theirId, QStringLiteral("go_up"), QString())).contains(QStringLiteral("another window")));
+    QCOMPARE(otherAutomation->uiState().value(QStringLiteral("toolbars")).toObject().value(QStringLiteral("instances")).toArray().count(), 1);
+
+    // Up in the other window's toolbar: only that window's view goes up.
+    const QString myUrl = m_automation->uiState().value(QStringLiteral("url")).toString();
+    QVERIFY(errorOf(otherAutomation->triggerToolbarAction(theirId, QStringLiteral("go_up"), QString())).isEmpty());
+    QVERIFY(QTest::qWaitFor([otherAutomation, this]() {
+        const QString url = otherAutomation->uiState().value(QStringLiteral("url")).toString();
+        return QUrl(url).adjusted(QUrl::StripTrailingSlash) == m_dir->url().adjusted(QUrl::StripTrailingSlash);
+    }));
+    QCOMPARE(m_automation->uiState().value(QStringLiteral("url")).toString(), myUrl);
+
+    // "Show File View Toolbars" is one setting for both windows.
+    QVERIFY(m_automation->triggerAction(QStringLiteral("whale_show_file_view_toolbars")).value(QStringLiteral("ok")).toBool());
+    QCOMPARE(paneToolbar(otherAutomation->uiState(), 0).value(QStringLiteral("visible")).toBool(), false);
+    QCOMPARE(otherAutomation->uiState().value(QStringLiteral("toolbars")).toObject().value(QStringLiteral("fileViewsVisible")).toBool(), false);
+    QVERIFY(errorOf(otherAutomation->triggerToolbarAction(theirId, QStringLiteral("go_back"), QString())).contains(QStringLiteral("not shown")));
 }
 
 QTEST_MAIN(WhaleDevAutomationTest)
