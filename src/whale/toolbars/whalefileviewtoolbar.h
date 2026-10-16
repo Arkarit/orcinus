@@ -26,7 +26,8 @@ class WhaleViewCommandScope;
  * never shown (other tabs) cost nothing. Pressing a button activates the view, as clicking
  * into it or its location bar does; the actions do not depend on that.
  *
- * Its context menu opens Configure Toolbars with the File View Toolbar chosen.
+ * Shown or hidden with all other File View Toolbars (WhaleToolbarSettings). Its context menu
+ * opens Configure Toolbars with the File View Toolbar chosen, or hides them all.
  */
 class WhaleFileViewToolBar : public KToolBar
 {

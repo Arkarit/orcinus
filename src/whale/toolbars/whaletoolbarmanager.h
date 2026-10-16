@@ -12,9 +12,12 @@
 
 #include <QList>
 #include <QObject>
+#include <QPointer>
 
 #include <memory>
 
+class KXmlGuiWindow;
+class KToggleAction;
 class QWidget;
 class WhaleFileViewToolbarClient;
 
@@ -26,6 +29,10 @@ class WhaleFileViewToolbarClient;
  * View Toolbar. The File View Toolbars themselves belong to their file views
  * (WhaleFileViewToolBar in each DolphinViewContainer); the manager keeps no list of them,
  * they follow layoutChanged().
+ *
+ * Whether the File View Toolbars are shown is one setting for all of them
+ * (WhaleToolbarSettings); the manager offers it as the window's action
+ * "whale_show_file_view_toolbars", in the View menu.
  */
 class WhaleToolbarManager : public QObject
 {
@@ -43,6 +50,20 @@ public:
     static WhaleToolbarManager *of(const QWidget *widget);
 
     ~WhaleToolbarManager() override;
+
+    /**
+     * Creates the window's action "Show File View Toolbars" in its action collection, before
+     * the window builds its GUI (it may be on the main toolbar), and puts it into the View
+     * menu each time the window's GUI is built. The window's XML GUI file is not changed.
+     */
+    void setupActions(KXmlGuiWindow *window);
+
+    /**
+     * @return The window's action "Show File View Toolbars", or nullptr before setupActions().
+     */
+    KToggleAction *showFileViewToolBarsAction() const;
+
+    static QString showFileViewToolBarsActionName();
 
     /**
      * @return The kinds of toolbars: the main toolbar ("global") and the File View Toolbar
@@ -73,6 +94,10 @@ Q_SIGNALS:
 private:
     explicit WhaleToolbarManager(QWidget *window);
 
+    void plugIntoViewMenu();
+
+    KXmlGuiWindow *m_window = nullptr;
+    QPointer<KToggleAction> m_showFileViewToolBars; // owned by the window's action collection
     std::unique_ptr<WhaleFileViewToolbarClient> m_fileViewClient;
     WhaleToolbarLayout m_fileViewLayout;
 };

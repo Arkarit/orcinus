@@ -10,6 +10,7 @@
 #include "whalecontainercommands.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
+#include "whaletoolbarsettings.h"
 #include "whaleviewcommandscope.h"
 
 #include <KConfig>
@@ -37,6 +38,14 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
     group.writeEntry("IconSize", int(KIconLoader::SizeSmall));
     group.writeEntry("ToolButtonStyle", QStringLiteral("IconOnly"));
     applySettings(group);
+
+    // Shown or not: one setting for all File View Toolbars. A hidden one creates its actions
+    // when it is shown.
+    WhaleToolbarSettings *toolbarSettings = WhaleToolbarSettings::self();
+    if (!toolbarSettings->fileViewToolBarsVisible()) {
+        hide();
+    }
+    connect(toolbarSettings, &WhaleToolbarSettings::fileViewToolBarsVisibleChanged, this, &QWidget::setVisible);
 }
 
 WhaleFileViewToolBar::~WhaleFileViewToolBar() = default;
@@ -107,16 +116,20 @@ void WhaleFileViewToolBar::contextMenuEvent(QContextMenuEvent *event)
     // A menu of its own: KToolBar's needs a main window as parent, and QToolBar would pass the
     // event on to the window, which answers with the menu of its own toolbars and panels.
     event->accept();
-    WhaleToolbarConfigurator *configurator = WhaleToolbarConfigurator::of(this);
-    if (!configurator) {
-        return; // not in a window with Configure Toolbars
-    }
     auto menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
-    QAction *configure = menu->addAction(QIcon::fromTheme(QStringLiteral("configure-toolbars")), i18nc("@action:inmenu", "Configure File View Toolbar…"));
-    configure->setObjectName(QStringLiteral("whale_configure_file_view_toolbar"));
-    connect(configure, &QAction::triggered, configurator, [configurator]() {
-        configurator->configure(WhaleToolbarDescriptor::fileViewId());
+    if (WhaleToolbarConfigurator *configurator = WhaleToolbarConfigurator::of(this)) {
+        QAction *configure = menu->addAction(QIcon::fromTheme(QStringLiteral("configure-toolbars")), i18nc("@action:inmenu", "Configure File View Toolbar…"));
+        configure->setObjectName(QStringLiteral("whale_configure_file_view_toolbar"));
+        connect(configure, &QAction::triggered, configurator, [configurator]() {
+            configurator->configure(WhaleToolbarDescriptor::fileViewId());
+        });
+    }
+    // All of them; "Show File View Toolbars" in the View menu shows them again.
+    QAction *hide = menu->addAction(i18nc("@action:inmenu", "Hide File View Toolbars"));
+    hide->setObjectName(QStringLiteral("whale_hide_file_view_toolbars"));
+    connect(hide, &QAction::triggered, WhaleToolbarSettings::self(), [] {
+        WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
     });
     menu->popup(event->globalPos());
 }

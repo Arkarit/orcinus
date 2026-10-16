@@ -41,6 +41,7 @@
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
 #include "whaletoolbarconfigurator.h"
+#include "whaletoolbarmanager.h"
 #include "whaleviewactions.h"
 #include "whaleviewhost.h"
 
@@ -229,6 +230,7 @@ DolphinMainWindow::DolphinMainWindow()
     setupFileItemActions();
 
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
+    WhaleToolbarManager::ensure(this)->setupActions(this); // Whale: Show File View Toolbars
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
     WhaleToolbarConfigurator::install(this, [this]() {
