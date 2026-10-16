@@ -1591,3 +1591,175 @@ löschen); nicht angefasst.
 
 TB4 ist abgeschlossen, offscreen und auf Wayland abgenommen. **TB5-ready: ja**, auf das Go des
 Benutzers.
+
+---
+
+## 29. TB5-Ergebnisse (2026-10-16)
+
+Branch `feature/multi-toolbar`, **nicht** gepusht, nicht gemergt. Commits: 9befbe871
+(Migration/Defaults/Sichtbarkeit), d97be71cc (Tests), Doku-Commit danach. Plugin-API bleibt
+Version 9. TB6 und TB7 sind nicht begonnen. Die interaktive Wayland-Abnahme steht aus (29.12).
+
+### 29.1 Neue Main-Toolbar-Defaults (E6)
+
+`mainToolBar` in `src/dolphinui.rc` für Benutzer **ohne** eigene Kopie:
+`url_navigators, split_view, split_stash, toggle_search, hamburger_menu`. Back, Forward und View
+Settings fehlen dort, sie stehen in jeder File View Toolbar. `dolphinuiforphones.rc` ist
+unverändert (eigene Leiste, kein Ziel von TB5).
+
+**Kein Versionssprung** (bleibt 52), geprüft im Quellcode von KXmlGui 6.24
+(`KXmlGuiVersionHandler`): Bei gleicher Version gewinnt die lokale Datei als Ganzes (nur `version >
+bestVersion` wechselt die Wahl), die neuen Defaults erreichen Bestandsnutzer also nicht. Ein Sprung
+wäre nur für neue **Menü**einträge in der RC nötig; den einzigen neuen Menüeintrag hängt Whale
+deshalb per Code ein (29.4). Ein Sprung hätte außerdem KXmlGui veranlasst, die Benutzerdatei neu
+zu schreiben (Toolbars und ActionProperties semantisch erhalten, aber nicht bytegleich).
+
+### 29.2 Bestandsnutzer und Migration
+
+- Whale-Code schreibt `~/.local/share/kxmlgui5/whale/dolphinui.rc` nie. Die Main Toolbar bleibt
+  exakt (Reihenfolge, Buttons, ActionProperties). Test: Datei nach Start, Split, Schließen und
+  zweitem Start **bytegleich**, keine `.backup`.
+- Die File View Toolbar erscheint mit ihrem Default. Back/Forward/View Settings sind dann doppelt
+  sichtbar; keine Bereinigung, kein Hinweis.
+- Reversibel: File View Toolbars ausblenden (und ggf. `whalefileviewtoolbarui.rc` löschen) ergibt
+  das Fenster von vorher (Test-Zeile „hidden“).
+- Ältere Benutzerdatei (niedrigere Version): Das ist KDEs Versionshandler, unverändert seit vor
+  TB5. Er nimmt die installierte Datei, setzt Benutzer-Toolbars namentlich und ActionProperties
+  ein und **schreibt** die lokale Datei neu (Version 52). Test: Toolbar und Texte erhalten, Menüs
+  installiert.
+- Upstream-Pfad, nicht von Whale: `DolphinMainWindow::addHamburgerMenuToToolbar()` schreibt die
+  Datei, wenn `GeneralSettings::version() < 201` und kein Hamburger in der Toolbar ist (Dolphins
+  eigene Altmigration). Whale-Benutzer haben Version 202.
+
+### 29.3 Sichtbarkeit (E7)
+
+`WhaleToolbarSettings` (`src/whale/toolbars/whaletoolbarsettings.{h,cpp}`), eine Instanz pro
+Prozess (`self()`), nicht `GeneralSettings`/kcfg:
+
+```ini
+# whalerc (KSharedConfig::openConfig(), XDG_CONFIG_HOME)
+[WhaleToolbars]
+ShowFileViewToolBars=false   # ohne Eintrag: true
+```
+
+- `setFileViewToolBarsVisible()` schreibt und `sync()`t sofort, dann Signal
+  `fileViewToolBarsVisibleChanged`.
+- Jede `WhaleFileViewToolBar` liest den Wert im Konstruktor (versteckt sich ggf.) und verbindet
+  sich mit dem Signal. Damit reagieren alle Instanzen sofort: Split beide, andere Tabs, alle
+  Fenster des Prozesses; neue Container übernehmen den Zustand.
+- Eine verborgene Leiste, die nie sichtbar war, erzeugt keine Actions (Scope entsteht beim ersten
+  `showEvent`, wie seit TB2).
+- Aussehen: Icon-only, kleine Icons seit TB2 per `applySettings()` auf Benutzer-Ebene der
+  `KToolBar`; KDE-Stil- und Icon-Änderungen ändern nur die KDE-Default-Ebene. Geprüft im
+  KToolBar-Quellcode und im Test (auch nach `iconLoaderSettingsChanged`). Nichts geändert.
+- KDEs „Shown Toolbars“/„Show Toolbar“ (`ToolBarHandler`) erfasst nur Leisten mit dem Fenster als
+  Parent, die File View Toolbars also nicht. Keine Wechselwirkung.
+
+### 29.4 View-Menü
+
+- `KToggleAction` `whale_show_file_view_toolbars`, „Show File View Toolbars“, in der
+  Action-Collection des Fensters (also auch in Find Action, Configure Shortcuts und als Button für
+  die Main Toolbar platzierbar). Angelegt von `WhaleToolbarManager::setupActions()` **vor**
+  `setupGUI`, damit eine in der Main Toolbar platzierte Action beim Start existiert.
+- Nicht in `dolphinui.rc`. Der Manager hängt sie nach jedem `KXMLGUIFactory::clientAdded` des
+  Fensters (setupGUI, createGUI, Apply in Configure Toolbars) in das View-Menü, direkt nach
+  „Location Bar“ (also nach „Show Panels“, bei den ein-/ausblendbaren Fensterteilen); Fallback
+  ans Ende. Präzedenz: `WhaleViewActions::plugViewModes()`.
+- Bestandsnutzer mit eigener RC sehen den Eintrag damit ohne Versionssprung. Der Benutzerdatei,
+  die KEditToolBar schreibt, wird er nicht hinzugefügt (Test).
+- Hamburger-Menü bei verborgener Menüleiste: über „More“ → View (KHamburgerMenu zeigt die Menüs der
+  Menüleiste); Dolphins `updateHamburgerMenu()` ist unverändert.
+
+### 29.5 Kontextmenü
+
+Zweiter Eintrag „Hide File View Toolbars“ (`whale_hide_file_view_toolbars`) nach „Configure File
+View Toolbar…“. Blendet alle aus; der Weg zurück ist der View-Menü-Eintrag. Ohne Configurator
+(kein Hauptfenster) erscheint nur „Hide“. Kein „Reset File View Toolbar“ (E3 bleibt offen).
+
+### 29.6 Configure Toolbars und Defaults
+
+- Funktioniert unabhängig von der Sichtbarkeit: Der temporäre Edit-Client (28.2) hängt nicht an den
+  Leisten. Apply bei verborgenen Leisten: Datei geschrieben, Leisten bleiben verborgen, beim
+  Einblenden zeigen sie das neue Layout (getestet für „nie gezeigt“ und „gezeigt, dann
+  verborgen“).
+- Defaults-Button unverändert: setzt beide Toolbars zurück; danach zeigt die Main Toolbar die neuen
+  TB5-Defaults, auch für einen Bestandsnutzer (lokale Datei gelöscht), die File View Toolbars ihre
+  Defaults. Die Sichtbarkeit ist kein Layout und bleibt, wie sie ist.
+
+### 29.7 Persistenz und Multi-Window/Prozess-Semantik
+
+- Neustart: Zustand bleibt (Test mit sauberem `HOME`/`XDG_CONFIG_HOME`/`XDG_DATA_HOME`).
+- Mehrere Hauptfenster **im selben Prozess**: ein Schalter, alle Fenster live, alle Toggle-Actions
+  synchron (Test).
+- „New Window“ startet einen **neuen Prozess**; der liest den gespeicherten Wert beim Start. Kein
+  Live-Sync zwischen laufenden Prozessen (KConfig liefert ihn ohne `KConfigWatcher` nicht; nicht
+  erfunden). Ein laufender Prozess behält seinen Zustand bis zum eigenen Umschalten.
+
+### 29.8 E11
+
+Bewusst **nicht** umgesetzt (deferred): kein KMessageWidget, kein Banner, kein Flag
+`MultiToolbarIntroduced`. Der Benutzer hat den Stand global benutzt und keinen Bedarf gesehen.
+Neubewertung nur bei Rückmeldungen über verwirrende doppelte Buttons.
+
+### 29.9 Tests
+
+- Neu: `whaletoolbarmigrationtest`, 15 Testfunktionen/-zeilen (+ init/cleanup = 17):
+  Bestandsnutzer (unverändert/geändert ohne Hamburger/ausgeblendet; bytegleich, ActionProperties),
+  neuer Benutzer, ältere Benutzerdatei (Versionshandler), Defaults für Bestandsnutzer, Aussehen,
+  View-Menü (auch nach Apply und neuem Fenster), Umschalten für Split und Tabs, neue Container,
+  Kontextmenü, zwei Fenster, Persistenz (Datei, Neustart, Wert eines anderen Prozesses beim
+  Start), Configure Toolbars bei verborgenen Leisten (2 Varianten).
+- Angepasst: `whaletoolbarconfigtest` (neue Main-Defaults; Kontextmenü hat 2 Einträge; statt
+  `view_settings` wird `split_view` in der Hauptleiste geprüft; Back steht dort nur noch in
+  „Available“), `whalefileviewtoolbartest`. Grund für beide: Der Manager entsteht jetzt im
+  Fensterkonstruktor und liest das Layout dort; Tests schreiben ihre Benutzerdatei vorher bzw.
+  laden neu. Im echten Start existiert die Datei vorher, kein Verhaltensunterschied.
+- Offscreen: alle 37 Whale-Tests grün (inkl. Lints, Dev-MCP-Acceptances), migrationtest 3× stabil,
+  `clang-format` sauber.
+- Gesamtsuite offscreen: `folderspaneltest` unter `-j4` rot, allein und wiederholt grün (bekannt,
+  25.x); `dolphinmainwindowtest` wie bisher (`testThumbnailAfterRename` rot, Watchdog in
+  `testViewModeAfterDynamicView`), die Funktionen danach einzeln grün; `testAccessibilityTree`
+  diesmal grün.
+- **ASan/UBSan** (`../build-whale-asan`, offscreen): `whaletoolbarmigrationtest`,
+  `whaletoolbarconfigtest`, `whalefileviewtoolbartest`, `whaleviewservicestest` mit 0 Befunden.
+  Leak-Lauf des Migrationstests: keine Leaks aus Whale-Toolbar-Code.
+- Test-Gotcha: `GeneralSettings::version() >= 200` ohne gespeicherten Fensterzustand zeigt das
+  Terminal-Panel (Upstream); Konsole stürzt offscreen mit zwei Fenstern ab. Der Test setzt die
+  Version nur im Bestandsnutzer-Test und räumt Version und `whalestaterc` im `cleanup()` auf.
+- Während TB5 kein ydotool, keine sichtbaren Fenster, keine Eingabe auf dem Desktop.
+
+### 29.10 Dolphin-Diff
+
+- `src/dolphinui.rc`: 3 Zeilen entfernt (Main-Defaults), Version unverändert.
+- `src/dolphinmainwindow.cpp`: 2 Zeilen (Include, `WhaleToolbarManager::ensure(this)->
+  setupActions(this)` vor `setupGUI`).
+- Sonst nur Whale-Code (`src/whale/toolbars/`, CMake, Tests).
+
+### 29.11 Abweichungen
+
+- View-Menü-Eintrag per Code statt in `dolphinui.rc` (29.4), um den Versionssprung zu vermeiden.
+- Ein zusätzlicher Dolphin-Aufruf vor `setupGUI` (Action muss vor dem Aufbau existieren).
+- Manager entsteht früher (Fensterkonstruktor statt erstes Zeigen einer Leiste).
+- Sichtbare Nebenwirkung der neuen Defaults (nur neue Benutzer): Dolphins Hamburger-Menü zeigt
+  ohne `view_settings` in der Main Toolbar zusätzlich View-Modus, Flat, Hidden, Sortierung,
+  Zusatzinfos und Zoom. Upstream-Logik, nicht geändert.
+- UX-Diary-Eintrag UX-006.
+- Nicht gemacht, wie verlangt: Hinweis (E11), Reset-Eintrag, Aussehen-Optionen, Dev-MCP (TB6),
+  Location Bar pro View (TB7), Lokalisierung.
+
+### 29.12 Wayland-Abnahme (ausstehend, nur nach Freigabe)
+
+Offscreen nicht abdeckbar, vorgeschlagen:
+
+1. View-Menü (Menüleiste und Hamburger → More → View): Eintrag sichtbar, Position, Haken.
+2. Rechtsklick auf eine File View Toolbar → „Hide File View Toolbars“: echtes Popup, beide Panes
+   verschwinden sofort, Layout springt sauber hoch.
+3. Wieder einblenden: Split beide und ein zweiter Tab sofort richtig.
+4. Neustart der Test-Whale: Zustand verborgen bleibt.
+5. Configure Toolbars bei verborgenen Leisten: File View Toolbar ändern, Apply, Einblenden.
+6. Optional: neues Profil ohne lokale `dolphinui.rc` → neue Main Toolbar sichtbar.
+
+### 29.13 Bewertung
+
+TB5 ist offscreen abgeschlossen. **TB6-ready: ja**, nach der Wayland-Abnahme (29.12) auf das Go
+des Benutzers.

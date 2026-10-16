@@ -1052,3 +1052,71 @@ Restzellen-Rendering. Dev-MCP-Abnahmen T1/T2/M9/F1 beantworten die Rückfragen p
 - Deutsche Übersetzungen der neuen Meldungen fehlen noch in `po-whale/de/whale.po`.
 - Service-Menü-Aktionen im Kontextmenü der Flat View (z. B. Entpacken) bleiben verfügbar; sie arbeiten im
   Ordner der Datei. Beobachten, ob das irritiert.
+
+# UX-006 – Main Toolbar und File View Toolbars: Defaults, Bestandsnutzer, Ein-/Ausblenden
+
+## Metadaten
+
+- Datum: 2026-10-16
+- Branch: `feature/multi-toolbar` (TB5, siehe `whale-multi-toolbar-plan.md` Abschnitt 29)
+- Bereich: Main Toolbar (Default), File View Toolbars (Sichtbarkeit), View-Menü, Kontextmenü der
+  File View Toolbar
+- View-API: unverändert 9
+
+## Ausgangslage
+
+Seit TB2 hat jede Dateiansicht eine eigene File View Toolbar mit Back, Forward, Up, Reload und den
+View-Einstellungen. Die Main Toolbar zeigte weiterhin Back, Forward und View Settings. Neue
+Benutzer sahen dieselben Buttons doppelt, und es gab keinen Weg, die File View Toolbars
+auszublenden.
+
+## Entscheidung
+
+1. **Neue Benutzer** (ohne eigene Kopie von `dolphinui.rc`) bekommen eine schlanke Main Toolbar:
+   Location Bar, Split, Stash, Suche, Hamburger-Menü. Back/Forward/View Settings stehen in jeder
+   File View Toolbar, dort, wo sie wirken.
+2. **Bestehende Benutzer** behalten ihre Main Toolbar exakt (Reihenfolge, Texte, Icons). Whale
+   ändert ihre Datei nie. Die File View Toolbar kommt mit ihrem Default dazu; doppelte Buttons
+   sind akzeptiert und werden nicht bereinigt.
+3. **Ein Schalter für alle File View Toolbars:** „Show File View Toolbars“ im View-Menü (nach
+   „Show Panels“ und „Location Bar“), „Hide File View Toolbars“ im Kontextmenü der Leiste. Gilt für
+   alle Ansichten, Tabs und Fenster; bleibt über einen Neustart erhalten.
+4. **Konfigurieren geht auch verborgen:** Configure Toolbars bietet die File View Toolbar immer an;
+   Layout und Sichtbarkeit sind unabhängig.
+5. **Kein Hinweis** an Bestandsnutzer (kein Banner, kein KMessageWidget).
+
+## Erwogene und verworfene Alternativen
+
+- **Bestandsnutzer automatisch umbauen** (Back/Forward/View Settings aus der Main Toolbar
+  entfernen): würde eine bewusst gestaltete Leiste verändern; nicht umkehrbar ohne Sicherung.
+- **Sichtbarkeit pro Pane, Tab oder View-Typ:** mehr Zustand ohne erkennbaren Nutzen; die Leisten
+  sollen überall gleich aussehen.
+- **Eintrag in KDEs „Shown Toolbars“ (Settings-Menü):** KDE listet dort nur Leisten des Fensters;
+  die File View Toolbars gehören den Ansichten. Ein eigener Eintrag im View-Menü steht bei den
+  anderen „Teilen des Fensters“ (Panels, Location Bar).
+- **Hinweis an Bestandsnutzer (E11):** im Alltag kein Bedarf gesehen; ein Banner wäre aufdringlich.
+- **„Reset File View Toolbar“ im Kontextmenü:** nicht gemacht; KDEs Defaults setzt beide Leisten
+  zurück.
+
+## Testmatrix (automatisiert)
+
+`whaletoolbarmigrationtest`: Bestandsnutzer (unverändert, geändert, ausgeblendet; Datei bytegleich),
+neuer Benutzer, ältere Version der Benutzerdatei (KDEs Versionshandler), Defaults für
+Bestandsnutzer, Aussehen der Leisten, View-Menü (auch nach Apply), Umschalten für Split/Tabs, neue
+Ansichten, Kontextmenü, zwei Fenster, Persistenz, Configure Toolbars bei verborgenen Leisten.
+
+## Changelog-Entwurf
+
+- The main toolbar of new users is shorter: Back, Forward and the view settings are in the
+  toolbar of each file view. Existing toolbars are kept as they are.
+- “Show File View Toolbars” in the View menu (and “Hide File View Toolbars” in their context
+  menu) shows or hides the toolbars of all file views.
+
+## Offen / Neubewertung
+
+- Ohne View Settings in der Main Toolbar zeigt Dolphins Hamburger-Menü für neue Benutzer
+  zusätzlich View-Modus, Flat, Hidden Files, Sortierung, Zusatzinfos und Zoom (Upstream-Logik,
+  unverändert). Beobachten, ob das Menü zu lang wirkt.
+- Deutsche Übersetzungen der neuen Texte fehlen (Lokalisierung gesammelt vor einem Release).
+- Bei verborgenen File View Toolbars und ohne Back/Forward in der Main Toolbar bleiben Back/Forward
+  über Hamburger-Menü, Shortcuts und Maustasten erreichbar.
