@@ -159,7 +159,7 @@ private:
     void clickLocal(DolphinViewContainer *container, const QString &name);
     QString path(const QString &relative) const;
     static QString localLayoutFile();
-    static void writeUserLayout(const QStringList &actions);
+    void writeUserLayout(const QStringList &actions);
     static void select(DolphinViewContainer *container, const QStringList &paths);
     QWidget *showTreemap(DolphinViewContainer *container);
     QUrl url(const QString &relative) const;
@@ -322,6 +322,9 @@ void WhaleFileViewToolBarTest::writeUserLayout(const QStringList &actions)
         content += "<Action name=\"" + action.toUtf8() + "\"/>";
     }
     local.write(content + "</ToolBar></gui>");
+    local.close();
+    // As at a start: the window reads the file when it is created.
+    m_mainWindow.reset(new DolphinMainWindow());
 }
 
 void WhaleFileViewToolBarTest::select(DolphinViewContainer *container, const QStringList &paths)
@@ -400,6 +403,8 @@ void WhaleFileViewToolBarTest::testUserLayout()
             "<ToolBar noMerge=\"1\" name=\"whaleFileViewToolBar\"><text>File View Toolbar</text>"
             "<Action name=\"view_settings\"/><Separator/><Action name=\"go_home\"/><Action name=\"basic_actions\"/></ToolBar></gui>");
     }
+    // As at a start: the window reads the file when it is created.
+    m_mainWindow.reset(new DolphinMainWindow());
     QVERIFY(showMainWindow());
     DolphinViewContainer *container = m_mainWindow->activeViewContainer();
     QTRY_VERIFY(toolBar(container)->scope());

@@ -54,10 +54,7 @@ const QStringList defaultLayout = {QStringLiteral("go_back"),
                                    QStringLiteral("view_redisplay"),
                                    QStringLiteral("|"),
                                    QStringLiteral("view_settings")};
-const QStringList defaultMainLayout = {QStringLiteral("go_back"),
-                                       QStringLiteral("go_forward"),
-                                       QStringLiteral("view_settings"),
-                                       QStringLiteral("url_navigators"),
+const QStringList defaultMainLayout = {QStringLiteral("url_navigators"),
                                        QStringLiteral("split_view"),
                                        QStringLiteral("split_stash"),
                                        QStringLiteral("toggle_search"),
@@ -472,6 +469,9 @@ void WhaleToolbarConfigTest::writeUserFile(const QByteArray &toolBarContent, con
         "<ToolBar noMerge=\"1\" name=\"whaleFileViewToolBar\"><text>File View Toolbar</text>"
         + toolBarContent + "</ToolBar>" + (actionProperties.isEmpty() ? QByteArray() : "<ActionProperties>" + actionProperties + "</ActionProperties>")
         + "</gui>");
+    local.close();
+    // The windows have read the files when they were created.
+    WhaleToolbarManager::reloadAllFileViewLayouts();
 }
 
 QAction *WhaleToolbarConfigTest::global(const QString &name) const
@@ -1054,7 +1054,8 @@ void WhaleToolbarConfigTest::testChangeText()
     QVERIFY(textsOf(editor.current()).contains(QStringLiteral("Previous Folder")));
     QVERIFY(editor.select(mainName));
     QVERIFY(!textsOf(editor.current()).contains(QStringLiteral("Previous Folder")));
-    QVERIFY(textsOf(editor.current()).contains(KLocalizedString::removeAcceleratorMarker(backIconText)));
+    // (Back is not on the main toolbar by default: it offers it with its own text.)
+    QVERIFY(textsOf(editor.available()).contains(KLocalizedString::removeAcceleratorMarker(backText)));
     editor.ok();
 
     // Open again: the changed text is what the dialog starts with.
@@ -1430,10 +1431,11 @@ void WhaleToolbarConfigTest::testContextMenu()
             QPointer<QMenu> menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
             QCOMPARE(menu->parentWidget(), bar);
-            // One entry: no second way to the same dialog, nothing about hiding yet.
-            QCOMPARE(menu->actions().count(), 1);
+            // No second way to the same dialog; hiding is tested in whaletoolbarmigrationtest.
+            QCOMPARE(menu->actions().count(), 2);
             QAction *configure = menu->actions().first();
             QCOMPARE(KLocalizedString::removeAcceleratorMarker(configure->text()), QStringLiteral("Configure File View Toolbar…"));
+            QCOMPARE(menu->actions().at(1)->objectName(), QStringLiteral("whale_hide_file_view_toolbars"));
             configure->trigger();
             menu->close();
 
@@ -1474,11 +1476,11 @@ void WhaleToolbarConfigTest::testMainToolBarStillWorks()
     QVERIFY(mainToolBar->actions().contains(global(QStringLiteral("go_home"))));
     QCOMPARE(layoutOf(toolBar(m_first)), defaultLayout);
     QVERIFY(!QFile::exists(localFileViewFile()));
-    // The location bar is back in the rebuilt toolbar, and the views' menu still opens.
+    // The location bar is back in the rebuilt toolbar, and the menus still open.
     QVERIFY(mainToolBar->widgetForAction(navigators));
     QVERIFY(mainToolBar->widgetForAction(navigators)->isVisible());
     QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("hamburger_menu"))));
-    QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("view_settings"))));
+    QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("split_view"))));
     // The view mode entries of the plugin views are in the View menu again.
     auto viewMenu = qobject_cast<QMenu *>(m_mainWindow->guiFactory()->container(QStringLiteral("view"), m_mainWindow.data()));
     QVERIFY(viewMenu);

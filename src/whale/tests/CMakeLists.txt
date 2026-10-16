@@ -88,6 +88,12 @@ ecm_add_test(whaletoolbarconfigtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_D
 target_include_directories(whaletoolbarconfigtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaletoolbarconfigtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 
+ecm_add_test(whaletoolbarmigrationtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaletoolbarmigrationtest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaletoolbarmigrationtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaletoolbarmigrationtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+
 ecm_add_test(whaleactionstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleactionstest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
