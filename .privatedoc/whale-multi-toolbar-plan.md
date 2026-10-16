@@ -1775,3 +1775,183 @@ Test-Whale beendet, keine GUI-Automation mehr.
 
 TB5 ist abgeschlossen, offscreen und auf Wayland abgenommen. **TB6-ready: ja**, auf das Go des
 Benutzers.
+
+---
+
+## 30. TB6-Ergebnisse (2026-10-17)
+
+Branch `feature/multi-toolbar`, **nicht** gepusht, nicht gemergt. Commits: 654d9c478 (Dev-MCP
+State/Tools), bb226511d (Acceptance + Tests), Doku-Commit danach. Plugin-API bleibt Version 9.
+TB7 ist nicht begonnen. **Kein Produktcode geändert**: Dolphin-Diff 0, Whale-Produkt-Diff 0;
+alles in `src/whale/devmcp/`.
+
+### 30.1 Aufbau
+
+Neu: `src/whale/devmcp/automation/whaledevtoolbars.{h,cpp}` (Namespace `WhaleDevToolbars`), von
+`WhaleDevAutomation` benutzt. Geändert: `whaledevautomation.{h,cpp}` (State, zwei Methoden,
+zwei `trigger_action`-IDs), `whaledevautomationdbus.{h,cpp}` (`TriggerToolbarAction`,
+`ConfigureToolbars`), Adapter (zwei Tools, Beschreibung des States), README, CMake.
+
+### 30.2 get_ui_state
+
+- `toolbars.global`: Hauptleiste `{visible, layout, actions}`. Gefunden per
+  `findChild("mainToolBar")`, nicht `KMainWindow::toolBar()` (das legt eine Leiste an).
+- `toolbars.fileViewsVisible`: die TB5-Einstellung.
+- `toolbars.instances`: alle File Views **aller Tabs** `{instanceId, tab, pane, visible,
+  initialized}`, ohne Actions.
+- `panes.N.toolbar`: `{instanceId, ownerView, visible, shown, initialized, layout, actions}`.
+  `visible` = nicht durch die Einstellung verborgen, `shown` = gerade auf dem Bildschirm.
+  Actions = die tatsächlich in **dieser** Leiste stehenden Laufzeit-Actions (keine
+  Allowed-Liste, keine Fenster-Actions, keine Prototypen): `id, text, enabled, checkable,
+  checked, shortcuts, actionKey, disabledReason, gateReason, popup (delayed/button/instant),
+  menu`. Layout mit `-` (Separator) und `|` (Spacer), wie `WhaleToolbarLayout`.
+- `actionKey` („action-N“): eine Marke pro QAction-Objekt (dynamische Property, nur vom Dev-MCP
+  gesetzt), damit getrennte Objekte ohne Adressen nachweisbar sind (der State enthält
+  weiterhin keine Adressen, Test `testUiState`).
+- Menüs bis Tiefe 3 (`view_settings` > `sort` > Einträge): `id, text, enabled, checked,
+  widget` (z. B. der Zoom-Regler), `separator`, `menu`. History-Menüs zeigen den Inhalt vom
+  letzten Öffnen (Dolphin füllt sie erst bei `aboutToShow`); der State füllt nichts.
+- `disabledReason` (was die Leiste beim Klick in der eigenen View meldet, TB3) und
+  `gateReason` (Capability-Gate der View, z. B. Hidden Files in der Treemap) sind getrennt:
+  Die Treemap-Sperre hat keinen Meldungstext der Leiste, nur einen Gate-Grund.
+- `toolbarDialog`: `{open: false}` oder `{open, selected, toolBars, available, current,
+  modified, buttons}`. `selected`/`toolBars` sind Descriptor-IDs (`global`/`file-view`),
+  `available`/`current` tragen die **internen Action-Namen** aus KEditToolBars eigener
+  Drag-Serialisierung (`application/x-kde-action-list` über `model()->mimeData()`), nicht
+  nur Texte. `modified` = Apply aktiv.
+
+### 30.3 instanceId und ownerView
+
+- `instanceId` = „view-N“: dynamische Property `whaleDevInstanceId` am `DolphinViewContainer`,
+  vergeben vom Dev-MCP beim ersten Sehen (prozessweiter Zähler). Eindeutig im Prozess, stabil
+  für die Lebensdauer des Containers, nie aus Pane-Index/Seite/primary/secondary abgeleitet.
+  Der Produktcode kennt sie nicht (Plan 13 hatte „Whale-Property am Container“ vorgesehen;
+  so bleibt sie dev-only). Pane-Index bleibt als Komfort.
+- Adressierung: über alle Tabs des eigenen Fensters. Eine ID eines geschlossenen Tabs oder
+  eines anderen Fensters ergibt einen Fehler.
+- `ownerView` = dieselbe View-ID wie `panes.N.viewId` (`dolphin`, `whale_treemap`, …); der
+  Modus der Dateiliste steht wie bisher in `viewMode`.
+
+### 30.4 trigger_toolbar_action
+
+`{toolbar: "global" | Pane-Index | "active" | instanceId, id, menu_entry?}`
+
+- Ohne `menu_entry`: Press/Release mit `qt_handleMouseEvent` über das Fenster auf die Mitte
+  des echten `QToolButton` (wie QTest). Damit laufen der Event-Filter der File View Toolbar
+  (Pane-Aktivierung, E4), `QToolButton` und die Action wie beim Benutzer.
+- Mit `menu_entry` (ID oder Text, Untermenü als `"sort > sort_by_size"`; nicht „/“, weil
+  History-Einträge Pfade sind): Press dort, wo der Benutzer das Menü öffnet (Pfeil eines
+  MenuButtonPopup, Mitte sonst; DelayedPopup: gehalten bis zum Öffnen). Das Menü öffnet sich
+  in seiner eigenen `exec()`-Schleife und wird dabei gefüllt; darin wählt ein Timer den Eintrag
+  **per Tastatur** (aktiver Eintrag, Right ins Untermenü, Return), also über QMenus
+  Aktivierungspfad. Der Aufruf kehrt erst zurück, wenn der Eintrag behandelt ist.
+- Menü des Buttons: das eigene (`KToolBarPopupAction`: Back/Forward) oder das der
+  Default-Action (`KActionMenu`: `view_settings`); `QToolButton::menu()` liefert letzteres
+  nicht.
+- Fehler (alle mit Text, kein Crash, Tests): unbekannte Toolbar/Pane, unbekannte oder fremde
+  instanceId, unbekannte Action-ID (für File View: nicht in `allowedActions()`), Action nicht in
+  der Leiste (mit deren Inhalt), Action disabled (mit `disabledReason` bzw. `gateReason`),
+  Leiste verborgen bzw. nicht im aktuellen Tab, nie gezeigte Leiste (keine Actions), Button im
+  Überlauf-Menü einer zu schmalen Leiste, Widget statt Button (`url_navigators`), Menü fehlt,
+  Eintrag fehlt (mit den vorhandenen), Eintrag disabled/Widget/Untermenü, Menü öffnet nicht
+  (3 s). Dateiverändernde Actions (`movetotrash`, `deletefile`, `duplicate`, `copy_location`,
+  Cut/Copy/Paste, Anlegen …) nur mit `WHALE_DEV_MCP_FILE_OPERATIONS=1`.
+- Mittelklick: nicht im Dev-MCP (bleibt QTest, `whalefileviewtoolbartest`).
+
+### 30.5 configure_toolbars
+
+`{open?, select?, remove?, insert?, defaults?, apply?, ok?, cancel?}`, in dieser Reihenfolge.
+
+- `open` über `WhaleToolbarConfigurator::configure()` (derselbe Weg wie Fenster-Action und
+  Kontextmenü), `select` über die echte Combo (`activated`), `insert`/`remove` über die echten
+  Listen und die Pfeil-Buttons des Dialogs (Einfügen am Ende), `apply`/`ok`/`cancel` über die
+  Dialog-Buttons. Keine Datei- oder Manager-Manipulation.
+- `defaults`: KDEs Defaults-Button; dessen Rückfrage wird per Timer gefunden und mit „Reset“
+  (Yes) bestätigt. Beide Toolbars werden zurückgesetzt (KDE-Semantik).
+- Fehler: kein Configurator, Dialog nicht offen, unbekannte Toolbar, Action nicht in
+  Available/Current, Button nicht aktiv (z. B. Apply ohne Änderung), Rückfrage erscheint nicht.
+
+### 30.6 Lazy-Verhalten
+
+Der Dev-MCP erzeugt nie einen Scope: `initialized: false`, `actions: []`, `layout` dann aus
+dem Manager (konfiguriertes Layout). Test: dreimal State lesen ändert nichts; nach Neustart
+mit verborgenen Leisten und zwei Tabs ist keine Leiste gebaut, nach dem Einblenden nur die des
+aktuellen Tabs.
+
+### 30.7 Acceptance `test_tb_acceptance.py`
+
+Privater Bus (dbus-run-session), eigenes Profil mit `GlobalViewProps=false`, Fenster
+1400×800 (sonst landen Buttons zweier Panes im Überlauf), offscreen, ~2,5 s, ctest
+`whale_dev_mcp_tb_e2e`. Szenarien A–J:
+
+| | Inhalt (Auftragspunkte) |
+|---|---|
+| A | eine View: Main-/File-View-Layout, Reihenfolge, keine Shortcuts, ownerView (1–5) |
+| B | Split: zwei instanceIds, gleiches Layout, disjunkte actionKeys, auch zur Hauptleiste (6–9) |
+| C | Targeting: Back in A bei aktivem B → nur A, A aktiv; symmetrisch B; Forward (10–15) |
+| D | Hauptleiste: Back zuerst nicht vorhanden (Fehler), per Dialog eingefügt, wirkt auf die aktive View, nach Pane-Wechsel auf die andere (16–17) |
+| E | A Details + Hidden, B Cushion Treemap: Modus, Treemap, Hidden, Flat pro Leiste; Hidden-Files-Button in B gated (gateReason), in A aktiv und wirksam nur in A; Rename nur mit Auswahl, Fehler in B (18–22) |
+| F | History-Menü: B-Pfad im Menü von A nicht vorhanden (Fehler), A-Eintrag navigiert nur A; Menü-State = A-History; Sort By Size über B's view_settings nur in B; Fehler unbekannter Eintrag, Widget-Eintrag (23–25) |
+| G | Dialog: open/selected/toolBars, Current/Available beider Toolbars (Main-only-Actions fehlen bei File View), Apply → beide Instanzen + Datei, Cancel → Datei bytegleich, Apply + Änderung + Cancel, unzulässige Action, Defaults → beide Dateien weg, Dialog bleibt offen (26–36) |
+| H | Sichtbarkeit aus → visible=false, Klick-Fehler, konfigurieren bei verborgen, wieder an → neues Layout, Klick wirkt (37–41) |
+| I | zweiter Tab: neue instanceId, 3 Instanzen, Leiste des anderen Tabs „not shown“; Tab schließen → Instanz weg, ID ungültig; Fehler unbekannte Toolbar/Action/Pane (42–47) |
+| J | echter Neustart: Layout (+stop) und Sichtbarkeit (aus) bleiben, zwei Tabs wiederhergestellt, keine Leiste gebaut; Einblenden baut nur den aktuellen Tab; RC-Datei direkt gelesen (26, 44) |
+
+### 30.8 Multi-Window
+
+Zwei Hauptfenster in **einem** Prozess gibt es nur im Test (Whales „New Window“ startet einen
+Prozess, die D-Bus-Automation hängt am ersten Fenster). Abgedeckt in `whaledevautomationtest`
+(`testToolbarsOfTwoWindows`): eigene Automation pro Fenster, IDs und actionKeys eindeutig,
+fremde instanceId → Fehler „another window“, Up in Fenster B ändert A nicht, „Show File View
+Toolbars“ wirkt auf beide (TB5: eine Einstellung). Prozessübergreifend: kein Live-Sync (29.7),
+nicht versucht.
+
+### 30.9 Tests
+
+- Neu/erweitert: `test_tb_acceptance.py`; `whaledevautomationtest` +3 (`testToolbarState`,
+  `testToolbarErrors`, `testToolbarsOfTwoWindows`), 20/20; `test_m3_acceptance.py` kennt die
+  zwei Tools (prüft die exakte Tool-Liste).
+- Offscreen: alle **38** Whale-Tests grün (inkl. aller Dev-MCP-Acceptances M3–M9, T1, T2, O3,
+  F1, TB, Toolbar-, Migrations-, Services-, Actions-Tests, Lints, `whale_dev_mcp_default_off`);
+  TB-Acceptance 3× hintereinander grün; Upstream-Tests 31/31 (ohne `dolphinmainwindowtest`,
+  das TB6 nicht berührt; Bild wie 29.9).
+- **ASan/UBSan** (`../build-whale-asan`, für den Lauf mit `WHALE_ENABLE_DEV_MCP=ON`, danach
+  zurück auf OFF): neue Tests 0 Befunde; TB-Acceptance gegen die ASan-Whale 0 Befunde im Log.
+  Altbefund: `testSetView` meldet 4 UBSan-Downcasts im Test-Plugin „Test List“
+  (`whaletestlistplugin.cpp:436/439`, eventFilter auf einem schon zerstörten Widget) –
+  unabhängig von TB6, nicht angefasst.
+- Während TB6 kein ydotool, keine sichtbaren Fenster, keine Eingabe auf dem Desktop.
+
+### 30.10 Dev-only, API, Dolphin-Diff
+
+Nur `src/whale/devmcp/` (Bibliothek `whaledevautomation`, nur mit `WHALE_ENABLE_DEV_MCP`,
+Start nur mit `WHALE_DEV_MCP=1`). Die dynamischen Properties (`whaleDevInstanceId`,
+`whaleDevActionKey`) setzt nur der Dev-MCP. Plugin-API 9, Dolphin-Diff 0, keine sichtbare
+Änderung im Produktbuild.
+
+### 30.11 Abweichungen
+
+- instanceId vom Dev-MCP vergeben statt als Produkt-Property (30.3).
+- Untermenü-Trenner „ > “ statt „/“ (Pfade in History-Menüs).
+- Zusätzlich `gateReason` neben `disabledReason`; `actionKey` statt Objektadressen.
+- `trigger_action` um `close_tab` und `whale_show_file_view_toolbars` erweitert (für Tabs und
+  Sichtbarkeit; keine Dateiänderung).
+- Multi-Window nur als In-Process-QTest (kein zweites Fenster im realen Prozess erzeugbar).
+- Mittelklick nicht im Dev-MCP.
+- Befund ohne Änderung: Der Klick auf einen per Capability gesperrten Button (z. B. Hidden
+  Files in der Treemap) zeigt in der View keine Meldung, weil `disabledReason()` nur TB3-Gründe
+  kennt. Kandidat für später, nicht TB6.
+
+### 30.12 Wayland
+
+Für TB6 ist **keine** interaktive Wayland-Abnahme nötig: TB6 ändert kein Benutzerverhalten,
+alle Produktpunkte sind in TB4/TB5 auf Wayland abgenommen. Offen und nur informativ: ob
+`trigger_toolbar_action` mit `menu_entry` auf echtem Wayland funktioniert (synthetische Eingabe
+öffnet dort keine echten Popups, siehe TB2-Befund); einfache Klicks und `configure_toolbars`
+sollten gehen. Die Acceptance ist für offscreen gebaut.
+
+### 30.13 Bewertung
+
+TB6 ist abgeschlossen. Das Multi-Toolbar-Projekt (TB0–TB6) ist **fertig**; offen bleiben nur
+die bewusst späteren Punkte (TB7 Location Bar pro View, E3 Reset-Eintrag, E11, Lokalisierung,
+Upstream-Kandidaten). **TB7-ready: ja**, nach eigenem Plan und Go des Benutzers.
