@@ -1598,7 +1598,8 @@ Benutzers.
 
 Branch `feature/multi-toolbar`, **nicht** gepusht, nicht gemergt. Commits: 9befbe871
 (Migration/Defaults/Sichtbarkeit), d97be71cc (Tests), Doku-Commit danach. Plugin-API bleibt
-Version 9. TB6 und TB7 sind nicht begonnen. Die interaktive Wayland-Abnahme steht aus (29.12).
+Version 9. TB6 und TB7 sind nicht begonnen. Die interaktive Wayland-Abnahme ist nach Freigabe
+erfolgt (29.12).
 
 ### 29.1 Neue Main-Toolbar-Defaults (E6)
 
@@ -1747,19 +1748,30 @@ Neubewertung nur bei Rückmeldungen über verwirrende doppelte Buttons.
 - Nicht gemacht, wie verlangt: Hinweis (E11), Reset-Eintrag, Aussehen-Optionen, Dev-MCP (TB6),
   Location Bar pro View (TB7), Lokalisierung.
 
-### 29.12 Wayland-Abnahme (ausstehend, nur nach Freigabe)
+### 29.12 Wayland-Abnahme (2026-10-16, nach Freigabe)
 
-Offscreen nicht abdeckbar, vorgeschlagen:
+Plasma/Wayland, Dev-Whale mit frischem eigenem Profil (keine lokale `dolphinui.rc`), echte
+Eingabe über ydotool (`wayland_real_input.py`), nur in den Fenstern der Test-Whale. Menüinhalte
+über den Dev-MCP-Zustand `popupMenu` der echten Popups, Popup-Geometrie per KWin-Skript, Bilder
+des Fensters per Dev-MCP `screenshot`, des Dialogs per `spectacle -a`.
 
-1. View-Menü (Menüleiste und Hamburger → More → View): Eintrag sichtbar, Position, Haken.
-2. Rechtsklick auf eine File View Toolbar → „Hide File View Toolbars“: echtes Popup, beide Panes
-   verschwinden sofort, Layout springt sauber hoch.
-3. Wieder einblenden: Split beide und ein zweiter Tab sofort richtig.
-4. Neustart der Test-Whale: Zustand verborgen bleibt.
-5. Configure Toolbars bei verborgenen Leisten: File View Toolbar ändern, Apply, Einblenden.
-6. Optional: neues Profil ohne lokale `dolphinui.rc` → neue Main Toolbar sichtbar.
+| Prüfung | Ergebnis |
+|---|---|
+| Neuer Benutzer | Main Toolbar: Location Bar, Split, Suche, Hamburger (Stash nur, wenn verfügbar); Back/Forward/Up/Reload/View Settings in der File View Toolbar |
+| View-Menü über die Menüleiste (echtes Ctrl+M, Klick auf „View“) | „Show File View Toolbars“ letzter Eintrag, direkt nach „Location Bar“ |
+| Hamburger → More → View | derselbe Eintrag am Ende; das Hamburger-Menü zeigt wie erwartet zusätzlich View-Modus, Flat, Hidden, Sort, Zusatzinfos, Zoom (29.11) |
+| Rechtsklick auf die File View Toolbar (Split, zweiter Tab) | echtes Popup exakt an der Mausposition, „Configure File View Toolbar…“ und „Hide File View Toolbars“ |
+| „Hide File View Toolbars“ | beide Panes sofort ohne Leiste, Inhalt rückt sauber hoch; der andere Tab ebenso; `whalerc` sofort `ShowFileViewToolBars=false` |
+| Neustart der Test-Whale | Leisten bleiben verborgen |
+| Configure Toolbars bei verborgenen Leisten (Dialog per D-Bus `activateAction`, Combo und Pfeil per Maus) | File View Toolbar wählbar und editierbar; `compact` hinzugefügt, OK; Datei geschrieben, keine lokale `dolphinui.rc`; Leisten bleiben verborgen |
+| Einblenden über das echte View-Menü | beide Panes des Splits sofort mit Leiste, inklusive des neuen Compact-Buttons; `whalerc` `true` |
+
+Log der Test-Whale: keine KXmlGui-Warnung. Nicht geprüft: ein Bild des offenen Menü-Popups
+(`spectacle -u` greift Popups nicht non-interaktiv und schloss das Menü; Inhalt über den
+Dev-MCP-Zustand belegt) und zwei Fenster in einem Prozess (offscreen getestet, 29.7). Danach
+Test-Whale beendet, keine GUI-Automation mehr.
 
 ### 29.13 Bewertung
 
-TB5 ist offscreen abgeschlossen. **TB6-ready: ja**, nach der Wayland-Abnahme (29.12) auf das Go
-des Benutzers.
+TB5 ist abgeschlossen, offscreen und auf Wayland abgenommen. **TB6-ready: ja**, auf das Go des
+Benutzers.
