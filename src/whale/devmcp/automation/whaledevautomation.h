@@ -149,6 +149,26 @@ public:
     QJsonObject closeDialogs();
 
     /**
+     * Clicks the button @p actionId of a toolbar with mouse events through the window, as the
+     * user does (TB6): @p toolBar is "global" (the main toolbar, acting on the active view),
+     * a pane index of the current tab, "active", or the instanceId of a file view (any tab).
+     * With @p menuEntry, opens the button's menu as the user does and chooses that entry (ID
+     * or text, "Submenu > Entry" for an entry of a submenu). Fails for an unknown toolbar or
+     * action, an action not in the toolbar, a disabled action or entry, a hidden toolbar,
+     * and for actions that change files unless WHALE_DEV_MCP_FILE_OPERATIONS=1.
+     */
+    QJsonObject triggerToolbarAction(const QString &toolBar, const QString &actionId, const QString &menuEntry);
+
+    /**
+     * Operates Configure Toolbars through its widgets, as the user does (TB6). @p request may
+     * hold, done in this order: "open" (true; with "select" the toolbar chosen when it opens),
+     * "select" ("global" or "file-view"), "remove" and "insert" (action IDs, or "-"/"|" for a
+     * separator/spacer; inserted at the end), "defaults" (KDE's Defaults, its question
+     * answered with Reset), "apply", "ok", "cancel". The result has the dialog's state.
+     */
+    QJsonObject configureToolbars(const QJsonObject &request);
+
+    /**
      * @return Enabled state and gating reason of the actions the view gating may
      *         change, plus Paste, Properties and Show Hidden Files.
      */

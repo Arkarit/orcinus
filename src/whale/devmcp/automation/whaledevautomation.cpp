@@ -23,13 +23,18 @@
 #include "views/dolphinview.h"
 #include "whalecommandrouter.h"
 #include "whaledevautomationdbus.h"
+#include "whaledevtoolbars.h"
 #include "whalefileoperations.h"
 #include "whalefileoperationsimpl.h"
+#include "whalefileviewtoolbar.h"
 #include "whalepreviewproviderimpl.h"
 #include "whalerecursivecontent.h"
+#include "whaletoolbardescriptor.h"
+#include "whaletoolbarsettings.h"
 #include "whaletreecache.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
+#include "whaleviewcommandscope.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewhost.h"
@@ -121,6 +126,9 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("rename"), KStandardAction::name(KStandardAction::RenameFile)},
         {QStringLiteral("properties"), QStringLiteral("properties")},
         {QStringLiteral("new_tab"), QStringLiteral("new_tab")},
+        {QStringLiteral("close_tab"), KStandardAction::name(KStandardAction::Close)},
+        // TB5: "Show File View Toolbars" of the View menu.
+        {QStringLiteral("whale_show_file_view_toolbars"), QStringLiteral("whale_show_file_view_toolbars")},
         {QStringLiteral("activate_next_tab"), QStringLiteral("activate_next_tab")},
         {QStringLiteral("activate_prev_tab"), QStringLiteral("activate_prev_tab")},
         {QStringLiteral("show_preview"), QStringLiteral("show_preview")},
@@ -516,6 +524,8 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("selectionMode"), container->isSelectionModeEnabled()},
         {QStringLiteral("focusProxy"), focusProxy},
         {QStringLiteral("hiddenDolphinViewHasFocus"), pluginWidget != nullptr && contains(view, focus)},
+        // TB6: the File View Toolbar of this view.
+        {QStringLiteral("toolbar"), WhaleDevToolbars::fileViewState(container, semanticViewId(host->currentViewId()))},
     };
 }
 
@@ -697,6 +707,14 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("dialogs"), dialogs()},
         {QStringLiteral("treeCache"), treeCacheState()},
         {QStringLiteral("viewMenu"), viewMenuState()},
+        // TB6: the main toolbar, the File View Toolbars of all tabs, Configure Toolbars.
+        {QStringLiteral("toolbars"),
+         QJsonObject{
+             {QStringLiteral("global"), WhaleDevToolbars::globalState(m_window)},
+             {QStringLiteral("fileViewsVisible"), WhaleToolbarSettings::self()->fileViewToolBarsVisible()},
+             {QStringLiteral("instances"), WhaleDevToolbars::instancesState(m_window)},
+         }},
+        {QStringLiteral("toolbarDialog"), WhaleDevToolbars::dialogState(m_window)},
     };
 }
 
@@ -1427,6 +1445,89 @@ QJsonObject WhaleDevAutomation::triggerAction(const QString &actionId)
         return ok();
     }
     return failure(QStringLiteral("unknown or not allowed action \"%1\", allowed: %2").arg(actionId, actionIds().join(QStringLiteral(", "))));
+}
+
+QJsonObject WhaleDevAutomation::triggerToolbarAction(const QString &toolBarArg, const QString &actionId, const QString &menuEntry)
+{
+    KToolBar *toolBar = nullptr;
+    WhaleFileViewToolBar *fileViewToolBar = nullptr;
+    if (toolBarArg == WhaleToolbarDescriptor::globalId()) {
+        toolBar = m_window->findChild<KToolBar *>(QStringLiteral("mainToolBar"), Qt::FindDirectChildrenOnly);
+        if (!toolBar) {
+            return failure(QStringLiteral("the window has no main toolbar"));
+        }
+    } else {
+        DolphinViewContainer *container = nullptr;
+        bool isIndex = false;
+        const int index = toolBarArg.toInt(&isIndex);
+        if (toolBarArg == QLatin1String("active") || (isIndex && index < 0)) {
+            container = m_window->activeViewContainer();
+        } else if (isIndex) {
+            QString error;
+            container = pane(index, &error);
+            if (!container) {
+                return failure(error);
+            }
+        } else {
+            const auto all = WhaleDevToolbars::instances(m_window);
+            for (const WhaleDevToolbars::Instance &instance : all) {
+                if (WhaleDevToolbars::instanceId(instance.container) == toolBarArg) {
+                    container = instance.container;
+                }
+            }
+            if (!container) {
+                return failure(QStringLiteral("no file view with the instanceId \"%1\" in this window (closed, or another window?)").arg(toolBarArg));
+            }
+        }
+        fileViewToolBar = container ? container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly) : nullptr;
+        if (!fileViewToolBar) {
+            return failure(QStringLiteral("the view has no File View Toolbar"));
+        }
+        toolBar = fileViewToolBar;
+    }
+
+    // The same IDs as the actions in Whale.
+    const bool known = fileViewToolBar ? WhaleViewCommandScope::allowedActions().contains(actionId) : m_window->actionCollection()->action(actionId) != nullptr;
+    if (!known) {
+        return failure(QStringLiteral("unknown action \"%1\" for this toolbar").arg(actionId));
+    }
+    if (WhaleDevToolbars::changesFiles(actionId) && !fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(actionId));
+    }
+    if (fileViewToolBar && !fileViewToolBar->scope()) {
+        // Never shown: it has no actions yet, and the automation does not create them.
+        return failure(QStringLiteral("the File View Toolbar has not been shown yet (hidden, or a tab never shown)"));
+    }
+    QAction *action = nullptr;
+    const auto actions = toolBar->actions();
+    for (QAction *candidate : actions) {
+        if (candidate->objectName() == actionId) {
+            action = candidate;
+        }
+    }
+    if (!action) {
+        QStringList layout;
+        for (const QAction *candidate : actions) {
+            if (!candidate->objectName().isEmpty()) {
+                layout.append(candidate->objectName());
+            }
+        }
+        return failure(QStringLiteral("\"%1\" is not in this toolbar (it has: %2)").arg(actionId, layout.join(QStringLiteral(", "))));
+    }
+    QString reason;
+    if (fileViewToolBar) {
+        WhaleViewCommandScope *scope = fileViewToolBar->scope();
+        reason = scope->disabledReason(action);
+        if (reason.isEmpty() && scope->viewActions()) {
+            reason = scope->viewActions()->gateReason(actionId);
+        }
+    }
+    return WhaleDevToolbars::click(toolBar, action, menuEntry, reason);
+}
+
+QJsonObject WhaleDevAutomation::configureToolbars(const QJsonObject &request)
+{
+    return WhaleDevToolbars::configure(m_window, request);
 }
 
 QJsonObject WhaleDevAutomation::evaluate(const QJsonObject &conditions) const

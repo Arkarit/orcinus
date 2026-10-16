@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3 and F1 acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_f1_wayland_real.py` (real drags on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3, F1 and TB acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_tb_acceptance.py` (multi-toolbar, TB6), `test_f1_wayland_real.py` (real drags on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -70,7 +70,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_sort` | `field` (name, size, modified, created, type, extension), `order`, `folders_first` |
 | `set_selection` | Selection (`urls`, optional `current`) of a pane through the host API that plugin views use; URLs outside the listing are returned as `ignored` |
 | `activate_items` | Open items of a pane like Enter/double click, through the host API that plugin views use |
-| `trigger_action` | The same QActions as the menus, toolbar and shortcuts (since T2 also on a plugin view's own selection, see `command`). Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), `view_icons`/`view_compact`/`view_details` (the file list's view modes, F1), and the file operations `copy`, `cut`, `paste`, `trash`, `delete`, `duplicate`, `copy_location`, `copy_to_other_pane`, `move_to_other_pane` (see below). Disabled (gated) actions are refused. |
+| `trigger_action` | The same QActions as the menus, toolbar and shortcuts (since T2 also on a plugin view's own selection, see `command`). Only `focus_other_view`, `go_up`, `go_back`, `go_forward`, `edit_location`, `select_all`, `invert_selection`, `rename`, `properties`, `new_tab`, `close_tab`, `whale_show_file_view_toolbars` (TB5's "Show File View Toolbars"), `activate_next_tab`, `activate_prev_tab`, `show_preview` (toggles "Show Previews"), `reload` (F5), `show_information_panel` (toggles F11), `view_icons`/`view_compact`/`view_details` (the file list's view modes, F1), and the file operations `copy`, `cut`, `paste`, `trash`, `delete`, `duplicate`, `copy_location`, `copy_to_other_pane`, `move_to_other_pane` (see below). Disabled (gated) actions are refused. |
 | `get_action_state` | Enabled state and gating reason of Whale's file/view actions (also `actions` in the state) |
 | `open_context_menu` / `close_popup` | Context menu of a pane for an item or the location, through the host API of plugin views; shown as `popupMenu` |
 | `request_item_info` | Report an item as hovered (information panel), through the host API of plugin views |
@@ -90,6 +90,8 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `file_operation` | T1: `operation` (`open`, `open_with`, `show_in_folder`, `properties`, `rename`, `trash`, `delete`, `copy`, `cut`, `copy_location`, or `supported`) on explicit `urls` through the `WhaleFileOperations` of the pane's plugin view, the host API its context menu calls; the items need not be listed. Changing ones are file operations (see below) |
 | `answer_dialog` | Press a button of an open dialog by its text, e.g. `Delete Permanently` of KIO's confirmation; file operation |
 | `treemap_set_options` | Treemap: `color_mode` (`fileType`/`topFolder`) and `labels` through the treemap's own controls |
+| `trigger_toolbar_action` | TB6: clicks a toolbar button with mouse events through the window, as the user does: `toolbar` `global` (main toolbar, acts on the active view), a pane index, `active` or a file view's `instanceId` (any tab); `id` is Whale's action name. With `menu_entry` (ID or text, `Submenu > Entry`) the button's menu opens as the user opens it (also a delayed history menu) and the entry is chosen with the keyboard. Errors for unknown toolbars, instances and actions, actions not in the toolbar or disabled (with the reason), missing entries, hidden or never shown toolbars; actions that change files are file operations |
+| `configure_toolbars` | TB6: operates KDE's Configure Toolbars through its widgets, in this order: `open`, `select` (`global`/`file-view`), `remove`, `insert` (IDs, `-` separator, `|` spacer; at the end), `defaults` (KDE's question answered with Reset), `apply`, `ok`, `cancel`; returns the dialog state |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
 
@@ -199,6 +201,21 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `urls`. `popupMenu.active` is the entry the keyboard is on. The treemap adds
   `selectedMenu` (the entries of the context menu its selection would get, without showing
   it), `openMenus` (visible context menus), `operationScans` and `lastOperation`.
+
+- Toolbars (TB6): `toolbars.global` is the main toolbar (`visible`, `layout`, `actions`),
+  `toolbars.fileViewsVisible` the setting "Show File View Toolbars", `toolbars.instances`
+  the file views of all tabs (`instanceId`, `tab`, `pane`, `visible`, `initialized`).
+  `panes.N.toolbar` is the pane's File View Toolbar: `instanceId` (`view-N`, unique in the
+  process, the same for the view's life; given by the automation, never from the pane's
+  place), `ownerView` (the shown view's ID, as `viewId`), `visible` (not hidden by the
+  setting), `shown` (on screen), `initialized` (its actions exist: they are created when it
+  is shown first; the state never creates them), `layout` (`-` separator, `|` spacer) and
+  `actions` (`id`, `text`, `enabled`, `checkable`, `checked`, `shortcuts`, `actionKey`
+  (equal for the same object), `disabledReason`, `gateReason`, `popup`
+  (`delayed`/`button`/`instant`), `menu` as it is now: a history menu is filled when it
+  opens). `toolbarDialog` is `{"open": false}` or Configure Toolbars' `selected` toolbar,
+  `toolBars`, `available` and `current` (`id`, `text` as KDE's lists have them),
+  `modified` (Apply enabled) and `buttons`.
 
 `wait_for_state` conditions map dotted paths into this state to expected JSON
 values, e.g. `{"panes.1.viewId": "whale_testlist", "focus.role": "plugin:whale_testlist"}`.

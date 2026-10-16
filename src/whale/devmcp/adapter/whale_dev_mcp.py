@@ -51,7 +51,14 @@ TOOLS = [
         "the shown view: user, preference, history, session, fallback, kept, initial), "
         "selection per pane (selection URLs, selectedNames, current/currentName: the host's; pluginSelection/"
         "pluginCurrent: what a plugin item view shows), statusText, shell.selectedNames (what the information "
-        "panel got last), hidden files, sorting, filter, loading, recent pane activations, available view IDs.",
+        "panel got last), hidden files, sorting, filter, loading, recent pane activations, available view IDs. "
+        "TB6: toolbars.global (main toolbar: visible, layout, actions), toolbars.fileViewsVisible ('Show File View "
+        "Toolbars'), toolbars.instances (the file views of all tabs: instanceId, tab, pane, visible, initialized), "
+        "panes.N.toolbar (the pane's File View Toolbar: instanceId, ownerView, visible, shown, initialized, layout "
+        "('-' separator, '|' spacer), actions with id, enabled, checked, shortcuts, actionKey (same key = same "
+        "object), disabledReason, popup, menu), toolbarDialog (Configure Toolbars: open, selected, toolBars, "
+        "available, current, modified, buttons). A File View Toolbar that has never been shown has no actions yet "
+        "(initialized false); reading the state does not create them.",
         "inputSchema": {"type": "object", "properties": {}},
     },
     {
@@ -221,7 +228,8 @@ TOOLS = [
                 "action": {
                     "type": "string",
                     "enum": ["focus_other_view", "go_up", "go_back", "go_forward", "edit_location", "select_all",
-                             "invert_selection", "rename", "properties", "new_tab", "activate_next_tab",
+                             "invert_selection", "rename", "properties", "new_tab", "close_tab",
+                             "whale_show_file_view_toolbars", "activate_next_tab",
                              "activate_prev_tab", "show_preview", "reload", "show_information_panel", "view_icons",
                              "view_compact", "view_details", "copy", "cut",
                              "paste", "trash", "delete", "duplicate", "copy_location", "copy_to_other_pane",
@@ -430,6 +438,48 @@ TOOLS = [
         },
     },
     {
+        "name": "trigger_toolbar_action",
+        "description": "Clicks a button of a toolbar with mouse events through the window, as the user does (TB6): "
+        "toolbar 'global' (the main toolbar, acting on the active view), a pane index of the current tab, "
+        "'active', or the instanceId of a file view (panes.N.toolbar.instanceId, any tab). A press on a File View "
+        "Toolbar makes its view the active one. id is Whale's action name (go_back, view_settings, show_preview ...). "
+        "With menu_entry the button's menu is opened as the user does and that entry is chosen (its id or text, "
+        "'Submenu > Entry' for submenus, e.g. 'sort > sort_by_size' or a history entry's text). Fails for an unknown "
+        "toolbar, instanceId or action, an action that is not in the toolbar or disabled (with the reason), a "
+        "missing entry, a hidden or never shown toolbar; actions that change files need "
+        "WHALE_DEV_MCP_FILE_OPERATIONS=1.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "toolbar": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
+                "id": {"type": "string"},
+                "menu_entry": {"type": "string"},
+            },
+            "required": ["toolbar", "id"],
+        },
+    },
+    {
+        "name": "configure_toolbars",
+        "description": "Operates Configure Toolbars through its own widgets, as the user does (TB6), in this order: "
+        "open (true; with select the toolbar chosen when it opens), select ('global' or 'file-view'), remove and "
+        "insert (action ids or a list of them; '-' separator, '|' spacer; inserted at the end), defaults (KDE's "
+        "Defaults, its question answered with Reset: resets all toolbars), apply, ok, cancel. Returns the dialog's "
+        "state (also toolbarDialog in get_ui_state).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "open": {"type": "boolean"},
+                "select": {"type": "string", "enum": ["global", "file-view"]},
+                "insert": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]},
+                "remove": {"oneOf": [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]},
+                "defaults": {"type": "boolean"},
+                "apply": {"type": "boolean"},
+                "ok": {"type": "boolean"},
+                "cancel": {"type": "boolean"},
+            },
+        },
+    },
+    {
         "name": "screenshot",
         "description": "PNG of the Whale main window, rendered by Whale itself (works on Wayland, also when the "
         "window is covered). Optionally also saved to a file.",
@@ -597,6 +647,10 @@ class Whale:
         if tool == "treemap_set_options":
             labels = args.get("labels")
             return result(iface.TreemapSetOptions(pane, args.get("color_mode", ""), "" if labels is None else ("true" if labels else "false")))
+        if tool == "trigger_toolbar_action":
+            return result(iface.TriggerToolbarAction(str(args["toolbar"]), args["id"], args.get("menu_entry", "")))
+        if tool == "configure_toolbars":
+            return result(iface.ConfigureToolbars(json.dumps(args)))
         if tool == "screenshot":
             png = bytes(iface.Screenshot(byte_arrays=True))
             path = args.get("save_path")

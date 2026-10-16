@@ -74,6 +74,10 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString TreemapSetOptions(int pane, const QString &colorMode, const QString &labels);
     Q_SCRIPTABLE QString FileOperation(int pane, const QString &operation, const QStringList &urls);
     Q_SCRIPTABLE QString AnswerDialog(const QString &text);
+    /// @p toolBar "global", a pane index, "active" or an instanceId; @p menuEntry may be empty.
+    Q_SCRIPTABLE QString TriggerToolbarAction(const QString &toolBar, const QString &actionId, const QString &menuEntry);
+    /// @p request is a JSON object, see WhaleDevAutomation::configureToolbars().
+    Q_SCRIPTABLE QString ConfigureToolbars(const QString &request);
 
 private:
     WhaleDevAutomation *const m_automation;
