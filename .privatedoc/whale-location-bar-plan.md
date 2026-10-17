@@ -779,3 +779,142 @@ in der Baseline, ist also vorbestehend.
   - L7: Verbergen/Zeigen erhält den Zustand der Bar (22.6).
   - L8: Die Hauptleiste mit dem TB7-Default ist 46 px hoch (Breeze), unkritisch.
   - L10 und L15 werden von den Messungen nicht berührt.
+
+---
+
+## 23. LB1/LB2-Ergebnisse
+
+Umgesetzt am 2026-10-17 auf `feature/multi-toolbar`, LB1 (Runtime) und LB2 (Toolbar-Integration)
+zusammen. Code 2b3b74faf, Tests 74b911ce6. Nicht gepusht, nicht gemergt. Aus dem Spike wurde
+nichts übernommen (neu geschrieben). Migration (L10/L15) ist bewusst **nicht** enthalten.
+
+### 23.1 Aufbau
+
+- **`WhaleLocationBar`** (`src/whale/toolbars/whalelocationbar.*`, neu): `QWidget` mit
+  `QHBoxLayout`. Darin:
+  - ein eigener `DolphinUrlNavigator` (Stretch 1, `setBackgroundEnabled(true)`);
+  - die Buttons Empty Trash (`trash:`), Add Network Folder (`remote:`, nur mit `knetattach`) und
+    Open KDE Connect (`kdeconnect:`, nur mit der App);
+  - die `remote:`-Logik: Editiermodus, Text leeren, Platzhalter.
+
+  Verhalten und Texte folgen `DolphinNavigatorsWidgetAction`; die i18n-Strings sind identisch,
+  Übersetzungen greifen also. Die Herkunft steht im SPDX-Kopf.
+- **Lebenszyklus:** Die Location Bar entsteht im Konstruktor von `WhaleFileViewToolBar`, also mit
+  dem Container. Sie verbindet sich im eigenen Konstruktor genau einmal per
+  `connectUrlNavigator()` und bleibt ein Kind der Leiste.
+  - Kein zweites History-System, kein Umhängen.
+  - `horizontal Expanding`, keine eigene Mindestbreite. Das Layout nimmt die 100 px, die
+    `KUrlNavigator` selbst setzt.
+- **Platzierung (22.6 C):** eine private `QWidgetAction`-Unterklasse.
+  - `createWidget(parent)` liefert die bestehende Bar, und zwar nur für ihre eigene Leiste.
+  - `deleteWidget()` versteckt sie nur.
+  - Weder `addWidget()` noch `setDefaultWidget()`.
+  - `rebuild()` fügt die Action höchstens einmal ein. Bei einer doppelten ID in einer
+    handbearbeiteten Datei zählt das erste Vorkommen.
+- **Fokusindikator (L13):** Bei Show/Hide/Zerstörung einer Bar zählt eine gequeute Funktion die
+  sichtbaren Location Bars des Fensters und setzt `setHighlightFocusIndicator(count > 1)`.
+  - Es gibt keine Kopplung an Tab-Page oder Split und kein Primary/Secondary.
+  - Nicht per Test geprüft, weil `KUrlNavigator` keinen Getter hat. Gehört zur Wayland-Abnahme.
+
+### 23.2 Dolphin-Diff (4 Dateien, +42/−40)
+
+| Datei | Änderung |
+|---|---|
+| `dolphinmainwindow.cpp` | keine `DolphinNavigatorsWidgetAction` mehr (TabWidget bekommt `nullptr`); `slotClickViewBackground`, `activeViewChanged` (Disconnect) und `connectViewSignals` nehmen `container->urlNavigator()`; Guards in `updateNavigatorsBackground` und `saveNewToolbarConfig` (`updateAllowedToolbarAreas` braucht keinen, `contains(nullptr)` ist false) |
+| `dolphintabwidget.cpp` | `openNewActivatedTab` übernimmt den Visual State von `activeViewContainer()->urlNavigator()`; Guards in `currentTabChanged` |
+| `dolphintabpage.cpp` | Guards in `setSplitViewEnabled` (Verbinden, Swap, Geometrie) |
+| `dolphinui.rc` | Main-Default `<Spacer />` statt `url_navigators` (L8), Version bleibt 52 |
+
+`dolphinviewcontainer.*`, `dolphinurlnavigator.*`, `dolphinnavigatorswidgetaction.*` und
+`dolphinuiforphones.rc` sind unverändert. Die Plugin-API bleibt 9.
+
+### 23.3 Toolbar und Einstellungen
+
+- File-View-Default (`whalefileviewtoolbarui.rc`, Version bleibt 1):
+  `go_back, go_forward, go_up, view_redisplay, whale_location_bar, view_settings`, kein Spacer.
+- **Spacer-Regel (L12):** Enthält das Layout `whale_location_bar`, bekommt jeder Spacer in
+  `rebuild()` die Policy `Minimum` statt `MinimumExpanding`. Ohne Location Bar expandiert er wie
+  bisher.
+- **KEditToolBar:**
+  - eigener Prototyp im Edit-Client („Location Bar“, Icon `edit-select-text`, keine Shortcuts),
+    nur für die File View Toolbar;
+  - das Fenster hat keine Action dieses Namens, die Hauptleiste bietet sie also nicht an;
+  - Duplikate verhindert der Dialog selbst;
+  - Change Text/Icon wird gespeichert, ohne sichtbare Wirkung (`applyActionProperties` findet
+    keine Scope-Action).
+- `WhaleViewCommandScope::allowedActions()` ist unverändert (35 Button-Actions). Der Deskriptor
+  der File View Toolbar listet zusätzlich `whale_location_bar`.
+- Bestehende lokale File-View-RCs ohne `whale_location_bar` bleiben ohne Location Bar (keine
+  stille Ergänzung, Migration folgt in LB3).
+- Ctrl+L/F6 bleiben globale Fenster-Actions und wirken über `activeViewContainer()->urlNavigator()`
+  auf die Bar der aktiven View. Der F6-Haken folgt der aktiven View. Sie sind nicht in der File
+  View Toolbar.
+
+### 23.4 Sizing
+
+- LB0 vermutete Breitensprünge, wenn sich Pfad oder Modus ändern, und wollte sie mit einem
+  konstanten `sizeHint()` verhindern.
+- Gegenprobe mit dem neuen Test `testStableWidth`:
+  - Fenster von 640 bis 360 px in 10-px-Schritten, 13 Einträge, Breeze und Fusion;
+  - geprüft: kurzer und langer Pfad, Breadcrumb und Editiermodus;
+  - Ergebnis: Breite und Überlaufmenge sind auch **ohne** Override identisch.
+- Der LB0-Befund war ein Artefakt der instabilen Splitter-Geometrie im Spike. Der Override ist
+  deshalb nicht im Code (nicht prophylaktisch), der Test bleibt als Regressionsschutz.
+- L16 (sehr schmale Panes → Location Bar im Überlaufmenü) ist wie entschieden hingenommen.
+
+### 23.5 Tests
+
+- Neu: **`whalelocationbartest`** (19 Fälle, offscreen):
+  - Single View: genau eine Bar, URL folgt, Breadcrumb- und Eingabe-Navigation, Editiermodus.
+  - Split: zwei Bars; ein Klick in B aktiviert B, A bleibt unabhängig; Editieren aktiviert die
+    eigene View.
+  - History: Back/Forward über den internen Navigator; Entfernen, Wiedereinfügen und Verbergen
+    verlieren nichts.
+  - Tabs: eigene Bars; kein Umhängen beim Wechsel; Zustand pro View; ein neuer Tab übernimmt den
+    Editiermodus.
+  - Split schließen: 5 Varianten (`CloseSplitViewChoice` × aktive Seite). Die überlebende Bar
+    bleibt dieselbe, die History stimmt, ein neuer Split bekommt eine neue Bar.
+  - Ctrl+L/F6.
+  - Verborgene Leiste (L7), auch ein nie gezeigter Tab.
+  - Layout: doppelte ID, entfernen/wieder einfügen mit erhaltenem Zustand, unbekanntes
+    `url_navigators`.
+  - Spacer-Regel, `testStableWidth`.
+  - Kontext-Buttons: `trash:` und `remote:` mit Platzhalter. Netzwerkordner und KDE Connect hängen
+    an installierten Diensten und sind nicht getestet.
+  - Plugin View: Treemap ↔ Dateiliste, dieselbe Instanz.
+  - Dritter Container außerhalb der Tab-Page.
+- `whaletoolbarconfigtest::testLocationBar`: entfernen/Apply, wieder einfügen (einmal),
+  Change Text, Cancel, Defaults, nicht in der Hauptleiste.
+- Angepasst an die neuen Defaults: `whalefileviewtoolbartest`, `whaletoolbarconfigtest`,
+  `whaletoolbarmigrationtest` (historische Dateien mit `url_navigators` bleiben bytegleich;
+  angezeigt wird es nicht mehr), `whaledevautomationtest`, `test_tb_acceptance.py` (nur
+  Konstanten, nicht ausgeführt).
+- Gesamtsuite offscreen: 70/71 grün.
+  - `dolphinmainwindowtest` hängt im Gesamtlauf wie seit TB3 bekannt.
+  - Einzeln laufen alle Funktionen bis auf `testInlineRename`. Der scheitert im Ausgangsstand
+    bb394d924 identisch (per Worktree-Build geprüft), ist also vorbestehend.
+- **ASan/UBSan** (`../build-whale-asan`): `whalelocationbartest`, `whalefileviewtoolbartest`,
+  `whaletoolbarconfigtest` ohne Befund.
+
+### 23.6 Abweichungen vom Plan
+
+1. Kein stabilisierender `sizeHint()` (23.4).
+2. Dev-MCP: eine Zeile in `triggerToolbarAction`. `whale_location_bar` gilt in der File View
+   Toolbar als bekannt und wird als „Widget, kein Befehl“ beantwortet, wie früher
+   `url_navigators`. Keine neue Funktion; State `locationBar` und `location_bar_input` folgen in
+   LB4.
+3. Der Deskriptor der File View Toolbar enthält `whale_location_bar`; `allowedActions()` des
+   Scopes bleibt bei den Buttons.
+
+### 23.7 Stand
+
+- Bereit für LB3 (Migration L10/L15): ja.
+- Offen für die Wayland-Abnahme (LB5):
+  - schmale Panes und Inhalt des Überlaufmenüs (L16);
+  - Fokusindikator bei Split;
+  - Breeze-Hintergrund und Höhe (+6 px);
+  - Breadcrumb- und Places-Popups sowie Vervollständigung in der Leiste;
+  - IME;
+  - Drag & Drop auf Breadcrumbs beider Panes;
+  - Mittelklick-Paste;
+  - Ctrl+L bei verborgener Leiste (ohne sichtbare Wirkung, L11).
