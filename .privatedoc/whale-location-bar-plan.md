@@ -918,3 +918,121 @@ nichts übernommen (neu geschrieben). Migration (L10/L15) ist bewusst **nicht** 
   - Drag & Drop auf Breadcrumbs beider Panes;
   - Mittelklick-Paste;
   - Ctrl+L bei verborgener Leiste (ohne sichtbare Wirkung, L11).
+
+---
+
+## 24. LB3-Ergebnisse (Migration)
+
+Umgesetzt am 2026-10-17 auf `feature/multi-toolbar`: Code 34256d7e1, Tests f34ea0332. Nicht
+gepusht, nicht gemergt. Dolphin-Diff 0. Location-Bar-Runtime, Sizing, Dev-MCP und Plugin-API
+(9) sind unberührt.
+
+### 24.1 Aufbau
+
+- **`WhaleToolbarMigration`** (`src/whale/toolbars/whaletoolbarmigration.*`, Namespace).
+  `run()` läuft im Konstruktor von `WhaleToolbarManager`, also bei jedem neuen Fenster, bevor
+  es das File-View-Layout liest und die Action „Show File View Toolbars“ anlegt. Ist alles
+  erledigt, ist der Aufruf ein No-op (zwei Config-Lesezugriffe, kein Dateizugriff).
+- **Marker:** zwei getrennte Einträge in `[WhaleToolbars]` von `whalerc`, der Gruppe von
+  `WhaleToolbarSettings`. `GeneralSettings` ist nicht erweitert.
+  - `MigratedFileViewLayoutTB7`: Fall 1, Layout-Datei.
+  - `MigratedFileViewVisibilityTB7`: Fall 2, Sichtbarkeit.
+
+  Getrennt, damit ein fehlgeschlagener Fall 1 beim nächsten Start nicht Fall 2 wiederholt; der
+  würde sonst ein inzwischen erneutes Ausblenden des Benutzers überschreiben. Ein Marker wird
+  erst gesetzt, wenn sein Teil gelungen ist oder nichts zu tun war. Danach `sync()`; ein
+  Fehler dabei wird protokolliert.
+- **Neue Benutzer** bekommen beide Marker sofort, ohne Dateiänderung. Eine später mit TB7
+  gebaute Datei ohne Location Bar ist damit Benutzerwille und wird nie migriert.
+- `WhaleToolbarSettings::config()` ist neu (Zugriff auf dieselbe Konfiguration).
+
+### 24.2 Fall 1: lokale `whalefileviewtoolbarui.rc` (L10)
+
+- **Einfüge-Regel**, in der ersten `<ToolBar name="whaleFileViewToolBar">` der Datei:
+  1. direkt nach dem **letzten** (in Dokumentreihenfolge) direkten Kind-`<Action>` mit
+     `go_back`, `go_forward`, `go_up` oder `view_redisplay`;
+  2. sonst vor dem ersten Eintrag, der nicht `<text>` ist (Plan 12.2: „vorne“);
+  3. sonst nach `<text>`;
+  4. sonst vor `</ToolBar>`.
+
+  Keine Änderung, wenn:
+  - die Leiste `whale_location_bar` schon enthält (nie duplizieren);
+  - die Datei keine File View Toolbar hat;
+  - sie als leeres `<ToolBar/>` vorliegt (bewusst leer).
+- **Bytegleich:** Die Datei wird als Text bearbeitet. `QXmlStreamReader` liefert nur die
+  Positionen; da er bei Textknoten ein Zeichen vorausliest, werden Tag-Anfang und -Ende aus dem
+  Text bestimmt. Eingefügt wird `<Action name="whale_location_bar"/>`: steht das
+  Bezugselement allein in seiner Zeile, auf eigener Zeile mit dessen Einrückung, sonst direkt
+  daneben. Reihenfolge, Spacer, Separatoren, Kommentare, Entities, ActionProperties und
+  Nicht-ASCII-Zeichen bleiben unverändert. Ist die Datei nicht verlustfrei als UTF-8 lesbar,
+  scheitert die Migration.
+- **Ablauf:**
+  1. lesen und Ergebnis berechnen (unverändert → Marker, fertig);
+  2. Sicherung `<datei>.pre-tb7` per `QFile::copy`, nur wenn noch keine existiert (nie
+     überschrieben), danach Inhalt verifizieren;
+  3. Schreiben atomar per `QSaveFile`;
+  4. erst dann Marker setzen.
+- **Fehler** (Datei unlesbar, kaputtes XML, Sicherungspfad belegt oder kein Dateiname,
+  Sicherung abweichend, Schreiben/Commit gescheitert):
+  - Das Original bleibt unverändert (`QSaveFile`), kein Marker.
+  - `qCWarning(WhaleViewDebug)` mit Ursache.
+  - Der nächste Fensterstart versucht es erneut. Eine Sicherung aus einem früheren Versuch
+    bleibt die maßgebliche.
+
+### 24.3 Fall 2: verborgene File View Toolbars (L15)
+
+- Ohne Marker und mit `ShowFileViewToolBars=false`: einmal `setFileViewToolBarsVisible(true)`
+  (mit Signal, Hinweis im Log), dann Marker.
+- Blendet der Benutzer sie danach wieder aus, bleibt das so.
+
+### 24.4 Nicht migriert
+
+- `dolphinui.rc` des Benutzers (L5): unverändert, auch mit `url_navigators`; getestet bytegleich
+  nach Start und Schließen.
+- Keine weitere UI-Bereinigung.
+
+### 24.5 Rollback/Downgrade
+
+- Eine ältere Whale mit migrierter File-View-RC: XML gültig, dieselbe Leiste, ein Eintrag mehr
+  (`whale_location_bar`, von TB6 übergangen), dieselben ActionProperties (Test vergleicht die
+  Layouts mit und ohne den Eintrag).
+- Zurück zum alten Layout: `.pre-tb7` über die Datei kopieren. TB7 migriert sie nicht erneut
+  (Marker) und zeigt die Leiste ohne Location Bar.
+- `dolphinui.rc` mit `url_navigators`: unverändert erhalten, eine ältere Whale zeigt die globalen
+  Navigatoren wieder (12.3, LB0 22.4).
+- Nicht getestet: der tatsächliche Start einer TB6-Whale (kein zweiter Build).
+
+### 24.6 Tests (`whaletoolbarmigrationtest`, jetzt 33 Fälle)
+
+Neu, offscreen:
+
+| Test | Prüft |
+|---|---|
+| `testInsertLocationBar` (8 Zeilen) | KDE-Formatierung, handbearbeitete Reihenfolge auf einer Zeile, ohne Navigation, nur `<text>`, Kommentare/Umlaute/Entities, schon vorhanden, andere Leiste, leeres `<ToolBar/>`; jeweils bytegenau, Idempotenz, nie doppelt |
+| `testLayoutMigration` | TB5/TB6-Datei mit Spacer und ActionProperties: Ergebnis bytegenau, Sicherung = Original, Marker, Leiste zeigt die Location Bar nach Reload, Benutzertext für Up wirkt, alter Spacer nimmt keine Breite (L12) |
+| `testLayoutMigrationOnce` | Benutzer entfernt die Bar danach → bleibt entfernt; ohne Marker, aber mit Bar → keine Änderung, Sicherung unverändert (Inhalt und mtime); bestehende Sicherung wird nie überschrieben |
+| `testLayoutMigrationFailure` | Sicherungspfad ist ein Ordner → Original unverändert, kein Layout-Marker, Sichtbarkeits-Marker trotzdem; Ordner schreibgeschützt → Original unverändert, kein Marker; danach erneuter Versuch erfolgreich |
+| `testUnreadableFile` | kaputtes XML → unverändert, keine Sicherung, kein Marker |
+| `testVisibilityMigration` | L15 einmal an; danach vom Benutzer aus → bleibt aus |
+| `testNewUserTB7` | keine Dateien → keine Datei, keine Sicherung, Marker, TB7-Defaults; spätere TB7-Datei ohne Bar bleibt |
+| `testMainFileNotMigrated` | `dolphinui.rc` mit `url_navigators` bytegleich, keine Sicherung davon |
+| `testDowngradeFiles` | migrierte Datei für ältere Whale lesbar; Rückkehr per `.pre-tb7` |
+
+- Die bestehenden TB5-Tests setzen in `init()` beide Marker; sie hängen nicht mehr von der
+  Testreihenfolge ab.
+- Gesamtsuite offscreen ohne `dolphinmainwindowtest` (vorbestehend, 23.5) grün. Ausnahme ist
+  `whaletreecachetest::testChangeRightAfterScan`: ein Timing-Flake im Tree-Scanner (5050 statt
+  5000 ms, 1 von 5 Läufen), ohne Bezug zu den Toolbars.
+- ASan/UBSan: `whaletoolbarmigrationtest`, `whalelocationbartest` ohne Befund.
+
+### 24.7 Abweichungen
+
+- Ein leeres `<ToolBar name="whaleFileViewToolBar"/>` gilt als Benutzerwille und wird nicht
+  ergänzt. Der Auftrag nannte den Fall nicht; so gibt es auch keine Endlos-Wiederholung.
+- Die Migration läuft pro neuem Fenster, bis die Marker gesetzt sind, nicht nur einmal pro
+  Prozess. Das ist nötig, damit „nächster Start erneut versuchen“ auch für weitere Fenster eines
+  laufenden Prozesses gilt, und billig.
+
+### 24.8 Stand
+
+Bereit für LB4 (Dev-MCP): ja.
