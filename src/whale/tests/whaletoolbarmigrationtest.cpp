@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  */
 
+#include "whaletoolbarmigration.h"
 #include "config-dolphin.h"
 #include "dolphin_generalsettings.h"
 #include "dolphinmainwindow.h"
@@ -15,6 +16,7 @@
 #include "views/dolphinview.h"
 #include "whalefileviewtoolbar.h"
 #include "whalefileviewtoolbarclient.h"
+#include "whalelocationbar.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarlayout.h"
 #include "whaletoolbarmanager.h"
@@ -42,6 +44,8 @@
 #include <QStandardPaths>
 #include <QTest>
 #include <QTimer>
+
+#include <unistd.h>
 
 namespace
 {
@@ -144,6 +148,65 @@ QByteArray userMainFile(const QStringList &mainToolBar, const QMap<QString, QStr
     return document.toByteArray();
 }
 
+// The File View Toolbar file of a user of TB4 to TB6: KDE's formatting, a text of the user's.
+const QByteArray fileViewBeforeTB7 =
+    "<?xml version=\"1.0\"?>\n"
+    "<!DOCTYPE gui SYSTEM \"kpartgui.dtd\">\n"
+    "<gui name=\"whale_fileview\" version=\"1\">\n"
+    "    <ToolBar noMerge=\"1\" name=\"whaleFileViewToolBar\">\n"
+    "        <text context=\"@title:menu\">File View Toolbar</text>\n"
+    "        <Action name=\"go_back\" />\n"
+    "        <Action name=\"go_forward\" />\n"
+    "        <Action name=\"go_up\" />\n"
+    "        <Action name=\"view_redisplay\" />\n"
+    "        <Spacer />\n"
+    "        <Action name=\"view_settings\" />\n"
+    "        <Action name=\"go_home\" />\n"
+    "    </ToolBar>\n"
+    "    <ActionProperties scheme=\"Default\">\n"
+    "        <Action name=\"go_up\" iconText=\"Upwards &amp; on\"/>\n"
+    "    </ActionProperties>\n"
+    "</gui>\n";
+
+// ... after the migration: the location bar after Reload, nothing else changed.
+const QByteArray fileViewMigrated =
+    QByteArray(fileViewBeforeTB7)
+        .replace("        <Action name=\"view_redisplay\" />\n", "        <Action name=\"view_redisplay\" />\n        <Action name=\"whale_location_bar\"/>\n");
+
+QByteArray fileViewFile(const QByteArray &toolBarContent)
+{
+    return "<!DOCTYPE gui SYSTEM \"kpartgui.dtd\">\n<gui name=\"whale_fileview\" version=\"1\">"
+           "<ToolBar noMerge=\"1\" name=\"whaleFileViewToolBar\">"
+        + toolBarContent + "</ToolBar></gui>";
+}
+
+KConfigGroup migrationGroup()
+{
+    return WhaleToolbarSettings::self()->config()->group(WhaleToolbarSettings::groupName());
+}
+
+// The state of the TB7 migration: done or not (a user of an older Whale).
+void setMigrated(bool migrated)
+{
+    KConfigGroup group = migrationGroup();
+    if (migrated) {
+        group.writeEntry(WhaleToolbarMigration::layoutMarker(), true);
+        group.writeEntry(WhaleToolbarMigration::visibilityMarker(), true);
+    } else {
+        group.deleteEntry(WhaleToolbarMigration::layoutMarker());
+        group.deleteEntry(WhaleToolbarMigration::visibilityMarker());
+    }
+    group.sync();
+}
+
+void writeFile(const QString &file, const QByteArray &content)
+{
+    QVERIFY(QDir().mkpath(QFileInfo(file).absolutePath()));
+    QFile local(file);
+    QVERIFY(local.open(QIODevice::WriteOnly));
+    QCOMPARE(local.write(content), content.size());
+}
+
 QStringList layoutOf(const QToolBar *toolBar)
 {
     QStringList result;
@@ -190,6 +253,18 @@ private Q_SLOTS:
     void testConfigureWhileHidden_data();
     void testConfigureWhileHidden();
 
+    // TB7 (location bar plan, LB3)
+    void testInsertLocationBar_data();
+    void testInsertLocationBar();
+    void testLayoutMigration();
+    void testLayoutMigrationOnce();
+    void testLayoutMigrationFailure();
+    void testUnreadableFile();
+    void testVisibilityMigration();
+    void testNewUserTB7();
+    void testMainFileNotMigrated();
+    void testDowngradeFiles();
+
 private:
     DolphinViewContainer *showWindow(DolphinMainWindow *window);
     void showSplit();
@@ -231,6 +306,9 @@ void WhaleToolbarMigrationTest::init()
     m_dir->createFile(QStringLiteral("a.txt"), QByteArray(3000, 'a'));
     m_dir->createFile(QStringLiteral(".hidden"), QByteArray(100, 'h'));
     m_dir->createFile(QStringLiteral("sub/b.txt"), QByteArray(1000, 'b'));
+    // The tests of the TB7 migration start from a user of an older Whale; all others from one
+    // who has run TB7.
+    setMigrated(true);
 }
 
 void WhaleToolbarMigrationTest::cleanup()
@@ -251,6 +329,10 @@ void WhaleToolbarMigrationTest::cleanup()
     QFile::remove(localFileViewFile());
     QFile::remove(localMainFile());
     QFile::remove(localMainFile() + QStringLiteral(".backup"));
+    const QString backup = localFileViewFile() + WhaleToolbarMigration::backupSuffix();
+    QFile::setPermissions(QFileInfo(localFileViewFile()).absolutePath(), QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+    QDir(backup).removeRecursively();
+    QFile::remove(backup);
     WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
     // Closing a window stores the settings' version and the window's state; with them, the
     // next windows show the terminal panel, and Konsole is not part of these tests.
@@ -758,6 +840,263 @@ void WhaleToolbarMigrationTest::testConfigureWhileHidden()
     QCOMPARE(layoutOf(toolBar(m_first)), expected);
     QCOMPARE(layoutOf(toolBar(m_second)), expected);
     QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), mainDefault);
+}
+
+void WhaleToolbarMigrationTest::testInsertLocationBar_data()
+{
+    QTest::addColumn<QByteArray>("before");
+    QTest::addColumn<QByteArray>("after");
+
+    QTest::newRow("KDE's formatting, after Reload") << fileViewBeforeTB7 << fileViewMigrated;
+    // One line, an order of the user's: after the last of Back, Forward, Up and Reload.
+    QTest::newRow("hand-edited order")
+        << fileViewFile(
+               "<Action name=\"view_settings\"/><Action name=\"go_up\"/><Separator/><Action name=\"renamefile\"/><Action name=\"go_back\"/>"
+               "<Action name=\"go_home\"/>")
+        << fileViewFile(
+               "<Action name=\"view_settings\"/><Action name=\"go_up\"/><Separator/><Action name=\"renamefile\"/><Action name=\"go_back\"/>"
+               "<Action name=\"whale_location_bar\"/><Action name=\"go_home\"/>");
+    // None of them: in front of the first entry.
+    QTest::newRow("no navigation")
+        << fileViewFile("<text>File View Toolbar</text>\n  <Separator/>\n  <Action name=\"renamefile\"/>\n")
+        << fileViewFile("<text>File View Toolbar</text>\n  <Action name=\"whale_location_bar\"/>\n  <Separator/>\n  <Action name=\"renamefile\"/>\n");
+    QTest::newRow("nothing but the text") << fileViewFile("<text>File View Toolbar</text>")
+                                          << fileViewFile("<text>File View Toolbar</text><Action name=\"whale_location_bar\"/>");
+    // Comments, entities and other characters stay as they are.
+    QTest::newRow("comments and umlauts") << fileViewFile(
+        "<!-- mine: Größe -->\n<text>Datei&amp;Ansicht</text>\n<Action name=\"go_up\"/><!-- end -->\n<Action name=\"view_settings\"/>")
+                                          << fileViewFile(
+                                                 "<!-- mine: Größe -->\n<text>Datei&amp;Ansicht</text>\n<Action name=\"go_up\"/>\n<Action "
+                                                 "name=\"whale_location_bar\"/><!-- end -->\n<Action name=\"view_settings\"/>");
+    // Nothing to do.
+    QTest::newRow("has the location bar") << fileViewFile("<Action name=\"go_up\"/><Action name=\"view_settings\"/><Action name=\"whale_location_bar\"/>")
+                                          << fileViewFile("<Action name=\"go_up\"/><Action name=\"view_settings\"/><Action name=\"whale_location_bar\"/>");
+    QTest::newRow("other toolbar only")
+        << QByteArray("<gui name=\"whale_fileview\" version=\"1\"><ToolBar name=\"other\"><Action name=\"go_up\"/></ToolBar></gui>")
+        << QByteArray("<gui name=\"whale_fileview\" version=\"1\"><ToolBar name=\"other\"><Action name=\"go_up\"/></ToolBar></gui>");
+    QTest::newRow("empty toolbar element") << QByteArray("<gui name=\"whale_fileview\" version=\"1\"><ToolBar name=\"whaleFileViewToolBar\"/></gui>")
+                                           << QByteArray("<gui name=\"whale_fileview\" version=\"1\"><ToolBar name=\"whaleFileViewToolBar\"/></gui>");
+}
+
+void WhaleToolbarMigrationTest::testInsertLocationBar()
+{
+    QFETCH(QByteArray, before);
+    QFETCH(QByteArray, after);
+    QString error;
+    const QByteArray result = WhaleToolbarMigration::withLocationBar(before, &error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(result, after);
+    // Once only, whatever happens.
+    QCOMPARE(WhaleToolbarMigration::withLocationBar(result, &error), result);
+    QVERIFY(result.count("whale_location_bar") <= 1);
+}
+
+void WhaleToolbarMigrationTest::testLayoutMigration()
+{
+    // A user of TB5/TB6 with a File View Toolbar of their own, starting TB7.
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QVERIFY(showWindow(m_mainWindow.data()));
+    // The location bar is in the file, after Reload; everything else as it was, also the
+    // user's text for Up ...
+    QCOMPARE(contentOf(localFileViewFile()), fileViewMigrated);
+    QCOMPARE(contentOf(localFileViewFile() + WhaleToolbarMigration::backupSuffix()), fileViewBeforeTB7);
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+    // ... and in the toolbars.
+    WhaleFileViewToolBar *bar = toolBar(m_mainWindow->activeViewContainer());
+    QTRY_VERIFY(bar->scope());
+    QCOMPARE(layoutOf(bar),
+             QStringList({QStringLiteral("go_back"),
+                          QStringLiteral("go_forward"),
+                          QStringLiteral("go_up"),
+                          QStringLiteral("view_redisplay"),
+                          QStringLiteral("whale_location_bar"),
+                          QStringLiteral("|"),
+                          QStringLiteral("view_settings"),
+                          QStringLiteral("go_home")}));
+    QCOMPARE(bar->scope()->action(QStringLiteral("go_up"))->iconText(), QStringLiteral("Upwards & on"));
+    QTRY_VERIFY(bar->locationBar()->isVisible());
+    // The old spacer does not take the location bar's room.
+    QVERIFY(bar->locationBar()->width() > bar->width() / 2);
+}
+
+void WhaleToolbarMigrationTest::testLayoutMigrationOnce()
+{
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewMigrated);
+    const QString backup = localFileViewFile() + WhaleToolbarMigration::backupSuffix();
+    const QDateTime backupTime = QFileInfo(backup).lastModified();
+
+    // The user takes the location bar out again: the next start leaves it out.
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewBeforeTB7);
+
+    // Without the marker (e.g. it could not be saved): the location bar is not added twice,
+    // and the backup is the first one.
+    writeFile(localFileViewFile(), fileViewMigrated);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewMigrated);
+    QCOMPARE(contentOf(backup), fileViewBeforeTB7);
+    QCOMPARE(QFileInfo(backup).lastModified(), backupTime);
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+
+    // A backup of an earlier attempt is never overwritten.
+    writeFile(backup, "earlier");
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewMigrated);
+    QCOMPARE(contentOf(backup), QByteArray("earlier"));
+}
+
+void WhaleToolbarMigrationTest::testLayoutMigrationFailure()
+{
+    const QString backup = localFileViewFile() + WhaleToolbarMigration::backupSuffix();
+    // No backup possible (something else has its name): the file stays, no marker.
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    QVERIFY(QDir().mkpath(backup));
+    setMigrated(false);
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("Could not add the location bar.*is not a file")));
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewBeforeTB7);
+    QVERIFY(!migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+    // The other part is done all the same.
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::visibilityMarker(), false));
+    m_mainWindow.reset();
+
+    // Backed up, but the file cannot be written: the file stays, no marker.
+    QVERIFY(QDir(backup).removeRecursively());
+    writeFile(backup, fileViewBeforeTB7);
+    const QString folder = QFileInfo(localFileViewFile()).absolutePath();
+    QVERIFY(QFile::setPermissions(folder, QFile::ReadOwner | QFile::ExeOwner));
+    if (::access(qPrintable(folder), W_OK) == 0) {
+        QSKIP("the folder stays writable (root?)");
+    }
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("Could not add the location bar.*cannot write")));
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewBeforeTB7);
+    QVERIFY(!migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+    m_mainWindow.reset();
+
+    // The next start tries again.
+    QVERIFY(QFile::setPermissions(folder, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewMigrated);
+    QCOMPARE(contentOf(backup), fileViewBeforeTB7);
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+}
+
+void WhaleToolbarMigrationTest::testUnreadableFile()
+{
+    // Not XML: left alone, tried again.
+    const QByteArray broken = fileViewFile("<Action name=\"go_up\">");
+    writeFile(localFileViewFile(), broken);
+    setMigrated(false);
+    QTest::ignoreMessage(QtWarningMsg, QRegularExpression(QStringLiteral("Could not add the location bar.*cannot read")));
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), broken);
+    QVERIFY(!QFile::exists(localFileViewFile() + WhaleToolbarMigration::backupSuffix()));
+    QVERIFY(!migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+}
+
+void WhaleToolbarMigrationTest::testVisibilityMigration()
+{
+    // Hidden File View Toolbars of TB5: shown on the first start of TB7 (L15) ...
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QVERIFY(WhaleToolbarSettings::self()->fileViewToolBarsVisible());
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::visibilityMarker(), false));
+    QVERIFY(toggle(m_mainWindow.data())->isChecked());
+    QVERIFY(showWindow(m_mainWindow.data()));
+    WhaleFileViewToolBar *bar = toolBar(m_mainWindow->activeViewContainer());
+    QTRY_VERIFY(bar->isVisible() && bar->locationBar()->isVisible());
+
+    // ... and hidden again by the user: they stay hidden.
+    toggle(m_mainWindow.data())->trigger();
+    QVERIFY(!WhaleToolbarSettings::self()->fileViewToolBarsVisible());
+    m_mainWindow.reset();
+    m_mainWindow.reset(new DolphinMainWindow());
+    QVERIFY(!WhaleToolbarSettings::self()->fileViewToolBarsVisible());
+    QVERIFY(!toggle(m_mainWindow.data())->isChecked());
+    QVERIFY(showWindow(m_mainWindow.data()));
+    QVERIFY(toolBar(m_mainWindow->activeViewContainer())->isHidden());
+}
+
+void WhaleToolbarMigrationTest::testNewUserTB7()
+{
+    // Nothing of an older Whale: nothing to migrate, nothing written but the markers.
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QVERIFY(showWindow(m_mainWindow.data()));
+    QVERIFY(!QFile::exists(localFileViewFile()));
+    QVERIFY(!QFile::exists(localFileViewFile() + WhaleToolbarMigration::backupSuffix()));
+    QVERIFY(!QFile::exists(localMainFile()));
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::layoutMarker(), false));
+    QVERIFY(migrationGroup().readEntry(WhaleToolbarMigration::visibilityMarker(), false));
+    QVERIFY(WhaleToolbarSettings::self()->fileViewToolBarsVisible());
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), mainDefault);
+    WhaleFileViewToolBar *bar = toolBar(m_mainWindow->activeViewContainer());
+    QTRY_VERIFY(bar->scope());
+    QCOMPARE(layoutOf(bar), fileViewDefault);
+
+    // A layout made with TB7 without the location bar is the user's choice.
+    writeFile(localFileViewFile(), fileViewFile("<Action name=\"go_up\"/>"));
+    m_mainWindow.reset(new DolphinMainWindow());
+    QCOMPARE(contentOf(localFileViewFile()), fileViewFile("<Action name=\"go_up\"/>"));
+}
+
+void WhaleToolbarMigrationTest::testMainFileNotMigrated()
+{
+    // The user's dolphinui.rc with the global location bars: never touched (L5); KXmlGui
+    // passes over "url_navigators".
+    const QByteArray userFile = userMainFile(mainBeforeTB5, {});
+    writeUserMainFile(userFile);
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    QVERIFY(showWindow(m_mainWindow.data()));
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), shown(mainBeforeTB5));
+    QCOMPARE(contentOf(localFileViewFile()), fileViewMigrated);
+    m_mainWindow->close();
+    m_mainWindow.reset();
+    QCOMPARE(contentOf(localMainFile()), userFile);
+    QVERIFY(!QFile::exists(localMainFile() + WhaleToolbarMigration::backupSuffix()));
+}
+
+void WhaleToolbarMigrationTest::testDowngradeFiles()
+{
+    writeFile(localFileViewFile(), fileViewBeforeTB7);
+    setMigrated(false);
+    m_mainWindow.reset(new DolphinMainWindow());
+    m_mainWindow.reset();
+    // An older Whale reads the migrated file as before: the same toolbar, one entry more that
+    // it does not know (and passes over, as Whale does with unknown IDs), the same texts.
+    QDomDocument migrated;
+    QVERIFY(migrated.setContent(contentOf(localFileViewFile())));
+    QDomDocument before;
+    QVERIFY(before.setContent(fileViewBeforeTB7));
+    QStringList withoutLocationBar = WhaleToolbarLayout::fromDocument(migrated, WhaleFileViewToolbarClient::toolBarName()).toStringList();
+    QCOMPARE(withoutLocationBar.removeAll(QStringLiteral("whale_location_bar")), 1);
+    QCOMPARE(withoutLocationBar, WhaleToolbarLayout::fromDocument(before, WhaleFileViewToolbarClient::toolBarName()).toStringList());
+    QCOMPARE(WhaleToolbarLayout::fromDocument(migrated, WhaleFileViewToolbarClient::toolBarName()).actionProperties(),
+             WhaleToolbarLayout::fromDocument(before, WhaleFileViewToolbarClient::toolBarName()).actionProperties());
+
+    // Back to the layout of before: the backup, copied over the file; it is not migrated again.
+    QVERIFY(QFile::remove(localFileViewFile()));
+    QVERIFY(QFile::copy(localFileViewFile() + WhaleToolbarMigration::backupSuffix(), localFileViewFile()));
+    m_mainWindow.reset(new DolphinMainWindow());
+    QVERIFY(showWindow(m_mainWindow.data()));
+    QCOMPARE(contentOf(localFileViewFile()), fileViewBeforeTB7);
+    WhaleFileViewToolBar *bar = toolBar(m_mainWindow->activeViewContainer());
+    QTRY_VERIFY(bar->scope());
+    QVERIFY(!layoutOf(bar).contains(QStringLiteral("whale_location_bar")));
 }
 
 QTEST_MAIN(WhaleToolbarMigrationTest)
