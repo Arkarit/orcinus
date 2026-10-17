@@ -76,6 +76,9 @@ private Q_SLOTS:
     void testToolbarState();
     void testToolbarErrors();
     void testToolbarsOfTwoWindows();
+    void testLocationBarState();
+    void testLocationBarInput();
+    void testLocationBarErrors();
 
 private:
     /// Waits until the conditions hold; prints the mismatches otherwise.
@@ -528,6 +531,7 @@ void WhaleDevAutomationTest::testSetSelection()
 
     // Activation through the same host API: entering a folder.
     const QString sub = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub")).toString();
+    const QString typed = m_dir->path() + QStringLiteral("/sub");
     QVERIFY(m_automation->activateItems(0, {sub}).value(QStringLiteral("ok")).toBool());
     QVERIFY(reaches(expect({{QStringLiteral("url"), sub}, {QStringLiteral("panes.0.viewId"), QStringLiteral("whale_testlist")}})));
 }
@@ -690,6 +694,98 @@ void WhaleDevAutomationTest::testToolbarsOfTwoWindows()
     QCOMPARE(paneToolbar(otherAutomation->uiState(), 0).value(QStringLiteral("visible")).toBool(), false);
     QCOMPARE(otherAutomation->uiState().value(QStringLiteral("toolbars")).toObject().value(QStringLiteral("fileViewsVisible")).toBool(), false);
     QVERIFY(errorOf(otherAutomation->triggerToolbarAction(theirId, QStringLiteral("go_back"), QString())).contains(QStringLiteral("not shown")));
+}
+
+void WhaleDevAutomationTest::testLocationBarState()
+{
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.visible"), true}})));
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.exists"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.connected"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.present"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.editable"), false},
+                            {QStringLiteral("panes.0.toolbar.locationBar.active"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.text"), QString()}})));
+    const QJsonObject first = paneToolbar(m_automation->uiState(), 0).value(QStringLiteral("locationBar")).toObject();
+    QCOMPARE(QUrl(first.value(QStringLiteral("url")).toString()).adjusted(QUrl::StripTrailingSlash), m_dir->url());
+    const QString key = first.value(QStringLiteral("widgetKey")).toString();
+    QVERIFY(key.startsWith(QLatin1String("location-bar-")));
+
+    // Ctrl+L through the window's action: editable, focused.
+    QVERIFY(errorOf(m_automation->triggerAction(QStringLiteral("edit_location"))).isEmpty());
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.editable"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.focused"), true},
+                            {QStringLiteral("focus.role"), QStringLiteral("location-bar")}})));
+
+    // A tab never shown: its location bar exists and is connected, not placed; nothing built.
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    QVERIFY(errorOf(m_automation->triggerAction(QStringLiteral("new_tab"))).isEmpty());
+    QVERIFY(reaches(expect({{QStringLiteral("tabs.count"), 2}, {QStringLiteral("panes.0.toolbar.locationBar.visible"), false}})));
+    const QJsonArray instances = m_automation->uiState().value(QStringLiteral("toolbars")).toObject().value(QStringLiteral("instances")).toArray();
+    QCOMPARE(instances.count(), 2);
+    QStringList keys;
+    for (const QJsonValue &value : instances) {
+        const QJsonObject instance = value.toObject();
+        const QJsonObject locationBar = instance.value(QStringLiteral("locationBar")).toObject();
+        QVERIFY(locationBar.value(QStringLiteral("exists")).toBool());
+        QVERIFY(locationBar.value(QStringLiteral("connected")).toBool());
+        keys.append(locationBar.value(QStringLiteral("widgetKey")).toString());
+        if (instance.value(QStringLiteral("tab")).toInt() == 1) {
+            QVERIFY(!instance.value(QStringLiteral("initialized")).toBool());
+            QVERIFY(!locationBar.value(QStringLiteral("present")).toBool());
+        }
+    }
+    QCOMPARE(keys.count(), 2);
+    QVERIFY(keys.at(0) != keys.at(1));
+    QVERIFY(keys.contains(key));
+    // Reading the state built nothing.
+    QCOMPARE(paneToolbar(m_automation->uiState(), 0).value(QStringLiteral("initialized")).toBool(), false);
+}
+
+void WhaleDevAutomationTest::testLocationBarInput()
+{
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.visible"), true}})));
+    const QString sub = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub")).toString();
+    const QString typed = m_dir->path() + QStringLiteral("/sub");
+    // Typed, not submitted: editable with the text, the view stays.
+    const QJsonObject typing = m_automation->locationBarInput(QStringLiteral("0"), typed, false);
+    QVERIFY2(errorOf(typing).isEmpty(), qPrintable(errorOf(typing)));
+    QVERIFY(typing.value(QStringLiteral("text")).toString().startsWith(typed));
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.editable"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.text"), QJsonObject{{QStringLiteral("$contains"), typed}}},
+                            {QStringLiteral("panes.0.toolbar.locationBar.focused"), true},
+                            {QStringLiteral("url"), m_dir->url().toString()}})));
+    // Submitted: the view goes there; the location bar shows it.
+    QVERIFY(errorOf(m_automation->locationBarInput(QStringLiteral("active"), typed, true)).isEmpty());
+    // (with the "/" KDE's completion added to the folder's name)
+    const QString folder = sub + QLatin1Char('/');
+    QVERIFY(reaches(expect({{QStringLiteral("url"), folder}, {QStringLiteral("panes.0.toolbar.locationBar.url"), folder}})));
+    // Back in the breadcrumb after Return (Whale's default).
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.editable"), false}})));
+    // From the breadcrumb (a click on its toggle button), not submitted: the view stays. (Not
+    // a location of the editor's list: an editor that loses the focus with such a text goes
+    // there, KUrlComboBox/QComboBox behaviour.)
+    const QString other = m_dir->path() + QStringLiteral("/a.txt");
+    const QJsonObject again = m_automation->locationBarInput(QStringLiteral("0"), other, false);
+    QVERIFY2(errorOf(again).isEmpty(), qPrintable(errorOf(again)));
+    QVERIFY(reaches(expect({{QStringLiteral("url"), folder},
+                            {QStringLiteral("panes.0.toolbar.locationBar.editable"), true},
+                            {QStringLiteral("panes.0.toolbar.locationBar.text"), QJsonObject{{QStringLiteral("$contains"), other}}}})));
+}
+
+void WhaleDevAutomationTest::testLocationBarErrors()
+{
+    QVERIFY(reaches(expect({{QStringLiteral("panes.0.toolbar.locationBar.visible"), true}})));
+    QVERIFY(errorOf(m_automation->locationBarInput(QStringLiteral("3"), QStringLiteral("/"), true)).contains(QStringLiteral("no pane")));
+    QVERIFY(errorOf(m_automation->locationBarInput(QStringLiteral("view-999999"), QStringLiteral("/"), true)).contains(QStringLiteral("instanceId")));
+    QVERIFY(errorOf(m_automation->locationBarInput(QStringLiteral("global"), QStringLiteral("/"), true)).contains(QStringLiteral("main toolbar")));
+    // Hidden toolbars: not shown, and nothing changes.
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    QVERIFY(errorOf(m_automation->locationBarInput(QStringLiteral("0"), QStringLiteral("/"), true)).contains(QStringLiteral("not shown")));
+    QVERIFY(reaches(expect({{QStringLiteral("url"), m_dir->url().toString()}, {QStringLiteral("panes.0.toolbar.locationBar.editable"), false}})));
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
+    // The location bar is a widget, no command of the toolbar.
+    QVERIFY(
+        errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("whale_location_bar"), QString())).contains(QStringLiteral("widget")));
 }
 
 QTEST_MAIN(WhaleDevAutomationTest)
