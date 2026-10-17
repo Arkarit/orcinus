@@ -54,13 +54,30 @@ QJsonObject globalState(DolphinMainWindow *window);
 
 /**
  * @return The File View Toolbar of @p container: {instanceId, ownerView, visible, shown,
- *         initialized, layout, actions}. Without actions while it has none (never shown).
+ *         initialized, layout, actions, locationBar}. Without actions while it has none
+ *         (never shown).
  */
 QJsonObject fileViewState(DolphinViewContainer *container, const QString &ownerView);
 
 /**
+ * @return The location bar of @p container (location bar plan, LB4): {exists, connected (the
+ *         view's visible navigator), present (placed in the toolbar), visible, editable, url,
+ *         text (of the editor while editable), placeholder, focused (the window's focus
+ *         widget is in it, as focus.role), active (of the active
+ *         view), widgetKey (the same for the widget's life)}. Creates nothing.
+ */
+QJsonObject locationBarState(DolphinViewContainer *container);
+
+/**
+ * Enters @p text into the location bar of @p container as the user does: a click on its
+ * toggle button if it is not editable, then the text typed over the editor's text, and with
+ * @p submit Return. Fails if the location bar is not placed, not shown or not editable.
+ */
+QJsonObject locationBarInput(DolphinViewContainer *container, const QString &text, bool submit);
+
+/**
  * @return The file views of all tabs, without their actions: {instanceId, tab, pane,
- *         visible, initialized}.
+ *         visible, initialized, locationBar: {exists, connected, present, widgetKey}}.
  */
 QJsonArray instancesState(DolphinMainWindow *window);
 

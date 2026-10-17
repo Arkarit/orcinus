@@ -459,6 +459,24 @@ TOOLS = [
         },
     },
     {
+        "name": "location_bar_input",
+        "description": "Enters text into the location bar of a file view as the user does (location bar plan, LB4): "
+        "a click on its toggle button if it shows the breadcrumb, the text typed over the editor's text, and with "
+        "submit Return (the view then navigates there). toolbar is a pane index of the current tab, 'active', or "
+        "the instanceId of a file view (panes.N.toolbar.instanceId). The location bar's state is "
+        "panes.N.toolbar.locationBar. Ctrl+L is trigger_action edit_location. Fails for an unknown pane or "
+        "instanceId, and if the location bar is not in the File View Toolbar or not shown.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "toolbar": {"oneOf": [{"type": "string"}, {"type": "integer"}]},
+                "text": {"type": "string"},
+                "submit": {"type": "boolean"},
+            },
+            "required": ["toolbar", "text"],
+        },
+    },
+    {
         "name": "configure_toolbars",
         "description": "Operates Configure Toolbars through its own widgets, as the user does (TB6), in this order: "
         "open (true; with select the toolbar chosen when it opens), select ('global' or 'file-view'), remove and "
@@ -649,6 +667,8 @@ class Whale:
             return result(iface.TreemapSetOptions(pane, args.get("color_mode", ""), "" if labels is None else ("true" if labels else "false")))
         if tool == "trigger_toolbar_action":
             return result(iface.TriggerToolbarAction(str(args["toolbar"]), args["id"], args.get("menu_entry", "")))
+        if tool == "location_bar_input":
+            return result(iface.LocationBarInput(str(args["toolbar"]), args["text"], bool(args.get("submit", False))))
         if tool == "configure_toolbars":
             return result(iface.ConfigureToolbars(json.dumps(args)))
         if tool == "screenshot":

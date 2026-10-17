@@ -243,4 +243,9 @@ QString WhaleDevAutomationDBus::ConfigureToolbars(const QString &request)
     return toJson(m_automation->configureToolbars(QJsonDocument::fromJson(request.toUtf8()).object()));
 }
 
+QString WhaleDevAutomationDBus::LocationBarInput(const QString &toolBar, const QString &text, bool submit)
+{
+    return toJson(m_automation->locationBarInput(toolBar, text, submit));
+}
+
 #include "moc_whaledevautomationdbus.cpp"

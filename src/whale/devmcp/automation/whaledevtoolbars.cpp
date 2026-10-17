@@ -9,8 +9,10 @@
 #include "dolphinmainwindow.h"
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
+#include "dolphinurlnavigator.h"
 #include "dolphinviewcontainer.h"
 #include "whalefileviewtoolbar.h"
+#include "whalelocationbar.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaletoolbarsettings.h"
@@ -20,13 +22,16 @@
 #include <KEditToolBar>
 #include <KLocalizedString>
 #include <KToolBar>
+#include <KUrlComboBox>
 
+#include <QAbstractButton>
 #include <QApplication>
 #include <QComboBox>
 #include <QDataStream>
 #include <QDialogButtonBox>
 #include <QElapsedTimer>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
 #include <QMimeData>
@@ -53,6 +58,7 @@ namespace
 {
 const char instanceIdProperty[] = "whaleDevInstanceId";
 const char actionKeyProperty[] = "whaleDevActionKey";
+const char widgetKeyProperty[] = "whaleDevWidgetKey";
 // Menus are listed down to this depth (view_settings > Sort By > its entries).
 constexpr int MaxMenuDepth = 3;
 // How long a click may wait for a menu to open (a delayed popup opens after a delay).
@@ -83,6 +89,18 @@ QString actionKey(QAction *action)
     if (key.isEmpty()) {
         key = QStringLiteral("action-%1").arg(++count);
         action->setProperty(actionKeyProperty, key);
+    }
+    return key;
+}
+
+/// The same for a widget: "location-bar-N".
+QString widgetKey(QWidget *widget, const QString &prefix)
+{
+    static int count = 0;
+    QString key = widget->property(widgetKeyProperty).toString();
+    if (key.isEmpty()) {
+        key = QStringLiteral("%1-%2").arg(prefix).arg(++count);
+        widget->setProperty(widgetKeyProperty, key);
     }
     return key;
 }
@@ -195,6 +213,33 @@ QJsonArray actionsState(const KToolBar *toolBar, const WhaleViewCommandScope *sc
 WhaleFileViewToolBar *fileViewToolBar(DolphinViewContainer *container)
 {
     return container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly);
+}
+
+WhaleLocationBar *locationBarOf(DolphinViewContainer *container)
+{
+    WhaleFileViewToolBar *toolBar = fileViewToolBar(container);
+    return toolBar ? toolBar->locationBar() : nullptr;
+}
+
+/// Placed in its toolbar (a layout entry), whether shown or not.
+bool isPlaced(DolphinViewContainer *container, WhaleLocationBar *locationBar)
+{
+    WhaleFileViewToolBar *toolBar = fileViewToolBar(container);
+    return toolBar && toolBar->actions().contains(locationBar->action());
+}
+
+QJsonObject locationBarSummary(DolphinViewContainer *container)
+{
+    WhaleLocationBar *locationBar = locationBarOf(container);
+    if (!locationBar) {
+        return {{QStringLiteral("exists"), false}};
+    }
+    return {
+        {QStringLiteral("exists"), true},
+        {QStringLiteral("connected"), container->urlNavigator() == locationBar->urlNavigator()},
+        {QStringLiteral("present"), isPlaced(container, locationBar)},
+        {QStringLiteral("widgetKey"), widgetKey(locationBar, QStringLiteral("location-bar"))},
+    };
 }
 
 KEditToolBar *openDialog(DolphinMainWindow *window)
@@ -559,6 +604,7 @@ QJsonObject WhaleDevToolbars::fileViewState(DolphinViewContainer *container, con
     // visible: not hidden ("Show File View Toolbars"); shown: on screen now.
     state.insert(QStringLiteral("visible"), !toolBar->isHidden());
     state.insert(QStringLiteral("shown"), toolBar->isVisible());
+    state.insert(QStringLiteral("locationBar"), locationBarState(container));
     // Its actions exist once it has been shown (lazy); the automation never creates them.
     WhaleViewCommandScope *scope = toolBar->scope();
     state.insert(QStringLiteral("initialized"), scope != nullptr);
@@ -585,6 +631,7 @@ QJsonArray WhaleDevToolbars::instancesState(DolphinMainWindow *window)
             {QStringLiteral("pane"), instance.pane},
             {QStringLiteral("visible"), toolBar && !toolBar->isHidden()},
             {QStringLiteral("initialized"), toolBar && toolBar->scope()},
+            {QStringLiteral("locationBar"), locationBarSummary(instance.container)},
         });
     }
     return result;
@@ -763,4 +810,105 @@ bool WhaleDevToolbars::changesFiles(const QString &name)
                                       QStringLiteral("create_file"),
                                       QStringLiteral("new_menu")};
     return names.contains(name);
+}
+
+QJsonObject WhaleDevToolbars::locationBarState(DolphinViewContainer *container)
+{
+    QJsonObject state = locationBarSummary(container);
+    WhaleLocationBar *locationBar = locationBarOf(container);
+    if (!locationBar) {
+        return state;
+    }
+    DolphinUrlNavigator *navigator = locationBar->urlNavigator();
+    QLineEdit *editor = navigator->editor() ? navigator->editor()->lineEdit() : nullptr;
+    const bool editable = navigator->isUrlEditable();
+    // The window's focus widget, as focus.role: also while the window is not active.
+    QWidget *focus = container->window()->focusWidget();
+    state.insert(QStringLiteral("visible"), locationBar->isVisible());
+    state.insert(QStringLiteral("editable"), editable);
+    state.insert(QStringLiteral("url"), navigator->locationUrl().toString());
+    state.insert(QStringLiteral("text"), editable && editor ? editor->text() : QString());
+    state.insert(QStringLiteral("placeholder"), editor ? editor->placeholderText() : QString());
+    state.insert(QStringLiteral("focused"), focus && (focus == navigator || navigator->isAncestorOf(focus)));
+    state.insert(QStringLiteral("active"), container->isActive());
+    return state;
+}
+
+QJsonObject WhaleDevToolbars::locationBarInput(DolphinViewContainer *container, const QString &text, bool submit)
+{
+    WhaleLocationBar *locationBar = locationBarOf(container);
+    if (!locationBar) {
+        return failure(QStringLiteral("the view has no location bar"));
+    }
+    DolphinUrlNavigator *navigator = locationBar->urlNavigator();
+    if (container->urlNavigator() != navigator) {
+        return failure(QStringLiteral("the location bar is not connected to its view"));
+    }
+    if (!isPlaced(container, locationBar)) {
+        return failure(QStringLiteral("the location bar is not in the File View Toolbar (removed in Configure Toolbars, or the toolbar never shown)"));
+    }
+    if (!locationBar->isVisible()) {
+        return failure(QStringLiteral("the location bar is not shown (File View Toolbars hidden, not in the current tab, or in the overflow menu)"));
+    }
+    if (!locationBar->isEnabled()) {
+        return failure(QStringLiteral("the location bar is disabled"));
+    }
+    if (!navigator->isUrlEditable()) {
+        // As the user: the toggle button right of the breadcrumb.
+        QAbstractButton *toggle = nullptr;
+        const auto buttons = navigator->findChildren<QAbstractButton *>();
+        for (QAbstractButton *button : buttons) {
+            if (button->inherits("KDEPrivate::KUrlNavigatorToggleButton") && button->isVisible()) {
+                toggle = button;
+            }
+        }
+        if (!toggle) {
+            return failure(QStringLiteral("the location bar shows no button to edit the location"));
+        }
+        // A click into an inactive window activates it (the window manager does that; without
+        // one, offscreen, the window stays inactive after a dialog has closed).
+        if (!toggle->window()->isActiveWindow()) {
+            toggle->window()->activateWindow();
+            QCoreApplication::processEvents();
+        }
+        const QPoint center = toggle->rect().center();
+        sendMouse(toggle, QEvent::MouseButtonPress, center);
+        sendMouse(toggle, QEvent::MouseButtonRelease, center);
+        if (!waitFor([navigator]() {
+                return navigator->isUrlEditable();
+            })) {
+            return failure(QStringLiteral("the location bar did not become editable"));
+        }
+    }
+    QLineEdit *editor = navigator->editor() ? navigator->editor()->lineEdit() : nullptr;
+    if (!editor || !editor->isVisible()) {
+        return failure(QStringLiteral("the location bar has no editor"));
+    }
+    // Typed over the whole text: Ctrl+A, then the text key by key (KDE's completion follows
+    // it as for the user), then Return.
+    auto key = [editor](int code, Qt::KeyboardModifiers modifiers, const QString &keyText) {
+        QKeyEvent press(QEvent::KeyPress, code, modifiers, keyText);
+        QCoreApplication::sendEvent(editor, &press);
+        QKeyEvent release(QEvent::KeyRelease, code, modifiers, keyText);
+        QCoreApplication::sendEvent(editor, &release);
+    };
+    editor->setFocus(Qt::OtherFocusReason);
+    key(Qt::Key_A, Qt::ControlModifier, QString());
+    if (text.isEmpty()) {
+        key(Qt::Key_Delete, Qt::NoModifier, QString());
+    } else {
+        for (const QChar character : text) {
+            key(Qt::Key_unknown, Qt::NoModifier, QString(character));
+        }
+    }
+    // KDE's completion may have added to it (e.g. the "/" of a folder), as for the user.
+    if (!editor->text().startsWith(text)) {
+        return failure(QStringLiteral("the editor shows \"%1\" instead of the text").arg(editor->text()));
+    }
+    QJsonObject result = ok();
+    result.insert(QStringLiteral("text"), editor->text());
+    if (submit) {
+        key(Qt::Key_Return, Qt::NoModifier, QStringLiteral("\r"));
+    }
+    return result;
 }

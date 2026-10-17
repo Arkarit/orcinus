@@ -1448,6 +1448,39 @@ QJsonObject WhaleDevAutomation::triggerAction(const QString &actionId)
     return failure(QStringLiteral("unknown or not allowed action \"%1\", allowed: %2").arg(actionId, actionIds().join(QStringLiteral(", "))));
 }
 
+DolphinViewContainer *WhaleDevAutomation::fileView(const QString &argument, QString *error) const
+{
+    bool isIndex = false;
+    const int index = argument.toInt(&isIndex);
+    if (argument == QLatin1String("active") || (isIndex && index < 0)) {
+        return m_window->activeViewContainer();
+    }
+    if (isIndex) {
+        return pane(index, error);
+    }
+    const auto all = WhaleDevToolbars::instances(m_window);
+    for (const WhaleDevToolbars::Instance &instance : all) {
+        if (WhaleDevToolbars::instanceId(instance.container) == argument) {
+            return instance.container;
+        }
+    }
+    *error = QStringLiteral("no file view with the instanceId \"%1\" in this window (closed, or another window?)").arg(argument);
+    return nullptr;
+}
+
+QJsonObject WhaleDevAutomation::locationBarInput(const QString &toolBarArg, const QString &text, bool submit)
+{
+    if (toolBarArg == WhaleToolbarDescriptor::globalId()) {
+        return failure(QStringLiteral("the main toolbar has no location bar; each file view has its own (a pane index or instanceId)"));
+    }
+    QString error;
+    DolphinViewContainer *container = fileView(toolBarArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    return WhaleDevToolbars::locationBarInput(container, text, submit);
+}
+
 QJsonObject WhaleDevAutomation::triggerToolbarAction(const QString &toolBarArg, const QString &actionId, const QString &menuEntry)
 {
     KToolBar *toolBar = nullptr;
@@ -1458,27 +1491,10 @@ QJsonObject WhaleDevAutomation::triggerToolbarAction(const QString &toolBarArg, 
             return failure(QStringLiteral("the window has no main toolbar"));
         }
     } else {
-        DolphinViewContainer *container = nullptr;
-        bool isIndex = false;
-        const int index = toolBarArg.toInt(&isIndex);
-        if (toolBarArg == QLatin1String("active") || (isIndex && index < 0)) {
-            container = m_window->activeViewContainer();
-        } else if (isIndex) {
-            QString error;
-            container = pane(index, &error);
-            if (!container) {
-                return failure(error);
-            }
-        } else {
-            const auto all = WhaleDevToolbars::instances(m_window);
-            for (const WhaleDevToolbars::Instance &instance : all) {
-                if (WhaleDevToolbars::instanceId(instance.container) == toolBarArg) {
-                    container = instance.container;
-                }
-            }
-            if (!container) {
-                return failure(QStringLiteral("no file view with the instanceId \"%1\" in this window (closed, or another window?)").arg(toolBarArg));
-            }
+        QString error;
+        DolphinViewContainer *container = fileView(toolBarArg, &error);
+        if (!container) {
+            return failure(error);
         }
         fileViewToolBar = container ? container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly) : nullptr;
         if (!fileViewToolBar) {

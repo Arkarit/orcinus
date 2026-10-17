@@ -91,6 +91,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `answer_dialog` | Press a button of an open dialog by its text, e.g. `Delete Permanently` of KIO's confirmation; file operation |
 | `treemap_set_options` | Treemap: `color_mode` (`fileType`/`topFolder`) and `labels` through the treemap's own controls |
 | `trigger_toolbar_action` | TB6: clicks a toolbar button with mouse events through the window, as the user does: `toolbar` `global` (main toolbar, acts on the active view), a pane index, `active` or a file view's `instanceId` (any tab); `id` is Whale's action name. With `menu_entry` (ID or text, `Submenu > Entry`) the button's menu opens as the user opens it (also a delayed history menu) and the entry is chosen with the keyboard. Errors for unknown toolbars, instances and actions, actions not in the toolbar or disabled (with the reason), missing entries, hidden or never shown toolbars; actions that change files are file operations |
+| `location_bar_input` | LB4: enters `text` into a file view's location bar as the user does: a click on its toggle button if it shows the breadcrumb, the text typed over the editor's text, with `submit` Return. `toolbar` is a pane index, `active` or an `instanceId`. Errors for unknown panes and instances and for a location bar that is not placed or not shown. Ctrl+L is `trigger_action edit_location` |
 | `configure_toolbars` | TB6: operates KDE's Configure Toolbars through its widgets, in this order: `open`, `select` (`global`/`file-view`), `remove`, `insert` (IDs, `-` separator, `|` spacer; at the end), `defaults` (KDE's question answered with Reset), `apply`, `ok`, `cancel`; returns the dialog state |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `screenshot` | PNG of the main window, rendered by Whale itself (works on Wayland) |
@@ -216,6 +217,14 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   opens). `toolbarDialog` is `{"open": false}` or Configure Toolbars' `selected` toolbar,
   `toolBars`, `available` and `current` (`id`, `text` as KDE's lists have them),
   `modified` (Apply enabled) and `buttons`.
+- Location bars (TB7, LB4): every file view has its own, in its File View Toolbar.
+  `panes.N.toolbar.locationBar`: `exists`, `connected` (it is the view's visible
+  navigator), `present` (placed in the toolbar's layout), `visible`, `editable`, `url`,
+  `text` (the editor's, while editable), `placeholder`, `focused`, `active` (the view is the
+  active one) and `widgetKey` (`location-bar-N`, the same for the widget's life). The
+  entries of `toolbars.instances` have `locationBar` with `exists`, `connected`, `present`
+  and `widgetKey`, also for tabs never shown. The state creates nothing (no actions of a
+  toolbar never shown).
 
 `wait_for_state` conditions map dotted paths into this state to expected JSON
 values, e.g. `{"panes.1.viewId": "whale_testlist", "focus.role": "plugin:whale_testlist"}`.
