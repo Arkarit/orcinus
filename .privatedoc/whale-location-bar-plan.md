@@ -46,8 +46,9 @@ Begriffe: **Container** = `DolphinViewContainer`; **interner Navigator** = sein
   File View Toolbars (TB5) hätten nach TB7 gar keine Location Bar mehr. Beides braucht eine
   Entscheidung (L10, L15).
 - **Spike nötig: ja, klein** (LB0): Kosten eines eager Navigators pro Container, Sizing in
-  `QToolBar` (Expanding, Spacer, Overflow, Editiermodus), Höhe/Optik. Nicht durchgeführt;
-  Fragen in 20.1.
+  `QToolBar` (Expanding, Spacer, Overflow, Editiermodus), Höhe/Optik. **Durchgeführt am
+  2026-10-17, Ergebnisse in Abschnitt 22**: Zielarchitektur bestätigt, Entscheidungen L5/L7/L8/
+  L10/L15 unverändert; Präzisierungen zu 7.1 (Platzhalter-Action) und 7.4 (Sizing).
 
 ---
 
@@ -601,3 +602,180 @@ zusammenfallen; getrennt bleiben sie besser prüfbar.
   den globalen Doppel-Navigator.
 - Vor LB1 entscheiden: L5, L7, L10, L15 (Migration und Verhalten für Bestandsnutzer), L8.
 - TB7 ist nach LB0 und diesen Entscheidungen implementierungsbereit.
+
+---
+
+## 22. LB0-Ergebnisse
+
+Durchgeführt am 2026-10-17 auf dem lokalen Wegwerf-Branch `feature/location-bar-tb7-spike`
+(Commit 4faca7a85, **nie mergen, nie pushen**), eigener Build `../build-whale-spike`, alles
+offscreen (kein ydotool, keine sichtbare GUI). Spike-Code wird nicht übernommen.
+
+### 22.0 Festgelegte Entscheidungen (vor dem Spike, 2026-10-17)
+
+| # | Entscheidung |
+|---|---|
+| L5 | globales `url_navigators` entfällt, kein Legacy-Modus |
+| L7 | versteckte File View Toolbar versteckt auch die Location Bar |
+| L8 | Main-Default `<Spacer/>, split_view, split_stash, toggle_search, hamburger_menu` |
+| L10 | bestehende Whale-File-View-RC einmalig konservativ migrieren, einmalige `.pre-tb7`-Sicherung; Details in LB3 |
+| L15 | bei Upgrade einmalig File View Toolbars wieder einschalten; danach gilt die Benutzerentscheidung |
+
+### 22.1 Aufbau des Spikes
+
+- Dolphin-Guards (`dolphinmainwindow.cpp`, `dolphintabpage.cpp`, `dolphintabwidget.cpp`,
+  +58/−28 Zeilen) hinter `WHALE_SPIKE_LB=1`: kein `DolphinNavigatorsWidgetAction`, Navigatorwahl
+  über `container->urlNavigator()`. Ohne die Variable: unveränderte Baseline im selben Build.
+- `WhaleFileViewToolBar` erzeugt im Konstruktor einen Wrapper (`QWidget` + `QHBoxLayout` +
+  `DolphinUrlNavigator`, Stretch 1) und verbindet ihn sofort per `connectUrlNavigator()`;
+  `rebuild()` platziert die ID `whale_location_bar` (drei Varianten, 22.6).
+- QTest `whalelocationbarspiketest` (nur auf dem Spike-Branch), Build mit
+  `QT_FORCE_ASSERTS`: Der Assert `!m_urlNavigatorConnected` in `connectUrlNavigator()` war
+  also aktiv und hat in keinem Ablauf (Split an/aus, Tabs, Restore, Mittelklick, Fenster
+  schließen) ausgelöst.
+- Die Kontext-Buttons (Papierkorb usw.) und die `remote:`-Logik waren nicht Teil des Spikes.
+
+### 22.2 Frage 1: Kosten eines zusätzlichen Navigators pro Container
+
+Einzeln (offscreen, warm): ein `DolphinUrlNavigator` = **46 QObjects**, Erzeugen 0,3–0,5 ms,
+Löschen 0,1–0,3 ms.
+
+Session-Restore (`DolphinTabWidget::readProperties`, Fenster nicht gezeigt, je Bestwert aus 3,
+4 Läufe):
+
+| Tabs | Baseline | Spike (eager) | Differenz | QObjects Baseline → Spike |
+|---|---|---|---|---|
+| 1 | 12,8–13,5 ms | 12,6–14,5 ms | Rauschen | 456 → 446 |
+| 20 | 66,9–69,6 ms | 72,9–78,4 ms | **+6–9 ms (~10 %)** | 4205 → 5010 (+40/Container) |
+| 50 | 168–180 ms | 190–203 ms | **+20–25 ms (~13 %)** | 10125 → 12220 |
+
+Lebende `KUrlNavigator` bei 20 Tabs: 21 → 40 (je Container intern + Location Bar; Baseline:
+intern + ein globaler).
+
+**Ergebnis:** eager ist vertretbar. Der Ausweichweg aus Abschnitt 10 („erst beim ersten
+Aktivieren/Zeigen erzeugen“) wird nicht gebraucht; die Invariante aus 5 (jeder Container hat ab
+Erzeugung einen verbundenen sichtbaren Navigator) bleibt ohne Einschränkung.
+
+### 22.3 Frage 2: `QToolBar`-Sizing
+
+Gemessen mit Breeze (Hauptwerte) und Fusion, Layout
+`go_back, go_forward, go_up, view_redisplay, whale_location_bar, view_settings`. Screenshots
+lagen im Session-Scratchpad (nicht versioniert).
+
+- **Breadcrumb und Editiermodus:** Der Wrapper füllt in beiden Modi dieselbe Restbreite (z. B.
+  Pane 450 px: 278/278 px; Split 701 px: 529 px Breadcrumb). Die in 6/7.4 befürchtete Schrumpfung
+  im Editiermodus tritt mit dem `QHBoxLayout`-Wrapper **nicht** auf, auch nicht ohne explizite
+  `Expanding`-Policy des Wrappers (Variante `no-wrapper-policy` identisch). Die Policy bleibt als
+  ausdrückliche Absicht, ist aber nicht tragend. Der Navigator direkt in der Leiste (Variante B)
+  wurde nicht gemessen.
+- **Spacer:** Ein zusätzlicher `<Spacer/>` teilt die Breite (Split, Fusion: 709 → 460 px
+  Breadcrumb, 563 → 295 px Editiermodus). **L12 bestätigt:** Spacer neben einer Location Bar in
+  `rebuild()` nicht expandieren lassen.
+- **Schmale Panes:**
+  - Die Location Bar erhöht die Mindestbreite der Pane nicht (Pane-`minimumSizeHint` 83 px
+    Breeze, wie Baseline).
+  - Breeze: sichtbar bis zu einer Panebreite von 280 px (Location Bar 108 px, Minimum des
+    Navigators 100 px). Bei 220 px gehen **Location Bar und `view_settings` ins
+    Überlaufmenü**; die Location Bar verschwindet damit aus der Leiste. Grund: `QToolBar` lagert
+    von hinten aus, und die Location Bar steht vor `view_settings`.
+  - Baseline zum Vergleich: Der globale Navigator bleibt bei 220 px mit ~110 px sichtbar.
+    **Regression nur bei sehr schmalen Panes (< ~250 px).**
+  - Eine feste Mindestbreite macht es schlimmer (`min-200`: schon bei 280 px im Überlauf).
+    → **Keine** zusätzliche Mindestbreite (korrigiert 7.4 „Mindestbreite festlegen“).
+- **Überlauf hängt am sizeHint:** Mit vielen Buttons nach der Location Bar entscheidet ihr
+  `sizeHint()` (Pfadlänge: Breadcrumb 309 px, Editiermodus 160 px), wie viele Buttons ins
+  Überlaufmenü gehen. Beispiel 700 px: Breadcrumb → 3 Buttons im Überlauf, Editiermodus → 0.
+  Buttons springen also beim Navigieren rein und raus. Vorschlag LB1: `WhaleLocationBar::sizeHint()`
+  mit konstanter Breite (z. B. Minimum des Navigators), `Expanding` holt sich den Rest. Das ist
+  **nicht gemessen**, in LB1 per Test bestätigen.
+- **Höhe:**
+
+  | Stil | Navigator | File View Toolbar ohne → mit Location Bar | Hauptleiste mit `url_navigators` → TB7-Default |
+  |---|---|---|---|
+  | Breeze | 36 px | 40 → 48 px | 48 → 46 px |
+  | Fusion | 27 px | 31 → 35 px | 37 → 37 px |
+
+  Netto pro Fenster mit einer View-Zeile: **+6 px** (Breeze), +4 px (Fusion). Passt zu L14.
+- **Breeze-Hintergrund:** `setBackgroundEnabled(true)` und `(false)` sehen offscreen gleich
+  aus. Breadcrumb und Editor sitzen sauber zwischen den Icon-Buttons. Vorschlag: wie Dolphin in
+  der Leiste `true`. Endgültig erst bei der Wayland-Abnahme (LB5).
+- Nicht geprüft (LB5, Wayland): Inhalt und Verhalten des Überlaufmenüs mit einer ausgelagerten
+  Widget-Action.
+
+### 22.4 Frage 3: unbekanntes `url_navigators` nach KEditToolBar-Apply
+
+Benutzer-`dolphinui.rc` (Version 52 = ausgeliefert) mit `url_navigators` und einem
+zusätzlichen `go_home`, Whale ohne `url_navigators` in der Collection:
+
+- KXmlGui übergeht den Eintrag still. Die Hauptleiste zeigt
+  `go_home, split_view, split_stash, toggle_search, hamburger_menu`, und „Current“ im Dialog
+  listet ihn nicht.
+- `go_home` entfernen + Apply, `toggle_search` verschieben + Apply, OK, neues Fenster liest die
+  Datei: Nach jedem Schritt steht **`url_navigators` unverändert an seiner Position** in der
+  Datei. Die echten Änderungen werden korrekt gespeichert
+  (`url_navigators, split_view, toggle_search, split_stash, hamburger_menu`).
+- „Defaults“ nicht geprüft: Es ersetzt die Datei bewusst.
+
+**Ergebnis:** 8.1 bestätigt. L5 ist downgrade-sicher: Eine ältere Whale findet den Eintrag
+wieder vor.
+
+### 22.5 Frage 4: Mittelklick → Aktivierung → `tabRequested` → neuer Tab
+
+Mittelklick auf den Breadcrumb „sub“ der **inaktiven** rechten Pane. Baseline und Spike sind
+**identisch**:
+
+`press: navigator.activated → activeViewChanged(right)` (das Fenster verbindet auf den
+Navigator der rechten Pane um) `→ release: navigator.tabRequested(sub) → tabCountChanged(2)`,
+wobei die aktive View des Fensters zu diesem Zeitpunkt schon „right“ ist. Der neue Tab hat die
+richtige URL und öffnet im Hintergrund (aktueller Tab bleibt 0), wie heute.
+
+**Ergebnis:** Es genügt, in `connectViewSignals()` und `activeViewChanged()`
+`container->urlNavigator()` zu verbinden bzw. zu trennen (8.3). Keine Sonderbehandlung nötig.
+
+### 22.6 Frage 5: Platzhalter-`QWidgetAction` versus `addWidget()`
+
+Ablauf je Variante: platzieren, Editiermodus mit getipptem Text, Rebuild, aus dem Layout
+entfernen, vorne und doppelt (handbearbeitet) wieder einfügen, Leiste verbergen/zeigen, Split
+schließen, Fenster schließen.
+
+| | A `addWidget()` pro Rebuild | B Platzhalter mit `setDefaultWidget()` | **C `QWidgetAction`-Unterklasse: `createWidget()` liefert die bestehende Bar, `deleteWidget()` versteckt nur** |
+|---|---|---|---|
+| sichtbar nach Platzierung | nur mit Workaround: `setDefaultWidget()` setzt die Action unsichtbar, wenn das Widget explizit versteckt war (`action->setVisible(true)` nötig) | ja (Widget vorher **nicht** explizit verstecken, sonst gleiche Falle) | ja |
+| Actions nach Entfernen + doppeltem Einfügen | **3**, alle mit demselben `defaultWidget` | 1 | 1 |
+| doppelte ID in der Datei | zweimal in `actions()`, Bar springt an die letzte Stelle | einmal | einmal |
+| Parent, solange nicht platziert | **null** (Top-Level) | **null** (Top-Level): `setDefaultWidget()`/`releaseWidget()` hängen um; bei 20 Tabs 20 parentlose Navigatoren in `QApplication::topLevelWidgets()` | **immer die Leiste** |
+| Zustand (Editiermodus, Text) über Rebuild/Verbergen | erhalten | erhalten | erhalten |
+| Split schließen / Fenster schließen | gelöscht / kein Absturz | gelöscht / kein Absturz | gelöscht / kein Absturz |
+| Risiko | Löschen alter Actions löscht die Location Bar → `urlNavigator()` null → Dolphin-Abstürze | Top-Level-Widgets ohne Fenster (Stil/Schrift erst beim Platzieren; Code, der Top-Levels zählt) | keins gefunden |
+
+**Ergebnis:** **Variante C** für LB1 (präzisiert 7.1). Eine Action pro Container, Besitz bleibt
+`WhaleFileViewToolBar` → `WhaleLocationBar`. `rebuild()` fügt die Action höchstens einmal ein.
+Der Manager baut nur bei echter Layout-Änderung neu (`fileViewLayoutChanged`), ein „Rebuild“ mit
+gleichem Layout tut nichts.
+
+Nebenbefund (nicht TB7): `QWidget::insertAction: Attempt to insert null action` erscheint auch
+in der Baseline, ist also vorbestehend.
+
+### 22.7 Bewertung: Änderungen an Architektur und Entscheidungen
+
+- **Zielarchitektur (5, Variante C): unverändert.** Eager pro Container ist bezahlbar (22.2).
+  Der Dolphin-Diff liegt im erwarteten Rahmen (+58/−28 Zeilen in drei Dateien, 15).
+  `dolphinviewcontainer.*`, `dolphinurlnavigator.*` und `dolphinnavigatorswidgetaction.*`
+  blieben unberührt.
+- **Präzisierungen für LB1:**
+  1. 7.1: Platzhalter als `QWidgetAction`-Unterklasse mit `createWidget()`/`deleteWidget()`
+     (22.6 C), nicht `addWidget()` und nicht `setDefaultWidget()`.
+  2. 7.4: keine zusätzliche Mindestbreite. `sizeHint()` des Wrappers konstant (in LB1
+     verifizieren). Spacer-Regel L12 nötig. `Expanding` bleibt, ist aber nicht tragend.
+  3. 10: kein Lazy-Ausweichweg.
+- **Neuer offener Punkt L16 – sehr schmale Panes:** Unter ~250 px (Breeze) verschwindet die
+  Location Bar ins Überlaufmenü, heute bleibt sie sichtbar.
+  - Optionen: (a) hinnehmen, (b) Pane-Mindestbreite anheben, (c) beim Überlauf zuerst die Buttons
+    hinter der Location Bar ausblenden (eigene Logik in `rebuild()`/`resizeEvent`).
+  - Empfehlung: **(a)** für LB1, in LB5 auf Wayland ansehen; (c) nur, wenn es im Alltag stört.
+    (b) widerspricht dem heutigen Verhalten schmaler Splits.
+- **Entscheidungen L5, L7, L8, L10, L15: keine Änderung nötig.**
+  - L5 ist durch 22.4 zusätzlich als downgrade-sicher belegt.
+  - L7: Verbergen/Zeigen erhält den Zustand der Bar (22.6).
+  - L8: Die Hauptleiste mit dem TB7-Default ist 46 px hoch (Breeze), unkritisch.
+  - L10 und L15 werden von den Messungen nicht berührt.
