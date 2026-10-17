@@ -36,6 +36,12 @@ public:
     static QString groupName();
 
     /**
+     * @return The configuration the settings are stored in (also the markers of
+     *         WhaleToolbarMigration).
+     */
+    KSharedConfigPtr config() const;
+
+    /**
      * @return Whether the File View Toolbars are shown; true without a setting.
      */
     bool fileViewToolBarsVisible() const;

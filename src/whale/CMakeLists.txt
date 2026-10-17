@@ -119,6 +119,7 @@ target_sources(dolphinstatic PRIVATE
     toolbars/whaletoolbarconfigurator.cpp
     toolbars/whaletoolbarlayout.cpp
     toolbars/whaletoolbarmanager.cpp
+    toolbars/whaletoolbarmigration.cpp
     toolbars/whaletoolbarsettings.cpp
     toolbars/whaleviewcommandscope.cpp
     toolbars/whaletoolbars.qrc

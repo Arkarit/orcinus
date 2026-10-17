@@ -8,6 +8,7 @@
 
 #include "whalefileviewtoolbarclient.h"
 #include "whalelocationbar.h"
+#include "whaletoolbarmigration.h"
 #include "whaletoolbarsettings.h"
 #include "whaleviewcommandscope.h"
 
@@ -23,11 +24,18 @@
 namespace
 {
 QList<WhaleToolbarManager *> s_managers;
+
+// The TB7 migration before a window reads the File View Toolbar layout (a no-op once done).
+std::unique_ptr<WhaleFileViewToolbarClient> migratedClient()
+{
+    WhaleToolbarMigration::run();
+    return std::make_unique<WhaleFileViewToolbarClient>();
+}
 }
 
 WhaleToolbarManager::WhaleToolbarManager(QWidget *window)
     : QObject(window)
-    , m_fileViewClient(std::make_unique<WhaleFileViewToolbarClient>())
+    , m_fileViewClient(migratedClient())
     , m_fileViewLayout(m_fileViewClient->layout())
 {
     s_managers.append(this);

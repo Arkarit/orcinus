@@ -32,6 +32,11 @@ QString WhaleToolbarSettings::groupName()
     return QStringLiteral("WhaleToolbars");
 }
 
+KSharedConfigPtr WhaleToolbarSettings::config() const
+{
+    return m_config;
+}
+
 bool WhaleToolbarSettings::fileViewToolBarsVisible() const
 {
     return m_config->group(groupName()).readEntry(showFileViewToolBarsKey, true);
