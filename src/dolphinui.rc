@@ -109,7 +109,7 @@
     </State>
     <ToolBar noMerge="1" name="mainToolBar" >
         <text context="@title:menu">Main Toolbar</text>
-        <Action name="url_navigators" />
+        <Spacer />
         <Action name="split_view" />
         <Action name="split_stash" />
         <Action name="toggle_search" />

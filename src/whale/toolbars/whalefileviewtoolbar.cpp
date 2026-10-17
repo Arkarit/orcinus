@@ -8,6 +8,7 @@
 
 #include "dolphinviewcontainer.h"
 #include "whalecontainercommands.h"
+#include "whalelocationbar.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaletoolbarsettings.h"
@@ -23,6 +24,8 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QToolButton>
+
+#include <algorithm>
 
 WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
     : KToolBar(container, false, false)
@@ -46,6 +49,9 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
         hide();
     }
     connect(toolbarSettings, &WhaleToolbarSettings::fileViewToolBarsVisibleChanged, this, &QWidget::setVisible);
+
+    // Now, not when shown: the window asks every view for its visible navigator.
+    m_locationBar = new WhaleLocationBar(container, this);
 }
 
 WhaleFileViewToolBar::~WhaleFileViewToolBar() = default;
@@ -53,6 +59,11 @@ WhaleFileViewToolBar::~WhaleFileViewToolBar() = default;
 WhaleViewCommandScope *WhaleFileViewToolBar::scope() const
 {
     return m_scope;
+}
+
+WhaleLocationBar *WhaleFileViewToolBar::locationBar() const
+{
+    return m_locationBar;
 }
 
 void WhaleFileViewToolBar::showEvent(QShowEvent *event)
@@ -79,6 +90,11 @@ void WhaleFileViewToolBar::rebuild()
     // What the user changed about the actions in Configure Toolbars, for this view's actions.
     m_scope->applyActionProperties(layout.actionProperties());
     const auto entries = layout.entries();
+    // A spacer next to the location bar would take half of the room the location bar
+    // expands into: then it does not expand.
+    const bool hasLocationBar = std::any_of(entries.cbegin(), entries.cend(), [](const WhaleToolbarLayout::Entry &entry) {
+        return entry.type == WhaleToolbarLayout::Entry::Type::Action && entry.actionId == WhaleLocationBar::actionName();
+    });
     for (const WhaleToolbarLayout::Entry &entry : entries) {
         switch (entry.type) {
         case WhaleToolbarLayout::Entry::Type::Separator:
@@ -87,11 +103,18 @@ void WhaleFileViewToolBar::rebuild()
         case WhaleToolbarLayout::Entry::Type::Spacer: {
             // As KXMLGUIBuilder builds <Spacer/>.
             auto spacer = new QWidget(this);
-            spacer->setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
+            spacer->setSizePolicy(hasLocationBar ? QSizePolicy::Minimum : QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding);
             addWidget(spacer);
             break;
         }
         case WhaleToolbarLayout::Entry::Type::Action:
+            if (entry.actionId == WhaleLocationBar::actionName()) {
+                // One widget: at its first place only (a hand-edited file may name it twice).
+                if (!actions().contains(m_locationBar->action())) {
+                    addAction(m_locationBar->action());
+                }
+                break;
+            }
             // Only what a File View Toolbar may show (WhaleViewCommandScope::allowedActions()).
             if (QAction *action = m_scope->action(entry.actionId)) {
                 addAction(action);

@@ -27,6 +27,7 @@
 #include "whalefileoperations.h"
 #include "whalefileoperationsimpl.h"
 #include "whalefileviewtoolbar.h"
+#include "whalelocationbar.h"
 #include "whalepreviewproviderimpl.h"
 #include "whalerecursivecontent.h"
 #include "whaletoolbardescriptor.h"
@@ -1487,7 +1488,9 @@ QJsonObject WhaleDevAutomation::triggerToolbarAction(const QString &toolBarArg, 
     }
 
     // The same IDs as the actions in Whale.
-    const bool known = fileViewToolBar ? WhaleViewCommandScope::allowedActions().contains(actionId) : m_window->actionCollection()->action(actionId) != nullptr;
+    const bool known = fileViewToolBar
+        ? WhaleViewCommandScope::allowedActions().contains(actionId) || actionId == WhaleLocationBar::actionName() // a widget: the answer says so
+        : m_window->actionCollection()->action(actionId) != nullptr;
     if (!known) {
         return failure(QStringLiteral("unknown action \"%1\" for this toolbar").arg(actionId));
     }

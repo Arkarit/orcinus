@@ -7,6 +7,7 @@
 #include "whaletoolbarmanager.h"
 
 #include "whalefileviewtoolbarclient.h"
+#include "whalelocationbar.h"
 #include "whaletoolbarsettings.h"
 #include "whaleviewcommandscope.h"
 
@@ -127,7 +128,7 @@ QList<WhaleToolbarDescriptor> WhaleToolbarManager::descriptors() const
     fileView.xmlGuiToolBar = WhaleFileViewToolbarClient::toolBarName();
     fileView.rcFile = WhaleFileViewToolbarClient::rcFile();
     fileView.target = WhaleToolbarDescriptor::Target::OwnFileView;
-    fileView.allowedActions = WhaleViewCommandScope::allowedActions();
+    fileView.allowedActions = WhaleViewCommandScope::allowedActions() << WhaleLocationBar::actionName();
     return {global, fileView};
 }
 

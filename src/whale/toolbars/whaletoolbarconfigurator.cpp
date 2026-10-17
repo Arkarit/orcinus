@@ -7,6 +7,7 @@
 #include "whaletoolbarconfigurator.h"
 
 #include "whalefileviewtoolbarclient.h"
+#include "whalelocationbar.h"
 #include "whaletoolbarmanager.h"
 #include "whaleviewactions.h"
 #include "whaleviewcommandscope.h"
@@ -14,6 +15,7 @@
 #include <KActionCollection>
 #include <KConfigGroup>
 #include <KEditToolBar>
+#include <KLocalizedString>
 #include <KSharedConfig>
 #include <KStandardAction>
 #include <KToolBar>
@@ -113,6 +115,16 @@ public:
             prototype->setPriority(source->priority());
             prototype->setCheckable(source->isCheckable());
         }
+        // The location bar of the view: no action of the window describes it.
+        QAction *locationBar = actionCollection()->action(WhaleLocationBar::actionName());
+        if (!locationBar) {
+            locationBar = actionCollection()->addAction(WhaleLocationBar::actionName());
+            KActionCollection::setShortcutsConfigurable(locationBar, false);
+        }
+        locationBar->setText(i18nc("@action:intoolbar", "Location Bar"));
+        locationBar->setIconText(QString());
+        locationBar->setToolTip(QString());
+        locationBar->setIcon(QIcon::fromTheme(QStringLiteral("edit-select-text")));
     }
 
 private:

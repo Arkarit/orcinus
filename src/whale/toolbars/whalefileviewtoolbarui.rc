@@ -8,7 +8,7 @@
         <Action name="go_forward" />
         <Action name="go_up" />
         <Action name="view_redisplay" />
-        <Spacer />
+        <Action name="whale_location_bar" />
         <Action name="view_settings" />
     </ToolBar>
 </gui>
