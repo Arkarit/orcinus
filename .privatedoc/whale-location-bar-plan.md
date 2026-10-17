@@ -1158,3 +1158,74 @@ Zusätzlich `whaledevautomationtest` (+3 Fälle):
   - Mittelklick-Paste;
   - echte Tastatur-/Mauseingabe statt synthetischer Ereignisse;
   - Fokus nach Dialogen mit Fenstermanager.
+
+---
+
+## 26. LB5 Wayland-Abnahme (Zwischenstand 2026-10-17, unterbrochen)
+
+Noch nicht abgeschlossen. Code ist bisher **nicht** geändert.
+
+### 26.1 Aufbau
+
+- Echtes Wayland (KDE Plasma, Breeze, Skalierung 1, Ausgabe DP-4).
+- Build `../build-whale`; Start mit `whale-dev-session.sh --profile <scratchpad>/lb5/profile --file-operations`.
+- Testordner `<scratchpad>/lb5/files/{alpha/sub1/deep, alpha/sub2, beta/target, "gamma ünï/ordner"}`.
+- Fenster 1400×800, Single View und Split.
+- Gesteuert über den Dev-MCP (Shell-Adapter) und Screenshots.
+- Echte Klicks, Drag & Drop und Texteingabe hat der Benutzer selbst gemacht; kein ydotool.
+- Achtung für spätere Läufe: `trash:/` zeigt im Testprofil den **echten** Papierkorb des
+  Benutzers, weil der KIO-Worker außerhalb des Profils läuft. „Empty Trash“ nie anklicken.
+
+### 26.2 Selbst geprüft (Dev-MCP + Screenshots)
+
+| Punkt | Ergebnis |
+|---|---|
+| Single View | Location Bar füllt die File View Toolbar; lange Pfade werden links gekürzt; Hauptleiste ist eine fast leere Zeile mit Split/Suche/Menü (L14, so entschieden) |
+| Split, verschiedene Pfade | zwei Bars, Umlaut-Pfad korrekt; inaktive Pane wie in Dolphin getönt, ihr Pfad grau |
+| Fokusindikator | aktive Pane: kräftiger blauer Balken über der Location Bar, inaktive: blasser Balken; folgt Aktivierung, Ctrl+L und Eingabe in der anderen Pane. Wird eine Pane aktiviert, deren Bar im Editiermodus ist, bekommt der Editor den Fokus (Dolphin-Verhalten) |
+| Höhe/Breeze | Hauptleiste 45 px + 1 px Linie, File View Toolbar 48 px, beide Panes gleich (Pixelmessung); Leiste in Fensterfarbe, darunter die Dateiliste: saubere Kante, kein Rahmenbruch |
+| L16 schmale Panes | Fenster 1400, Places sichtbar. Ab Anteil ~0.21 geht zuerst `view_settings` ins Überlaufmenü, ab ~0.20 (Pane ~250 px) auch die Location Bar. Bei 0.20–0.18 werden die vier übrigen Buttons über die Breite **auseinandergezogen**, darunter wieder kompakt. An der Grenze springt beim Navigieren (kurzer/langer Pfad, Editiermodus) nichts; Höhe stabil |
+| Completion-Befund aus LB4 (25.4) | Auf Wayland **kein** Popup und **keine** Navigation ohne Return beim Tippen eines besuchten Pfads. Der LB4-Befund ist offscreen-spezifisch (Wechsel des aktiven Fensters) |
+| Kontext-Buttons | `trash:` → „Empty Trash“ in der eigenen Pane; `remote:` → Editiermodus, Platzhalter, „Add Network Folder“ (knetattach und KDE Connect installiert); Geometrie passt |
+| L11 | Leisten aus + Ctrl+L: kein Absturz, nichts sichtbar. Der Dev-MCP meldet die Tastatur im **unsichtbaren** Editor (`KUrlComboBox`), wie früher bei verborgener Hauptleiste (Präzedenz 8.2) |
+
+### 26.3 Beobachtungen des Benutzers (echte Eingabe)
+
+1. **Überlaufmenü:** Die Location Bar lässt sich dort auswählen, erscheint aber nicht, ist also
+   nicht bedienbar.
+   - **Wunsch:** statt Ausklapper ein **Umbruch** der File View Toolbar (zweite Zeile) bei geringer
+     Breite, mit leicht erhöhter Mindestbreite, damit die Location Bar immer sichtbar und
+     bedienbar bleibt. Der Benutzer sieht dabei „noch ein Problem, das lösbar sein wird“ (noch
+     nicht benannt).
+   - Revidiert L16 voraussichtlich; neue Entscheidung nötig, kein Fix in LB5 ohne Absprache.
+2. **Breadcrumb-Popups:** Die Pfeile funktionieren. Aber Teile des Breadcrumbs werden
+   **ausgefadet** (lange Segmente mit Verlauf abgeschnitten, z. B. `57876965-e7b5-49e9-…`,
+   `scratchpa…`, `fil…`), was verwirrend wirkt.
+   - Das ist die Kürzung von `KUrlNavigator` bei Platzmangel; in schmalen per-View-Bars fällt sie
+     stärker auf als im früheren breiten globalen Navigator.
+   - Einordnung offen: KIO-Verhalten oder Whale-Thema.
+3. **Places-/Pfad-Popup** (Klick auf `>` am Anfang: Liste der übergeordneten Ordner): korrekt
+   positioniert, funktioniert.
+4. **Completion:** funktioniert. Beim Wechsel der Views ändert sich nichts an den Pfaden; der
+   Fokusverlust übernimmt also keinen getippten Verlaufstext.
+5. **Texteingabe** (Umlaute, Copy/Paste, Auswahl, Escape, Return): funktioniert.
+6. **Drag & Drop:** Alles wie erwartet. Bei direktem D&D von links nach rechts wird die
+   **rechte View aktiv**.
+   - Ob erwünscht oder nicht, will der Benutzer erst nach längerer Nutzung entscheiden.
+   - Offen, nicht ändern.
+7. **Mittelklick:**
+   - a) Mittelklick auf ein Breadcrumb öffnet einen neuen Tab: funktioniert.
+   - b) Primary-Selection-Paste: noch nicht geprüft. Die Frage war unklar; nächstes Mal erklären:
+     Text irgendwo markieren (ohne Ctrl+C), in der Location Bar mit der mittleren Maustaste
+     klicken → wird der markierte Text eingefügt bzw. dorthin navigiert?
+
+### 26.4 Noch offen
+
+- 7b (Primary-Selection-Paste).
+- 8: L11 mit echter Tastatur; wohin gehen Tasten nach Ctrl+L bei verborgener Leiste?
+- 9: F6, Fokus nach Configure Toolbars und nach Tab-Wechsel.
+- 10: Alltagstest.
+- Entscheidungen:
+  - Umbruch statt Überlaufmenü (Revision von L16?);
+  - Umgang mit dem Breadcrumb-Fade;
+  - D&D-Aktivierung (beobachten).
