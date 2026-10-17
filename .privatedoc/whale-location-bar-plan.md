@@ -1036,3 +1036,125 @@ Neu, offscreen:
 ### 24.8 Stand
 
 Bereit für LB4 (Dev-MCP): ja.
+
+---
+
+## 25. LB4-Ergebnisse (Dev-MCP und Acceptance)
+
+Umgesetzt am 2026-10-17 auf `feature/multi-toolbar`: Code 30a05a602, Tests 144ab3384. Nicht
+gepusht, nicht gemergt. Nur `src/whale/devmcp` geändert. Kein Dolphin-Diff, keine
+Produktänderung, Plugin-API 9.
+
+### 25.1 State
+
+- **`panes.N.toolbar.locationBar`:**
+  - `exists`
+  - `connected`: es ist der sichtbare Navigator der View.
+  - `present`: die Action ist in der Leiste platziert.
+  - `visible`, `editable`, `url`
+  - `text`: Editortext, nur im Editiermodus.
+  - `placeholder`: z. B. `remote:`.
+  - `focused`: das Fokus-Widget des Fensters liegt im Navigator; dieselbe Grundlage wie
+    `focus.role`, damit es auch offscreen nach Dialogen stimmt.
+  - `active`: Container ist aktiv.
+  - `widgetKey`: `location-bar-N`, Property am Widget, konstant für dessen Lebensdauer.
+- **`toolbars.instances[*].locationBar`:** `exists`, `connected`, `present`, `widgetKey`, auch
+  für nie gezeigte Tabs.
+- Der State liest nur: `toolBar->actions()` und die Widgets der eager erzeugten Location Bar.
+  Kein Scope wird erzeugt (geprüft: Tab bei verborgenen Leisten bleibt `initialized=false`).
+
+### 25.2 `location_bar_input {toolbar, text, submit}`
+
+- `toolbar`: Pane-Index, `active` oder instanceId; die Auflösung teilt sich der Code mit
+  `trigger_toolbar_action` über einen neuen privaten Helfer `fileView()`.
+- Ablauf wie beim Benutzer:
+  1. im Breadcrumb-Modus Mausklick (über das Fenster, `qt_handleMouseEvent`) auf den echten
+     `KUrlNavigatorToggleButton`;
+  2. ein inaktives Fenster wird vorher aktiviert, wie es ein Fenstermanager beim Klick täte
+     (Muster der Treemap-Eingabe);
+  3. Ctrl+A, dann der Text Taste für Taste (die KDE-Vervollständigung reagiert wie beim
+     Benutzer);
+  4. optional Return.
+- Ergebnis: `{ok, text}` mit dem tatsächlichen Editortext. Die Vervollständigung hängt bei
+  Ordnern z. B. `/` an.
+- Fehler:
+  - unbekannte Pane, alte instanceId, `global` (die Hauptleiste hat keine Location Bar);
+  - nicht verbunden, nicht platziert, nicht sichtbar (verborgen, anderer Tab, Überlaufmenü),
+    deaktiviert;
+  - kein Umschalt-Button, Editiermodus nicht erreicht, Editortext beginnt nicht mit dem Text.
+- `trigger_toolbar_action whale_location_bar` meldet weiter „widget, not a button“, wie früher
+  `url_navigators` (seit LB1). Ctrl+L bleibt `trigger_action edit_location`.
+
+### 25.3 Acceptance `test_lb_acceptance.py` (CTest `whale_dev_mcp_lb_e2e`, offscreen)
+
+Verwendet die Session- und Prüf-Helfer aus `test_tb_acceptance.py`, kein neues Framework.
+42 Schritte, 3 Whale-Starts, 6 Läufe in Folge grün.
+
+| Teil | Abdeckung |
+|---|---|
+| M Migration | TB6-Profil (eigene File-View-RC mit Spacer und ActionProperties, `ShowFileViewToolBars=false`): erster Start → Leisten sichtbar, Bar nach Reload, Datei bytegenau nur um eine Zeile ergänzt, `.pre-tb7` = Original, beide Marker; wieder ausgeblendet → nach Neustart weiter aus, keine zweite Migration; Defaults lassen die Sicherung |
+| A Single View | exists/connected/present/visible, URL = View, widgetKey; Ctrl+L → editable+focused; Eingabe+Submit navigiert, danach Breadcrumb; Eingabe ohne Submit → editable, Text, View bleibt; `whale_location_bar` per Toolbar-Tool → „widget“ |
+| B Split | zwei widgetKeys, verschiedene URLs; Eingabe in B (Index) ändert nur B, B wird aktiv; Eingabe in A (instanceId) ändert nur A, A wird aktiv; `active` folgt |
+| C History | Back/Forward des Fensters und der File View Toolbar; `locationBar.url` folgt; B's History getrennt; keine Annahme über die History des sichtbaren Navigators |
+| D Plugin View | Dateiliste → Treemap → Dateiliste: derselbe widgetKey; Eingabe in der Treemap-View navigiert deren Container |
+| E Configure Toolbars | einmal in „current“, nicht in „available“; nicht in der Hauptleiste, kein `url_navigators`; entfernen → `present=false`, existiert/verbunden/gleicher Key, Eingabe abgelehnt; wieder einfügen → gleiche Instanzen, nicht erneut einfügbar; entfernen + Cancel; Defaults |
+| F Visibility | verborgen → `visible=false`, `present=true`, verbunden; Eingabe abgelehnt; Ctrl+L ohne Absturz; wieder sichtbar |
+| G Tabs | drei Views, drei Keys; Eingabe im neuen Tab; Tab-Wechsel ändert keine Zuordnung; Bar im anderen Tab „not shown“; nie gezeigter Tab: exists+connected, nicht platziert, Toolbar nicht initialisiert; geschlossener Tab: instanceId ungültig |
+| H Lifecycle | Split schließen (aktive B schließt): A und ihr Key bleiben, B's instanceId → Fehler, Pane 1 → Fehler, `global` → Fehler; verbleibende Bar bedienbar |
+| I Restart | Layout mit Home, Sichtbarkeit, Marker, Sicherung unverändert, keine zweite Migration, Bar bedienbar |
+
+Zusätzlich `whaledevautomationtest` (+3 Fälle):
+- State inklusive nie gezeigtem Tab und Lazy-Garantie;
+- Eingabe mit und ohne Submit, über den Umschalt-Button;
+- alle Fehlerpfade.
+
+`test_m3_acceptance.py` kennt das neue Tool in der erwarteten Tool-Liste.
+
+### 25.4 Befund: Navigation ohne Return (Qt/KIO, nicht TB7)
+
+- Offscreen beobachtet: Tippt man in den Editor einen Text, der **exakt** einem Eintrag der
+  Verlaufsliste der `KUrlComboBox` entspricht (z. B. ein schon besuchter Ordner mit `/`), öffnet
+  die Vervollständigung ein Popup.
+- Der Wechsel des aktiven Fensters löst `QLineEdit::focusOutEvent` aus. `QComboBox` wertet das
+  Bearbeitungsende mit passendem Text als Auswahl (`activated`), und `KUrlNavigator` navigiert
+  über `urlActivated` dorthin. Backtrace: `QApplicationPrivate::setActiveWindow` →
+  `setFocusWidget` → `QLineEdit::focusOutEvent` → `QComboBox::activated`.
+- Das galt ebenso für Dolphins globalen Navigator; es ist kein TB7-Verhalten.
+- Ob es unter Wayland auftritt (Popup ohne Aktivierungswechsel), ist ein Punkt für LB5.
+- Die Tests tippen für „nicht abschicken“ deshalb einen Text, der kein Verlaufseintrag ist.
+
+### 25.5 Testläufe
+
+- `whaledevautomationtest` 23/23 (3× in Folge); LB-Acceptance 6× grün, TB-Acceptance 2× grün.
+- Gesamtsuite offscreen ohne `dolphinmainwindowtest` (vorbestehend, 23.5): 71/71.
+  `whaletoolbarconfigtest`, `whaletoolbarmigrationtest`, `whalelocationbartest`,
+  `whalefileviewtoolbartest`, die Treemap-Tests und alle Dev-MCP-E2E-Tests sind darin.
+- **ASan/UBSan:** `whaledevautomationtest` im ASan-Build. Dafür ist dort jetzt
+  `WHALE_ENABLE_DEV_MCP=ON` gesetzt, es ist der Whale-eigene Build `../build-whale-asan`.
+  Ergebnis 23/23, kein ASan-Befund. Die UBSan-Meldungen kommen aus dem Test-Plugin
+  `whaletestlistplugin.cpp:436/439` (Downcast während der Zerstörung); sie standen schon im
+  alten Testbinary und betreffen keinen neuen Code.
+
+### 25.6 Abweichungen
+
+1. Eigene Datei `test_lb_acceptance.py` statt Erweiterung von `test_tb_acceptance.py`; sie
+   importiert dessen Helfer. Die TB-Acceptance bleibt unverändert lauffähig und getrennt
+   ausführbar.
+2. `focused` nutzt das Fokus-Widget des Fensters, nicht `QApplication::focusWidget()`
+   (offscreen-tauglich, wie `focus.role`).
+3. Zusätzliches State-Feld `placeholder`.
+
+### 25.7 Stand
+
+- Bereit für LB5: ja.
+- Für die echte Wayland-Abnahme bleiben:
+  - schmale Panes und Überlaufmenü (L16);
+  - Fokusindikator bei Split;
+  - Breeze-Hintergrund und Höhe;
+  - Breadcrumb- und Places-Popups;
+  - Vervollständigungs-Popup und der Befund aus 25.4;
+  - IME;
+  - Drag & Drop auf Breadcrumbs;
+  - Mittelklick-Paste;
+  - echte Tastatur-/Mauseingabe statt synthetischer Ereignisse;
+  - Fokus nach Dialogen mit Fenstermanager.
