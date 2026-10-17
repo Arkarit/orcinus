@@ -604,7 +604,7 @@ void WhaleDevAutomationTest::testToolbarState()
                           QStringLiteral("go_forward"),
                           QStringLiteral("go_up"),
                           QStringLiteral("view_redisplay"),
-                          QStringLiteral("|"),
+                          QStringLiteral("whale_location_bar"),
                           QStringLiteral("view_settings")}));
     // The same ID and the same objects as long as the view lives.
     const QJsonObject again = paneToolbar(m_automation->uiState(), 0);
@@ -640,7 +640,7 @@ void WhaleDevAutomationTest::testToolbarErrors()
     // Nothing to go forward to.
     QVERIFY(errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("go_forward"), QString())).contains(QStringLiteral("disabled")));
     QVERIFY(
-        errorOf(m_automation->triggerToolbarAction(QStringLiteral("global"), QStringLiteral("url_navigators"), QString())).contains(QStringLiteral("widget")));
+        errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("whale_location_bar"), QString())).contains(QStringLiteral("widget")));
     QVERIFY(errorOf(m_automation->triggerToolbarAction(QStringLiteral("0"), QStringLiteral("go_up"), QStringLiteral("x"))).contains(QStringLiteral("no menu")));
     QVERIFY(errorOf(m_automation->configureToolbars({{QStringLiteral("apply"), true}})).contains(QStringLiteral("not open")));
     QVERIFY(errorOf(m_automation->configureToolbars({{QStringLiteral("select"), QStringLiteral("left")}})).contains(QStringLiteral("unknown toolbar")));

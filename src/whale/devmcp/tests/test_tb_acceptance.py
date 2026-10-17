@@ -36,8 +36,8 @@ sys.dont_write_bytecode = True  # no __pycache__ next to the sources
 from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
 
 TREEMAP = "whale_treemap"
-MAIN_DEFAULT = ["url_navigators", "split_view", "split_stash", "toggle_search", "hamburger_menu"]
-FILE_VIEW_DEFAULT = ["go_back", "go_forward", "go_up", "view_redisplay", "|", "view_settings"]
+MAIN_DEFAULT = ["|", "split_view", "split_stash", "toggle_search", "hamburger_menu"]
+FILE_VIEW_DEFAULT = ["go_back", "go_forward", "go_up", "view_redisplay", "whale_location_bar", "view_settings"]
 
 
 class Session:

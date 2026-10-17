@@ -15,6 +15,7 @@
 #include "views/dolphinview.h"
 #include "whalefileviewtoolbar.h"
 #include "whalefileviewtoolbarclient.h"
+#include "whalelocationbar.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarlayout.h"
 #include "whaletoolbarmanager.h"
@@ -52,9 +53,9 @@ const QStringList defaultLayout = {QStringLiteral("go_back"),
                                    QStringLiteral("go_forward"),
                                    QStringLiteral("go_up"),
                                    QStringLiteral("view_redisplay"),
-                                   QStringLiteral("|"),
+                                   QStringLiteral("whale_location_bar"),
                                    QStringLiteral("view_settings")};
-const QStringList defaultMainLayout = {QStringLiteral("url_navigators"),
+const QStringList defaultMainLayout = {QStringLiteral("|"),
                                        QStringLiteral("split_view"),
                                        QStringLiteral("split_stash"),
                                        QStringLiteral("toggle_search"),
@@ -86,6 +87,12 @@ QStringList savedLayout(const QString &file, const QString &toolBarName)
     QDomDocument document;
     document.setContent(&local);
     return WhaleToolbarLayout::fromDocument(document, toolBarName).toStringList();
+}
+
+QByteArray contentOf(const QString &file)
+{
+    QFile local(file);
+    return local.open(QIODevice::ReadOnly) ? local.readAll() : QByteArray();
 }
 
 QStringList savedFileViewLayout()
@@ -297,6 +304,7 @@ private Q_SLOTS:
     void testFindActionWhileConfiguring();
     void testContextMenu();
     void testMainToolBarStillWorks();
+    void testLocationBar();
 
 private:
     DolphinViewContainer *showWindow(DolphinMainWindow *window);
@@ -572,6 +580,13 @@ void WhaleToolbarConfigTest::testAvailableActions()
     const auto prototypeActions = prototypes->actions();
     for (const QAction *prototype : prototypeActions) {
         names.append(prototype->objectName());
+        if (prototype->objectName() == QLatin1String("whale_location_bar")) {
+            // No action of the window describes the location bar of a view.
+            QVERIFY(!global(prototype->objectName()));
+            QCOMPARE(prototype->text(), QStringLiteral("Location Bar"));
+            QCOMPARE(prototype->icon().name(), QStringLiteral("edit-select-text"));
+            continue;
+        }
         // The texts and icons of the window's actions, but objects of their own ...
         const QAction *window = global(prototype->objectName());
         QVERIFY2(window, qPrintable(prototype->objectName()));
@@ -583,7 +598,7 @@ void WhaleToolbarConfigTest::testAvailableActions()
         // ... and not those of a file view either.
         QVERIFY(prototype != local(m_mainWindow->activeViewContainer(), prototype->objectName()));
     }
-    QStringList allowed = WhaleViewCommandScope::allowedActions();
+    QStringList allowed = WhaleViewCommandScope::allowedActions() << QStringLiteral("whale_location_bar");
     names.sort();
     allowed.sort();
     QCOMPARE(names, allowed);
@@ -597,8 +612,7 @@ void WhaleToolbarConfigTest::testAvailableActions()
     // ... and the toolbar (the default layout).
     QStringList current = textsOf(editor.current());
     QCOMPARE(current.count(), defaultLayout.count());
-    QCOMPARE(current.value(4), spacerText);
-    current.removeAt(4);
+    QCOMPARE(current.value(4), QStringLiteral("Location Bar"));
     QCOMPARE(available.count() + current.count(), allowed.count());
     QStringList shown = available;
     QStringList expected;
@@ -615,8 +629,8 @@ void WhaleToolbarConfigTest::testAvailableActions()
     QCOMPARE(shown, expected);
 
     // Actions of the window only are not offered.
-    const QStringList excluded = {QStringLiteral("url_navigators"),
-                                  QStringLiteral("split_view"),
+    QVERIFY(!global(QStringLiteral("url_navigators"))); // no global location bars (L5)
+    const QStringList excluded = {QStringLiteral("split_view"),
                                   QStringLiteral("toggle_search"),
                                   QStringLiteral("hamburger_menu"),
                                   QStringLiteral("edit_cut"),
@@ -640,7 +654,8 @@ void WhaleToolbarConfigTest::testAvailableActions()
     QCOMPARE(mainAvailable.value(0), separatorText);
     QCOMPARE(mainAvailable.value(1), spacerText);
     QCOMPARE(mainCurrent.count(), defaultMainLayout.count());
-    QCOMPARE(mainAvailable.count() - 2 + mainCurrent.count(), m_mainWindow->actionCollection()->count());
+    QCOMPARE(mainCurrent.value(0), spacerText);
+    QCOMPARE(mainAvailable.count() - 2 + mainCurrent.count() - 1, m_mainWindow->actionCollection()->count());
     for (const QString &name : excluded) {
         const QAction *action = global(name);
         const QString text = KLocalizedString::removeAcceleratorMarker(defaultMainLayout.contains(name) ? action->iconText() : action->text());
@@ -1325,7 +1340,7 @@ void WhaleToolbarConfigTest::testNoShortcuts()
     QVERIFY(dialog);
     const auto noPrototypeShortcuts = [this]() {
         const auto clients = editClients(m_mainWindow.data());
-        if (clients.count() != 1 || clients.first()->actionCollection()->count() != WhaleViewCommandScope::allowedActions().count()) {
+        if (clients.count() != 1 || clients.first()->actionCollection()->count() != WhaleViewCommandScope::allowedActions().count() + 1) {
             return false;
         }
         const auto prototypes = clients.first()->actionCollection()->actions();
@@ -1397,7 +1412,7 @@ void WhaleToolbarConfigTest::testFindActionWhileConfiguring()
     KEditToolBar *dialog = configure(m_mainWindow.data(), WhaleToolbarDescriptor::globalId());
     QVERIFY(dialog);
     // While the prototypes are in the factory, Find Action is not available.
-    QCOMPARE(offered(), before + WhaleViewCommandScope::allowedActions().count());
+    QCOMPARE(offered(), before + WhaleViewCommandScope::allowedActions().count() + 1); // and the location bar
     QVERIFY(!findAction->isEnabled());
     Editor(dialog).apply();
     QVERIFY(!findAction->isEnabled());
@@ -1461,8 +1476,8 @@ void WhaleToolbarConfigTest::testMainToolBarStillWorks()
         return;
     }
     KToolBar *mainToolBar = m_mainWindow->toolBar(QStringLiteral("mainToolBar"));
-    QAction *navigators = global(QStringLiteral("url_navigators"));
-    QVERIFY(mainToolBar->widgetForAction(navigators));
+    QPointer<WhaleLocationBar> firstLocationBar = toolBar(m_first)->locationBar();
+    QVERIFY(firstLocationBar->isVisible());
 
     KEditToolBar *dialog = configure(m_mainWindow.data(), WhaleToolbarDescriptor::globalId());
     QVERIFY(dialog);
@@ -1476,9 +1491,9 @@ void WhaleToolbarConfigTest::testMainToolBarStillWorks()
     QVERIFY(mainToolBar->actions().contains(global(QStringLiteral("go_home"))));
     QCOMPARE(layoutOf(toolBar(m_first)), defaultLayout);
     QVERIFY(!QFile::exists(localFileViewFile()));
-    // The location bar is back in the rebuilt toolbar, and the menus still open.
-    QVERIFY(mainToolBar->widgetForAction(navigators));
-    QVERIFY(mainToolBar->widgetForAction(navigators)->isVisible());
+    // The views keep their location bars, and the menus still open.
+    QCOMPARE(toolBar(m_first)->locationBar(), firstLocationBar.data());
+    QVERIFY(firstLocationBar->isVisible());
     QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("hamburger_menu"))));
     QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("split_view"))));
     // The view mode entries of the plugin views are in the View menu again.
@@ -1496,6 +1511,75 @@ void WhaleToolbarConfigTest::testMainToolBarStillWorks()
     global(QStringLiteral("go_home"))->trigger();
     QTRY_VERIFY(m_first->url() != QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub")));
     QCOMPARE(m_second->url(), secondUrl);
+}
+
+void WhaleToolbarConfigTest::testLocationBar()
+{
+    // The location bar of the views as an entry of the File View Toolbar (location bar plan, LB2).
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    const QString text = QStringLiteral("Location Bar");
+    QPointer<WhaleLocationBar> first = toolBar(m_first)->locationBar();
+    QPointer<WhaleLocationBar> second = toolBar(m_second)->locationBar();
+    QTRY_VERIFY(first->isVisible() && second->isVisible());
+    KEditToolBar *dialog = configure(m_mainWindow.data(), WhaleToolbarDescriptor::fileViewId());
+    QVERIFY(dialog);
+    const Editor editor(dialog);
+    // In the toolbar: not offered a second time.
+    QCOMPARE(editor.current()->findItems(text, Qt::MatchExactly).count(), 1);
+    QCOMPARE(editor.available()->findItems(text, Qt::MatchExactly).count(), 0);
+    // Not offered for the main toolbar.
+    QVERIFY(editor.select(mainName));
+    QCOMPARE(editor.available()->findItems(text, Qt::MatchExactly).count(), 0);
+    QVERIFY(editor.select(fileViewName));
+
+    // Removed and applied: no location bars in the toolbars, the views keep theirs.
+    QVERIFY(editor.remove(text));
+    QCOMPARE(editor.available()->findItems(text, Qt::MatchExactly).count(), 1);
+    editor.apply();
+    QStringList expected = defaultLayout;
+    expected.removeOne(QStringLiteral("whale_location_bar"));
+    QCOMPARE(savedFileViewLayout(), expected);
+    QCOMPARE(layoutOf(toolBar(m_first)), expected);
+    QVERIFY(first && second && !first->isVisible() && !second->isVisible());
+    QCOMPARE(m_first->urlNavigator(), first->urlNavigator());
+
+    // Back in, at the end, once.
+    QVERIFY(editor.insert(text));
+    QCOMPARE(editor.available()->findItems(text, Qt::MatchExactly).count(), 0);
+    QCOMPARE(editor.current()->findItems(text, Qt::MatchExactly).count(), 1);
+    editor.apply();
+    expected.append(QStringLiteral("whale_location_bar"));
+    QCOMPARE(savedFileViewLayout(), expected);
+    QCOMPARE(layoutOf(toolBar(m_second)), expected);
+    QTRY_VERIFY(first->isVisible() && second->isVisible());
+    QCOMPARE(toolBar(m_first)->locationBar(), first.data());
+
+    // Another text is saved; the widget shows no text.
+    QVERIFY(editor.changeText(text, QStringLiteral("Path")));
+    editor.apply();
+    QVERIFY(contentOf(localFileViewFile()).contains("whale_location_bar"));
+    QVERIFY(contentOf(localFileViewFile()).contains("Path"));
+    QTRY_VERIFY(first->isVisible());
+
+    // Removed, then Cancel: nothing changes.
+    QVERIFY(editor.remove(QStringLiteral("Path")));
+    editor.cancel();
+    QCOMPARE(savedFileViewLayout(), expected);
+    QTRY_VERIFY(first->isVisible() && second->isVisible());
+
+    // Defaults: at its place of the default layout again.
+    dialog = configure(m_mainWindow.data(), WhaleToolbarDescriptor::fileViewId());
+    QVERIFY(dialog);
+    Editor(dialog).defaults(true);
+    QCOMPARE(layoutOf(toolBar(m_first)), defaultLayout);
+    QCOMPARE(layoutOf(toolBar(m_second)), defaultLayout);
+    QCOMPARE(Editor(dialog).current()->findItems(text, Qt::MatchExactly).count(), 1);
+    Editor(dialog).ok();
+    QTRY_VERIFY(first->isVisible() && second->isVisible());
+    QCOMPARE(m_mainWindow->findChildren<WhaleLocationBar *>().count(), 2);
 }
 
 QTEST_MAIN(WhaleToolbarConfigTest)

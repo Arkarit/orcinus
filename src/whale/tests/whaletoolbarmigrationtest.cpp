@@ -49,16 +49,30 @@ const QStringList fileViewDefault = {QStringLiteral("go_back"),
                                      QStringLiteral("go_forward"),
                                      QStringLiteral("go_up"),
                                      QStringLiteral("view_redisplay"),
-                                     QStringLiteral("|"),
+                                     QStringLiteral("whale_location_bar"),
                                      QStringLiteral("view_settings")};
-// The main toolbar of dolphinui.rc for new users (multi-toolbar plan, E6).
-const QStringList mainDefault = {QStringLiteral("url_navigators"),
+// The main toolbar of dolphinui.rc for new users (multi-toolbar plan E6, location bar plan L8).
+const QStringList mainDefault = {QStringLiteral("|"),
                                  QStringLiteral("split_view"),
                                  QStringLiteral("split_stash"),
                                  QStringLiteral("toggle_search"),
                                  QStringLiteral("hamburger_menu")};
+// ... before TB7 (with the global location bars) ...
+const QStringList mainBeforeTB7 = {QStringLiteral("url_navigators"),
+                                   QStringLiteral("split_view"),
+                                   QStringLiteral("split_stash"),
+                                   QStringLiteral("toggle_search"),
+                                   QStringLiteral("hamburger_menu")};
 // ... and up to TB4: what the users who never changed it have in their copies.
-const QStringList mainBeforeTB5 = QStringList{QStringLiteral("go_back"), QStringLiteral("go_forward"), QStringLiteral("view_settings")} + mainDefault;
+const QStringList mainBeforeTB5 = QStringList{QStringLiteral("go_back"), QStringLiteral("go_forward"), QStringLiteral("view_settings")} + mainBeforeTB7;
+
+// What a toolbar of the layout @p layout shows: Whale has no "url_navigators" any more, and
+// KXmlGui passes over it (location bar plan, L5).
+QStringList shown(QStringList layout)
+{
+    layout.removeAll(QStringLiteral("url_navigators"));
+    return layout;
+}
 
 QString localFile(const QString &name)
 {
@@ -107,10 +121,12 @@ QByteArray userMainFile(const QStringList &mainToolBar, const QMap<QString, QStr
         toolBar = toolBar.nextSiblingElement(QStringLiteral("ToolBar"));
     }
     Q_ASSERT(!toolBar.isNull());
-    QDomElement action = toolBar.firstChildElement(QStringLiteral("Action"));
+    QDomElement action = toolBar.firstChildElement();
     while (!action.isNull()) {
-        QDomElement next = action.nextSiblingElement(QStringLiteral("Action"));
-        toolBar.removeChild(action);
+        QDomElement next = action.nextSiblingElement();
+        if (action.tagName() != QLatin1String("text")) {
+            toolBar.removeChild(action);
+        }
         action = next;
     }
     for (const QString &name : mainToolBar) {
@@ -339,7 +355,7 @@ void WhaleToolbarMigrationTest::testExistingUser()
     m_mainWindow.reset(new DolphinMainWindow());
     QVERIFY(showWindow(m_mainWindow.data()));
     // The main toolbar is the user's, with the user's text ...
-    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), mainToolBar);
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), shown(mainToolBar));
     QCOMPARE(global(QStringLiteral("split_stash"))->iconText(), QStringLiteral("Halves"));
     // ... and the File View Toolbar has its default, Back twice included: nothing is cleaned up.
     WhaleFileViewToolBar *bar = toolBar(m_mainWindow->activeViewContainer());
@@ -359,7 +375,7 @@ void WhaleToolbarMigrationTest::testExistingUser()
     m_mainWindow.reset();
     QCOMPARE(contentOf(localMainFile()), userFile);
     m_mainWindow.reset(new DolphinMainWindow());
-    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), mainToolBar);
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), shown(mainToolBar));
     m_mainWindow.reset();
     QCOMPARE(contentOf(localMainFile()), userFile);
     QVERIFY(!QFile::exists(localMainFile() + QStringLiteral(".backup")));
@@ -398,7 +414,7 @@ void WhaleToolbarMigrationTest::testOlderUserFile()
 
     m_mainWindow.reset(new DolphinMainWindow());
     QVERIFY(showWindow(m_mainWindow.data()));
-    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), userToolBar);
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), shown(userToolBar));
     QCOMPARE(global(QStringLiteral("go_up"))->iconText(), QStringLiteral("Upwards"));
     // The menus are the installed ones.
     auto viewMenu = qobject_cast<QMenu *>(m_mainWindow->guiFactory()->container(QStringLiteral("view"), m_mainWindow.data()));
@@ -419,7 +435,7 @@ void WhaleToolbarMigrationTest::testOlderUserFile()
     QCOMPARE(savedLayout(localMainFile(), QStringLiteral("mainToolBar")), userToolBar);
     QVERIFY(contentOf(localMainFile()).contains("Upwards"));
     m_mainWindow.reset(new DolphinMainWindow());
-    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), userToolBar);
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), shown(userToolBar));
     QCOMPARE(global(QStringLiteral("go_up"))->iconText(), QStringLiteral("Upwards"));
 }
 
@@ -431,7 +447,7 @@ void WhaleToolbarMigrationTest::testDefaultsForExistingUser()
     if (QTest::currentTestFailed()) {
         return;
     }
-    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), mainBeforeTB5);
+    QCOMPARE(layoutOf(m_mainWindow->toolBar(QStringLiteral("mainToolBar"))), shown(mainBeforeTB5));
     WhaleToolbarConfigurator::of(m_mainWindow.data())->configure(WhaleToolbarDescriptor::globalId());
     KEditToolBar *dialog = WhaleToolbarConfigurator::of(m_mainWindow.data())->dialog();
     QVERIFY(dialog);

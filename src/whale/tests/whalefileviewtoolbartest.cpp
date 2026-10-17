@@ -60,7 +60,7 @@ const QStringList defaultLayout = {QStringLiteral("go_back"),
                                    QStringLiteral("go_forward"),
                                    QStringLiteral("go_up"),
                                    QStringLiteral("view_redisplay"),
-                                   QStringLiteral("|"),
+                                   QStringLiteral("whale_location_bar"),
                                    QStringLiteral("view_settings")};
 
 // The actions on selected items that need a selection.
@@ -873,7 +873,9 @@ void WhaleFileViewToolBarTest::testAllowedActions()
     QCOMPARE(allowed.count(), 35);
     QCOMPARE(QSet<QString>(allowed.cbegin(), allowed.cend()).count(), allowed.count());
     // One definition: the toolbars' descriptor offers exactly this set.
-    QCOMPARE(WhaleToolbarManager::of(m_left)->descriptor(WhaleToolbarDescriptor::fileViewId()).allowedActions, allowed);
+    // ... plus the location bar (location bar plan, LB2).
+    QCOMPARE(WhaleToolbarManager::of(m_left)->descriptor(WhaleToolbarDescriptor::fileViewId()).allowedActions,
+             allowed + QStringList{QStringLiteral("whale_location_bar")});
 
     for (const QString &name : allowed) {
         // The names are those of the window's actions; each view has objects of its own.

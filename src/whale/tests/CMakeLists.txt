@@ -257,3 +257,10 @@ target_compile_definitions(whaleviewmenutest PRIVATE
     WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
     WHALE_TEST_DYNAMIC_PLUGIN_DIR="${WHALE_TEST_DYNAMIC_PLUGIN_DIR}")
 add_dependencies(whaleviewmenutest whale_treemap whale_testlist whale_hello whale_test_dynamic)
+
+ecm_add_test(whalelocationbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalelocationbartest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalelocationbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalelocationbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalelocationbartest whale_treemap)
