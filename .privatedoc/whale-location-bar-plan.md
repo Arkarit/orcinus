@@ -1347,3 +1347,54 @@ Anlass: LB5-Beobachtung 26.3/1. Im Überlaufmenü ist die Location Bar nicht bed
   die aktive Pane. Dolphin-Diff 0.
 - Test `testSearchPerView`; `testAllowedActions` und `testAvailableActions` angepasst. Auf Wayland
   vom Benutzer geprüft („funzt hervorragend“).
+
+---
+
+## 29. Split-Button in der File View Toolbar (2026-10-18)
+
+Wunsch: Ein Split-Button nur in der Toolbar der linken View, ganz rechts, immer sichtbar.
+Doppelpfeil `>>` öffnet die rechte View, `<<` (bei offenem Split) schließt sie wieder.
+
+### 29.1 Entscheidungen des Benutzers
+
+- Hauptleiste unverändert: `split_view` bleibt dort, auch in der Vorgabe.
+- `<<` schließt immer die rechte View, unabhängig von „Beim Schließen des Splits“
+  (aktive/inaktive/rechte View). Der globale Split-Button behält Dolphins Verhalten.
+- Fest: nicht in Configure Toolbars, immer ganz rechts in Zeile 1, nie im Überlaufmenü, kein
+  Kürzel, kein Dropdown. Icons Breeze `arrow-right-double` / `arrow-left-double` (bei
+  Rechts-nach-links-Layout gespiegelt).
+
+### 29.2 Umsetzung
+
+- `WhaleFileViewToolBar::setTrailingWidget(QWidget *)`: ein festes Widget am Ende der
+  Button-Zeile, außerhalb von QToolBarLayout (rechter bzw. bei RTL linker Innenrand, von Hand
+  platziert, wie die umgebrochene Location Bar). Seitenneutral, damit der Lint
+  `whale_toolbars_no_pane_sides` gilt. Der Umbruch rechnet den Platz automatisch mit
+  (`contentsRect()`).
+- Neues `src/whale/splitview/whalesplitviewbutton.*` (außerhalb von `toolbars/`, weil es die
+  linke View kennt): ein Button pro `DolphinTabPage`, hängt sich an die Toolbar von
+  `primaryViewContainer()`. Neu zugeordnet, wenn sich die Kinder des Splitters ändern (Schließen
+  mit Tausch der Views über den globalen Button).
+- Öffnen: die Fensteraktion `split_view` (Dolphins Verhalten, auch „ausgewählten Ordner rechts
+  öffnen“).
+- Schließen: neue Methode `DolphinMainWindow::closeRightSplitView()` (Dolphin-Diff, rein
+  additiv): setzt die Einstellung für den Aufruf vorübergehend auf `RightView`, ruft
+  `DolphinTabPage::setSplitViewEnabled(false)` und aktualisiert wie `toggleSplitView()`. Dazu
+  1 Zeile in `DolphinTabPage` zum Anlegen des Buttons.
+
+### 29.3 Tests
+
+- Ohne Split: nur die eine Toolbar hat den Button, ganz rechts, `>>`, nicht in den Actions der
+  Toolbar und nicht in Configure Toolbars.
+- Klick: Split offen, Button nur links, `<<`. Klick mit „aktive View schließen“ und aktiver
+  linker View: trotzdem schließt die rechte; die Einstellung ist danach unverändert.
+- Schließen über den globalen Button mit Tausch: Der Button wandert zur verbleibenden View.
+- Schmal: Button bleibt sichtbar in Zeile 1, nichts überlappt; mit Umbruch.
+- Leisten aus: Button weg. Neuer Tab: eigener Button. Tab-Reihenfolge: letzter der Zeile 1.
+
+### 29.4 Ergebnis
+
+- Umgesetzt wie geplant. Dolphin-Diff: `DolphinMainWindow::closeRightSplitView()` (rein additiv),
+  2 Zeilen in `dolphintabpage.cpp`.
+- Tests `testSplitButton`, `testSplitButtonWhenLeftCloses`, `testSplitButtonNarrow`.
+- Ab 2026-10-18 testet der Benutzer Whale global installiert einige Tage im Alltag (LB5 Punkt 10).
