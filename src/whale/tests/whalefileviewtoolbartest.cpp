@@ -20,8 +20,11 @@
 #include "whalecontentscope.h"
 #include "whalefileoperationsimpl.h"
 #include "whalefileviewtoolbarclient.h"
+#include "whalelocationbar.h"
 #include "whaleselection.h"
+#include "whalesplitviewbutton.h"
 #include "whaletoolbarmanager.h"
+#include "whaletoolbarsettings.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
 #include "whaleviewcommandscope.h"
@@ -144,6 +147,9 @@ private Q_SLOTS:
     void testDisabledReasons();
     void testFilterPerView();
     void testSearchPerView();
+    void testSplitButton();
+    void testSplitButtonWhenLeftCloses();
+    void testSplitButtonNarrow();
     void testMiddleClickNavigation();
     void testReloadAnnouncement();
     void testStopState();
@@ -1365,6 +1371,126 @@ void WhaleFileViewToolBarTest::testSearchPerView()
     QVERIFY(local(m_left, toggle)->isChecked());
     // No shortcut of its own (as all actions of a File View Toolbar).
     QVERIFY(local(m_left, toggle)->shortcuts().isEmpty());
+}
+
+void WhaleFileViewToolBarTest::testSplitButton()
+{
+    // The split button: only in the File View Toolbar of the left view, at its end, outside
+    // of the layout. ">>" opens the right view, "<<" closes it.
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    WhaleFileViewToolBar *bar = toolBar(container);
+    QTRY_VERIFY(bar->scope());
+    QToolButton *button = WhaleSplitViewButton::buttonOf(tabPage());
+    QVERIFY(button);
+    QTRY_VERIFY(button->isVisible());
+    QCOMPARE(button->parentWidget(), bar);
+    QCOMPARE(bar->trailingWidget(), button);
+    QCOMPARE(button->icon().name(), QStringLiteral("arrow-right-double"));
+    QVERIFY(!bar->actions().contains(button->defaultAction()) || !button->defaultAction());
+    // At the end of the row, after all buttons of the layout.
+    for (QAction *action : bar->actions()) {
+        if (QWidget *widget = bar->widgetForAction(action); widget && widget->isVisible()) {
+            QVERIFY(widget->geometry().right() < button->geometry().left());
+        }
+    }
+    QVERIFY(button->geometry().right() <= bar->width());
+    QVERIFY(button->geometry().right() > bar->width() - 2 * button->width());
+
+    // Opens the right view; the button stays in the left one and points back.
+    const int choice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::ActiveView);
+    QTest::mouseClick(button, Qt::LeftButton);
+    QTRY_VERIFY(tabPage()->splitViewEnabled());
+    m_left = tabPage()->primaryViewContainer();
+    m_right = tabPage()->secondaryViewContainer();
+    QCOMPARE(m_left, container);
+    QTRY_VERIFY(toolBar(m_right)->scope());
+    QTRY_COMPARE(button->icon().name(), QStringLiteral("arrow-left-double"));
+    QCOMPARE(button->parentWidget(), toolBar(m_left));
+    QVERIFY(!toolBar(m_right)->trailingWidget());
+    QVERIFY(!toolBar(m_right)->findChild<QToolButton *>(QStringLiteral("whale_split_view_button")));
+
+    // Closes the right view, also when the settings say "the active view" and the left one is
+    // active; the settings stay as they are.
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->isActive());
+    QPointer<DolphinViewContainer> right = m_right;
+    QTest::mouseClick(button, Qt::LeftButton);
+    QTRY_VERIFY(!right);
+    QVERIFY(!tabPage()->splitViewEnabled());
+    QCOMPARE(tabPage()->primaryViewContainer(), container);
+    QCOMPARE(GeneralSettings::closeSplitViewChoice(), int(GeneralSettings::EnumCloseSplitViewChoice::ActiveView));
+    QTRY_COMPARE(button->icon().name(), QStringLiteral("arrow-right-double"));
+    QCOMPARE(button->parentWidget(), bar);
+    // The window's split action follows.
+    QCOMPARE(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("split_view"))->iconText()), QStringLiteral("Split"));
+    GeneralSettings::self()->setCloseSplitViewChoice(choice);
+
+    // Hidden File View Toolbars: no button. Not offered in Configure Toolbars (no action).
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    QVERIFY(!button->isVisible());
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
+    QTRY_VERIFY(button->isVisible());
+    QVERIFY(!WhaleViewCommandScope::allowedActions().contains(QStringLiteral("split_view")));
+
+    // A new tab has a button of its own.
+    global(QStringLiteral("new_tab"))->trigger();
+    QTRY_VERIFY(tabPage() && WhaleSplitViewButton::buttonOf(tabPage()) && WhaleSplitViewButton::buttonOf(tabPage()) != button);
+    QTRY_VERIFY(WhaleSplitViewButton::buttonOf(tabPage())->isVisible());
+    QVERIFY(!button->isVisible());
+}
+
+void WhaleFileViewToolBarTest::testSplitButtonWhenLeftCloses()
+{
+    // The window's button closes the left view (settings: the active view): the right one is
+    // the left one now and gets the button.
+    const int choice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::ActiveView);
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        GeneralSettings::self()->setCloseSplitViewChoice(choice);
+        return;
+    }
+    QPointer<QToolButton> button = WhaleSplitViewButton::buttonOf(tabPage());
+    QVERIFY(button);
+    QTRY_COMPARE(button->parentWidget(), toolBar(m_left));
+    QPointer<DolphinViewContainer> left = m_left;
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->isActive());
+    global(QStringLiteral("split_view"))->trigger();
+    QTRY_VERIFY(!left);
+    QVERIFY(button); // not deleted with the view
+    QCOMPARE(tabPage()->primaryViewContainer(), m_right);
+    QTRY_COMPARE(button->parentWidget(), toolBar(m_right));
+    QTRY_VERIFY(button->isVisible());
+    QCOMPARE(button->icon().name(), QStringLiteral("arrow-right-double"));
+    GeneralSettings::self()->setCloseSplitViewChoice(choice);
+}
+
+void WhaleFileViewToolBarTest::testSplitButtonNarrow()
+{
+    // Always there: in a narrow view, the buttons of the layout go into the overflow menu and
+    // the location bar into the second row, the split button stays at the end of the first row.
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    WhaleFileViewToolBar *bar = toolBar(container);
+    QToolButton *button = WhaleSplitViewButton::buttonOf(tabPage());
+    QTRY_VERIFY(button && button->isVisible());
+    if (auto places = m_mainWindow->findChild<QDockWidget *>(QStringLiteral("placesDock"))) {
+        places->hide();
+    }
+    m_mainWindow->resize(200, 700);
+    QTRY_VERIFY(bar->isLocationBarWrapped());
+    QTest::qWait(50);
+    QVERIFY(button->isVisible());
+    QVERIFY(button->geometry().right() <= bar->width());
+    QVERIFY(button->geometry().bottom() < bar->locationBar()->geometry().top());
+    for (QAction *action : bar->actions()) {
+        if (QWidget *widget = bar->widgetForAction(action); widget && widget->isVisible()) {
+            QVERIFY(!widget->geometry().intersects(button->geometry()));
+        }
+    }
 }
 
 void WhaleFileViewToolBarTest::testMiddleClickNavigation()
