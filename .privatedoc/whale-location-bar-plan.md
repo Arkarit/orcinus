@@ -1274,3 +1274,59 @@ Kein Code geändert. Fixes erst nach Absprache.
   - Umbruch statt Überlaufmenü (Revision von L16?);
   - Umgang mit dem Breadcrumb-Fade;
   - D&D-Aktivierung (beobachten).
+
+---
+
+## 27. L16 revidiert: Umbruch der Location Bar statt Überlaufmenü (2026-10-18)
+
+Anlass: LB5-Beobachtung 26.3/1. Im Überlaufmenü ist die Location Bar nicht bedienbar.
+
+### 27.1 Entscheidungen des Benutzers
+
+- **Nur die Location Bar bricht um.** Sie rutscht bei geringer Breite in eine zweite Zeile über
+  die volle Breite der File View Toolbar. Die Buttons bleiben in Zeile 1. Wird selbst die zu
+  schmal, gehen nur Buttons ins Überlaufmenü (dort bedienbar). Kein Fließ-Layout, die Toolbar
+  bleibt eine KToolBar.
+- **Schwelle 200 px:** Umbruch, sobald der Location Bar in Zeile 1 weniger als 200 px blieben.
+- **Im Split gemeinsam:** Bricht eine Pane eines Tabs um, brechen alle Panes dieses Tabs um, damit
+  die Dateilisten auf gleicher Höhe beginnen.
+
+### 27.2 Umsetzung
+
+- Zweite Zeile **innerhalb** der `WhaleFileViewToolBar`: unterer Innenrand
+  (`setContentsMargins`). QToolBarLayout legt die Buttons in `contentsRect()`, `sizeHint()`
+  zählt den Rand mit (Experiment mit Qt 6.10 bestätigt). Die Location Bar bleibt Kind der Toolbar
+  und wird im Rand von Hand platziert. **Dolphin-Diff 0**, keine neue Zeile im Container-Layout.
+- Umgebrochen: `rebuild()` platziert die Location-Bar-Action nicht. Der Spacer verhält sich wie
+  ohne Location Bar (Buttons an den Rändern). `LocationBarAction::deleteWidget()` versteckt die
+  Bar, danach wird sie in Zeile 2 gezeigt. Zurück: Rand weg, `rebuild()` platziert die Action
+  wieder (`createWidget()` liefert dieselbe Bar).
+- Bedarf: Breite der Toolbar minus Breite der übrigen sichtbaren Elemente, Abstände und Ränder
+  (Style-Metriken) < 200 px. Hängt nur von der Breite ab; der Umbruch ändert nur die Höhe, also
+  kein Hin- und Herspringen.
+- Gemeinsam: alle File View Toolbars derselben `DolphinTabPage`. Neu bewertet bei Resize und nach
+  `rebuild()` (queued).
+- Tab-Reihenfolge (`WhaleFocusOrder`): Zeile 1 von links, dann Zeile 2, dann die View.
+- Dev-MCP: `panes.N.toolbar.locationBar.wrapped`.
+
+### 27.3 Tests
+
+- Single View schmal: umgebrochen, Bar in Zeile 2 über die volle Breite, nicht in den Actions
+  der Toolbar, Toolbar höher. Breit: zurück in Zeile 1, alte Höhe.
+- Split mit einer schmalen Pane: beide umgebrochen, gleiche Toolbar-Höhe.
+- Neuaufbau (Configure Toolbars) während umgebrochen; Leisten aus/an; Layout ohne Location Bar
+  bricht nie um.
+- Tab-Reihenfolge im umgebrochenen Zustand.
+- Danach Wayland-Gegenprobe durch den Benutzer.
+
+### 27.4 Ergebnis
+
+- Umgesetzt wie geplant, Dolphin-Diff 0.
+- Zusatz: Bei Breitenänderungen fällt die Entscheidung erst, wenn die Breite **25 ms** stabil ist.
+  Sonst brechen beim Öffnen eines Splits (die neue Pane wächst per Animation von 0) beide Panes
+  kurz um und springen zurück (gefunden durch die Dev-MCP-Abnahme TB). Erst 150 ms, der Benutzer
+  fand das zu träge; 50 ms deutlich besser, 25 ms auf Wayland „läuft perfekt“. Risiko: Fällt die
+  Animation unter ~40 fps, kann es wieder kurz flackern; dann 35–40 ms.
+- `testStableWidth` geht bis 260 px Fensterbreite und prüft, dass die Location Bar nie ins
+  Überlaufmenü kommt. Neue Tests `testWrap`, `testWrapSplit`, `testWrapFocusOrder`.
+- Tests warten auf das Ende der Split-Animation (`QVariantAnimation`, direktes Kind des Splitters).
