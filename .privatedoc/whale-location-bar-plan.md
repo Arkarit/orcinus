@@ -1333,3 +1333,17 @@ Anlass: LB5-Beobachtung 26.3/1. Im Überlaufmenü ist die Location Bar nicht bed
 - Breadcrumb-Fade (26.3/2): Nach dem Umbruch laut Benutzer nicht mehr zu sehen. Die Kürzung langer
   Segmente verhält sich exakt wie beim früheren globalen Navigator. Vermutlich kam der Eindruck von
   den sehr schmalen Bars vor dem Umbruch. Erledigt, keine Änderung nötig.
+
+---
+
+## 28. E8 revidiert: Suche pro View (2026-10-18)
+
+- Wunsch des Benutzers: ein Such-Button in der File View Toolbar. Bisher ausgeschlossen
+  (Multi-Toolbar-Plan, Abschnitt 20 / E8 „vorerst nein“), weil `toggle_search` eine Fensteraktion
+  der aktiven Pane ist.
+- Neu: `toggle_search` pro View in `WhaleContainerCommands`, in `allowedActions()` (jetzt 36 IDs).
+  Öffnet/schließt die Suchleiste der eigenen Pane, setzt beim Öffnen den Fokus hinein, Häkchen
+  folgt `searchBarVisibilityChanged`. Kein Kürzel. Ctrl+F und der globale Button wirken weiter auf
+  die aktive Pane. Dolphin-Diff 0.
+- Test `testSearchPerView`; `testAllowedActions` und `testAvailableActions` angepasst. Auf Wayland
+  vom Benutzer geprüft („funzt hervorragend“).
