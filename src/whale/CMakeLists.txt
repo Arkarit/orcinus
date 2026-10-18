@@ -115,6 +115,7 @@ target_sources(dolphinstatic PRIVATE
     toolbars/whalecontainercommands.cpp
     toolbars/whalefileviewtoolbar.cpp
     toolbars/whalefileviewtoolbarclient.cpp
+    toolbars/whalefocusorder.cpp
     toolbars/whalelocationbar.cpp
     toolbars/whaletoolbarconfigurator.cpp
     toolbars/whaletoolbarlayout.cpp

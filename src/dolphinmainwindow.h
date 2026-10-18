@@ -278,6 +278,9 @@ protected:
     /** @see QMainWindow::closeEvent() */
     void closeEvent(QCloseEvent *event) override;
 
+    /** Whale: Tab goes through each file view from its File View Toolbar on (WhaleFocusOrder). */
+    bool focusNextPrevChild(bool next) override;
+
     /** @see KMainWindow::saveProperties() */
     void saveProperties(KConfigGroup &group) override;
 

@@ -20,6 +20,7 @@
 #include <KLocalizedString>
 
 #include <QActionEvent>
+#include <QApplication>
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QMouseEvent>
@@ -52,6 +53,19 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
 
     // Now, not when shown: the window asks every view for its visible navigator.
     m_locationBar = new WhaleLocationBar(container, this);
+
+    // The focus in this toolbar (Tab, F6) makes it the active view, as a click does.
+    connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {
+        if (!now || !m_container || m_container->isActive() || !isAncestorOf(now)) {
+            return;
+        }
+        // Activating a view gives the focus to its file list: back to where it went.
+        const QPointer<QWidget> focus = now;
+        m_container->setActive(true);
+        if (focus) {
+            focus->setFocus(Qt::OtherFocusReason);
+        }
+    });
 }
 
 WhaleFileViewToolBar::~WhaleFileViewToolBar() = default;

@@ -40,6 +40,7 @@
 #include "views/draganddrophelper.h"
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
+#include "whalefocusorder.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaleviewactions.h"
@@ -650,6 +651,11 @@ void DolphinMainWindow::showEvent(QShowEvent *event)
     if (!event->spontaneous() && m_activeViewContainer) {
         m_activeViewContainer->view()->setFocus();
     }
+}
+
+bool DolphinMainWindow::focusNextPrevChild(bool next)
+{
+    return WhaleFocusOrder::focusNextPrevChild(this, next) || KXmlGuiWindow::focusNextPrevChild(next);
 }
 
 void DolphinMainWindow::closeEvent(QCloseEvent *event)
