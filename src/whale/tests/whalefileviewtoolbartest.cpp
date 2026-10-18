@@ -143,6 +143,7 @@ private Q_SLOTS:
     void testDeepSelection();
     void testDisabledReasons();
     void testFilterPerView();
+    void testSearchPerView();
     void testMiddleClickNavigation();
     void testReloadAnnouncement();
     void testStopState();
@@ -840,7 +841,6 @@ void WhaleFileViewToolBarTest::testAllowedActions()
         QStringLiteral("split_stash"),
         QStringLiteral("split_view_menu"),
         QStringLiteral("popout_split_view"),
-        QStringLiteral("toggle_search"),
         QStringLiteral("hamburger_menu"),
         QStringLiteral("compare_files"),
         QStringLiteral("copy_to_inactive_split_view"),
@@ -870,7 +870,7 @@ void WhaleFileViewToolBarTest::testAllowedActions()
     if (QTest::currentTestFailed()) {
         return; // no window to test with (e.g. not activated under Wayland)
     }
-    QCOMPARE(allowed.count(), 35);
+    QCOMPARE(allowed.count(), 36);
     QCOMPARE(QSet<QString>(allowed.cbegin(), allowed.cend()).count(), allowed.count());
     // One definition: the toolbars' descriptor offers exactly this set.
     // ... plus the location bar (location bar plan, LB2).
@@ -1323,6 +1323,48 @@ void WhaleFileViewToolBarTest::testFilterPerView()
     local(m_right, QStringLiteral("show_filter_bar"))->trigger();
     QTRY_VERIFY(m_right->isFilterBarVisible());
     QVERIFY(local(m_right, toggle)->isChecked());
+}
+
+void WhaleFileViewToolBarTest::testSearchPerView()
+{
+    // E8 revised: the File View Toolbar's search button opens and closes the search bar of its
+    // own view; the window's one acts on the active view.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    const QString toggle = QStringLiteral("toggle_search");
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->isActive());
+    QVERIFY(!m_left->isSearchBarVisible() && !m_right->isSearchBarVisible());
+    QVERIFY(local(m_left, toggle)->isCheckable());
+    QVERIFY(!local(m_left, toggle)->isChecked() && !local(m_right, toggle)->isChecked());
+
+    local(m_right, toggle)->trigger();
+    QTRY_VERIFY(m_right->isSearchBarVisible());
+    QVERIFY(!m_left->isSearchBarVisible());
+    QVERIFY(local(m_right, toggle)->isChecked());
+    QVERIFY(!local(m_left, toggle)->isChecked());
+    // The focus goes into that search bar (as with the window's action).
+    QTRY_VERIFY(m_right->isAncestorOf(QApplication::focusWidget()));
+    QVERIFY(!m_right->view()->isAncestorOf(QApplication::focusWidget()));
+
+    // The window's action opens the active view's search bar; the local buttons follow.
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->isActive());
+    QTRY_VERIFY(!global(toggle)->isChecked());
+    global(toggle)->trigger();
+    QTRY_VERIFY(m_left->isSearchBarVisible());
+    QVERIFY(local(m_left, toggle)->isChecked());
+    QVERIFY(local(m_right, toggle)->isChecked());
+
+    local(m_right, toggle)->trigger();
+    QTRY_VERIFY(!m_right->isSearchBarVisible());
+    QVERIFY(m_left->isSearchBarVisible());
+    QVERIFY(!local(m_right, toggle)->isChecked());
+    QVERIFY(local(m_left, toggle)->isChecked());
+    // No shortcut of its own (as all actions of a File View Toolbar).
+    QVERIFY(local(m_left, toggle)->shortcuts().isEmpty());
 }
 
 void WhaleFileViewToolBarTest::testMiddleClickNavigation()

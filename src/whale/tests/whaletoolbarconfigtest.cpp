@@ -630,8 +630,8 @@ void WhaleToolbarConfigTest::testAvailableActions()
 
     // Actions of the window only are not offered.
     QVERIFY(!global(QStringLiteral("url_navigators"))); // no global location bars (L5)
+    // (toggle_search is one of the view's since E8 was revised: the search bar of that view.)
     const QStringList excluded = {QStringLiteral("split_view"),
-                                  QStringLiteral("toggle_search"),
                                   QStringLiteral("hamburger_menu"),
                                   QStringLiteral("edit_cut"),
                                   QStringLiteral("edit_paste"),
