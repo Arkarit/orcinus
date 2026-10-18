@@ -1219,12 +1219,39 @@ Noch nicht abgeschlossen. Code ist bisher **nicht** geändert.
      Text irgendwo markieren (ohne Ctrl+C), in der Location Bar mit der mittleren Maustaste
      klicken → wird der markierte Text eingefügt bzw. dorthin navigiert?
 
-### 26.4 Noch offen
+### 26.4 Fortsetzung 2026-10-18
 
-- 7b (Primary-Selection-Paste).
-- 8: L11 mit echter Tastatur; wohin gehen Tasten nach Ctrl+L bei verborgener Leiste?
-- 9: F6, Fokus nach Configure Toolbars und nach Tab-Wechsel.
+Gleicher Aufbau wie 26.1, Profil und Testordner neu angelegt (der Scratchpad der Vorsitzung war
+weg), Build unverändert vom 2026-10-17. Echte Eingabe durch den Benutzer.
+
+| Punkt | Ergebnis |
+|---|---|
+| 7b Primary-Selection-Paste | funktioniert (Text markieren ohne Ctrl+C, Mittelklick in die Location Bar). Für den Benutzer sehr unerwartet, ist aber X11-/KDE-Verhalten, kein Whale-Thema |
+| 8 L11 mit echter Tastatur | Ctrl+L bei verborgener Leiste: funktioniert, kein Absturz |
+| 8 Befund | **Bug:** Die File View Toolbars lassen sich aus-, aber nicht wieder einschalten. Ein Neustart hilft nicht, weil `[WhaleToolbars] ShowFileViewToolBars=false` in der whalerc steht. Im Test half nur, den Wert in der Profil-whalerc von Hand zurückzusetzen |
+| 9 F6 | funktioniert |
+| 9 Fokus nach Configure Toolbars | funktioniert |
+| 9 Tab-Taste (Fokusdurchlauf) | **Bug:** Im Split mit aktiver rechter Pane läuft Tab durch die Location Bar der **inaktiven** linken Pane statt durch die eigene |
+
+Ursachen (Vermutung, noch nicht verifiziert):
+
+- 8: `WhaleToolbarManager::plugIntoViewMenu()` hängt den Schalter nur in das klassische
+  View-Menü der Menüleiste. Whale zeigt standardmäßig das Hamburger-Menü, das Dolphin selbst
+  aufbaut und das den Schalter nicht kennt. Das Kontextmenü „Hide File View Toolbars“ hängt an
+  der Leiste selbst und verschwindet mit ihr. Ohne Menüleiste (Ctrl+M) gibt es keinen Rückweg;
+  der Weg über Ctrl+M ist ungeprüft.
+- 9: Weder Dolphin noch Whale legen eine Tab-Reihenfolge fest (kein `setTabOrder`). Die Location
+  Bars werden früh erzeugt, aber erst später über `createWidget()` in die Toolbar eingesetzt und
+  rutschen dadurch in Qts Fokuskette ans Ende. Mit dem früheren globalen Navigator fiel das nicht
+  auf. Möglicher Fix: Tab-Reihenfolge pro Container ausdrücklich festlegen; erst offscreen
+  nachstellen und mit Test absichern.
+
+Kein Code geändert. Fixes erst nach Absprache.
+
+### 26.5 Noch offen
+
 - 10: Alltagstest.
+- Bugs: 8 (Leisten nicht wieder einschaltbar, hohe Priorität), 9 (Tab-Reihenfolge).
 - Entscheidungen:
   - Umbruch statt Überlaufmenü (Revision von L16?);
   - Umgang mit dem Breadcrumb-Fade;
