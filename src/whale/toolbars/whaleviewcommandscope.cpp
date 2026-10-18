@@ -53,6 +53,7 @@ QStringList WhaleViewCommandScope::allowedActions()
         QStringLiteral("stop"),
         QStringLiteral("toggle_filter"),
         QStringLiteral("show_filter_bar"),
+        QStringLiteral("toggle_search"),
         // The selection of the view
         QStringLiteral("renamefile"),
         QStringLiteral("movetotrash"),

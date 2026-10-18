@@ -22,8 +22,8 @@ class QAction;
  * DolphinMainWindow's navigation actions act on the active view. These do the same on the
  * view they were created for, whichever view is active: "go_back", "go_forward" (with their
  * history menus), "go_up", "go_home", "view_redisplay", "stop", "toggle_filter",
- * "show_filter_bar", "edit_select_all" and "invert_selection", with the window's action
- * names. Their state comes from that view only.
+ * "show_filter_bar", "toggle_search", "edit_select_all" and "invert_selection", with the
+ * window's action names. Their state comes from that view only.
  *
  * A middle click on Back, Forward, Up, Home or an entry of a history menu opens its
  * location in a new tab, as in the window's toolbar (middleClickFilter()).
@@ -60,6 +60,7 @@ private:
     void stop();
     void toggleFilterBar();
     void showFilterBar();
+    void toggleSearchBar(bool visible);
     void selectAll();
     void invertSelection();
 
@@ -74,6 +75,7 @@ private:
     QAction *m_home;
     QAction *m_stop;
     QAction *m_toggleFilter;
+    QAction *m_toggleSearch;
     MiddleClickActionEventFilter *m_middleClickFilter;
 };
 

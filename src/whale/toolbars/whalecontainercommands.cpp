@@ -49,6 +49,7 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
     , m_home(KStandardAction::home(this, &WhaleContainerCommands::goHome, actionCollection))
     , m_stop(actionCollection->addAction(QStringLiteral("stop")))
     , m_toggleFilter(actionCollection->addAction(QStringLiteral("toggle_filter")))
+    , m_toggleSearch(actionCollection->addAction(QStringLiteral("toggle_search")))
     , m_middleClickFilter(new MiddleClickActionEventFilter(this))
 {
     Q_ASSERT(container);
@@ -94,6 +95,17 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
     m_toggleFilter->setChecked(container->isFilterBarVisible());
     connect(m_toggleFilter, &QAction::triggered, this, &WhaleContainerCommands::toggleFilterBar);
     connect(container, &DolphinViewContainer::showFilterBarChanged, m_toggleFilter, &QAction::setChecked);
+
+    // The search bar of this view: texts and icon as the window's "toggle_search".
+    const std::unique_ptr<QAction> find(KStandardAction::find(nullptr, nullptr, nullptr));
+    m_toggleSearch->setText(i18nc("@action:inmenu", "Toggle Search Bar"));
+    m_toggleSearch->setIconText(i18nc("@action:intoolbar", "Search"));
+    m_toggleSearch->setIcon(find->icon());
+    m_toggleSearch->setToolTip(i18nc("@info:tooltip", "Search for files and folders"));
+    m_toggleSearch->setCheckable(true);
+    m_toggleSearch->setChecked(container->isSearchBarVisible());
+    connect(m_toggleSearch, &QAction::triggered, this, &WhaleContainerCommands::toggleSearchBar);
+    connect(container, &DolphinViewContainer::searchBarVisibilityChanged, m_toggleSearch, &QAction::setChecked);
 
     // Selecting in this view. (The window's Select All selects the text of a focused
     // location bar instead; that stays with the window's action.)
@@ -188,6 +200,19 @@ void WhaleContainerCommands::showFilterBar()
     if (m_container) {
         m_container->setFilterBarVisible(true);
     }
+}
+
+void WhaleContainerCommands::toggleSearchBar(bool visible)
+{
+    if (!m_container) {
+        return;
+    }
+    // As the window's action: opening also puts the focus into the search bar.
+    m_container->setSearchBarVisible(visible);
+    if (visible) {
+        m_container->setFocusToSearchBar();
+    }
+    m_toggleSearch->setChecked(m_container->isSearchBarVisible());
 }
 
 void WhaleContainerCommands::selectAll()
