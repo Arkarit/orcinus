@@ -1330,3 +1330,6 @@ Anlass: LB5-Beobachtung 26.3/1. Im Überlaufmenü ist die Location Bar nicht bed
 - `testStableWidth` geht bis 260 px Fensterbreite und prüft, dass die Location Bar nie ins
   Überlaufmenü kommt. Neue Tests `testWrap`, `testWrapSplit`, `testWrapFocusOrder`.
 - Tests warten auf das Ende der Split-Animation (`QVariantAnimation`, direktes Kind des Splitters).
+- Breadcrumb-Fade (26.3/2): Nach dem Umbruch laut Benutzer nicht mehr zu sehen. Die Kürzung langer
+  Segmente verhält sich exakt wie beim früheren globalen Navigator. Vermutlich kam der Eindruck von
+  den sehr schmalen Bars vor dem Umbruch. Erledigt, keine Änderung nötig.
