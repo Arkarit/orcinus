@@ -1251,7 +1251,19 @@ Kein Code geändert. Fixes erst nach Absprache.
 ### 26.5 Noch offen
 
 - 10: Alltagstest.
-- Bug 9 (Tab-Reihenfolge).
+- Bug 9 ist behoben (72bf31d0d Code, d6e39ccf2 Test `testFocusOrder`), auf Wayland mit echter
+  Eingabe am 2026-10-18 geprüft:
+  - Ursache bestätigt: Qts Fokuskette folgt der Erzeugungsreihenfolge. Die Toolbar steht hinter
+    View und Statusleiste; Breadcrumb-Buttons, die beim Navigieren neu entstehen, landen am Ende
+    des Fensters (Qt 6.10).
+  - Umsortieren der Kette verworfen: `setTabOrder()` verschiebt ganze Bereiche um Fokus-Proxys
+    und kann Widgets ohne eigenen Fokus nicht bewegen, an denen Qt trotzdem hält
+    (`KUrlNavigator`, `DolphinView`, `WhaleViewHost`). `setFocusPolicy()` wirkt auf Proxys durch,
+    und Qt sortiert die Kette bei jeder Aktivierung (`setFocusProxy`) selbst um.
+  - Lösung: `DolphinMainWindow::focusNextPrevChild()` fragt `WhaleFocusOrder` (Dolphin-Diff
+    +9 Zeilen). Tab-Ziele in Qts Reihenfolge, pro Pane zusammengefasst, Toolbar zuerst in
+    sichtbarer Reihenfolge.
+  - Fokus per Tastatur in der Toolbar einer inaktiven Pane aktiviert diese Pane.
 - Bug 8 ist behoben (2189af27c Code, 9ecaad401 Test `testWaysBack`): „Show File View Toolbars“
   steht zusätzlich im Hamburger-Menü (nach „Panels“), im Kontextmenü der Hauptleiste (vor
   „Configure Toolbars…“, über `aboutToShow` des KToolBar-eigenen Menüs, ohne Dolphin-Diff) und,
