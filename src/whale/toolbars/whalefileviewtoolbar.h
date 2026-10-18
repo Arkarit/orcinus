@@ -68,6 +68,15 @@ public:
      */
     static int minimumLocationBarWidth();
 
+    /**
+     * Shows @p widget at the end of the row of the buttons, always: it is not part of the
+     * layout (not in Configure Toolbars, never in the overflow menu). The toolbar does not own
+     * it: it gives it back (hidden, without parent) when another one is set, when it is set to
+     * nullptr, and when the toolbar is destroyed.
+     */
+    void setTrailingWidget(QWidget *widget);
+    QWidget *trailingWidget() const;
+
 protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -85,13 +94,15 @@ private:
     void scheduleWrapUpdate(bool settle = false);
     void updateWrapOfTab();
     void setLocationBarWrapped(bool wrapped);
-    void layOutWrappedLocationBar();
+    /// The second row of a wrapped location bar and the trailing widget, outside of the layout.
+    void layOutExtras();
 
     QPointer<DolphinViewContainer> m_container;
     WhaleViewCommandScope *m_scope = nullptr;
     WhaleLocationBar *m_locationBar;
     bool m_hasLocationBar = false; // in the layout
     bool m_locationBarWrapped = false;
+    QPointer<QWidget> m_trailingWidget;
     QTimer *m_wrapTimer;
 };
 

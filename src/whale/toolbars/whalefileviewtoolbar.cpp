@@ -75,7 +75,14 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
     });
 }
 
-WhaleFileViewToolBar::~WhaleFileViewToolBar() = default;
+WhaleFileViewToolBar::~WhaleFileViewToolBar()
+{
+    // Not this toolbar's.
+    if (m_trailingWidget && m_trailingWidget->parentWidget() == this) {
+        m_trailingWidget->hide();
+        m_trailingWidget->setParent(nullptr);
+    }
+}
 
 WhaleViewCommandScope *WhaleFileViewToolBar::scope() const
 {
@@ -97,6 +104,29 @@ int WhaleFileViewToolBar::minimumLocationBarWidth()
     return 200;
 }
 
+void WhaleFileViewToolBar::setTrailingWidget(QWidget *widget)
+{
+    if (widget == m_trailingWidget) {
+        return;
+    }
+    if (m_trailingWidget && m_trailingWidget->parentWidget() == this) {
+        m_trailingWidget->hide();
+        m_trailingWidget->setParent(nullptr);
+    }
+    m_trailingWidget = widget;
+    if (widget) {
+        widget->setParent(this);
+    }
+    layOutExtras();
+    // The room for the location bar has changed.
+    scheduleWrapUpdate();
+}
+
+QWidget *WhaleFileViewToolBar::trailingWidget() const
+{
+    return m_trailingWidget;
+}
+
 void WhaleFileViewToolBar::showEvent(QShowEvent *event)
 {
     if (!m_scope && m_container) {
@@ -114,7 +144,7 @@ void WhaleFileViewToolBar::showEvent(QShowEvent *event)
 void WhaleFileViewToolBar::resizeEvent(QResizeEvent *event)
 {
     KToolBar::resizeEvent(event);
-    layOutWrappedLocationBar();
+    layOutExtras();
     // Wrapping changes the height only: no new decision then. While the width changes (the
     // animation of a new split view, dragging the splitter), the toolbars would wrap and unwrap
     // on the way.
@@ -171,7 +201,7 @@ void WhaleFileViewToolBar::rebuild()
     if (!m_hasLocationBar && m_locationBarWrapped) {
         m_locationBarWrapped = false;
     }
-    layOutWrappedLocationBar();
+    layOutExtras();
     scheduleWrapUpdate();
 }
 
@@ -233,22 +263,33 @@ void WhaleFileViewToolBar::setLocationBarWrapped(bool wrapped)
     rebuild();
 }
 
-void WhaleFileViewToolBar::layOutWrappedLocationBar()
+void WhaleFileViewToolBar::layOutExtras()
 {
-    if (!m_locationBarWrapped) {
-        if (contentsMargins().bottom() != 0) {
-            setContentsMargins(0, 0, 0, 0);
-        }
-        return;
-    }
-    // The second row: below the area QToolBarLayout lays the buttons out in.
+    // Both outside of the area QToolBarLayout lays the buttons out in (contentsRect()): the
+    // second row below it, the trailing widget at its end.
     const int margin = style()->pixelMetric(QStyle::PM_ToolBarItemMargin, nullptr, this) + style()->pixelMetric(QStyle::PM_ToolBarFrameWidth, nullptr, this);
-    const int rowHeight = m_locationBar->sizeHint().height();
-    if (contentsMargins().bottom() != rowHeight + margin) {
-        setContentsMargins(0, 0, 0, rowHeight + margin);
+    const int spacing = style()->pixelMetric(QStyle::PM_ToolBarItemSpacing, nullptr, this);
+    const int rowHeight = m_locationBarWrapped ? m_locationBar->sizeHint().height() : 0;
+    const bool trailing = m_trailingWidget && m_trailingWidget->parentWidget() == this;
+    const int trailingWidth = trailing ? m_trailingWidget->sizeHint().width() : 0;
+    const int end = trailing ? trailingWidth + spacing : 0;
+    const bool rightToLeft = layoutDirection() == Qt::RightToLeft;
+    const QMargins margins(rightToLeft ? end : 0, 0, rightToLeft ? 0 : end, m_locationBarWrapped ? rowHeight + margin : 0);
+    if (contentsMargins() != margins) {
+        setContentsMargins(margins);
     }
-    m_locationBar->setGeometry(margin, height() - rowHeight - margin, width() - 2 * margin, rowHeight);
-    m_locationBar->show();
+    if (m_locationBarWrapped) {
+        m_locationBar->setGeometry(margin, height() - rowHeight - margin, width() - 2 * margin, rowHeight);
+        m_locationBar->show();
+    }
+    if (trailing) {
+        const int rowOneHeight = height() - margins.bottom();
+        const int widgetHeight = std::min(m_trailingWidget->sizeHint().height(), rowOneHeight);
+        const int x = rightToLeft ? margin : width() - margin - trailingWidth;
+        m_trailingWidget->setGeometry(x, (rowOneHeight - widgetHeight) / 2, trailingWidth, widgetHeight);
+        m_trailingWidget->show();
+        m_trailingWidget->raise();
+    }
 }
 
 void WhaleFileViewToolBar::actionEvent(QActionEvent *event)

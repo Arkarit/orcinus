@@ -1142,6 +1142,21 @@ void DolphinMainWindow::toggleSplitView()
     updateViewActions();
 }
 
+void DolphinMainWindow::closeRightSplitView()
+{
+    DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+    if (!tabPage->splitViewEnabled()) {
+        return;
+    }
+    // DolphinTabPage closes the view the settings name: the right one for this call only.
+    const int choice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::RightView);
+    tabPage->setSplitViewEnabled(false, WithAnimation);
+    GeneralSettings::self()->setCloseSplitViewChoice(choice);
+    m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
+    updateViewActions();
+}
+
 void DolphinMainWindow::popoutSplitView()
 {
     DolphinTabPage *tabPage = m_tabWidget->currentTabPage();

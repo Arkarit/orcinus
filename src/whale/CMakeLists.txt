@@ -124,8 +124,9 @@ target_sources(dolphinstatic PRIVATE
     toolbars/whaletoolbarsettings.cpp
     toolbars/whaleviewcommandscope.cpp
     toolbars/whaletoolbars.qrc
+    splitview/whalesplitviewbutton.cpp
 )
-target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars)
+target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars ${CMAKE_CURRENT_SOURCE_DIR}/splitview)
 
 ########### plugins ###############
 

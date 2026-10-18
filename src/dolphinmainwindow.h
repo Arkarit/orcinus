@@ -147,6 +147,12 @@ public:
 
 public Q_SLOTS:
     /**
+     * Whale: closes the right view of the current tab's split view, whatever the settings say
+     * about which view to close (the split button of the File View Toolbar, WhaleSplitViewButton).
+     */
+    void closeRightSplitView();
+
+    /**
      * Opens each directory in \p dirs in a separate tab. If \a splitView is set,
      * 2 directories are collected within one tab.
      * \pre \a dirs must contain at least one url.
