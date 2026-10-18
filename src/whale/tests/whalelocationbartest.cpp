@@ -29,12 +29,15 @@
 #include <KUrlComboBox>
 
 #include <QAbstractButton>
+#include <QApplication>
 #include <QDockWidget>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QTest>
 #include <QToolButton>
+
+#include <algorithm>
 
 namespace
 {
@@ -97,6 +100,7 @@ private Q_SLOTS:
     void testContextButtons();
     void testPluginView();
     void testThirdContainer();
+    void testFocusOrder();
 
 private:
     DolphinViewContainer *showMainWindow(int width = 1200);
@@ -108,6 +112,7 @@ private:
     static void writeUserLayout(const QByteArray &toolBarContent);
     QAction *global(const QString &name) const;
     QUrl url(const QString &relative) const;
+    void checkTabCycle(bool forward);
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -693,6 +698,111 @@ void WhaleLocationBarTest::testThirdContainer()
     QCOMPARE(tabView->url(), m_dir->url());
     delete dock;
     QVERIFY(!bar);
+}
+
+void WhaleLocationBarTest::testFocusOrder()
+{
+    // Tab goes through each view from top to bottom, its File View Toolbar first, and the view
+    // with the focus is the active one.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    // Shift+Tab from a file list: into its own location bar, not into the one of the other view
+    // (the toolbars were created after the views).
+    m_right->setActive(true);
+    QTRY_VERIFY(m_right->view()->isAncestorOf(QApplication::focusWidget()));
+    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Backtab, Qt::ShiftModifier);
+    QVERIFY(locationBar(m_right)->isAncestorOf(QApplication::focusWidget()));
+    QVERIFY(m_right->isActive());
+    checkTabCycle(true);
+    checkTabCycle(false);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+
+    // The buttons of a deeper location are created now, at the end of Qt's order.
+    m_right->setUrl(url(QStringLiteral("sub/deeper/folder")));
+    QTRY_VERIFY(breadcrumb(locationBar(m_right)->urlNavigator(), QStringLiteral("deeper")));
+    QTest::qWait(0);
+    checkTabCycle(true);
+    checkTabCycle(false);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+
+    // And after the toolbars were built again (Configure Toolbars).
+    writeUserLayout("<Action name=\"go_back\"/><Action name=\"whale_location_bar\"/><Action name=\"go_up\"/>");
+    QTRY_VERIFY(locationBar(m_left)->isVisible() && locationBar(m_right)->isVisible());
+    QTest::qWait(0);
+    checkTabCycle(true);
+    checkTabCycle(false);
+}
+
+void WhaleLocationBarTest::checkTabCycle(bool forward)
+{
+    // Once around, from the active view's file list.
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->view()->isAncestorOf(QApplication::focusWidget()));
+    QWidget *start = QApplication::focusWidget();
+    QList<QWidget *> cycle;
+    QList<DolphinViewContainer *> containers;
+    do {
+        QWidget *focus = QApplication::focusWidget();
+        QVERIFY(focus);
+        DolphinViewContainer *container = nullptr;
+        for (DolphinViewContainer *candidate : {m_left, m_right}) {
+            if (candidate->isAncestorOf(focus)) {
+                container = candidate;
+            }
+        }
+        // The view with the focus in its toolbar or file list is the active one.
+        if (container && (toolBar(container)->isAncestorOf(focus) || container->view()->isAncestorOf(focus))) {
+            QVERIFY2(container->isActive(), qPrintable(QString::fromLatin1(focus->metaObject()->className())));
+        }
+        cycle.append(focus);
+        containers.append(container);
+        QTest::keyClick(focus, forward ? Qt::Key_Tab : Qt::Key_Backtab, forward ? Qt::NoModifier : Qt::ShiftModifier);
+        QTest::qWait(0); // as between two key presses
+    } while (QApplication::focusWidget() != start && cycle.count() < 200);
+    QCOMPARE(QApplication::focusWidget(), start);
+
+    for (DolphinViewContainer *container : {m_left, m_right}) {
+        // One run of widgets per view ...
+        QList<QWidget *> run;
+        int runs = 0;
+        for (int i = 0; i < cycle.count(); ++i) {
+            if (containers.at(i) == container && containers.at((i + cycle.count() - 1) % cycle.count()) != container) {
+                ++runs;
+                for (int j = i; containers.at(j % cycle.count()) == container; ++j) {
+                    run.append(cycle.at(j % cycle.count()));
+                }
+            }
+        }
+        QCOMPARE(runs, 1);
+        if (!forward) {
+            std::reverse(run.begin(), run.end());
+        }
+        // ... the toolbar first, in the order it is seen ...
+        WhaleFileViewToolBar *bar = toolBar(container);
+        QVERIFY(bar->isAncestorOf(run.first()));
+        int lastX = -1;
+        bool inToolBar = true;
+        for (QWidget *widget : std::as_const(run)) {
+            if (!bar->isAncestorOf(widget)) {
+                inToolBar = false;
+                continue;
+            }
+            QVERIFY2(inToolBar, "a widget of the toolbar after one of the view");
+            const int x = widget->mapTo(bar, QPoint()).x();
+            QVERIFY(x > lastX);
+            lastX = x;
+        }
+        // ... then the file list.
+        QVERIFY(std::any_of(run.cbegin(), run.cend(), [container](QWidget *widget) {
+            return container->view()->isAncestorOf(widget);
+        }));
+    }
 }
 
 QTEST_MAIN(WhaleLocationBarTest)
