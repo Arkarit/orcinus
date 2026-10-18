@@ -27,9 +27,12 @@
 #include <KConfig>
 #include <KConfigGroup>
 #include <KEditToolBar>
+#include <KFileItem>
+#include <KHamburgerMenu>
 #include <KIconLoader>
 #include <KLocalizedString>
 #include <KSharedConfig>
+#include <KStandardAction>
 #include <KToggleAction>
 #include <KToolBar>
 #include <KXMLGUIFactory>
@@ -44,6 +47,8 @@
 #include <QStandardPaths>
 #include <QTest>
 #include <QTimer>
+
+#include <functional>
 
 #include <unistd.h>
 
@@ -248,6 +253,7 @@ private Q_SLOTS:
     void testToggleAll();
     void testNewContainersFollow();
     void testContextMenuHides();
+    void testWaysBack();
     void testTwoWindows();
     void testPersistence();
     void testConfigureWhileHidden_data();
@@ -273,6 +279,7 @@ private:
     static WhaleFileViewToolBar *toolBar(DolphinViewContainer *container);
     static void writeUserMainFile(const QByteArray &content);
     QAction *global(const QString &name) const;
+    static QList<QAction *> actionsOfMenu(const std::function<void()> &open);
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -716,6 +723,86 @@ void WhaleToolbarMigrationTest::testContextMenuHides()
     toggle(m_mainWindow.data())->trigger();
     QVERIFY(toolBar(m_first)->isVisible());
     QVERIFY(toolBar(m_second)->isVisible());
+}
+
+void WhaleToolbarMigrationTest::testWaysBack()
+{
+    // Without the menu bar (the default), the View menu cannot show hidden File View Toolbars
+    // again: the hamburger menu, the main toolbar's context menu and, while they are hidden,
+    // the menu of a view's background can.
+    m_mainWindow.reset(new DolphinMainWindow());
+    DolphinViewContainer *container = showWindow(m_mainWindow.data());
+    QVERIFY(container);
+    KToggleAction *action = toggle(m_mainWindow.data());
+    QVERIFY(action && action->isChecked());
+    const auto hamburgerMenu = [this]() {
+        KActionCollection *ac = m_mainWindow->actionCollection();
+        auto hamburger = qobject_cast<KHamburgerMenu *>(ac->action(KStandardAction::name(KStandardAction::HamburgerMenu)));
+        return QMetaObject::invokeMethod(m_mainWindow.data(), "updateHamburgerMenu") && hamburger->menu() ? hamburger->menu()->actions() : QList<QAction *>();
+    };
+    const auto toolBarMenu = [this]() {
+        // The main toolbar is built again with the GUI: always the current one.
+        KToolBar *mainToolBar = m_mainWindow->toolBar();
+        return actionsOfMenu([mainToolBar]() {
+            const QPoint position(mainToolBar->width() / 3, mainToolBar->height() / 2); // the spacer
+            QContextMenuEvent event(QContextMenuEvent::Mouse, position, mainToolBar->mapToGlobal(position));
+            QApplication::sendEvent(mainToolBar, &event);
+        });
+    };
+    const auto backgroundMenu = [this, container]() {
+        return actionsOfMenu([this, container]() {
+            QMetaObject::invokeMethod(m_mainWindow.data(),
+                                      "openContextMenu",
+                                      Q_ARG(QPoint, container->mapToGlobal(QPoint(50, 200))),
+                                      Q_ARG(KFileItem, KFileItem()),
+                                      Q_ARG(KFileItemList, KFileItemList()),
+                                      Q_ARG(QUrl, container->url()));
+        });
+    };
+    const QAction *configure = m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::ConfigureToolbars));
+
+    QVERIFY(hamburgerMenu().contains(action));
+    QList<QAction *> actions = toolBarMenu();
+    QCOMPARE(actions.count(action), 1);
+    QVERIFY(actions.indexOf(action) < actions.indexOf(configure));
+    QVERIFY(!backgroundMenu().contains(action));
+
+    action->trigger();
+    QVERIFY(!WhaleToolbarSettings::self()->fileViewToolBarsVisible());
+    QVERIFY(hamburgerMenu().contains(action));
+    // The toolbar keeps its menu: still once.
+    actions = toolBarMenu();
+    QCOMPARE(actions.count(action), 1);
+    QVERIFY(actions.indexOf(action) < actions.indexOf(configure));
+    actions = backgroundMenu();
+    QCOMPARE(actions.count(action), 1);
+
+    // Also after the window built its GUI again (as after Configure Toolbars).
+    QVERIFY(QMetaObject::invokeMethod(m_mainWindow.data(), "saveNewToolbarConfig"));
+    QCOMPARE(toolBarMenu().count(action), 1);
+
+    action->trigger();
+    QVERIFY(WhaleToolbarSettings::self()->fileViewToolBarsVisible());
+    QVERIFY(toolBar(container)->isVisible());
+    QVERIFY(!backgroundMenu().contains(action));
+}
+
+QList<QAction *> WhaleToolbarMigrationTest::actionsOfMenu(const std::function<void()> &open)
+{
+    // The actions of the menu that @p open shows with exec(); the menu is closed then.
+    QList<QAction *> actions;
+    QTimer timer;
+    timer.setInterval(10);
+    connect(&timer, &QTimer::timeout, [&actions, &timer]() {
+        if (auto menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
+            actions = menu->actions();
+            timer.stop();
+            menu->close();
+        }
+    });
+    timer.start();
+    open();
+    return actions;
 }
 
 void WhaleToolbarMigrationTest::testTwoWindows()
