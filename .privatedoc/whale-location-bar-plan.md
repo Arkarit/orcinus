@@ -1251,7 +1251,12 @@ Kein Code geändert. Fixes erst nach Absprache.
 ### 26.5 Noch offen
 
 - 10: Alltagstest.
-- Bugs: 8 (Leisten nicht wieder einschaltbar, hohe Priorität), 9 (Tab-Reihenfolge).
+- Bug 9 (Tab-Reihenfolge).
+- Bug 8 ist behoben (2189af27c Code, 9ecaad401 Test `testWaysBack`): „Show File View Toolbars“
+  steht zusätzlich im Hamburger-Menü (nach „Panels“), im Kontextmenü der Hauptleiste (vor
+  „Configure Toolbars…“, über `aboutToShow` des KToolBar-eigenen Menüs, ohne Dolphin-Diff) und,
+  nur solange die Leisten ausgeblendet sind, im Kontextmenü des Dateiansicht-Hintergrunds.
+  Die Wayland-Prüfung mit echter Eingabe steht noch aus.
 - Entscheidungen:
   - Umbruch statt Überlaufmenü (Revision von L16?);
   - Umgang mit dem Breadcrumb-Fade;
