@@ -1668,6 +1668,7 @@ void DolphinMainWindow::updateHamburgerMenu()
         }
     }
     menu->addAction(ac->action(QStringLiteral("panels")));
+    menu->addAction(ac->action(QStringLiteral("whale_show_file_view_toolbars"))); // Whale: TB5
 
     // The "Configure" menu is not added to the actionCollection() because there is hardly
     // a good reason for users to put it on their toolbar.

@@ -148,7 +148,8 @@ void WhaleFileViewToolBar::contextMenuEvent(QContextMenuEvent *event)
             configurator->configure(WhaleToolbarDescriptor::fileViewId());
         });
     }
-    // All of them; "Show File View Toolbars" in the View menu shows them again.
+    // All of them; "Show File View Toolbars" shows them again (View menu, hamburger menu, the
+    // main toolbar's context menu and the menu of a view's background).
     QAction *hide = menu->addAction(i18nc("@action:inmenu", "Hide File View Toolbars"));
     hide->setObjectName(QStringLiteral("whale_hide_file_view_toolbars"));
     connect(hide, &QAction::triggered, WhaleToolbarSettings::self(), [] {

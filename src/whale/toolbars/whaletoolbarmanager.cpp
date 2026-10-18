@@ -6,6 +6,7 @@
 
 #include "whaletoolbarmanager.h"
 
+#include "whalefileviewtoolbar.h"
 #include "whalefileviewtoolbarclient.h"
 #include "whalelocationbar.h"
 #include "whaletoolbarmigration.h"
@@ -15,9 +16,11 @@
 #include <KActionCollection>
 #include <KLocalizedString>
 #include <KToggleAction>
+#include <KToolBar>
 #include <KXMLGUIFactory>
 #include <KXmlGuiWindow>
 
+#include <QChildEvent>
 #include <QMenu>
 #include <QWidget>
 
@@ -74,9 +77,11 @@ void WhaleToolbarManager::setupActions(KXmlGuiWindow *window)
     connect(window->guiFactory(), &KXMLGUIFactory::clientAdded, this, [this](KXMLGUIClient *client) {
         if (client == m_window) {
             plugIntoViewMenu();
+            watchToolBarMenus();
         }
     });
     plugIntoViewMenu();
+    watchToolBarMenus();
 }
 
 KToggleAction *WhaleToolbarManager::showFileViewToolBarsAction() const
@@ -102,6 +107,64 @@ void WhaleToolbarManager::plugIntoViewMenu()
     } else {
         menu->addAction(m_showFileViewToolBars);
     }
+}
+
+void WhaleToolbarManager::watchToolBarMenus()
+{
+    // KToolBar offers no way to extend its context menu ("Toolbar Settings"): it creates the
+    // menu as its child the first time it is asked for and keeps it. So the manager watches the
+    // window's toolbars for new child menus. They are built again with the GUI.
+    if (!m_window) {
+        return;
+    }
+    const QList<KToolBar *> toolBars = m_window->toolBars();
+    for (KToolBar *toolBar : toolBars) {
+        if (qobject_cast<WhaleFileViewToolBar *>(toolBar)) {
+            continue; // has a menu of its own, with "Hide File View Toolbars"
+        }
+        toolBar->installEventFilter(this);
+        const QList<QMenu *> menus = toolBar->findChildren<QMenu *>(QString(), Qt::FindDirectChildrenOnly);
+        for (QMenu *menu : menus) {
+            watchMenu(menu);
+        }
+    }
+}
+
+void WhaleToolbarManager::watchMenu(QMenu *menu)
+{
+    // Before KToolBar's own handler: the entry comes before "Configure Toolbars…".
+    connect(menu, &QMenu::aboutToShow, this, &WhaleToolbarManager::plugIntoToolBarMenu, Qt::UniqueConnection);
+}
+
+void WhaleToolbarManager::plugIntoToolBarMenu()
+{
+    auto menu = qobject_cast<QMenu *>(sender());
+    // Not into the short-lived menus KToolBar shows for buttons with a popup (they contain the
+    // "Toolbar Settings" menu as a submenu).
+    if (!menu || !m_showFileViewToolBars || menu->testAttribute(Qt::WA_DeleteOnClose)) {
+        return;
+    }
+    menu->addAction(m_showFileViewToolBars); // at the end, also when it is there already
+}
+
+bool WhaleToolbarManager::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::ChildAdded) {
+        // The child is not constructed yet: a menu is recognized by its first event after that
+        // (KToolBar adds its actions at once).
+        QObject *child = static_cast<QChildEvent *>(event)->child();
+        if (child->isWidgetType() && qobject_cast<KToolBar *>(watched)) {
+            child->installEventFilter(this);
+        }
+    } else if (!qobject_cast<KToolBar *>(watched) && watched->isWidgetType()) {
+        if (auto menu = qobject_cast<QMenu *>(watched)) {
+            watchMenu(menu);
+            watched->removeEventFilter(this);
+        } else if (watched->metaObject() != &QWidget::staticMetaObject) {
+            watched->removeEventFilter(this); // constructed, but no menu
+        }
+    }
+    return QObject::eventFilter(watched, event);
 }
 
 WhaleToolbarManager *WhaleToolbarManager::ensure(QWidget *window)

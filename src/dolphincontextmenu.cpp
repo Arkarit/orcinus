@@ -388,6 +388,13 @@ void DolphinContextMenu::addViewportContextMenu()
         addSeparator();
     }
 
+    // Whale: the way back to hidden File View Toolbars, only while they are hidden.
+    QAction *showFileViewToolBars = m_mainWindow->actionCollection()->action(QStringLiteral("whale_show_file_view_toolbars"));
+    if (showFileViewToolBars && !showFileViewToolBars->isChecked()) {
+        addAction(showFileViewToolBars);
+        addSeparator();
+    }
+
     addAdditionalActions(baseUrlProperties);
 
     addSeparator();
