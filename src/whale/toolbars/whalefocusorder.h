@@ -22,7 +22,8 @@ class QWidget;
  * proxies and cannot move widgets without focus, which Qt stops at as well). Instead the main
  * window asks here which widget is next: the widgets Tab stops at in Qt's order, but those of
  * each file view (DolphinViewContainer) together, at the place of its first one, its File
- * View Toolbar first (in the order it is seen) and then the others in Qt's order.
+ * View Toolbar first (in the order it is seen, a wrapped location bar after the buttons) and then
+ * the others in Qt's order.
  */
 namespace WhaleFocusOrder
 {

@@ -6,6 +6,7 @@
 
 #include "whalefileviewtoolbar.h"
 
+#include "dolphintabpage.h"
 #include "dolphinviewcontainer.h"
 #include "whalecontainercommands.h"
 #include "whalelocationbar.h"
@@ -24,6 +25,8 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QStyle>
+#include <QTimer>
 #include <QToolButton>
 
 #include <algorithm>
@@ -54,6 +57,10 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
     // Now, not when shown: the window asks every view for its visible navigator.
     m_locationBar = new WhaleLocationBar(container, this);
 
+    m_wrapTimer = new QTimer(this);
+    m_wrapTimer->setSingleShot(true);
+    connect(m_wrapTimer, &QTimer::timeout, this, &WhaleFileViewToolBar::updateWrapOfTab);
+
     // The focus in this toolbar (Tab, F6) makes it the active view, as a click does.
     connect(qApp, &QApplication::focusChanged, this, [this](QWidget *, QWidget *now) {
         if (!now || !m_container || m_container->isActive() || !isAncestorOf(now)) {
@@ -80,6 +87,16 @@ WhaleLocationBar *WhaleFileViewToolBar::locationBar() const
     return m_locationBar;
 }
 
+bool WhaleFileViewToolBar::isLocationBarWrapped() const
+{
+    return m_locationBarWrapped;
+}
+
+int WhaleFileViewToolBar::minimumLocationBarWidth()
+{
+    return 200;
+}
+
 void WhaleFileViewToolBar::showEvent(QShowEvent *event)
 {
     if (!m_scope && m_container) {
@@ -91,6 +108,19 @@ void WhaleFileViewToolBar::showEvent(QShowEvent *event)
         rebuild();
     }
     KToolBar::showEvent(event);
+    scheduleWrapUpdate();
+}
+
+void WhaleFileViewToolBar::resizeEvent(QResizeEvent *event)
+{
+    KToolBar::resizeEvent(event);
+    layOutWrappedLocationBar();
+    // Wrapping changes the height only: no new decision then. While the width changes (the
+    // animation of a new split view, dragging the splitter), the toolbars would wrap and unwrap
+    // on the way.
+    if (event->size().width() != event->oldSize().width()) {
+        scheduleWrapUpdate(true);
+    }
 }
 
 void WhaleFileViewToolBar::rebuild()
@@ -104,11 +134,13 @@ void WhaleFileViewToolBar::rebuild()
     // What the user changed about the actions in Configure Toolbars, for this view's actions.
     m_scope->applyActionProperties(layout.actionProperties());
     const auto entries = layout.entries();
-    // A spacer next to the location bar would take half of the room the location bar
-    // expands into: then it does not expand.
-    const bool hasLocationBar = std::any_of(entries.cbegin(), entries.cend(), [](const WhaleToolbarLayout::Entry &entry) {
+    m_hasLocationBar = std::any_of(entries.cbegin(), entries.cend(), [](const WhaleToolbarLayout::Entry &entry) {
         return entry.type == WhaleToolbarLayout::Entry::Type::Action && entry.actionId == WhaleLocationBar::actionName();
     });
+    // A spacer next to the location bar would take half of the room the location bar
+    // expands into: then it does not expand. In the second row, the location bar is not next to
+    // it.
+    const bool hasLocationBar = m_hasLocationBar && !m_locationBarWrapped;
     for (const WhaleToolbarLayout::Entry &entry : entries) {
         switch (entry.type) {
         case WhaleToolbarLayout::Entry::Type::Separator:
@@ -124,7 +156,7 @@ void WhaleFileViewToolBar::rebuild()
         case WhaleToolbarLayout::Entry::Type::Action:
             if (entry.actionId == WhaleLocationBar::actionName()) {
                 // One widget: at its first place only (a hand-edited file may name it twice).
-                if (!actions().contains(m_locationBar->action())) {
+                if (hasLocationBar && !actions().contains(m_locationBar->action())) {
                     addAction(m_locationBar->action());
                 }
                 break;
@@ -136,6 +168,87 @@ void WhaleFileViewToolBar::rebuild()
             break;
         }
     }
+    if (!m_hasLocationBar && m_locationBarWrapped) {
+        m_locationBarWrapped = false;
+    }
+    layOutWrappedLocationBar();
+    scheduleWrapUpdate();
+}
+
+bool WhaleFileViewToolBar::needsWrap() const
+{
+    if (!m_scope || !m_hasLocationBar || !isVisible()) {
+        return false;
+    }
+    // What the other widgets of the row take, as QToolBarLayout lays them out.
+    const int spacing = style()->pixelMetric(QStyle::PM_ToolBarItemSpacing, nullptr, this);
+    const int margin = style()->pixelMetric(QStyle::PM_ToolBarItemMargin, nullptr, this) + style()->pixelMetric(QStyle::PM_ToolBarFrameWidth, nullptr, this);
+    int others = 2 * margin;
+    const auto actions = this->actions();
+    for (QAction *action : actions) {
+        QWidget *widget = widgetForAction(action);
+        if (action == m_locationBar->action() || !action->isVisible() || !widget) {
+            continue;
+        }
+        others += std::max(widget->sizeHint().width(), 0) + spacing;
+    }
+    return contentsRect().width() - others < minimumLocationBarWidth();
+}
+
+void WhaleFileViewToolBar::scheduleWrapUpdate(bool settle)
+{
+    if (settle) {
+        m_wrapTimer->start(25);
+    } else if (!m_wrapTimer->isActive()) {
+        m_wrapTimer->start(0);
+    }
+}
+
+void WhaleFileViewToolBar::updateWrapOfTab()
+{
+    // All views of the tab together: their file lists start at the same height.
+    QList<WhaleFileViewToolBar *> toolBars{this};
+    for (QWidget *parent = parentWidget(); parent; parent = parent->parentWidget()) {
+        if (auto page = qobject_cast<DolphinTabPage *>(parent)) {
+            toolBars = page->findChildren<WhaleFileViewToolBar *>();
+            break;
+        }
+    }
+    const bool wrap = std::any_of(toolBars.cbegin(), toolBars.cend(), [](WhaleFileViewToolBar *toolBar) {
+        return toolBar->needsWrap();
+    });
+    for (WhaleFileViewToolBar *toolBar : std::as_const(toolBars)) {
+        toolBar->setLocationBarWrapped(wrap);
+    }
+}
+
+void WhaleFileViewToolBar::setLocationBarWrapped(bool wrapped)
+{
+    wrapped = wrapped && m_hasLocationBar && m_scope;
+    if (wrapped == m_locationBarWrapped) {
+        return;
+    }
+    m_locationBarWrapped = wrapped;
+    // Out of the row (taking it out hides it) or back into it.
+    rebuild();
+}
+
+void WhaleFileViewToolBar::layOutWrappedLocationBar()
+{
+    if (!m_locationBarWrapped) {
+        if (contentsMargins().bottom() != 0) {
+            setContentsMargins(0, 0, 0, 0);
+        }
+        return;
+    }
+    // The second row: below the area QToolBarLayout lays the buttons out in.
+    const int margin = style()->pixelMetric(QStyle::PM_ToolBarItemMargin, nullptr, this) + style()->pixelMetric(QStyle::PM_ToolBarFrameWidth, nullptr, this);
+    const int rowHeight = m_locationBar->sizeHint().height();
+    if (contentsMargins().bottom() != rowHeight + margin) {
+        setContentsMargins(0, 0, 0, rowHeight + margin);
+    }
+    m_locationBar->setGeometry(margin, height() - rowHeight - margin, width() - 2 * margin, rowHeight);
+    m_locationBar->show();
 }
 
 void WhaleFileViewToolBar::actionEvent(QActionEvent *event)

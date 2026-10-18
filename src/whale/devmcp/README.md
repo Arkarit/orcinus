@@ -219,11 +219,12 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `modified` (Apply enabled) and `buttons`.
 - Location bars (TB7, LB4): every file view has its own, in its File View Toolbar.
   `panes.N.toolbar.locationBar`: `exists`, `connected` (it is the view's visible
-  navigator), `present` (placed in the toolbar's layout), `visible`, `editable`, `url`,
+  navigator), `present` (placed in the toolbar's layout), `wrapped` (in the toolbar's second
+  row, L16), `visible`, `editable`, `url`,
   `text` (the editor's, while editable), `placeholder`, `focused`, `active` (the view is the
   active one) and `widgetKey` (`location-bar-N`, the same for the widget's life). The
-  entries of `toolbars.instances` have `locationBar` with `exists`, `connected`, `present`
-  and `widgetKey`, also for tabs never shown. The state creates nothing (no actions of a
+  entries of `toolbars.instances` have `locationBar` with `exists`, `connected`, `present`,
+  `wrapped` and `widgetKey`, also for tabs never shown. The state creates nothing (no actions of a
   toolbar never shown).
 
 `wait_for_state` conditions map dotted paths into this state to expected JSON

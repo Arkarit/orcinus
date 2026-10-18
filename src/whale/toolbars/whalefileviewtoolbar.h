@@ -12,6 +12,7 @@
 #include <QPointer>
 
 class DolphinViewContainer;
+class QTimer;
 class WhaleLocationBar;
 class WhaleViewCommandScope;
 
@@ -29,7 +30,11 @@ class WhaleViewCommandScope;
  *
  * The view's location bar (WhaleLocationBar) exists and is connected from the start, also
  * while the toolbar is hidden or the layout has no place for it; the layout entry
- * WhaleLocationBar::actionName() only places it.
+ * WhaleLocationBar::actionName() only places it. Where it would get less than
+ * minimumLocationBarWidth(), it moves into a second row below the buttons, over the whole
+ * width of the toolbar (the buttons stay in the first row, the overflow menu is for them only).
+ * The toolbars of all views of a tab do that together, so that the views start at the same
+ * height.
  *
  * Shown or hidden with all other File View Toolbars (WhaleToolbarSettings). Its context menu
  * opens Configure Toolbars with the File View Toolbar chosen, or hides them all.
@@ -52,8 +57,20 @@ public:
      */
     WhaleLocationBar *locationBar() const;
 
+    /**
+     * @return Whether the location bar is in the second row of the toolbar.
+     */
+    bool isLocationBarWrapped() const;
+
+    /**
+     * @return The width the location bar gets at least next to the buttons; with less, it moves
+     *         into the second row.
+     */
+    static int minimumLocationBarWidth();
+
 protected:
     void showEvent(QShowEvent *event) override;
+    void resizeEvent(QResizeEvent *event) override;
     void actionEvent(QActionEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -61,9 +78,21 @@ protected:
 private:
     void rebuild();
 
+    /// Whether the location bar would get less than minimumLocationBarWidth() next to the buttons.
+    bool needsWrap() const;
+    /// Wraps the location bar of all toolbars of this tab if one of them needs it, after the
+    /// current event, or (@p settle) when the width has not changed for a moment.
+    void scheduleWrapUpdate(bool settle = false);
+    void updateWrapOfTab();
+    void setLocationBarWrapped(bool wrapped);
+    void layOutWrappedLocationBar();
+
     QPointer<DolphinViewContainer> m_container;
     WhaleViewCommandScope *m_scope = nullptr;
     WhaleLocationBar *m_locationBar;
+    bool m_hasLocationBar = false; // in the layout
+    bool m_locationBarWrapped = false;
+    QTimer *m_wrapTimer;
 };
 
 #endif

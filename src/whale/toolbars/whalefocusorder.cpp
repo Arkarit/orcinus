@@ -8,6 +8,7 @@
 
 #include "dolphinviewcontainer.h"
 #include "whalefileviewtoolbar.h"
+#include "whalelocationbar.h"
 
 #include <QApplication>
 #include <QHash>
@@ -75,8 +76,16 @@ QList<QWidget *> tabStops(QWidget *window)
             continue;
         }
         QList<QWidget *> toolBar = toolBarStops.value(container);
+        auto bar = container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly);
+        // The row of the buttons, then the location bar if it is in the second row.
+        const auto row = [bar](QWidget *widget) {
+            return bar && bar->isLocationBarWrapped() && bar->locationBar()->isAncestorOf(widget) ? 1 : 0;
+        };
         const bool rightToLeft = container->layoutDirection() == Qt::RightToLeft;
-        std::stable_sort(toolBar.begin(), toolBar.end(), [container, rightToLeft](QWidget *a, QWidget *b) {
+        std::stable_sort(toolBar.begin(), toolBar.end(), [container, rightToLeft, &row](QWidget *a, QWidget *b) {
+            if (row(a) != row(b)) {
+                return row(a) < row(b);
+            }
             const int xA = a->mapTo(container, QPoint(rightToLeft ? a->width() : 0, 0)).x();
             const int xB = b->mapTo(container, QPoint(rightToLeft ? b->width() : 0, 0)).x();
             return rightToLeft ? xA > xB : xA < xB;

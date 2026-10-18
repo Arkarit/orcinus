@@ -221,11 +221,12 @@ WhaleLocationBar *locationBarOf(DolphinViewContainer *container)
     return toolBar ? toolBar->locationBar() : nullptr;
 }
 
-/// Placed in its toolbar (a layout entry), whether shown or not.
+/// Placed in its toolbar (a layout entry), whether shown or not, in the row of the buttons or
+/// in the second row.
 bool isPlaced(DolphinViewContainer *container, WhaleLocationBar *locationBar)
 {
     WhaleFileViewToolBar *toolBar = fileViewToolBar(container);
-    return toolBar && toolBar->actions().contains(locationBar->action());
+    return toolBar && (toolBar->actions().contains(locationBar->action()) || toolBar->isLocationBarWrapped());
 }
 
 QJsonObject locationBarSummary(DolphinViewContainer *container)
@@ -238,6 +239,7 @@ QJsonObject locationBarSummary(DolphinViewContainer *container)
         {QStringLiteral("exists"), true},
         {QStringLiteral("connected"), container->urlNavigator() == locationBar->urlNavigator()},
         {QStringLiteral("present"), isPlaced(container, locationBar)},
+        {QStringLiteral("wrapped"), fileViewToolBar(container)->isLocationBarWrapped()},
         {QStringLiteral("widgetKey"), widgetKey(locationBar, QStringLiteral("location-bar"))},
     };
 }
