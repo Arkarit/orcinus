@@ -33,9 +33,11 @@
 #include <QDockWidget>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QSplitter>
 #include <QStandardPaths>
 #include <QTest>
 #include <QToolButton>
+#include <QVariantAnimation>
 
 #include <algorithm>
 
@@ -101,6 +103,9 @@ private Q_SLOTS:
     void testPluginView();
     void testThirdContainer();
     void testFocusOrder();
+    void testWrap();
+    void testWrapSplit();
+    void testWrapFocusOrder();
 
 private:
     DolphinViewContainer *showMainWindow(int width = 1200);
@@ -113,6 +118,8 @@ private:
     QAction *global(const QString &name) const;
     QUrl url(const QString &relative) const;
     void checkTabCycle(bool forward);
+    void setLeftShare(double share);
+    static void checkWrapped(WhaleFileViewToolBar *bar);
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -570,7 +577,7 @@ void WhaleLocationBarTest::testStableWidth()
 {
     // Many buttons after the location bar in a narrow view: the ones that do not fit are in
     // the overflow menu, and which ones those are does not change with the location or the
-    // mode of the location bar.
+    // mode of the location bar. The location bar never is: it moves into the second row (L16).
     writeUserLayout(
         "<Action name=\"go_back\"/><Action name=\"go_forward\"/><Action name=\"whale_location_bar\"/><Action name=\"view_settings\"/>"
         "<Action name=\"go_home\"/><Action name=\"show_filter_bar\"/><Action name=\"show_hidden_files\"/><Action name=\"show_preview\"/>"
@@ -590,7 +597,7 @@ void WhaleLocationBarTest::testStableWidth()
 
     auto settle = []() {
         QCoreApplication::processEvents();
-        QTest::qWait(50);
+        QTest::qWait(200); // also for the decision about the second row
     };
     auto show = [&](const QUrl &location, bool editable) {
         navigator->setUrlEditable(editable);
@@ -600,7 +607,7 @@ void WhaleLocationBarTest::testStableWidth()
     };
     // From a toolbar where all fits down to one where most buttons are in the overflow menu.
     int overflowing = 0;
-    for (int windowWidth = 640; windowWidth >= 360; windowWidth -= 10) {
+    for (int windowWidth = 640; windowWidth >= 260; windowWidth -= 20) {
         m_mainWindow->resize(windowWidth, 700);
         show(m_dir->url(), false);
         const QStringList shortPath = overflowed(bar);
@@ -803,6 +810,193 @@ void WhaleLocationBarTest::checkTabCycle(bool forward)
             return container->view()->isAncestorOf(widget);
         }));
     }
+}
+
+void WhaleLocationBarTest::setLeftShare(double share)
+{
+    auto splitter = qobject_cast<QSplitter *>(m_left->parentWidget());
+    QVERIFY(splitter && splitter->count() == 2);
+    // After the animation of a new split view, which sets the sizes as well (deleted when done).
+    QTRY_VERIFY(!splitter->findChild<QVariantAnimation *>(QString(), Qt::FindDirectChildrenOnly));
+    const QList<int> sizes = splitter->sizes();
+    const int total = sizes.at(0) + sizes.at(1);
+    splitter->setSizes({int(total * share), total - int(total * share)});
+    QCoreApplication::processEvents();
+}
+
+void WhaleLocationBarTest::checkWrapped(WhaleFileViewToolBar *bar)
+{
+    // In the second row: below the buttons, over the whole width, not an item of the row.
+    WhaleLocationBar *location = bar->locationBar();
+    QVERIFY(bar->isLocationBarWrapped());
+    QVERIFY(location->isVisible());
+    QVERIFY(!bar->actions().contains(location->action()));
+    QCOMPARE(location->parentWidget(), bar);
+    QVERIFY(location->geometry().top() >= bar->contentsRect().bottom());
+    QVERIFY(location->geometry().bottom() <= bar->rect().bottom());
+    QVERIFY(location->width() >= bar->width() - 2 * 8);
+    for (QAction *action : bar->actions()) {
+        QWidget *widget = bar->widgetForAction(action);
+        if (widget && widget->isVisible()) {
+            QVERIFY(widget->geometry().bottom() < location->geometry().top());
+        }
+    }
+}
+
+void WhaleLocationBarTest::testWrap()
+{
+    DolphinViewContainer *container = showMainWindow(1200);
+    QVERIFY(container);
+    if (auto places = m_mainWindow->findChild<QDockWidget *>(QStringLiteral("placesDock"))) {
+        places->hide();
+    }
+    WhaleFileViewToolBar *bar = toolBar(container);
+    WhaleLocationBar *location = bar->locationBar();
+    QTRY_VERIFY(location->isVisible());
+    QVERIFY(!bar->isLocationBarWrapped());
+    QVERIFY(bar->actions().contains(location->action()));
+    const int oneRow = bar->height();
+
+    // Narrow: the location bar would get less than 200 px next to the buttons.
+    m_mainWindow->resize(300, 700);
+    QTRY_VERIFY(bar->isLocationBarWrapped());
+    QTRY_VERIFY(bar->height() > oneRow);
+    checkWrapped(bar);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QCOMPARE(container->urlNavigator(), location->urlNavigator());
+    // It works there: navigating, editing.
+    container->setUrl(url(QStringLiteral("sub/deeper")));
+    QTRY_VERIFY(breadcrumb(location->urlNavigator(), QStringLiteral("deeper")));
+    location->urlNavigator()->setUrlEditable(true);
+    QTRY_VERIFY(location->urlNavigator()->editor()->isVisible());
+    location->urlNavigator()->setUrlEditable(false);
+
+    // Built again (Configure Toolbars) while wrapped: still wrapped where the other buttons
+    // leave less than 200 px. With fewer buttons, there is room in the row again.
+    writeUserLayout(
+        "<Action name=\"go_back\"/><Action name=\"go_forward\"/><Action name=\"go_up\"/><Action name=\"go_home\"/>"
+        "<Action name=\"whale_location_bar\"/><Action name=\"view_settings\"/>");
+    QTRY_VERIFY(bar->actions().count() == 5);
+    QTest::qWait(0);
+    QVERIFY(bar->isLocationBarWrapped());
+    checkWrapped(bar);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    writeUserLayout("<Action name=\"go_back\"/><Action name=\"whale_location_bar\"/>");
+    QTRY_VERIFY(!bar->isLocationBarWrapped());
+    QVERIFY(bar->actions().contains(location->action()));
+    QTRY_COMPARE(bar->height(), oneRow);
+    writeUserLayout(
+        "<Action name=\"go_back\"/><Action name=\"go_forward\"/><Action name=\"go_up\"/><Action name=\"go_home\"/>"
+        "<Action name=\"whale_location_bar\"/><Action name=\"view_settings\"/>");
+    QTRY_VERIFY(bar->isLocationBarWrapped());
+    checkWrapped(bar);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+
+    // Hidden and shown again.
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(false);
+    QVERIFY(!location->isVisible());
+    WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
+    QTRY_VERIFY(location->isVisible());
+    QVERIFY(bar->isLocationBarWrapped());
+
+    // Wide again: back into the row, one row high.
+    m_mainWindow->resize(1200, 700);
+    QTRY_VERIFY(!bar->isLocationBarWrapped());
+    QTRY_COMPARE(bar->height(), oneRow);
+    QVERIFY(bar->actions().contains(location->action()));
+    QVERIFY(location->isVisible());
+    QCOMPARE(bar->contentsMargins().bottom(), 0);
+
+    // A layout without the location bar never wraps.
+    writeUserLayout("<Action name=\"go_back\"/><Action name=\"go_up\"/>");
+    m_mainWindow->resize(300, 700);
+    QTest::qWait(50);
+    QVERIFY(!bar->isLocationBarWrapped());
+    QVERIFY(!location->isVisible());
+    QCOMPARE(bar->contentsMargins().bottom(), 0); // one row (lower: only buttons in it)
+}
+
+void WhaleLocationBarTest::testWrapSplit()
+{
+    // One narrow view: the views of the tab wrap together and start at the same height.
+    m_mainWindow->resize(1200, 700);
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    WhaleFileViewToolBar *left = toolBar(m_left);
+    WhaleFileViewToolBar *right = toolBar(m_right);
+    QTRY_VERIFY(!left->isLocationBarWrapped() && !right->isLocationBarWrapped());
+    const int oneRow = left->height();
+    setLeftShare(0.85);
+    QTRY_VERIFY(right->isLocationBarWrapped());
+    QTRY_VERIFY(left->isLocationBarWrapped());
+    QTRY_COMPARE(left->height(), right->height());
+    QVERIFY(left->height() > oneRow);
+    QCOMPARE(m_left->view()->mapTo(m_mainWindow.data(), QPoint()).y(), m_right->view()->mapTo(m_mainWindow.data(), QPoint()).y());
+    checkWrapped(left);
+    checkWrapped(right);
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+
+    setLeftShare(0.5);
+    QTRY_VERIFY(!left->isLocationBarWrapped() && !right->isLocationBarWrapped());
+    QTRY_COMPARE(left->height(), oneRow);
+    QTRY_COMPARE(right->height(), oneRow);
+
+    // Closing the narrow view: the other one decides alone.
+    setLeftShare(0.85);
+    QTRY_VERIFY(left->isLocationBarWrapped());
+    QPointer<DolphinViewContainer> narrow = m_right;
+    m_right->setActive(true);
+    QTRY_VERIFY(m_right->isActive());
+    global(QStringLiteral("split_view"))->trigger(); // closes the active view
+    QTRY_VERIFY(!narrow);
+    QTRY_VERIFY(!left->isLocationBarWrapped());
+    QTRY_COMPARE(left->height(), oneRow);
+}
+
+void WhaleLocationBarTest::testWrapFocusOrder()
+{
+    // Wrapped: Tab goes through the buttons, then the location bar in the second row, then
+    // the file list.
+    DolphinViewContainer *container = showMainWindow(1200);
+    QVERIFY(container);
+    WhaleFileViewToolBar *bar = toolBar(container);
+    m_mainWindow->resize(300, 700);
+    QTRY_VERIFY(bar->isLocationBarWrapped());
+    QTest::qWait(0);
+    container->setActive(true);
+    container->view()->setFocus();
+    QTRY_VERIFY(container->view()->isAncestorOf(QApplication::focusWidget()));
+    QWidget *start = QApplication::focusWidget();
+    QList<QWidget *> cycle;
+    do {
+        cycle.append(QApplication::focusWidget());
+        QTest::keyClick(QApplication::focusWidget(), Qt::Key_Tab);
+        QTest::qWait(0);
+    } while (QApplication::focusWidget() != start && cycle.count() < 200);
+    QCOMPARE(QApplication::focusWidget(), start);
+    // Rotated to the first widget of the toolbar: buttons, location bar, file list.
+    const auto first = std::find_if(cycle.begin(), cycle.end(), [bar](QWidget *widget) {
+        return bar->isAncestorOf(widget);
+    });
+    QVERIFY(first != cycle.end());
+    std::rotate(cycle.begin(), first, cycle.end());
+    int phase = 0; // 0 buttons, 1 location bar, 2 the rest
+    for (QWidget *widget : std::as_const(cycle)) {
+        const int widgetPhase = bar->locationBar()->isAncestorOf(widget) ? 1 : bar->isAncestorOf(widget) ? 0 : 2;
+        QVERIFY2(widgetPhase >= phase, qPrintable(QString::fromLatin1(widget->metaObject()->className())));
+        phase = widgetPhase;
+    }
+    QCOMPARE(phase, 2);
 }
 
 QTEST_MAIN(WhaleLocationBarTest)
