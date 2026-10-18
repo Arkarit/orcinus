@@ -1256,7 +1256,8 @@ Kein Code geändert. Fixes erst nach Absprache.
   steht zusätzlich im Hamburger-Menü (nach „Panels“), im Kontextmenü der Hauptleiste (vor
   „Configure Toolbars…“, über `aboutToShow` des KToolBar-eigenen Menüs, ohne Dolphin-Diff) und,
   nur solange die Leisten ausgeblendet sind, im Kontextmenü des Dateiansicht-Hintergrunds.
-  Die Wayland-Prüfung mit echter Eingabe steht noch aus.
+  Wayland mit echter Eingabe am 2026-10-18 geprüft: alle drei Wege funktionieren, ebenso die
+  Gegenprobe (kein Eintrag im Hintergrundmenü bei sichtbaren Leisten).
 - Entscheidungen:
   - Umbruch statt Überlaufmenü (Revision von L16?);
   - Umgang mit dem Breadcrumb-Fade;
