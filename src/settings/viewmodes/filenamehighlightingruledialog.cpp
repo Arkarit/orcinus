@@ -404,7 +404,10 @@ void FileNameHighlightingRuleDialog::updateWidgets()
 
     const QStringList patterns = parsePatterns(m_patterns->text());
     QString warning;
-    if (isMimeType) {
+    // Explains why OK stays disabled while there are no patterns.
+    if (hasPatterns() && patterns.isEmpty()) {
+        warning = isMimeType ? i18nc("@info", "Enter at least one MIME type.") : i18nc("@info", "Enter at least one pattern. Use * to match every name.");
+    } else if (isMimeType) {
         const QStringList unknown = unknownMimeTypePatterns(patterns);
         if (!unknown.isEmpty()) {
             warning = i18nc("@info %1 is a list of MIME types", "Unknown MIME types: %1", unknown.join(QLatin1String(", ")));

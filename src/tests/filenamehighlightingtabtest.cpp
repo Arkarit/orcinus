@@ -220,11 +220,24 @@ void FileNameHighlightingTabTest::testDialogRequiresMimeTypes()
     FileNameHighlightingRuleDialog dialog(mimeRule);
     QPushButton *ok = dialog.m_buttonBox->button(QDialogButtonBox::Ok);
     QVERIFY(ok->isEnabled());
+    QVERIFY(!dialog.m_patternsWarning->isVisibleTo(&dialog));
 
+    // Without patterns, OK is disabled and the warning line says why.
     dialog.m_patterns->setText(QStringLiteral(" ; "));
     QVERIFY(!ok->isEnabled());
+    QVERIFY(dialog.m_patternsWarning->isVisibleTo(&dialog));
+    QVERIFY(dialog.m_patternsWarning->text().contains(QStringLiteral("MIME type")));
+
+    // For name patterns, the warning also tells how to match every name.
+    dialog.m_condition->setCurrentIndex(dialog.m_condition->findData(static_cast<int>(Condition::NamePattern)));
+    QVERIFY(!ok->isEnabled());
+    QVERIFY(dialog.m_patternsWarning->text().contains(QLatin1Char('*')));
+    dialog.m_patterns->setText(QStringLiteral("*"));
+    QVERIFY(ok->isEnabled());
+    QVERIFY(!dialog.m_patternsWarning->isVisibleTo(&dialog));
 
     // Other conditions have no patterns.
+    dialog.m_patterns->clear();
     dialog.m_condition->setCurrentIndex(dialog.m_condition->findData(static_cast<int>(Condition::Symlink)));
     QVERIFY(ok->isEnabled());
     QVERIFY(dialog.rule().patterns.isEmpty());
