@@ -30,6 +30,7 @@ private Q_SLOTS:
     void testUnsetAttributesStayUnset();
     void testColorKeys();
     void testNamePatternRule();
+    void testAppliesTo();
     void testUnknownEntriesAreSkipped();
     void testSaveRemovesStaleRules();
 
@@ -217,16 +218,46 @@ void FileNameHighlightingSettingsTest::testNamePatternRule()
     QCOMPARE(loaded.rules, settings.rules);
 }
 
+void FileNameHighlightingSettingsTest::testAppliesTo()
+{
+    FileNameHighlightRule folders;
+    folders.condition = Condition::NamePattern;
+    folders.patterns = {QStringLiteral("build*")};
+    folders.appliesTo = FileNameHighlightRule::ItemKind::Folders;
+    folders.style.bold = true;
+
+    FileNameHighlightRule files = folders;
+    files.appliesTo = FileNameHighlightRule::ItemKind::Files;
+    FileNameHighlightRule both = folders;
+    both.appliesTo = FileNameHighlightRule::ItemKind::FilesAndFolders;
+
+    FileNameHighlightingSettings settings;
+    settings.rules = {folders, files, both};
+    settings.save(freshConfig());
+
+    const KConfigGroup group(reopenedConfig(), QStringLiteral("FileNameHighlighting"));
+    QCOMPARE(group.group(QStringLiteral("Rule0")).readEntry("AppliesTo", QString()), QStringLiteral("Folders"));
+    QCOMPARE(group.group(QStringLiteral("Rule1")).readEntry("AppliesTo", QString()), QStringLiteral("Files"));
+    // The default is not written, so rules of older versions keep applying to everything.
+    QVERIFY(!group.group(QStringLiteral("Rule2")).hasKey("AppliesTo"));
+
+    const FileNameHighlightingSettings loaded = FileNameHighlightingSettings::load(reopenedConfig());
+    QCOMPARE(loaded.rules, settings.rules);
+}
+
 void FileNameHighlightingSettingsTest::testUnknownEntriesAreSkipped()
 {
     KSharedConfigPtr config = freshConfig();
     KConfigGroup group(config, QStringLiteral("FileNameHighlighting"));
     group.writeEntry("Enabled", true);
-    group.writeEntry("RuleCount", 4);
+    group.writeEntry("RuleCount", 5);
     group.group(QStringLiteral("Rule0")).writeEntry("Condition", QStringLiteral("Symlink"));
     group.group(QStringLiteral("Rule1")).writeEntry("Condition", QStringLiteral("FromTheFuture"));
     // Rule2 is missing.
     group.group(QStringLiteral("Rule3")).writeEntry("Condition", QStringLiteral("Executable"));
+    KConfigGroup futureKind = group.group(QStringLiteral("Rule4"));
+    futureKind.writeEntry("Condition", QStringLiteral("Symlink"));
+    futureKind.writeEntry("AppliesTo", QStringLiteral("Sockets"));
     config->sync();
 
     const FileNameHighlightingSettings loaded = FileNameHighlightingSettings::load(reopenedConfig());

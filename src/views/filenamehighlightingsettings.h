@@ -40,6 +40,8 @@ struct DOLPHIN_EXPORT FileNameHighlightingSettings {
 
     static QString conditionName(FileNameHighlightRule::Condition condition);
     static std::optional<FileNameHighlightRule::Condition> conditionFromName(const QString &name);
+    static QString itemKindName(FileNameHighlightRule::ItemKind kind);
+    static std::optional<FileNameHighlightRule::ItemKind> itemKindFromName(const QString &name);
     static QString colorRoleName(KColorScheme::ForegroundRole role);
     static std::optional<KColorScheme::ForegroundRole> colorRoleFromName(const QString &name);
 

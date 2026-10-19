@@ -99,9 +99,14 @@ FileNameHighlightingSettings FileNameHighlightingSettings::load(const KSharedCon
             continue;
         }
 
-        // Rules with unknown conditions, e.g. written by a newer version, are skipped.
+        // Rules with unknown conditions or item kinds, e.g. written by a newer version, are skipped.
         const std::optional<FileNameHighlightRule::Condition> condition = conditionFromName(ruleGroup.readEntry("Condition", QString()));
         if (!condition.has_value()) {
+            continue;
+        }
+        const std::optional<FileNameHighlightRule::ItemKind> appliesTo =
+            itemKindFromName(ruleGroup.readEntry("AppliesTo", itemKindName(FileNameHighlightRule::ItemKind::FilesAndFolders)));
+        if (!appliesTo.has_value()) {
             continue;
         }
 
@@ -109,6 +114,7 @@ FileNameHighlightingSettings FileNameHighlightingSettings::load(const KSharedCon
         rule.name = ruleGroup.readEntry("Name", QString());
         rule.enabled = ruleGroup.readEntry("Enabled", true);
         rule.condition = *condition;
+        rule.appliesTo = *appliesTo;
         rule.patterns = ruleGroup.readEntry("Patterns", QStringList());
         rule.caseSensitive = ruleGroup.readEntry("CaseSensitive", false);
 
@@ -150,6 +156,9 @@ void FileNameHighlightingSettings::save(const KSharedConfigPtr &config) const
         ruleGroup.writeEntry("Name", rule.name);
         ruleGroup.writeEntry("Enabled", rule.enabled);
         ruleGroup.writeEntry("Condition", conditionName(rule.condition));
+        if (rule.appliesTo != FileNameHighlightRule::ItemKind::FilesAndFolders) {
+            ruleGroup.writeEntry("AppliesTo", itemKindName(rule.appliesTo));
+        }
         if (!rule.patterns.isEmpty()) {
             ruleGroup.writeEntry("Patterns", rule.patterns);
         }
@@ -197,6 +206,30 @@ std::optional<FileNameHighlightRule::Condition> FileNameHighlightingSettings::co
                                  FileNameHighlightRule::Condition::NamePattern}) {
         if (conditionName(condition) == name) {
             return condition;
+        }
+    }
+    return std::nullopt;
+}
+
+QString FileNameHighlightingSettings::itemKindName(FileNameHighlightRule::ItemKind kind)
+{
+    switch (kind) {
+    case FileNameHighlightRule::ItemKind::FilesAndFolders:
+        return QStringLiteral("FilesAndFolders");
+    case FileNameHighlightRule::ItemKind::Folders:
+        return QStringLiteral("Folders");
+    case FileNameHighlightRule::ItemKind::Files:
+        return QStringLiteral("Files");
+    }
+    return QString();
+}
+
+std::optional<FileNameHighlightRule::ItemKind> FileNameHighlightingSettings::itemKindFromName(const QString &name)
+{
+    for (const auto kind :
+         {FileNameHighlightRule::ItemKind::FilesAndFolders, FileNameHighlightRule::ItemKind::Folders, FileNameHighlightRule::ItemKind::Files}) {
+        if (itemKindName(kind) == name) {
+            return kind;
         }
     }
     return std::nullopt;

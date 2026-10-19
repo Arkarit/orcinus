@@ -85,9 +85,19 @@ struct DOLPHIN_EXPORT FileNameHighlightRule {
         NamePattern,
     };
 
+    /**
+     * The kinds of items a rule applies to. A symbolic link counts as the kind of its target.
+     */
+    enum class ItemKind {
+        FilesAndFolders,
+        Folders,
+        Files,
+    };
+
     QString name;
     bool enabled = true;
     Condition condition = Condition::Executable;
+    ItemKind appliesTo = ItemKind::FilesAndFolders;
     /**
      * MIME types such as "text/plain" or groups such as "image/" followed by "*"
      * for Condition::MimeType, wildcard patterns such as "*.cpp" for Condition::NamePattern.

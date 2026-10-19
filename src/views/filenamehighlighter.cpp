@@ -104,8 +104,8 @@ bool FileNameTextStyle::operator==(const FileNameTextStyle &other) const
 
 bool FileNameHighlightRule::operator==(const FileNameHighlightRule &other) const
 {
-    return name == other.name && enabled == other.enabled && condition == other.condition && patterns == other.patterns && caseSensitive == other.caseSensitive
-        && style == other.style;
+    return name == other.name && enabled == other.enabled && condition == other.condition && appliesTo == other.appliesTo && patterns == other.patterns
+        && caseSensitive == other.caseSensitive && style == other.style;
 }
 
 FileNameHighlighter::FileNameHighlighter(bool enabled,
@@ -324,7 +324,23 @@ QColor FileNameHighlighter::ensureContrast(const QColor &color, const QColor &ba
 
 bool FileNameHighlighter::ruleMatches(int ruleIndex, const KFileItem &item, std::optional<QString> &mimeTypeName) const
 {
-    switch (m_rules.at(ruleIndex).condition) {
+    const FileNameHighlightRule &rule = m_rules.at(ruleIndex);
+    switch (rule.appliesTo) {
+    case FileNameHighlightRule::ItemKind::FilesAndFolders:
+        break;
+    case FileNameHighlightRule::ItemKind::Folders:
+        if (!item.isDir()) {
+            return false;
+        }
+        break;
+    case FileNameHighlightRule::ItemKind::Files:
+        if (item.isDir()) {
+            return false;
+        }
+        break;
+    }
+
+    switch (rule.condition) {
     case FileNameHighlightRule::Condition::Executable:
         return isExecutableFile(item);
     case FileNameHighlightRule::Condition::Symlink:

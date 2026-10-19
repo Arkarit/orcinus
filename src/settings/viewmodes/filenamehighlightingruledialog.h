@@ -76,6 +76,8 @@ private:
 
     QLineEdit *m_name;
     QComboBox *m_condition;
+    QComboBox *m_appliesTo;
+    int m_appliesToChoice = 0; // index chosen before the Executable condition fixed it
     QLabel *m_patternsLabel;
     QWidget *m_patternsWidget;
     QLineEdit *m_patterns;

@@ -62,6 +62,7 @@ private Q_SLOTS:
     void testDialogPrefillsCustomColor();
     void testDialogRequiresMimeTypes();
     void testDialogNamePatterns();
+    void testDialogAppliesToExecutable();
     void testParsePatterns();
     void testUnknownMimeTypePatterns();
     void testDisplayName();
@@ -175,6 +176,17 @@ void FileNameHighlightingTabTest::testDialogRoundTrip_data()
     namePattern.caseSensitive = true;
     namePattern.style.italic = true;
     QTest::newRow("name pattern") << namePattern;
+
+    FileNameHighlightRule folders = rule(QStringLiteral("Build folders"), Condition::NamePattern);
+    folders.patterns = {QStringLiteral("build*")};
+    folders.appliesTo = FileNameHighlightRule::ItemKind::Folders;
+    folders.style.bold = true;
+    QTest::newRow("folders only") << folders;
+
+    FileNameHighlightRule fileLinks = rule(QStringLiteral("File links"), Condition::Symlink);
+    fileLinks.appliesTo = FileNameHighlightRule::ItemKind::Files;
+    fileLinks.style.italic = true;
+    QTest::newRow("files only") << fileLinks;
 }
 
 void FileNameHighlightingTabTest::testDialogRoundTrip()
@@ -238,6 +250,32 @@ void FileNameHighlightingTabTest::testDialogNamePatterns()
     QVERIFY(!dialog.m_caseSensitive->isVisibleTo(&dialog));
     QVERIFY(dialog.m_chooseMimeTypes->isVisibleTo(&dialog));
     QVERIFY(!dialog.rule().caseSensitive);
+}
+
+void FileNameHighlightingTabTest::testDialogAppliesToExecutable()
+{
+    FileNameHighlightRule folders = rule(QStringLiteral("Build folders"), Condition::NamePattern);
+    folders.patterns = {QStringLiteral("build*")};
+    folders.appliesTo = FileNameHighlightRule::ItemKind::Folders;
+
+    FileNameHighlightingRuleDialog dialog(folders);
+    QVERIFY(dialog.m_appliesTo->isEnabled());
+
+    // Executable files are always files: the choice is fixed and not stored.
+    dialog.m_condition->setCurrentIndex(dialog.m_condition->findData(static_cast<int>(Condition::Executable)));
+    QVERIFY(!dialog.m_appliesTo->isEnabled());
+    QCOMPARE(dialog.m_appliesTo->currentData().toInt(), static_cast<int>(FileNameHighlightRule::ItemKind::Files));
+    QCOMPARE(dialog.rule().appliesTo, FileNameHighlightRule::ItemKind::FilesAndFolders);
+
+    // Another condition brings the user's choice back.
+    dialog.m_condition->setCurrentIndex(dialog.m_condition->findData(static_cast<int>(Condition::Symlink)));
+    QVERIFY(dialog.m_appliesTo->isEnabled());
+    QCOMPARE(dialog.rule().appliesTo, FileNameHighlightRule::ItemKind::Folders);
+
+    // An executable rule opens with the fixed choice.
+    const FileNameHighlightingRuleDialog executableDialog(rule(QStringLiteral("Programs"), Condition::Executable));
+    QVERIFY(!executableDialog.m_appliesTo->isEnabled());
+    QCOMPARE(executableDialog.m_appliesTo->currentData().toInt(), static_cast<int>(FileNameHighlightRule::ItemKind::Files));
 }
 
 void FileNameHighlightingTabTest::testParsePatterns()

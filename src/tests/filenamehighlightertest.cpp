@@ -80,6 +80,8 @@ private Q_SLOTS:
     void testNamePattern_data();
     void testNamePattern();
     void testNamePatternMatchesDirectories();
+    void testAppliesTo_data();
+    void testAppliesTo();
     void testCascade();
     void testOffBlocksLowerRules();
     void testDisabledRulesAreSkipped();
@@ -355,6 +357,48 @@ void FileNameHighlighterTest::testNamePatternMatchesDirectories()
     QVERIFY(QDir(m_dir->path()).mkdir(QStringLiteral("build-release")));
     const FileNameHighlighter highlighter(true, {rule(Condition::NamePattern, boldStyle(), {QStringLiteral("build*")})});
     QVERIFY(highlighter.styleFor(itemFor(QStringLiteral("build-release"))).bold.has_value());
+}
+
+void FileNameHighlighterTest::testAppliesTo_data()
+{
+    QTest::addColumn<FileNameHighlightRule::ItemKind>("appliesTo");
+    QTest::addColumn<QStringList>("expected");
+
+    const QStringList folders = {QStringLiteral("build-dir"), QStringLiteral("build-dirlink")};
+    const QStringList files = {QStringLiteral("build.txt"), QStringLiteral("build-filelink"), QStringLiteral("build-broken")};
+    QTest::newRow("files and folders") << FileNameHighlightRule::ItemKind::FilesAndFolders << folders + files;
+    QTest::newRow("folders") << FileNameHighlightRule::ItemKind::Folders << folders;
+    QTest::newRow("files") << FileNameHighlightRule::ItemKind::Files << files;
+}
+
+void FileNameHighlighterTest::testAppliesTo()
+{
+    QFETCH(FileNameHighlightRule::ItemKind, appliesTo);
+    QFETCH(QStringList, expected);
+
+    // A symbolic link counts as the kind of its target; a broken link has none and is a file.
+    QVERIFY(QDir(m_dir->path()).mkdir(QStringLiteral("build-dir")));
+    createFile(QStringLiteral("build.txt"), QFile::ReadOwner | QFile::WriteOwner);
+    QVERIFY(QFile::link(m_dir->filePath(QStringLiteral("build-dir")), m_dir->filePath(QStringLiteral("build-dirlink"))));
+    QVERIFY(QFile::link(m_dir->filePath(QStringLiteral("build.txt")), m_dir->filePath(QStringLiteral("build-filelink"))));
+    QVERIFY(QFile::link(m_dir->filePath(QStringLiteral("missing")), m_dir->filePath(QStringLiteral("build-broken"))));
+
+    FileNameHighlightRule patternRule = rule(Condition::NamePattern, boldStyle(), {QStringLiteral("build*")});
+    patternRule.appliesTo = appliesTo;
+    FileNameHighlightRule linkRule = rule(Condition::Symlink, italicStyle());
+    linkRule.appliesTo = appliesTo;
+    const FileNameHighlighter highlighter(true, {patternRule, linkRule});
+
+    const QStringList links = {QStringLiteral("build-dirlink"), QStringLiteral("build-filelink"), QStringLiteral("build-broken")};
+    for (const QString &name : {QStringLiteral("build-dir"),
+                                QStringLiteral("build.txt"),
+                                QStringLiteral("build-dirlink"),
+                                QStringLiteral("build-filelink"),
+                                QStringLiteral("build-broken")}) {
+        const FileNameTextStyle style = highlighter.styleFor(itemFor(name));
+        QVERIFY2(style.bold.has_value() == expected.contains(name), qPrintable(name));
+        QVERIFY2(style.italic.has_value() == (expected.contains(name) && links.contains(name)), qPrintable(name));
+    }
 }
 
 void FileNameHighlighterTest::testCascade()

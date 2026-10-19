@@ -25,6 +25,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QRegularExpression>
+#include <QSignalBlocker>
 
 #include <algorithm>
 
@@ -123,6 +124,15 @@ FileNameHighlightingRuleDialog::FileNameHighlightingRuleDialog(const FileNameHig
     m_condition->setCurrentIndex(m_condition->findData(static_cast<int>(rule.condition)));
     formLayout->addRow(i18nc("@label:listbox", "Condition:"), m_condition);
 
+    m_appliesTo = new QComboBox(this);
+    m_appliesTo->addItem(i18nc("@item:inlistbox file name highlighting rule applies to", "Files and folders"),
+                         static_cast<int>(FileNameHighlightRule::ItemKind::FilesAndFolders));
+    m_appliesTo->addItem(i18nc("@item:inlistbox file name highlighting rule applies to", "Folders"),
+                         static_cast<int>(FileNameHighlightRule::ItemKind::Folders));
+    m_appliesTo->addItem(i18nc("@item:inlistbox file name highlighting rule applies to", "Files"), static_cast<int>(FileNameHighlightRule::ItemKind::Files));
+    m_appliesTo->setCurrentIndex(m_appliesTo->findData(static_cast<int>(rule.appliesTo)));
+    formLayout->addRow(i18nc("@label:listbox", "Applies to:"), m_appliesTo);
+
     m_patternsWidget = new QWidget(this);
     auto mimeTypesLayout = new QVBoxLayout(m_patternsWidget);
     mimeTypesLayout->setContentsMargins(0, 0, 0, 0);
@@ -214,6 +224,7 @@ FileNameHighlightingRuleDialog::FileNameHighlightingRuleDialog(const FileNameHig
     topLayout->addWidget(m_buttonBox);
 
     connect(m_condition, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
+    connect(m_appliesTo, &QComboBox::currentIndexChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
     connect(m_patterns, &QLineEdit::textChanged, this, &FileNameHighlightingRuleDialog::updateWidgets);
     connect(m_chooseMimeTypes, &QPushButton::clicked, this, &FileNameHighlightingRuleDialog::chooseMimeTypes);
     connect(m_caseSensitive, &QCheckBox::toggled, this, &FileNameHighlightingRuleDialog::updateWidgets);
@@ -242,6 +253,10 @@ FileNameHighlightRule FileNameHighlightingRuleDialog::rule() const
     FileNameHighlightRule rule = m_rule;
     rule.name = m_name->text().trimmed();
     rule.condition = condition();
+    // Executable files are always files; the rule stores no item kind of its own.
+    rule.appliesTo = rule.condition == FileNameHighlightRule::Condition::Executable
+        ? FileNameHighlightRule::ItemKind::FilesAndFolders
+        : static_cast<FileNameHighlightRule::ItemKind>(m_appliesTo->currentData().toInt());
     rule.patterns = hasPatterns() ? parsePatterns(m_patterns->text()) : QStringList();
     rule.caseSensitive = rule.condition == FileNameHighlightRule::Condition::NamePattern && m_caseSensitive->isChecked();
     rule.style = style();
@@ -373,6 +388,19 @@ void FileNameHighlightingRuleDialog::updateWidgets()
                                               : i18nc("@info:placeholder", "e.g. *.cpp; *.h; Makefile"));
     m_chooseMimeTypes->setVisible(isMimeType);
     m_caseSensitive->setVisible(isNamePattern);
+
+    // Executable files are regular files by definition. While that condition is chosen, the
+    // combo box shows this fixed choice; the user's choice returns with another condition.
+    const bool isExecutable = condition() == FileNameHighlightRule::Condition::Executable;
+    if (isExecutable && m_appliesTo->isEnabled()) {
+        m_appliesToChoice = m_appliesTo->currentIndex();
+        const QSignalBlocker blocker(m_appliesTo);
+        m_appliesTo->setCurrentIndex(m_appliesTo->findData(static_cast<int>(FileNameHighlightRule::ItemKind::Files)));
+    } else if (!isExecutable && !m_appliesTo->isEnabled()) {
+        const QSignalBlocker blocker(m_appliesTo);
+        m_appliesTo->setCurrentIndex(m_appliesToChoice);
+    }
+    m_appliesTo->setEnabled(!isExecutable);
 
     const QStringList patterns = parsePatterns(m_patterns->text());
     QString warning;
