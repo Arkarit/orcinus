@@ -169,3 +169,14 @@ Erster Befund, noch nicht analysiert:
   URL-Änderung, also auch bei getippten Pfaden, Orten, Lesezeichen und aufgeklappten Bäumen)?
   Verhalten von „Zurück“/„Nach oben“, Symlink-Ketten, relative und defekte Links, nicht lokale URLs.
   Kandidat für einen Merge Request bei KDE.
+
+**Umgesetzt 2026-10-19** (d95310404 Code, 87a509aa1 Test `whalesymlinktargettest`): Option „Always
+follow symbolic links to their target“ unter Interface → Folders & Tabs (`GeneralSettings::
+FollowSymlinksToTarget`, Standard aus). Aufgelöst wird jede neue lokale Location in
+`DolphinViewContainer::slotUrlNavigatorLocationChanged()` (wie `cd -P`, auch Pfade unterhalb eines
+Links), neue Tabs schon im Konstruktor. Da `KUrlNavigator` keinen Historien-Eintrag ersetzen kann:
+`goBack()` mit blockierten Signalen, dann `setLocationUrl(Ziel)`, verzögert per `QTimer::singleShot(0)`,
+weil `DolphinMainWindow::changeUrl` sonst den Link-Pfad wieder setzt. Ältere Einträge (vor dem
+Einschalten) bleiben beim Zurückgehen unverändert, defekte Links ebenso. Bei aktiver Option blendet
+das Kontextmenü das eigene Plugin „Go to Canonical Path“ (`canonicalpathfileitemaction`, liegt in
+`~/.local/src/dolphin-go-to-canonical-path`) über die `excludeList` von `KFileItemActions` aus.
