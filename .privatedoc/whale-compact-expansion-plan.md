@@ -66,6 +66,10 @@ Gesamtsuite offscreen ohne `dolphinmainwindowtest`: 72/72 grün.
 ## Nachtrag 2026-10-19: keine Baumlinien in Kompakt
 
 Wunsch des Benutzers nach dem ersten Test: In Kompakt nur die Pfeile, keine Striche/T-Stücke.
-`KStandardItemListWidget::drawSiblingsInformation()` zeichnet in Kompakt nur noch den Pfeil
-(`PE_IndicatorBranch` mit `State_Children`/`State_Open`, ohne `State_Item`/`State_Sibling`).
-Details unverändert. Geprüft mit dem Stil `windows` (Breeze offscreen zeichnet keine Linien).
+`KStandardItemListWidget::drawSiblingsInformation()` zeichnet in Kompakt nur noch den Pfeil.
+Details unverändert.
+- Erster Versuch (`PE_IndicatorBranch` nur mit `State_Children`/`State_Open`) ließ bei Breeze
+  kurze Striche über und unter dem Pfeil stehen (Benutzer-Screenshot): Breeze zeichnet die
+  Linienstücke bei jedem Zweig-Primitive. Jetzt `PE_IndicatorArrowRight/Left/Down` mit der
+  Textfarbe; sieht bei Breeze gleich aus wie der Zweigpfeil.
+- Offscreen mit `QT_STYLE_OVERRIDE=breeze` nachgestellt und geprüft, ebenso Fusion.
