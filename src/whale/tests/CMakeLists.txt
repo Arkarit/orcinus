@@ -264,3 +264,9 @@ ecm_add_test(whalelocationbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR
 target_include_directories(whalelocationbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalelocationbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whalelocationbartest whale_treemap)
+
+# Expandable folders in the compact view, expanding a whole branch (CX1, CX2).
+ecm_add_test(whalecompactexpansiontest.cpp ../../tests/testdir.cpp
+    TEST_NAME whalecompactexpansiontest
+    LINK_LIBRARIES dolphinprivate Qt6::Test)
+target_include_directories(whalecompactexpansiontest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
