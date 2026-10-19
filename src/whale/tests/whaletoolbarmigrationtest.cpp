@@ -520,7 +520,7 @@ void WhaleToolbarMigrationTest::testOlderUserFile()
     // KXmlGui has saved the merged document: the user's toolbar and texts are still in it.
     QDomDocument saved;
     QVERIFY(saved.setContent(contentOf(localMainFile())));
-    QCOMPARE(saved.documentElement().attribute(QStringLiteral("version")), QStringLiteral("52"));
+    QCOMPARE(saved.documentElement().attribute(QStringLiteral("version")), QStringLiteral("53"));
     QCOMPARE(savedLayout(localMainFile(), QStringLiteral("mainToolBar")), userToolBar);
     QVERIFY(contentOf(localMainFile()).contains("Upwards"));
     m_mainWindow.reset(new DolphinMainWindow());
