@@ -1398,3 +1398,15 @@ Doppelpfeil `>>` öffnet die rechte View, `<<` (bei offenem Split) schließt sie
   2 Zeilen in `dolphintabpage.cpp`.
 - Tests `testSplitButton`, `testSplitButtonWhenLeftCloses`, `testSplitButtonNarrow`.
 - Ab 2026-10-18 testet der Benutzer Whale global installiert einige Tage im Alltag (LB5 Punkt 10).
+
+### 29.5 Korrektur aus dem Praxistest (2026-10-19)
+
+- Befund: Bei offenem Split stand `<<` am Ende der linken Toolbar, also mitten im Fenster; der
+  Button sprang beim Öffnen des Splits.
+- Jetzt: `>>` am Ende der einzigen View, `<<` am Ende der **rechten** View. Der Button bleibt
+  damit immer am rechten Fensterrand. `WhaleSplitViewButton::update()` wählt
+  `secondaryViewContainer()` bei offenem Split, sonst `primaryViewContainer()`.
+- Schließt der globale Button die linke View, behält die verbleibende (bisher rechte) View den
+  Button, jetzt mit `>>`.
+- Tests angepasst: Button bei Split in der rechten Toolbar, nicht in der linken; rechter Rand des
+  Buttons im Fenster vor und nach dem Öffnen gleich.
