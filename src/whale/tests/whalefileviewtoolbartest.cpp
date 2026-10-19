@@ -1375,8 +1375,9 @@ void WhaleFileViewToolBarTest::testSearchPerView()
 
 void WhaleFileViewToolBarTest::testSplitButton()
 {
-    // The split button: only in the File View Toolbar of the left view, at its end, outside
-    // of the layout. ">>" opens the right view, "<<" closes it.
+    // The split button: only in the File View Toolbar of the rightmost view, at its end,
+    // outside of the layout. ">>" in the only view opens the right view, "<<" in the right
+    // view closes it: the button stays at the same place in the window.
     DolphinViewContainer *container = showMainWindow();
     QVERIFY(container);
     WhaleFileViewToolBar *bar = toolBar(container);
@@ -1397,9 +1398,13 @@ void WhaleFileViewToolBarTest::testSplitButton()
     QVERIFY(button->geometry().right() <= bar->width());
     QVERIFY(button->geometry().right() > bar->width() - 2 * button->width());
 
-    // Opens the right view; the button stays in the left one and points back.
+    // Opens the right view; the button moves into it and points back.
     const int choice = GeneralSettings::closeSplitViewChoice();
     GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::ActiveView);
+    const auto rightEdge = [button, this]() {
+        return button->mapTo(m_mainWindow.data(), QPoint(button->width(), 0)).x();
+    };
+    const int rightEdgeUnsplit = rightEdge();
     QTest::mouseClick(button, Qt::LeftButton);
     QTRY_VERIFY(tabPage()->splitViewEnabled());
     m_left = tabPage()->primaryViewContainer();
@@ -1407,9 +1412,12 @@ void WhaleFileViewToolBarTest::testSplitButton()
     QCOMPARE(m_left, container);
     QTRY_VERIFY(toolBar(m_right)->scope());
     QTRY_COMPARE(button->icon().name(), QStringLiteral("arrow-left-double"));
-    QCOMPARE(button->parentWidget(), toolBar(m_left));
-    QVERIFY(!toolBar(m_right)->trailingWidget());
-    QVERIFY(!toolBar(m_right)->findChild<QToolButton *>(QStringLiteral("whale_split_view_button")));
+    QCOMPARE(button->parentWidget(), toolBar(m_right));
+    QTRY_VERIFY(button->isVisible());
+    QVERIFY(!toolBar(m_left)->trailingWidget());
+    QVERIFY(!toolBar(m_left)->findChild<QToolButton *>(QStringLiteral("whale_split_view_button")));
+    // At the same place in the window as before.
+    QTRY_COMPARE(rightEdge(), rightEdgeUnsplit);
 
     // Closes the right view, also when the settings say "the active view" and the left one is
     // active; the settings stay as they are.
@@ -1443,8 +1451,8 @@ void WhaleFileViewToolBarTest::testSplitButton()
 
 void WhaleFileViewToolBarTest::testSplitButtonWhenLeftCloses()
 {
-    // The window's button closes the left view (settings: the active view): the right one is
-    // the left one now and gets the button.
+    // The window's button closes the left view (settings: the active view): the right one,
+    // which has the button, is the only one now and keeps it.
     const int choice = GeneralSettings::closeSplitViewChoice();
     GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::ActiveView);
     showSplit();
@@ -1454,7 +1462,7 @@ void WhaleFileViewToolBarTest::testSplitButtonWhenLeftCloses()
     }
     QPointer<QToolButton> button = WhaleSplitViewButton::buttonOf(tabPage());
     QVERIFY(button);
-    QTRY_COMPARE(button->parentWidget(), toolBar(m_left));
+    QTRY_COMPARE(button->parentWidget(), toolBar(m_right));
     QPointer<DolphinViewContainer> left = m_left;
     m_left->setActive(true);
     QTRY_VERIFY(m_left->isActive());
