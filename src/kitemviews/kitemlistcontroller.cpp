@@ -258,9 +258,42 @@ bool KItemListController::keyPressEvent(QKeyEvent *event)
         }
     }
 
+    // Whale: +, - and * expand and collapse as in tree views, also in the compact view, where the
+    // arrow keys move between the columns (CX1); * expands the whole branch (CX2). The current
+    // item and the selected ones, as the arrow keys do. During a type-ahead search they are text.
+    const bool treeKey = key == Qt::Key_Plus || key == Qt::Key_Minus || key == Qt::Key_Asterisk;
+    if (treeKey && m_view->supportsItemExpanding() && !(event->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier))
+        && !m_keyboardManager->isSearchAsYouTypeActive()) {
+        QList<int> indexes;
+        for (const int selected : m_selectionManager->selectedItems()) {
+            indexes.append(selected);
+        }
+        if (!indexes.contains(index)) {
+            indexes.append(index);
+        }
+        // From the end: collapsing removes the items below an item only.
+        std::sort(indexes.begin(), indexes.end(), std::greater<int>());
+        bool handled = false;
+        for (const int i : std::as_const(indexes)) {
+            if (!m_model->isExpandable(i)) {
+                continue;
+            }
+            handled = true;
+            if (key == Qt::Key_Asterisk) {
+                m_model->setExpandedRecursively(i, true);
+            } else {
+                m_model->setExpanded(i, key == Qt::Key_Plus);
+            }
+        }
+        if (handled) {
+            return true;
+        }
+    }
+
     // Handle the expanding/collapsing of items
     // expand / collapse all selected directories
-    if (m_view->supportsItemExpanding() && m_model->isExpandable(index) && (key == Qt::Key_Right || key == Qt::Key_Left)) {
+    // Whale: not in the compact view, where the arrow keys move between the columns (CX1)
+    if (m_view->supportsItemExpanding() && !horizontalScrolling && m_model->isExpandable(index) && (key == Qt::Key_Right || key == Qt::Key_Left)) {
         const bool expandOrCollapse = key == Qt::Key_Right ? true : false;
         bool shouldReturn = m_model->setExpanded(index, expandOrCollapse);
 
@@ -337,7 +370,8 @@ bool KItemListController::keyPressEvent(QKeyEvent *event)
 
     case Qt::Key_Left:
         if (index > 0) {
-            const int expandedParentsCount = m_model->expandedParentsCount(index);
+            // Whale: in the compact view, this is the Up key: the previous item, not the parent (CX1)
+            const int expandedParentsCount = horizontalScrolling ? 0 : m_model->expandedParentsCount(index);
             if (expandedParentsCount == 0) {
                 --index;
             } else {
@@ -1928,7 +1962,12 @@ bool KItemListController::onRelease(const QPointF &pos, const Qt::KeyboardModifi
             bool emitItemActivated = true;
             if (m_view->isAboveExpansionToggle(index.value(), pos)) {
                 const bool expanded = m_model->isExpanded(index.value());
-                m_model->setExpanded(index.value(), !expanded);
+                if (modifiers & Qt::AltModifier) {
+                    // Whale: the whole branch (CX2)
+                    m_model->setExpandedRecursively(index.value(), !expanded);
+                } else {
+                    m_model->setExpanded(index.value(), !expanded);
+                }
 
                 Q_EMIT itemExpansionToggleClicked(index.value());
                 emitItemActivated = false;

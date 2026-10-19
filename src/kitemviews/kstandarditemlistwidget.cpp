@@ -249,6 +249,12 @@ void KStandardItemListWidgetInformant::calculateCompactLayoutItemSizeHints(QVect
         if (maxWidth > 0 && width > maxWidth) {
             width = maxWidth;
         }
+        // Whale: expandable folders in the compact view (CX1). The expansion toggle and the
+        // indentation come before the icon, as in the details view.
+        if (view->supportsItemExpanding()) {
+            const int expandedParentsCount = view->model()->data(index).value("expandedParentsCount", 0).toInt();
+            width += (expandedParentsCount + 1) * height;
+        }
 
         logicalHeightHints[index].first = width;
     }
@@ -556,6 +562,11 @@ QRectF KStandardItemListWidget::selectionRectFull() const
         return rect.adjusted(-padding, 0, padding, 0);
     } else {
         if (m_layout == CompactLayout) {
+            if (m_supportsItemExpanding) {
+                // Whale: CX1. Not over the expansion toggle and the indentation.
+                const QRectF content = m_iconRect | m_textRect;
+                return QRectF(content.left(), 0, content.width(), size().height()).adjusted(-padding, 0, padding, 0);
+            }
             return rect().adjusted(-padding, 0, padding, 0);
         }
         return rect();
@@ -1499,10 +1510,18 @@ void KStandardItemListWidget::updateCompactLayoutTextCache()
     const qreal lineSpacing = m_customizedFontMetrics.lineSpacing();
     const qreal textLinesHeight = qMax(visibleRoles().count(), 1) * lineSpacing;
 
+    // Whale: expandable folders in the compact view (CX1). The expansion toggle and the
+    // indentation come before the icon: m_expansionArea is up to date (updateExpansionArea()).
+    qreal indentation = 0;
+    if (m_supportsItemExpanding) {
+        indentation = QApplication::isRightToLeft() ? size().width() - m_expansionArea.left() : m_expansionArea.right();
+        indentation += (widgetHeight - styleOption().iconSize) / 2 - option.padding;
+    }
+
     qreal maximumRequiredTextWidth = 0;
-    const qreal x = QApplication::isRightToLeft() ? option.padding : option.padding * 3 + styleOption().iconSize;
+    const qreal x = QApplication::isRightToLeft() ? option.padding : indentation + option.padding * 3 + styleOption().iconSize;
     qreal y = qRound((widgetHeight - textLinesHeight) / 2);
-    const qreal maxWidth = size().width() - styleOption().iconSize - 4 * option.padding;
+    const qreal maxWidth = size().width() - indentation - styleOption().iconSize - 4 * option.padding;
     for (const QByteArray &role : std::as_const(m_sortedVisibleRoles)) {
         const QString text = escapeString(roleText(role, values));
         TextInfo *textInfo = m_textInfo.value(role);

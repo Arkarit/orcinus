@@ -103,6 +103,9 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
         m_widthBox->addItem(i18nc("@item:inlistbox Maximum width", "Medium"));
         m_widthBox->addItem(i18nc("@item:inlistbox Maximum width", "Large"));
         topLayout->addRow(i18nc("@label:listbox", "Maximum width:"), m_widthBox);
+
+        m_expandableFolders = new QCheckBox(i18nc("@option:check", "Expandable")); // Whale: CX1
+        topLayout->addRow(i18nc("@label:checkbox", "Folders:"), m_expandableFolders);
         break;
     }
     case DetailsMode:
@@ -144,6 +147,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
         break;
     case CompactMode:
         connect(m_widthBox, &QComboBox::currentIndexChanged, this, &ViewSettingsTab::changed);
+        connect(m_expandableFolders, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
         break;
     case DetailsMode:
         connect(m_entireRow, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
@@ -184,6 +188,7 @@ void ViewSettingsTab::applySettings()
         break;
     case CompactMode:
         CompactModeSettings::setMaximumTextWidthIndex(m_widthBox->currentIndex());
+        CompactModeSettings::setExpandableFolders(m_expandableFolders->isChecked());
         CompactModeSettings::self()->save();
         break;
     case DetailsMode:
@@ -246,6 +251,7 @@ void ViewSettingsTab::loadSettings()
         break;
     case CompactMode:
         m_widthBox->setCurrentIndex(CompactModeSettings::maximumTextWidthIndex());
+        m_expandableFolders->setChecked(CompactModeSettings::expandableFolders());
         break;
     case DetailsMode:
         m_entireRow->setChecked(DetailsModeSettings::highlightEntireRow());

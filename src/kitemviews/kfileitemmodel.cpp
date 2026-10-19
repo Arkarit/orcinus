@@ -1085,6 +1085,93 @@ bool KFileItemModel::setExpanded(int index, bool expanded)
     return true;
 }
 
+bool KFileItemModel::setExpandedRecursively(int index, bool expanded)
+{
+    if (!isExpandable(index)) {
+        return false;
+    }
+
+    const KFileItem item = m_itemData.at(index)->item;
+    const QUrl url = item.url();
+    if (expanded) {
+        if (m_recursiveExpansionRoots.isEmpty()) {
+            m_recursiveExpansionStartCount = count();
+        }
+        m_recursiveExpansionRoots.insert(url);
+        if (!setExpanded(index, true)) {
+            // Expanded already: the folders below it that are loaded follow now.
+            continueRecursiveExpansion();
+        }
+        return true;
+    }
+
+    for (auto it = m_recursiveExpansionRoots.begin(); it != m_recursiveExpansionRoots.end();) {
+        if (*it == url || url.isParentOf(*it)) {
+            it = m_recursiveExpansionRoots.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    setExpanded(index, false);
+    // Forget the folders below it: expanding it again shows one level only.
+    const int collapsedIndex = this->index(item);
+    if (collapsedIndex >= 0) {
+        m_itemData.at(collapsedIndex)->values.remove("previouslyExpandedChildren");
+    }
+    return true;
+}
+
+void KFileItemModel::setRecursiveExpansionLimit(int limit)
+{
+    m_recursiveExpansionLimit = limit;
+}
+
+int KFileItemModel::recursiveExpansionLimit() const
+{
+    return m_recursiveExpansionLimit;
+}
+
+void KFileItemModel::continueRecursiveExpansion()
+{
+    // Folders that have been collapsed or removed in the meantime stop.
+    for (auto it = m_recursiveExpansionRoots.begin(); it != m_recursiveExpansionRoots.end();) {
+        const int rootIndex = index(*it);
+        if (rootIndex < 0 || !isExpanded(rootIndex)) {
+            it = m_recursiveExpansionRoots.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (m_recursiveExpansionRoots.isEmpty()) {
+        return;
+    }
+    if (count() - m_recursiveExpansionStartCount > m_recursiveExpansionLimit) {
+        m_recursiveExpansionRoots.clear();
+        Q_EMIT recursiveExpansionLimitReached();
+        return;
+    }
+
+    QList<int> indexes;
+    const int itemCount = count();
+    for (int i = 0; i < itemCount; ++i) {
+        const ItemData *itemData = m_itemData.at(i);
+        // Not into links: a link to a folder above would never end.
+        if (!itemData->parent || itemData->item.isLink() || isExpanded(i) || !isExpandable(i)) {
+            continue;
+        }
+        for (const ItemData *parent = itemData->parent; parent; parent = parent->parent) {
+            if (m_recursiveExpansionRoots.contains(parent->item.url())) {
+                indexes.append(i);
+                break;
+            }
+        }
+    }
+    // From the end, so that the indexes stay valid.
+    for (auto it = indexes.crbegin(); it != indexes.crend(); ++it) {
+        setExpanded(*it, true);
+    }
+}
+
 bool KFileItemModel::isExpanded(int index) const
 {
     if (index >= 0 && index < count()) {
@@ -1563,6 +1650,8 @@ void KFileItemModel::slotCompleted()
     m_maximumUpdateIntervalTimer->stop();
     dispatchPendingItemsToInsert();
 
+    continueRecursiveExpansion(); // Whale: CX2
+
     if (!m_urlsToExpand.isEmpty()) {
         // Try to find a URL that can be expanded.
         // Note that the parent folder must be expanded before any of its subfolders become visible.
@@ -1973,6 +2062,7 @@ void KFileItemModel::slotClear()
     }
 
     m_expandedDirs.clear();
+    m_recursiveExpansionRoots.clear(); // Whale: CX2
 
     // Whale: a directory is (re)loaded; its external items are still to come.
     m_externalItemsPending = m_externalItems;
@@ -2256,6 +2346,7 @@ void KFileItemModel::removeExpandedItems()
 
     removeItems(KItemRangeList::fromSortedContainer(indexesToRemove), DeleteItemData);
     m_expandedDirs.clear();
+    m_recursiveExpansionRoots.clear(); // Whale: CX2
 
     // Also remove all filtered items which have a parent.
     QHash<KFileItem, ItemData *>::iterator it = m_filteredItems.begin();

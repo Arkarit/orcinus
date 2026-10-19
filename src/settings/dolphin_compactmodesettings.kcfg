@@ -27,5 +27,10 @@
             <label>Maximum text width index (0 means unlimited)</label>
             <default>0</default>
         </entry>
+        <!-- Whale: expandable folders in the compact view (CX1) -->
+        <entry name="ExpandableFolders" type="Bool">
+            <label>Expandable folders</label>
+            <default>true</default>
+        </entry>
     </group>
 </kcfg>

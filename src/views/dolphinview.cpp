@@ -7,6 +7,7 @@
 
 #include "dolphinview.h"
 
+#include "dolphin_compactmodesettings.h" // Whale: CX1
 #include "dolphin_detailsmodesettings.h"
 #include "dolphin_generalsettings.h"
 #include "dolphinitemlistview.h"
@@ -235,6 +236,10 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent)
     connect(m_model, &KFileItemModel::itemsRemoved, this, &DolphinView::itemCountChanged);
     connect(m_model, &KFileItemModel::itemsInserted, this, &DolphinView::itemCountChanged);
     connect(m_model, &KFileItemModel::infoMessage, this, &DolphinView::infoMessage);
+    // Whale: CX2
+    connect(m_model, &KFileItemModel::recursiveExpansionLimitReached, this, [this]() {
+        Q_EMIT infoMessage(i18nc("@info", "Stopped expanding the folders: there are more than %1 items.", m_model->recursiveExpansionLimit()));
+    });
     connect(m_model, &KFileItemModel::errorMessage, this, &DolphinView::errorMessage);
     connect(m_model, &KFileItemModel::directoryRedirection, this, &DolphinView::slotDirectoryRedirection);
     connect(m_model, &KFileItemModel::urlIsFileError, this, &DolphinView::urlIsFileError);
@@ -1773,7 +1778,7 @@ bool DolphinView::isTabsForFilesEnabled() const
 
 bool DolphinView::itemsExpandable() const
 {
-    return m_mode == DetailsView;
+    return m_mode == DetailsView || m_mode == CompactView; // Whale: CX1
 }
 
 bool DolphinView::isExpanded(const KFileItem &item) const
@@ -2971,7 +2976,9 @@ void DolphinView::setPreferredSortOrder(const QByteArray &role, Qt::SortOrder or
 
 void DolphinView::expandToUrl(const QUrl &directory)
 {
-    if (viewMode() == Mode::DetailsView && DetailsModeSettings::expandableFolders()) {
+    // Whale: also the compact view (CX1)
+    if ((viewMode() == Mode::DetailsView && DetailsModeSettings::expandableFolders())
+        || (viewMode() == Mode::CompactView && CompactModeSettings::expandableFolders())) {
         m_model->expandParentDirectories(directory);
     }
 }

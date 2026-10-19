@@ -183,6 +183,19 @@ public:
     QSet<QByteArray> roles() const;
 
     bool setExpanded(int index, bool expanded) override;
+
+    /**
+     * Whale: expands the folder \a index and, as they are loaded, all folders below it, except
+     * links to folders (CX2). It stops when it has added more items than
+     * recursiveExpansionLimit() (recursiveExpansionLimitReached()), and when the folder is
+     * collapsed. Collapsing collapses the folders below it too and forgets them: expanding the
+     * folder again shows one level only.
+     */
+    bool setExpandedRecursively(int index, bool expanded) override;
+
+    /// Whale: the number of items a recursive expansion may add, 10000 by default (CX2).
+    void setRecursiveExpansionLimit(int limit);
+    int recursiveExpansionLimit() const;
     bool isExpanded(int index) const override;
     bool isExpandable(int index) const override;
     int expandedParentsCount(int index) const override;
@@ -253,6 +266,12 @@ Q_SIGNALS:
      * loadingCompleted() signal gets emitted).
      */
     void directoryLoadingCompleted();
+
+    /**
+     * Whale: is emitted when a recursive expansion stops because it has added more items than
+     * recursiveExpansionLimit() (CX2).
+     */
+    void recursiveExpansionLimitReached();
 
     /**
      * Is emitted when the model is being refreshed (F5 key press)
@@ -621,6 +640,13 @@ private:
     // URLs that must be expanded. The expanding is initially triggered in setExpanded()
     // and done step after step in slotCompleted().
     QSet<QUrl> m_urlsToExpand;
+
+    // Whale: the folders of setExpandedRecursively(). The folders below them are expanded in
+    // slotCompleted(), as they are loaded (CX2).
+    void continueRecursiveExpansion();
+    QSet<QUrl> m_recursiveExpansionRoots;
+    int m_recursiveExpansionStartCount = 0;
+    int m_recursiveExpansionLimit = 10000;
 
     // Whale: external items, see setExternalItemsEnabled().
     bool m_externalItems = false;

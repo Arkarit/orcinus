@@ -117,6 +117,11 @@ bool KItemModelBase::setExpanded(int index, bool expanded)
     return false;
 }
 
+bool KItemModelBase::setExpandedRecursively(int index, bool expanded)
+{
+    return setExpanded(index, expanded);
+}
+
 bool KItemModelBase::isExpanded(int index) const
 {
     Q_UNUSED(index)

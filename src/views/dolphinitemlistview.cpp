@@ -163,7 +163,8 @@ bool DolphinItemListView::itemLayoutHighlightEntireRow(ItemLayout layout) const
 
 bool DolphinItemListView::itemLayoutSupportsItemExpanding(ItemLayout layout) const
 {
-    return layout == DetailsLayout && DetailsModeSettings::expandableFolders();
+    // Whale: also the compact view (CX1)
+    return (layout == DetailsLayout && DetailsModeSettings::expandableFolders()) || (layout == CompactLayout && CompactModeSettings::expandableFolders());
 }
 
 void DolphinItemListView::onItemLayoutChanged(ItemLayout current, ItemLayout previous)

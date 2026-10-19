@@ -116,6 +116,14 @@ public:
     virtual bool setExpanded(int index, bool expanded);
 
     /**
+     * Whale: expands the item with the index \a index and all items below it, or collapses
+     * them (CX2). Per default the same as setExpanded().
+     *
+     * @return True if the operation has been successful.
+     */
+    virtual bool setExpandedRecursively(int index, bool expanded);
+
+    /**
      * @return True if the item with the index \a index is expanded.
      *         Per default no expanding of items is implemented. When implementing
      *         this method it is mandatory to overwrite KItemModelBase::isExpandable()
