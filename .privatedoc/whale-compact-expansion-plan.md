@@ -62,3 +62,10 @@ Gesamtsuite offscreen ohne `dolphinmainwindowtest`: 72/72 grün.
 
 - Wayland mit echter Eingabe (Alt+Klick, Tasten), nur nach Freigabe.
 - Übersetzungen der neuen Texte erst im Sammel-Durchlauf vor dem Release.
+
+## Nachtrag 2026-10-19: keine Baumlinien in Kompakt
+
+Wunsch des Benutzers nach dem ersten Test: In Kompakt nur die Pfeile, keine Striche/T-Stücke.
+`KStandardItemListWidget::drawSiblingsInformation()` zeichnet in Kompakt nur noch den Pfeil
+(`PE_IndicatorBranch` mit `State_Children`/`State_Open`, ohne `State_Item`/`State_Sibling`).
+Details unverändert. Geprüft mit dem Stil `windows` (Breeze offscreen zeichnet keine Linien).
