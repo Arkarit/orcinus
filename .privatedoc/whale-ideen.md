@@ -180,3 +180,18 @@ weil `DolphinMainWindow::changeUrl` sonst den Link-Pfad wieder setzt. Ältere Ei
 Einschalten) bleiben beim Zurückgehen unverändert, defekte Links ebenso. Bei aktiver Option blendet
 das Kontextmenü das eigene Plugin „Go to Canonical Path“ (`canonicalpathfileitemaction`, liegt in
 `~/.local/src/dolphin-go-to-canonical-path`) über die `excludeList` von `KFileItemActions` aus.
+
+## 10. Highlighting-Regeln nur für Ordner oder nur für Dateien
+
+Wunsch 2026-10-19: Eine Highlighting-Regel soll zusätzlich auf eine Art von Einträgen beschränkt
+werden können: „Files and folders“ (Standard), „Folders“ oder „Files“. Nützlich vor allem für
+Namensmuster (z. B. `build*` nur für Ordner) und Symlinks (Links auf Ordner gegenüber Links auf
+Dateien).
+
+**Umgesetzt 2026-10-19:** `FileNameHighlightRule::ItemKind` / `appliesTo`, geprüft vor der
+Bedingung in `FileNameHighlighter::ruleMatches()` über `KFileItem::isDir()` (ein Symlink zählt als
+die Art seines Ziels, ein defekter Link als Datei). Config-Schlüssel `AppliesTo=Folders|Files`, nur
+geschrieben, wenn nicht Standard; ein unbekannter Wert überspringt die Regel. Dialog: Zeile
+„Applies to:“ unter „Condition:“; bei „Executable files“ fest auf „Files“ und ausgegraut (die
+Bedingung trifft ohnehin nur reguläre Dateien), die vorherige Wahl kehrt bei anderer Bedingung
+zurück. Die Vorschau bleibt unverändert.
