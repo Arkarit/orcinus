@@ -44,6 +44,7 @@ FoldersTabsSettingsPage::FoldersTabsSettingsPage(QWidget *parent)
     , m_filterBar(nullptr)
     , m_showFullPathInTitlebar(nullptr)
     , m_openExternallyCalledFolderInNewTab(nullptr)
+    , m_followSymlinksToTarget(nullptr)
     , m_closeSplitComboBox(nullptr)
 {
     QFormLayout *topLayout = new QFormLayout(this);
@@ -110,6 +111,11 @@ FoldersTabsSettingsPage::FoldersTabsSettingsPage(QWidget *parent)
     m_openExternallyCalledFolderInNewTab = new QCheckBox(i18nc("@option:check Opening Folders", "Keep a single Whale window, opening new folders in tabs"));
     openingFoldersLabel->setAccessibleName(m_openExternallyCalledFolderInNewTab->text());
     topLayout->addRow(openingFoldersLabel, m_openExternallyCalledFolderInNewTab);
+    m_followSymlinksToTarget = new QCheckBox(i18nc("@option:check Opening Folders", "Always follow symbolic links to their target"));
+    m_followSymlinksToTarget->setToolTip(i18nc("@info:tooltip",
+                                               "A folder opened through a symbolic link is shown at its real location, "
+                                               "so the location bar shows the target path instead of the path of the link."));
+    topLayout->addRow(QString(), m_followSymlinksToTarget);
     // Window
     auto *windowLabel = new QLabel{i18nc("@label:checkbox", "Window:")};
     m_showFullPathInTitlebar = new QCheckBox(i18nc("@option:check Startup Settings", "Show full path in title bar"));
@@ -177,6 +183,7 @@ FoldersTabsSettingsPage::FoldersTabsSettingsPage(QWidget *parent)
     connect(m_filterBar, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
 
     connect(m_openExternallyCalledFolderInNewTab, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
+    connect(m_followSymlinksToTarget, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::changed);
     connect(m_showFullPathInTitlebar, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
 
     connect(m_closeSplitComboBox, qOverload<int>(&QComboBox::currentIndexChanged), this, &FoldersTabsSettingsPage::changed);
@@ -226,6 +233,7 @@ void FoldersTabsSettingsPage::applySettings()
     settings->setSplitView(m_splitView->isChecked());
     settings->setFilterBar(m_filterBar->isChecked());
     settings->setOpenExternallyCalledFolderInNewTab(m_openExternallyCalledFolderInNewTab->isChecked());
+    settings->setFollowSymlinksToTarget(m_followSymlinksToTarget->isChecked());
     settings->setShowFullPathInTitlebar(m_showFullPathInTitlebar->isChecked());
 
     settings->setAlwaysShowTabBar(m_alwaysShowTabBar->isChecked());
@@ -314,6 +322,7 @@ void FoldersTabsSettingsPage::loadSettings()
     m_filterBar->setChecked(GeneralSettings::filterBar());
     m_showFullPathInTitlebar->setChecked(GeneralSettings::showFullPathInTitlebar());
     m_openExternallyCalledFolderInNewTab->setChecked(GeneralSettings::openExternallyCalledFolderInNewTab());
+    m_followSymlinksToTarget->setChecked(GeneralSettings::followSymlinksToTarget());
 
     m_closeSplitComboBox->setCurrentIndex(GeneralSettings::closeSplitViewChoice());
 

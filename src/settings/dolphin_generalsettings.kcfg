@@ -42,6 +42,10 @@
             <label>Should an externally called folder open in a new tab in an existing Whale instance</label>
             <default>false</default>
         </entry>
+        <entry name="FollowSymlinksToTarget" type="Bool">
+            <label>Should opening a symbolic link to a folder show the folder at its target path</label>
+            <default>false</default>
+        </entry>
         <entry name="AlwaysShowTabBar" type="Bool">
             <label>Should the tab bar always be shown, even when there is only one tab</label>
             <default>false</default>

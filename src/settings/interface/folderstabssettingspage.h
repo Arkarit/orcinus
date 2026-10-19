@@ -70,6 +70,7 @@ private:
     QCheckBox *m_filterBar;
     QCheckBox *m_showFullPathInTitlebar;
     QCheckBox *m_openExternallyCalledFolderInNewTab;
+    QCheckBox *m_followSymlinksToTarget;
 
     QComboBox *m_closeSplitComboBox;
 };

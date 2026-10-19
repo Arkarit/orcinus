@@ -557,7 +557,13 @@ void DolphinContextMenu::addAdditionalActions(const KFileItemListProperties &pro
     if (props.isLocal() && props.isDirectory() && ContextMenuSettings::showOpenTerminal()) {
         additionalActions << m_mainWindow->actionCollection()->action(QStringLiteral("open_terminal_here"));
     }
-    m_fileItemActions->addActionsTo(this, KFileItemActions::MenuActionSource::All, additionalActions);
+    // Whale: with symbolic links always followed, every location already is the target, so the
+    // "Go to Canonical Path" plugin has nothing left to do.
+    QStringList excludedActions;
+    if (GeneralSettings::followSymlinksToTarget()) {
+        excludedActions << QStringLiteral("canonicalpathfileitemaction");
+    }
+    m_fileItemActions->addActionsTo(this, KFileItemActions::MenuActionSource::All, additionalActions, excludedActions);
 
     const DolphinView *view = m_mainWindow->activeViewContainer()->view();
     const QList<QAction *> versionControlActions = view->versionControlActions(m_selectedItems);

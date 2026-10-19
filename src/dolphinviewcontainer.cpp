@@ -42,6 +42,7 @@
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDropEvent>
+#include <QFileInfo>
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QRegularExpression>
@@ -70,10 +71,30 @@ struct LayoutStructure {
 };
 constexpr LayoutStructure positionFor;
 
+namespace
+{
+/**
+ * Whale: returns the target path of a local URL that passes through symbolic links, if the user
+ * wants symbolic links to be followed. Otherwise, and for broken links, @p url is returned.
+ */
+QUrl symlinkTargetUrl(const QUrl &url)
+{
+    if (!GeneralSettings::followSymlinksToTarget() || !url.isLocalFile()) {
+        return url;
+    }
+    const QString targetPath = QFileInfo(url.toLocalFile()).canonicalFilePath();
+    if (targetPath.isEmpty()) {
+        return url;
+    }
+    const QUrl targetUrl = QUrl::fromLocalFile(targetPath);
+    return targetUrl.matches(url, QUrl::StripTrailingSlash | QUrl::NormalizePathSegments) ? url : targetUrl;
+}
+}
+
 DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
     : QWidget(parent)
     , m_topLayout(nullptr)
-    , m_urlNavigator{new DolphinUrlNavigator(url)}
+    , m_urlNavigator{new DolphinUrlNavigator(symlinkTargetUrl(url))}
     , m_urlNavigatorConnected{nullptr}
     , m_searchBar(nullptr)
     , m_searchModeEnabled(false)
@@ -119,7 +140,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
     connect(m_filterBar, &FilterBar::focusViewRequest, this, &DolphinViewContainer::requestFocus);
 
     // Initialize the main view
-    m_view = new DolphinView(url, this);
+    m_view = new DolphinView(symlinkTargetUrl(url), this);
     connect(m_view, &DolphinView::urlChanged, m_filterBar, &FilterBar::clearIfUnlocked);
     connect(m_view, &DolphinView::urlChanged, m_messageWidget, &KMessageWidget::hide);
     // m_urlNavigator stays in sync with m_view's location changes and
@@ -962,6 +983,18 @@ void DolphinViewContainer::slotUrlNavigatorLocationChanged(const QUrl &url)
         m_urlNavigatorConnected->slotReturnPressed();
     }
 
+    // Whale: a new location that passes through symbolic links is not loaded but replaced by its
+    // target. Later receivers of the navigator's urlChanged (DolphinMainWindow::changeUrl) still set
+    // the link's URL, so the replacement waits until they are done. An older entry of the history
+    // (reached by going back) is shown as it is: replacing it would drop the newer entries.
+    const QUrl targetUrl = symlinkTargetUrl(url);
+    if (targetUrl != url && m_urlNavigator->historyIndex() == 0) {
+        QTimer::singleShot(0, this, [this, url, targetUrl]() {
+            replaceLocationUrl(url, targetUrl);
+        });
+        return;
+    }
+
     if (KProtocolManager::supportsListing(url)) {
         if (isSearchUrl(url)) {
             setSearchBarVisible(true);
@@ -1000,6 +1033,23 @@ void DolphinViewContainer::slotUrlNavigatorLocationChanged(const QUrl &url)
         }
         m_urlNavigator->goBack();
     }
+}
+
+void DolphinViewContainer::replaceLocationUrl(const QUrl &url, const QUrl &newUrl)
+{
+    if (m_urlNavigator->locationUrl() != url) {
+        return; // The location has changed again in the meantime.
+    }
+    // The navigator cannot replace an entry of its history. Going back to the previous entry and
+    // setting the new URL from there drops the entry of @p url, so going back later never returns
+    // to it.
+    if (m_urlNavigator->historyIndex() == 0 && m_urlNavigator->historySize() > 1) {
+        const bool block = m_urlNavigator->signalsBlocked();
+        m_urlNavigator->blockSignals(true);
+        m_urlNavigator->goBack();
+        m_urlNavigator->blockSignals(block);
+    }
+    m_urlNavigator->setLocationUrl(newUrl);
 }
 
 void DolphinViewContainer::slotUrlSelectionRequested(const QUrl &url)

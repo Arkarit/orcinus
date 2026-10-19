@@ -420,6 +420,12 @@ private Q_SLOTS:
     void slotUrlSelectionRequested(const QUrl &url);
 
     /**
+     * Whale: replaces the newest entry @p url of the URL navigator's history by @p newUrl,
+     * unless the location has changed in the meantime.
+     */
+    void replaceLocationUrl(const QUrl &url, const QUrl &newUrl);
+
+    /**
      * Is invoked when a redirection is done and changes the
      * URL of the URL navigator to \a newUrl without triggering
      * a reloading of the directory.
