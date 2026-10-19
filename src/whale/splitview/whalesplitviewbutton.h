@@ -15,17 +15,18 @@ class DolphinViewContainer;
 class QToolButton;
 
 /**
- * @brief The split button of a tab: at the end of the File View Toolbar of the left view.
+ * @brief The split button of a tab: at the end of the File View Toolbar of the rightmost view.
  *
  * One per DolphinTabPage, created by it. Without a split view, the button (a double arrow
- * pointing into the window) opens the right view, as the window's "split_view" does. With a
- * split view, it points back and closes the right view, whatever the settings say about which
- * view to close (DolphinMainWindow::closeRightSplitView()).
+ * pointing into the window) is in the only view and opens the right view, as the window's
+ * "split_view" does. With a split view, it is in the right view, points back and closes it,
+ * whatever the settings say about which view to close (DolphinMainWindow::closeRightSplitView()).
+ * So it stays at the same place in the window.
  *
  * The button is fixed: not part of the toolbar's layout, so not in Configure Toolbars and
  * never in the overflow menu (WhaleFileViewToolBar::setTrailingWidget()). It belongs to this
- * object, not to the toolbar: when the left view closes (the window's button may close it),
- * the right one becomes the left one and gets the button.
+ * object, not to the toolbar: it moves between the toolbars as the split view opens and
+ * closes, also when the window's button closes the left view.
  *
  * The File View Toolbars do not know about the sides of a split view; this does.
  */
@@ -46,7 +47,7 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    /// Puts the button into the toolbar of the left view and shows the state of the split view.
+    /// Puts the button into the toolbar of the rightmost view and shows the state of the split view.
     void update();
     void scheduleUpdate();
     void toggle();

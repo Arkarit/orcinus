@@ -76,7 +76,9 @@ void WhaleSplitViewButton::update()
     if (!m_page || !m_button) {
         return;
     }
-    DolphinViewContainer *container = m_page->primaryViewContainer();
+    // Always at the right end of the window: ">>" in the only view, "<<" in the right one.
+    const bool split = m_page->splitViewEnabled();
+    DolphinViewContainer *container = split ? m_page->secondaryViewContainer() : m_page->primaryViewContainer();
     auto toolBar = container ? container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly) : nullptr;
     if (container != m_container) {
         if (m_container) {
@@ -87,13 +89,12 @@ void WhaleSplitViewButton::update()
         }
         m_container = container;
         if (container) {
-            // Closing the left view: the right one gets the button.
+            // Closing the view with the button: the remaining one gets it.
             connect(container, &QObject::destroyed, this, &WhaleSplitViewButton::scheduleUpdate);
         }
     }
 
     // Points to where the right view opens or closes; mirrored with a right-to-left layout.
-    const bool split = m_page->splitViewEnabled();
     const bool rightToLeft = m_page->layoutDirection() == Qt::RightToLeft;
     m_button->setIcon(QIcon::fromTheme(split != rightToLeft ? QStringLiteral("arrow-left-double") : QStringLiteral("arrow-right-double")));
     m_button->setToolTip(split ? i18nc("@info View refer here to split view", "Close Right View") : i18nc("@info", "Split view"));
