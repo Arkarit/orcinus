@@ -1181,6 +1181,18 @@ void DolphinMainWindow::popoutSplitView()
     updateSplitActions();
 }
 
+void DolphinMainWindow::moveSplitViewToTabs()
+{
+    DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+    if (!tabPage->splitViewEnabled())
+        return;
+
+    openNewTab(tabPage->activeViewContainer()->url());
+
+    tabPage->setSplitViewEnabled(false, WithAnimation);
+    updateSplitActions();
+}
+
 void DolphinMainWindow::toggleSplitStash()
 {
     DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
@@ -2109,6 +2121,13 @@ void DolphinMainWindow::setupActions()
     connect(m_splitViewAction, &QAction::triggered, this, &DolphinMainWindow::toggleSplitView);
     connect(m_splitViewMenuAction, &QAction::triggered, this, &DolphinMainWindow::toggleSplitView);
 
+    QAction *moveToNewTabsSplit = actionCollection()->addAction(QStringLiteral("move_to_tabs_split_view"));
+    moveToNewTabsSplit->setText(i18nc("@action:intoolbar Splits both views into separate tabs", "Split View To Tabs"));
+    moveToNewTabsSplit->setWhatsThis(xi18nc("@info:whatsthis", "If the view has been split, this will move both views to tabs and close split view."));
+    moveToNewTabsSplit->setIcon(QIcon::fromTheme(QStringLiteral("tab-new")));
+    actionCollection()->setDefaultShortcut(moveToNewTabsSplit, Qt::CTRL | Qt::SHIFT | Qt::Key_F3);
+    connect(moveToNewTabsSplit, &QAction::triggered, this, &DolphinMainWindow::moveSplitViewToTabs);
+
     QAction *popoutSplit = actionCollection()->addAction(QStringLiteral("popout_split_view"));
     popoutSplit->setWhatsThis(xi18nc("@info:whatsthis",
                                      "If the view has been split, this will pop the view in focus "
@@ -2486,6 +2505,7 @@ void DolphinMainWindow::setupDockWidgets()
     connect(foldersPanel, &FoldersPanel::folderInNewTab, this, &DolphinMainWindow::openNewTab);
     connect(foldersPanel, &FoldersPanel::folderInNewActiveTab, this, &DolphinMainWindow::openNewTabAndActivate);
     connect(foldersPanel, &FoldersPanel::errorMessage, this, &DolphinMainWindow::showErrorMessage);
+    connect(this, &DolphinMainWindow::settingsChanged, foldersPanel, &FoldersPanel::readSettings);
 
     actionCollection()
         ->action(QStringLiteral("show_folders_panel"))
@@ -2919,6 +2939,7 @@ void DolphinMainWindow::connectViewSignals(DolphinViewContainer *container)
 
 void DolphinMainWindow::updateSplitActions()
 {
+    QAction *moveToTabsAction = actionCollection()->action(QStringLiteral("move_to_tabs_split_view"));
     QAction *popoutSplitAction = actionCollection()->action(QStringLiteral("popout_split_view"));
 
     auto setActionPopupMode = [this](KActionMenu *action, QToolButton::ToolButtonPopupMode popupMode) {
@@ -2987,10 +3008,13 @@ void DolphinMainWindow::updateSplitActions()
         default:
             Q_UNREACHABLE();
         }
+        moveToTabsAction->setEnabled(true);
         popoutSplitAction->setEnabled(true);
+
         if (!m_splitViewAction->menu()) {
             setActionPopupMode(m_splitViewAction, QToolButton::MenuButtonPopup);
             m_splitViewAction->setMenu(new QMenu(this));
+            m_splitViewAction->addAction(moveToTabsAction);
             m_splitViewAction->addAction(popoutSplitAction);
         }
     } else {
@@ -3000,6 +3024,7 @@ void DolphinMainWindow::updateSplitActions()
         m_splitViewAction->setToolTip(i18nc("@info", "Split view"));
         m_splitViewAction->setIcon(QIcon::fromTheme(QStringLiteral("view-split-left-right")));
         popoutSplitAction->setText(i18nc("@action:intoolbar Move view in focus to a new window", "Pop out"));
+        moveToTabsAction->setEnabled(false);
         popoutSplitAction->setEnabled(false);
         if (m_splitViewAction->menu()) {
             m_splitViewAction->removeAction(popoutSplitAction);
@@ -3356,9 +3381,11 @@ void DolphinMainWindow::slotDoubleClickViewBackground(Qt::MouseButton button)
 
     if (clickAction == customCommand) {
         // run custom command set by the user
-        QString path = view->url().toLocalFile();
         QString clickCustomAction = settings->doubleClickViewCustomAction();
-        clickCustomAction.replace("{path}", path.prepend('"').append('"'));
+        // {path} becomes one quoted shell word, also when the command already has it in quotes.
+        clickCustomAction.replace(QLatin1String("\"{path}\""), QLatin1String("{path}"));
+        clickCustomAction.replace(QLatin1String("'{path}'"), QLatin1String("{path}"));
+        clickCustomAction.replace(QLatin1String("{path}"), KShell::quoteArg(view->url().toLocalFile()));
 
         m_job = new KIO::CommandLauncherJob(clickCustomAction);
         m_job->setUiDelegate(new KDialogJobUiDelegate(KJobUiDelegate::AutoHandlingEnabled, this));
