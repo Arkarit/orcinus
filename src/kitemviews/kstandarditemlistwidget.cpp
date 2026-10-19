@@ -1754,6 +1754,21 @@ void KStandardItemListWidget::drawSiblingsInformation(QPainter *painter)
     const int x = (m_expansionArea.left() + m_expansionArea.right() - siblingSize) / 2;
     QRect siblingRect(x, 0, siblingSize, siblingSize);
 
+    if (m_layout == CompactLayout) {
+        // Whale: the compact view shows the expansion toggle only, without the lines of the
+        // tree, which make little sense in its columns (CX1).
+        if (m_isExpandable) {
+            QStyleOption option;
+            option.rect = siblingRect;
+            option.state = QStyle::State_Children;
+            if (data().value("isExpanded").toBool()) {
+                option.state |= QStyle::State_Open;
+            }
+            style()->drawPrimitive(QStyle::PE_IndicatorBranch, &option, painter);
+        }
+        return;
+    }
+
     bool isItemSibling = true;
 
     const QBitArray siblings = siblingsInformation();
