@@ -186,7 +186,7 @@ def run(args, work):
 
         # G: split view; each action works on the active half only
         client.tool("set_split_view", enabled=True)
-        s.expect("G: split", {"paneCount": 2, "activePane": 1, "panes.1.loading": False})
+        s.expect("G: split", {"splitAnimating": False, "paneCount": 2, "activePane": 1, "panes.1.loading": False})
         client.tool("set_location", pane=1, url=url("other"))
         s.expect("G: right in other", {"panes.1.url": url("other"), "panes.1.loading": False})
         s.expect("G: right is the file list: its own rules", {

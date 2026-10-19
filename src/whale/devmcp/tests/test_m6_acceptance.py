@@ -121,7 +121,7 @@ def run(args, work):
 
         # C: split view, two independent view areas
         client.tool("set_split_view", enabled=True)
-        s.expect("C: split", {"paneCount": 2, "activePane": 1, "panes.1.loading": False})
+        s.expect("C: split", {"splitAnimating": False, "paneCount": 2, "activePane": 1, "panes.1.loading": False})
         client.tool("set_location", pane=1, url=url_b)
         s.expect("C: right in b", {"panes.1.url": url_b, "panes.1.loading": False})
         client.tool("set_view", pane=1, view="whale_testlist")

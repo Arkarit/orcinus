@@ -240,7 +240,7 @@ def run(args, work):
 
         # F: split view: treemap left, file list right
         client.tool("set_split_view", enabled=True)
-        s.expect("F: split", {"paneCount": 2, "activePane": 1, "panes.1.loading": False})
+        s.expect("F: split", {"splitAnimating": False, "paneCount": 2, "activePane": 1, "panes.1.loading": False})
         client.tool("set_location", pane=1, url=u("Documents"))
         s.expect("F: right: file list in Documents", {"panes.1.url": u("Documents"), "panes.1.viewId": "dolphin",
                                                       "panes.1.loading": False})

@@ -148,7 +148,7 @@ def run(args, work):
                                          "focus.role": "plugin:whale_testlist"})
 
         client.tool("set_split_view", enabled=True)
-        s.expect("split view: test list left, Dolphin right", {
+        s.expect("split view: test list left, Dolphin right", {"splitAnimating": False,
             "paneCount": 2, "activePane": 1, "panes.0.viewId": "whale_testlist", "panes.1.viewId": "dolphin",
             "panes.1.loading": False, "focus.role": "dolphin-item-view", "focus.pane": 1})
 

@@ -98,7 +98,7 @@ def run(args, work):
         s.expect("left: Details with subfolders", {"url": r, "panes.0.contentScope.shown": True, "panes.0.itemCount": 4,
                                                    "panes.0.loading": False})
         client.tool("set_split_view", enabled=True)
-        s.expect("split", {"paneCount": 2})
+        s.expect("split", {"splitAnimating": False, "paneCount": 2})
         client.tool("set_location", pane=1, url=t)
         client.tool("set_split_ratio", left_share=0.5)
         s.expect("right: the target folder, current folder", {"panes.1.url": t, "panes.1.loading": False,

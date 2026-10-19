@@ -84,6 +84,7 @@
 #include <QRegion>
 #include <QSplitter>
 #include <QTimer>
+#include <QVariantAnimation>
 #include <QWheelEvent>
 
 namespace
@@ -672,6 +673,19 @@ QJsonObject WhaleDevAutomation::uiState() const
 
     DolphinViewContainer *active = m_window->activeViewContainer();
     DolphinTabWidget *tabs = tabWidget();
+
+    // Opening and closing the split view animate the width of a view (DolphinTabPage's
+    // expand animation, a direct child of the splitter); until it ends, a view may be 1 px wide.
+    bool splitAnimating = false;
+    if (DolphinTabPage *page = tabs->currentTabPage()) {
+        if (auto splitter = qobject_cast<QSplitter *>(page->primaryViewContainer()->parentWidget())) {
+            const auto animations = splitter->findChildren<QVariantAnimation *>(QString(), Qt::FindDirectChildrenOnly);
+            splitAnimating = std::any_of(animations.cbegin(), animations.cend(), [](const QVariantAnimation *animation) {
+                return animation->state() == QAbstractAnimation::Running;
+            });
+        }
+    }
+
     return {
         {QStringLiteral("schema"), 1},
         {QStringLiteral("pid"), QCoreApplication::applicationPid()},
@@ -684,6 +698,7 @@ QJsonObject WhaleDevAutomation::uiState() const
          }},
         {QStringLiteral("tabs"), QJsonObject{{QStringLiteral("count"), tabs->count()}, {QStringLiteral("current"), tabs->currentIndex()}}},
         {QStringLiteral("splitView"), all.count() > 1},
+        {QStringLiteral("splitAnimating"), splitAnimating},
         {QStringLiteral("paneCount"), all.count()},
         {QStringLiteral("activePane"), paneIndex(active)},
         {QStringLiteral("url"), active ? active->url().toString() : QString()},
@@ -1700,6 +1715,16 @@ QJsonObject WhaleDevAutomation::requestPreview(int paneIndexArg, const QStringLi
     return reply;
 }
 
+namespace
+{
+QString tooSmallToDrop(const QWidget *widget)
+{
+    return QStringLiteral("the target view is too small to drop onto (%1x%2 px; is the split view still opening? wait for splitAnimating false)")
+        .arg(widget->width())
+        .arg(widget->height());
+}
+}
+
 QJsonObject WhaleDevAutomation::deliverDrag(DolphinViewContainer *target, const QUrl &item, const QMimeData *data, Qt::KeyboardModifiers modifiers)
 {
     WhaleViewHost *host = target->viewHost();
@@ -1714,6 +1739,9 @@ QJsonObject WhaleDevAutomation::deliverDrag(DolphinViewContainer *target, const 
         if (item.isEmpty()) {
             // The background below the rows.
             position = QPoint(widget->width() / 2, widget->height() - 5);
+            if (!widget->rect().contains(position)) {
+                return failure(tooSmallToDrop(widget));
+            }
             if (itemView->indexAt(position).isValid()) {
                 return failure(QStringLiteral("the target view shows no background to drop onto"));
             }
@@ -1737,6 +1765,9 @@ QJsonObject WhaleDevAutomation::deliverDrag(DolphinViewContainer *target, const 
         widget = graphicsView->viewport();
         if (item.isEmpty()) {
             position = QPoint(widget->width() - 20, widget->height() - 20);
+            if (!widget->rect().contains(position)) {
+                return failure(tooSmallToDrop(widget));
+            }
             if (itemListView->itemAt(itemListView->mapFromScene(graphicsView->mapToScene(position)))) {
                 return failure(QStringLiteral("the target file list shows no background to drop onto"));
             }

@@ -278,7 +278,7 @@ def run(args, work):
 
         # G: split view: always the active half's selection
         client.tool("set_split_view", enabled=True)
-        s.expect("G: split view", {"splitView": True, "panes.1.loading": False})
+        s.expect("G: split view", {"splitAnimating": False, "splitView": True, "panes.1.loading": False})
         client.tool("set_location", pane=1, url=uri(target))
         s.expect("G: right at target", {"panes.1.url": uri(target), "panes.1.loading": False})
         client.tool("set_selection", pane=1, urls=[uri(target / "existing.txt")])

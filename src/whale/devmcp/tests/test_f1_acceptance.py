@@ -156,7 +156,7 @@ def run(args, work):
         # G: split view
         client.tool("set_split_view", enabled=True)
         s.expect("G: the new right half at the same location: its preference applies", {
-            "paneCount": 2, "activePane": 1, "panes.1.url": r, "panes.1.contentScope.shown": True,
+            "paneCount": 2, "activePane": 1, "splitAnimating": False, "panes.1.url": r, "panes.1.contentScope.shown": True,
             "panes.1.contentScope.origin": "preference"})
         client.tool("set_location", pane=1, url=uri(target))
         s.expect("G: right: the target folder, current folder", {

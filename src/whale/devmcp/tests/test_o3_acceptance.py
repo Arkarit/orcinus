@@ -165,7 +165,7 @@ def run(args, work):
 
         # F: split view; the preferences belong to the locations, not to the sides
         client.tool("set_split_view", enabled=True)
-        s.expect("F: split: the new right side at a shows a's treemap", {
+        s.expect("F: split: the new right side at a shows a's treemap", {"splitAnimating": False,
             "paneCount": 2, "activePane": 1, "panes.1.url": a, "panes.1.viewId": TREEMAP,
             "panes.1.viewOrigin": "preference", "panes.1.treemap.status": "ready"})
         client.tool("set_location", pane=1, url=b)

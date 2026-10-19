@@ -122,7 +122,7 @@ def run(args, work):
 
         # E: split view, two separate selections
         client.tool("set_split_view", enabled=True)
-        s.expect("E: split view", {"paneCount": 2, "activePane": 1, "panes.1.loading": False})
+        s.expect("E: split view", {"splitAnimating": False, "paneCount": 2, "activePane": 1, "panes.1.loading": False})
         client.tool("set_location", pane=1, url=url("other"))
         s.expect("E: right side in another folder", {"panes.1.url": url("other"), "panes.1.loading": False})
         client.tool("set_selection", pane=1, urls=[url("other", "y.txt")], current=url("other", "y.txt"))

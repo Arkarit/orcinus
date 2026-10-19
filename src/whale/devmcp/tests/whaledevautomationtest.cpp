@@ -332,7 +332,12 @@ void WhaleDevAutomationTest::testContentScope()
 void WhaleDevAutomationTest::testSplitPanes()
 {
     m_automation->setSplitView(true);
-    QVERIFY(reaches(expect({{QStringLiteral("paneCount"), 2}, {QStringLiteral("activePane"), 1}, {QStringLiteral("panes.1.loading"), false}})));
+    // The new right view opens animated; until the animation ends, it may be 1 px wide.
+    QVERIFY(m_automation->uiState().value(QStringLiteral("splitAnimating")).toBool());
+    QVERIFY(reaches(expect({{QStringLiteral("paneCount"), 2},
+                            {QStringLiteral("activePane"), 1},
+                            {QStringLiteral("panes.1.loading"), false},
+                            {QStringLiteral("splitAnimating"), false}})));
 
     // Dolphin left, test list right.
     QVERIFY(m_automation->setView(1, QStringLiteral("whale_testlist")).value(QStringLiteral("ok")).toBool());

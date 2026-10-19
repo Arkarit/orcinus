@@ -330,7 +330,7 @@ def run(args, work):
 
         # H: split view: the left treemap's operation leaves the right half alone
         client.tool("set_split_view", enabled=True)
-        s.expect("H: split view", {"splitView": True, "panes.1.loading": False})
+        s.expect("H: split view", {"splitAnimating": False, "splitView": True, "panes.1.loading": False})
         # Dolphin animates opening the split view; real input needs the cells where they stay.
         wait_until("H: the left treemap has its final size", lambda: stable_canvas(client))
         client.tool("set_location", pane=1, url=u("b"))

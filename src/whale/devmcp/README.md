@@ -102,7 +102,8 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
 
 ```json
 {
-  "schema": 1, "pid": 1234, "url": "file:///…", "splitView": true, "paneCount": 2, "activePane": 0,
+  "schema": 1, "pid": 1234, "url": "file:///…", "splitView": true, "splitAnimating": false,
+  "paneCount": 2, "activePane": 0,
   "availableViews": ["dolphin", "whale_hello", "whale_testlist"],
   "panes": [{
     "index": 0, "side": "left", "active": true, "url": "file:///…",
@@ -124,6 +125,9 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
 }
 ```
 
+- `splitAnimating`: opening or closing the split view is still animating the width of a
+  view (a new right view starts 1 px wide). Wait for `false` before anything that depends
+  on the geometry of the views, e.g. `perform_drag_drop` onto a view's background.
 - `items`: the DolphinView's model order; `pluginRows`: what a plugin item view
   shows (null for other views). Lists stop at 200 entries, counts do not.
 - Focus roles: `dolphin-item-view`, `dolphin-rename-editor`, `plugin:<id>`,

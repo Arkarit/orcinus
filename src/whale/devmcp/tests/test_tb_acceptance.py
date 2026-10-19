@@ -165,7 +165,7 @@ def run(args, work):
         # B: split view
         client.tool("set_split_view", enabled=True)
         client.tool("set_location", pane=1, url=b)
-        state = s.expect("B: split, b on the other side", {"paneCount": 2, "panes.1.url": b, "panes.1.loading": False,
+        state = s.expect("B: split, b on the other side", {"splitAnimating": False, "paneCount": 2, "panes.1.url": b, "panes.1.loading": False,
                                                             "panes.1.toolbar.initialized": True})
         tb_a, tb_b = toolbar(state, 0), toolbar(state, 1)
         id_a, id_b = tb_a["instanceId"], tb_b["instanceId"]

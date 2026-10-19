@@ -170,7 +170,7 @@ def run(args, work):
         client.tool("set_location", pane=0, url=url(src))
         s.expect("C: src in the test list", {"panes.0.loading": False, "panes.0.pluginRows": ["sub", "a.txt", "b.txt", "c.txt"]})
         client.tool("set_split_view", enabled=True)
-        s.expect("C: split", {"paneCount": 2, "panes.1.loading": False})
+        s.expect("C: split", {"splitAnimating": False, "paneCount": 2, "panes.1.loading": False})
         client.tool("set_location", pane=1, url=url(dst))
         s.expect("C: dst in the file list on the right", {"panes.1.loading": False, "panes.1.viewId": "dolphin",
                                                         "panes.1.items": ["existing.txt"]})
