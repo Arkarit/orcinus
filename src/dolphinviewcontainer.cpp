@@ -21,6 +21,7 @@
 #include "search/bar.h"
 #include "selectionmode/topbar.h"
 #include "statusbar/dolphinstatusbar.h"
+#include "whalefileviewtoolbar.h" // Whale: multi-toolbar TB2
 #include "whaleviewhost.h"
 
 #include <KActionCollection>
@@ -57,14 +58,15 @@ bool isSearchUrl(const QUrl &url)
 
 // An overview of the widgets contained by this ViewContainer
 struct LayoutStructure {
-    int searchBar = 0;
-    int adminBar = 1;
-    int messageWidget = 2;
-    int selectionModeTopBar = 3;
-    int view = 4;
-    int selectionModeBottomBar = 5;
-    int filterBar = 6;
-    int statusBar = 7;
+    int whaleFileViewToolBar = 0; // Whale: the toolbar of this view, see WhaleFileViewToolBar
+    int searchBar = 1;
+    int adminBar = 2;
+    int messageWidget = 3;
+    int selectionModeTopBar = 4;
+    int view = 5;
+    int selectionModeBottomBar = 6;
+    int filterBar = 7;
+    int statusBar = 8;
 };
 constexpr LayoutStructure positionFor;
 
@@ -185,6 +187,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
         showMessage(message, KMessageWidget::Information); // Whale: e.g. why a drop was refused (F1)
     });
     m_topLayout->addWidget(m_viewHost, positionFor.view, 0);
+    m_topLayout->addWidget(new WhaleFileViewToolBar(this), positionFor.whaleFileViewToolBar, 0); // Whale: multi-toolbar TB2
     m_topLayout->addWidget(m_filterBar, positionFor.filterBar, 0);
     if (GeneralSettings::showStatusBar() == GeneralSettings::EnumShowStatusBar::FullWidth) {
         m_topLayout->addWidget(m_statusBar, positionFor.statusBar, 0);

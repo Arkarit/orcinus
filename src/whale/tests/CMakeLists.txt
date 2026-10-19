@@ -68,6 +68,32 @@ target_include_directories(whaleselectiontest PRIVATE ${CMAKE_SOURCE_DIR}/src/te
 target_compile_definitions(whaleselectiontest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whaleselectiontest whale_testlist)
 
+ecm_add_test(whaleviewservicestest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaleviewservicestest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaleviewservicestest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaleviewservicestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whaleviewservicestest whale_treemap)
+
+ecm_add_test(whalefileviewtoolbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalefileviewtoolbartest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalefileviewtoolbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalefileviewtoolbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalefileviewtoolbartest whale_treemap)
+
+ecm_add_test(whaletoolbarconfigtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaletoolbarconfigtest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaletoolbarconfigtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaletoolbarconfigtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+
+ecm_add_test(whaletoolbarmigrationtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaletoolbarmigrationtest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whaletoolbarmigrationtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whaletoolbarmigrationtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+
 ecm_add_test(whaleactionstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleactionstest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
@@ -158,6 +184,30 @@ add_test(
              exit 1; \
          fi"
 )
+# Lint: a view area must not look up an action set of its window; there may be several
+# (the window's, and one per view area). Window-wide things come from WhaleViewServices.
+add_test(
+    NAME whale_view_host_no_action_lookup
+    COMMAND bash -c
+        "result=\$(grep -rnE 'findChild(ren)?<WhaleViewActions' '${CMAKE_CURRENT_SOURCE_DIR}/../host'); \
+         if [ -n \"\$result\" ]; then \
+             echo 'The view host must use WhaleViewServices, not look up WhaleViewActions:'; \
+             echo \"\$result\"; \
+             exit 1; \
+         fi"
+)
+# Lint: the toolbars must not depend on there being two views (a left/right or primary/
+# secondary one); a file view is one instance among any number, also in a dock later.
+add_test(
+    NAME whale_toolbars_no_pane_sides
+    COMMAND bash -c
+        "result=\$(grep -rniwE 'primary[a-z]*|secondary[a-z]*|inactiveViewContainer|left|right' '${CMAKE_CURRENT_SOURCE_DIR}/../toolbars'); \
+         if [ -n \"\$result\" ]; then \
+             echo 'The toolbar code must not refer to the sides of a split view:'; \
+             echo \"\$result\"; \
+             exit 1; \
+         fi"
+)
 # ... and the built plugins must not link Whale's or Dolphin's private libraries.
 add_test(
     NAME whale_view_plugin_dependencies
@@ -207,3 +257,10 @@ target_compile_definitions(whaleviewmenutest PRIVATE
     WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
     WHALE_TEST_DYNAMIC_PLUGIN_DIR="${WHALE_TEST_DYNAMIC_PLUGIN_DIR}")
 add_dependencies(whaleviewmenutest whale_treemap whale_testlist whale_hello whale_test_dynamic)
+
+ecm_add_test(whalelocationbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalelocationbartest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalelocationbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalelocationbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalelocationbartest whale_treemap)

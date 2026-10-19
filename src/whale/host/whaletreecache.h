@@ -73,7 +73,7 @@ private:
 /**
  * @brief The tree scans of a main window, shared by all its views (WhaleTreeScanner).
  *
- * Owned by WhaleViewActions (one per main window, like the view registry); the scanners
+ * Owned by WhaleViewServices (one per main window, like the view registry); the scanners
  * of the views' contexts use it. Scanners without a cache scan on their own.
  *
  * - Key: the cleaned local path and every option that changes the result (maxDepth,

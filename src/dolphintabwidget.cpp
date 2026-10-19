@@ -206,15 +206,9 @@ bool DolphinTabWidget::isItemVisibleInAnyView(const QUrl &urlOfItem) const
 
 void DolphinTabWidget::openNewActivatedTab()
 {
-    std::unique_ptr<DolphinUrlNavigator::VisualState> oldNavigatorState;
-    if (currentTabPage()->primaryViewActive() || !m_navigatorsWidget->secondaryUrlNavigator()) {
-        oldNavigatorState = m_navigatorsWidget->primaryUrlNavigator()->visualState();
-    } else {
-        oldNavigatorState = m_navigatorsWidget->secondaryUrlNavigator()->visualState();
-    }
-
     const DolphinViewContainer *oldActiveViewContainer = currentTabPage()->activeViewContainer();
     Q_ASSERT(oldActiveViewContainer);
+    std::unique_ptr<DolphinUrlNavigator::VisualState> oldNavigatorState = oldActiveViewContainer->urlNavigator()->visualState();
 
     openNewActivatedTab(oldActiveViewContainer->url());
 
@@ -574,18 +568,22 @@ void DolphinTabWidget::currentTabChanged(int index)
         return;
     }
     if (m_lastViewedTab) {
-        m_lastViewedTab->disconnectNavigators();
+        if (m_navigatorsWidget) { // Whale: none (WhaleLocationBar)
+            m_lastViewedTab->disconnectNavigators();
+        }
         m_lastViewedTab->setActive(false);
     }
-    if (tabPage->splitViewEnabled() && !m_navigatorsWidget->secondaryUrlNavigator()) {
+    if (m_navigatorsWidget && tabPage->splitViewEnabled() && !m_navigatorsWidget->secondaryUrlNavigator()) {
         m_navigatorsWidget->createSecondaryUrlNavigator();
     }
     DolphinViewContainer *viewContainer = tabPage->activeViewContainer();
     Q_EMIT activeViewChanged(viewContainer);
     Q_EMIT currentUrlChanged(viewContainer->url());
     tabPage->setActive(true);
-    tabPage->connectNavigators(m_navigatorsWidget);
-    m_navigatorsWidget->setSecondaryNavigatorVisible(tabPage->splitViewEnabled());
+    if (m_navigatorsWidget) {
+        tabPage->connectNavigators(m_navigatorsWidget);
+        m_navigatorsWidget->setSecondaryNavigatorVisible(tabPage->splitViewEnabled());
+    }
     m_lastViewedTab = tabPage;
 }
 

@@ -233,4 +233,19 @@ QString WhaleDevAutomationDBus::AnswerDialog(const QString &text)
     return toJson(m_automation->answerDialog(text));
 }
 
+QString WhaleDevAutomationDBus::TriggerToolbarAction(const QString &toolBar, const QString &actionId, const QString &menuEntry)
+{
+    return toJson(m_automation->triggerToolbarAction(toolBar, actionId, menuEntry));
+}
+
+QString WhaleDevAutomationDBus::ConfigureToolbars(const QString &request)
+{
+    return toJson(m_automation->configureToolbars(QJsonDocument::fromJson(request.toUtf8()).object()));
+}
+
+QString WhaleDevAutomationDBus::LocationBarInput(const QString &toolBar, const QString &text, bool submit)
+{
+    return toJson(m_automation->locationBarInput(toolBar, text, submit));
+}
+
 #include "moc_whaledevautomationdbus.cpp"

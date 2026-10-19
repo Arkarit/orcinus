@@ -80,6 +80,7 @@ target_sources(whaleviewhost PRIVATE
     host/whaleviewhost.cpp
     host/whaleviewpreferences.cpp
     host/whaleviewregistry.cpp
+    host/whaleviewservices.cpp
     host/whaleviewstate.cpp
 )
 
@@ -105,6 +106,27 @@ target_link_libraries(whaleviewhost PUBLIC
     KF6::WidgetsAddons
     KF6::XmlGui
 )
+
+########### File View Toolbar, part of the application ###############
+
+# Built into dolphinstatic: the toolbar belongs to DolphinViewContainer, which lives there.
+# See .privatedoc/whale-multi-toolbar-plan.md.
+target_sources(dolphinstatic PRIVATE
+    toolbars/whalecontainercommands.cpp
+    toolbars/whalefileviewtoolbar.cpp
+    toolbars/whalefileviewtoolbarclient.cpp
+    toolbars/whalefocusorder.cpp
+    toolbars/whalelocationbar.cpp
+    toolbars/whaletoolbarconfigurator.cpp
+    toolbars/whaletoolbarlayout.cpp
+    toolbars/whaletoolbarmanager.cpp
+    toolbars/whaletoolbarmigration.cpp
+    toolbars/whaletoolbarsettings.cpp
+    toolbars/whaleviewcommandscope.cpp
+    toolbars/whaletoolbars.qrc
+    splitview/whalesplitviewbutton.cpp
+)
+target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars ${CMAKE_CURRENT_SOURCE_DIR}/splitview)
 
 ########### plugins ###############
 

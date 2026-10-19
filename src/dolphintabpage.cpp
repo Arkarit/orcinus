@@ -9,6 +9,7 @@
 
 #include "dolphin_generalsettings.h"
 #include "dolphinviewcontainer.h"
+#include "whalesplitviewbutton.h" // Whale
 
 #include <QFrame>
 #include <QGridLayout>
@@ -48,6 +49,7 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
 
     m_splitter->addWidget(m_primaryViewContainer);
     m_primaryViewContainer->show();
+    new WhaleSplitViewButton(this); // Whale: the split button of the File View Toolbar
 
     if (secondaryUrl.isValid() || GeneralSettings::splitView()) {
         // Provide a secondary view, if the given secondary url is valid or if the
@@ -101,15 +103,17 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
         const QUrl &url = (secondaryUrl.isEmpty()) ? m_primaryViewContainer->url() : secondaryUrl;
         m_secondaryViewContainer = createViewContainer(url);
 
-        auto secondaryNavigator = m_navigatorsWidget->secondaryUrlNavigator();
-        if (!secondaryNavigator) {
-            m_navigatorsWidget->createSecondaryUrlNavigator();
-            secondaryNavigator = m_navigatorsWidget->secondaryUrlNavigator();
+        if (m_navigatorsWidget) { // Whale: none, every view has its own (WhaleLocationBar)
+            auto secondaryNavigator = m_navigatorsWidget->secondaryUrlNavigator();
+            if (!secondaryNavigator) {
+                m_navigatorsWidget->createSecondaryUrlNavigator();
+                secondaryNavigator = m_navigatorsWidget->secondaryUrlNavigator();
+            }
+            m_secondaryViewContainer->connectUrlNavigator(secondaryNavigator);
+            m_navigatorsWidget->setSecondaryNavigatorVisible(true);
+            m_navigatorsWidget->followViewContainersGeometry(m_primaryViewContainer, m_secondaryViewContainer);
         }
-        m_secondaryViewContainer->connectUrlNavigator(secondaryNavigator);
         connect(m_secondaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
-        m_navigatorsWidget->setSecondaryNavigatorVisible(true);
-        m_navigatorsWidget->followViewContainersGeometry(m_primaryViewContainer, m_secondaryViewContainer);
 
         m_splitter->addWidget(m_secondaryViewContainer);
         m_secondaryViewContainer->setActive(true);
@@ -124,15 +128,19 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
         }
         m_secondaryViewContainer->show();
     } else {
-        m_navigatorsWidget->setSecondaryNavigatorVisible(false);
-        m_secondaryViewContainer->disconnectUrlNavigator();
+        if (m_navigatorsWidget) {
+            m_navigatorsWidget->setSecondaryNavigatorVisible(false);
+            m_secondaryViewContainer->disconnectUrlNavigator();
+        }
         disconnect(m_secondaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
 
         DolphinViewContainer *view;
 
         auto swapActiveView = [this]() {
-            m_primaryViewContainer->disconnectUrlNavigator();
-            m_secondaryViewContainer->connectUrlNavigator(m_navigatorsWidget->primaryUrlNavigator());
+            if (m_navigatorsWidget) {
+                m_primaryViewContainer->disconnectUrlNavigator();
+                m_secondaryViewContainer->connectUrlNavigator(m_navigatorsWidget->primaryUrlNavigator());
+            }
 
             // If the primary view is active, we have to swap the pointers
             // because the secondary view will be the new primary view.
@@ -160,7 +168,9 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
             Q_UNREACHABLE();
         }
         m_primaryViewContainer->setActive(true);
-        m_navigatorsWidget->followViewContainersGeometry(m_primaryViewContainer, nullptr);
+        if (m_navigatorsWidget) {
+            m_navigatorsWidget->followViewContainersGeometry(m_primaryViewContainer, nullptr);
+        }
 
         if (animated == WithoutAnimation) {
             view->close();

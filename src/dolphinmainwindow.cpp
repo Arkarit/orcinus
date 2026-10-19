@@ -40,6 +40,9 @@
 #include "views/draganddrophelper.h"
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
+#include "whalefocusorder.h"
+#include "whaletoolbarconfigurator.h"
+#include "whaletoolbarmanager.h"
 #include "whaleviewactions.h"
 #include "whaleviewhost.h"
 
@@ -177,9 +180,8 @@ DolphinMainWindow::DolphinMainWindow()
 
     setAcceptDrops(true);
 
-    auto *navigatorsWidgetAction = new DolphinNavigatorsWidgetAction(this);
-    actionCollection()->addAction(QStringLiteral("url_navigators"), navigatorsWidgetAction);
-    m_tabWidget = new DolphinTabWidget(navigatorsWidgetAction, this);
+    // Whale: no global "url_navigators"; every view has a location bar of its own (WhaleLocationBar).
+    m_tabWidget = new DolphinTabWidget(nullptr, this);
     m_tabWidget->setObjectName("tabWidget");
     connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, this, &DolphinMainWindow::activeViewChanged);
     connect(m_tabWidget, &DolphinTabWidget::tabCountChanged, this, &DolphinMainWindow::tabCountChanged);
@@ -228,8 +230,12 @@ DolphinMainWindow::DolphinMainWindow()
     setupFileItemActions();
 
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
+    WhaleToolbarManager::ensure(this)->setupActions(this); // Whale: Show File View Toolbars
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
+    WhaleToolbarConfigurator::install(this, [this]() {
+        saveNewToolbarConfig();
+    }); // Whale: Configure Toolbars with the File View Toolbar
     stateChanged(QStringLiteral("new_file"));
 
     if (QAction *aboutAction = actionCollection()->action(KStandardAction::name(KStandardAction::AboutApp))) {
@@ -647,6 +653,11 @@ void DolphinMainWindow::showEvent(QShowEvent *event)
     }
 }
 
+bool DolphinMainWindow::focusNextPrevChild(bool next)
+{
+    return WhaleFocusOrder::focusNextPrevChild(this, next) || KXmlGuiWindow::focusNextPrevChild(next);
+}
+
 void DolphinMainWindow::closeEvent(QCloseEvent *event)
 {
     // Find out if Dolphin is closed directly by the user or
@@ -799,11 +810,7 @@ void DolphinMainWindow::slotSaveSession()
 
 void DolphinMainWindow::slotClickViewBackground()
 {
-    auto navigators = static_cast<DolphinNavigatorsWidgetAction *>(actionCollection()->action(QStringLiteral("url_navigators")));
-    // clang-format off
-    KUrlNavigator *navigator =
-        m_tabWidget->currentTabPage()->primaryViewActive() ? navigators->primaryUrlNavigator() : navigators->secondaryUrlNavigator();
-    // clang-format on
+    KUrlNavigator *navigator = m_activeViewContainer->urlNavigator();
 
     if (navigator->isUrlEditable() && !GeneralSettings::editableUrl()) {
         navigator->setUrlEditable(false);
@@ -1131,6 +1138,21 @@ void DolphinMainWindow::toggleSplitView()
 
     DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
     tabPage->setSplitViewEnabled(!tabPage->splitViewEnabled(), WithAnimation, newSplitViewUrl);
+    m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
+    updateViewActions();
+}
+
+void DolphinMainWindow::closeRightSplitView()
+{
+    DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+    if (!tabPage->splitViewEnabled()) {
+        return;
+    }
+    // DolphinTabPage closes the view the settings name: the right one for this call only.
+    const int choice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::RightView);
+    tabPage->setSplitViewEnabled(false, WithAnimation);
+    GeneralSettings::self()->setCloseSplitViewChoice(choice);
     m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
     updateViewActions();
 }
@@ -1667,6 +1689,7 @@ void DolphinMainWindow::updateHamburgerMenu()
         }
     }
     menu->addAction(ac->action(QStringLiteral("panels")));
+    menu->addAction(ac->action(QStringLiteral("whale_show_file_view_toolbars"))); // Whale: TB5
 
     // The "Configure" menu is not added to the actionCollection() because there is hardly
     // a good reason for users to put it on their toolbar.
@@ -1717,10 +1740,8 @@ void DolphinMainWindow::activeViewChanged(DolphinViewContainer *viewContainer)
         oldViewContainer->disconnect(this);
         oldViewContainer->view()->disconnect(this);
         oldViewContainer->urlNavigatorInternalWithHistory()->disconnect(this);
-        auto navigators = static_cast<DolphinNavigatorsWidgetAction *>(actionCollection()->action(QStringLiteral("url_navigators")));
-        navigators->primaryUrlNavigator()->disconnect(this);
-        if (auto secondaryUrlNavigator = navigators->secondaryUrlNavigator()) {
-            secondaryUrlNavigator->disconnect(this);
+        if (auto urlNavigator = oldViewContainer->urlNavigator()) {
+            urlNavigator->disconnect(this);
         }
         oldViewContainer->disconnect(m_diskSpaceUsageMenu);
 
@@ -2881,9 +2902,7 @@ void DolphinMainWindow::connectViewSignals(DolphinViewContainer *container)
     connect(container->urlNavigatorInternalWithHistory(), &KUrlNavigator::urlChanged, this, &DolphinMainWindow::changeUrl);
     connect(container->urlNavigatorInternalWithHistory(), &KUrlNavigator::historyChanged, this, &DolphinMainWindow::updateHistory);
 
-    auto navigators = static_cast<DolphinNavigatorsWidgetAction *>(actionCollection()->action(QStringLiteral("url_navigators")));
-    const KUrlNavigator *navigator =
-        m_tabWidget->currentTabPage()->primaryViewActive() ? navigators->primaryUrlNavigator() : navigators->secondaryUrlNavigator();
+    const KUrlNavigator *navigator = container->urlNavigator();
 
     QAction *editableLocactionAction = actionCollection()->action(QStringLiteral("editable_location"));
     editableLocactionAction->setChecked(navigator->isUrlEditable());
@@ -3011,7 +3030,9 @@ void DolphinMainWindow::updateAllowedToolbarAreas()
 void DolphinMainWindow::updateNavigatorsBackground()
 {
     auto navigators = static_cast<DolphinNavigatorsWidgetAction *>(actionCollection()->action(QStringLiteral("url_navigators")));
-    navigators->setBackgroundEnabled(navigators->isInToolbar());
+    if (navigators) { // Whale: none (WhaleLocationBar)
+        navigators->setBackgroundEnabled(navigators->isInToolbar());
+    }
 }
 
 bool DolphinMainWindow::isKompareInstalled() const
@@ -3245,7 +3266,9 @@ void DolphinMainWindow::saveNewToolbarConfig()
     m_whaleViewActions->plugViewModes(this); // Whale: the GUI was rebuilt
     auto navigators = static_cast<DolphinNavigatorsWidgetAction *>(actionCollection()->action(QStringLiteral("url_navigators")));
 
-    m_tabWidget->currentTabPage()->insertNavigatorsWidget(navigators);
+    if (navigators) { // Whale: none (WhaleLocationBar)
+        m_tabWidget->currentTabPage()->insertNavigatorsWidget(navigators);
+    }
 
     updateAllowedToolbarAreas();
     updateNavigatorsBackground();

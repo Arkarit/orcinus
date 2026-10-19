@@ -11,12 +11,12 @@
 #include "views/dolphinview.h"
 #include "whalefileoperationsimpl.h"
 #include "whalerecursivecontent.h"
-#include "whaleviewactions.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewplugin.h"
 #include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
+#include "whaleviewservices.h"
 
 #include <KLocalizedString>
 
@@ -134,8 +134,8 @@ bool WhaleViewHost::showPluginView(const QString &pluginId, WhaleViewPlugin *plu
     // Plugin views see the location's own items, never the file list's recursive content.
     m_recursiveContent->setEnabled(false);
     auto context = std::make_unique<WhaleViewContextImpl>(m_bridge);
-    if (auto actions = window()->findChild<WhaleViewActions *>()) {
-        context->setTreeCache(actions->treeCache());
+    if (WhaleViewServices *services = WhaleViewServices::of(this)) {
+        context->setTreeCache(services->treeCache());
     }
     std::unique_ptr<WhaleView> view(plugin->createView(context.get(), nullptr));
     QWidget *widget = view ? view->widget() : nullptr;
@@ -234,8 +234,8 @@ WhaleViewContextImpl *WhaleViewHost::pluginContext() const
 void WhaleViewHost::notifyWindow()
 {
     // The session records the shown views; a changed one is a reason to save it again.
-    if (auto actions = window()->findChild<WhaleViewActions *>()) {
-        actions->notifyViewChanged();
+    if (WhaleViewServices *services = WhaleViewServices::of(this)) {
+        services->notifyViewChanged();
     }
 }
 
@@ -327,7 +327,8 @@ void WhaleViewHost::applyPreferredView()
 
 WhaleViewRegistry *WhaleViewHost::registry() const
 {
-    return window()->findChild<WhaleViewRegistry *>();
+    WhaleViewServices *services = WhaleViewServices::of(this);
+    return services ? services->registry() : nullptr;
 }
 
 void WhaleViewHost::showEvent(QShowEvent *event)
@@ -621,8 +622,8 @@ void WhaleViewHost::updateRecursiveContent()
         return;
     }
     if (show) {
-        if (auto actions = window()->findChild<WhaleViewActions *>()) {
-            m_recursiveContent->setTreeCache(actions->treeCache());
+        if (WhaleViewServices *services = WhaleViewServices::of(this)) {
+            m_recursiveContent->setTreeCache(services->treeCache());
         }
     }
     m_recursiveContent->setEnabled(show);

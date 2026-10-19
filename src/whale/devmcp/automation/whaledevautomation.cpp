@@ -23,18 +23,25 @@
 #include "views/dolphinview.h"
 #include "whalecommandrouter.h"
 #include "whaledevautomationdbus.h"
+#include "whaledevtoolbars.h"
 #include "whalefileoperations.h"
 #include "whalefileoperationsimpl.h"
+#include "whalefileviewtoolbar.h"
+#include "whalelocationbar.h"
 #include "whalepreviewproviderimpl.h"
 #include "whalerecursivecontent.h"
+#include "whaletoolbardescriptor.h"
+#include "whaletoolbarsettings.h"
 #include "whaletreecache.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
+#include "whaleviewcommandscope.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewhost.h"
 #include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
+#include "whaleviewservices.h"
 
 #include <KActionCollection>
 #include <KCoreDirLister>
@@ -120,6 +127,9 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("rename"), KStandardAction::name(KStandardAction::RenameFile)},
         {QStringLiteral("properties"), QStringLiteral("properties")},
         {QStringLiteral("new_tab"), QStringLiteral("new_tab")},
+        {QStringLiteral("close_tab"), KStandardAction::name(KStandardAction::Close)},
+        // TB5: "Show File View Toolbars" of the View menu.
+        {QStringLiteral("whale_show_file_view_toolbars"), QStringLiteral("whale_show_file_view_toolbars")},
         {QStringLiteral("activate_next_tab"), QStringLiteral("activate_next_tab")},
         {QStringLiteral("activate_prev_tab"), QStringLiteral("activate_prev_tab")},
         {QStringLiteral("show_preview"), QStringLiteral("show_preview")},
@@ -515,6 +525,8 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("selectionMode"), container->isSelectionModeEnabled()},
         {QStringLiteral("focusProxy"), focusProxy},
         {QStringLiteral("hiddenDolphinViewHasFocus"), pluginWidget != nullptr && contains(view, focus)},
+        // TB6: the File View Toolbar of this view.
+        {QStringLiteral("toolbar"), WhaleDevToolbars::fileViewState(container, semanticViewId(host->currentViewId()))},
     };
 }
 
@@ -641,8 +653,8 @@ QJsonObject WhaleDevAutomation::uiState() const
     }
 
     QJsonArray views{dolphinId};
-    if (auto viewActions = m_window->findChild<WhaleViewActions *>()) {
-        const auto plugins = viewActions->registry()->plugins();
+    if (WhaleViewServices *services = WhaleViewServices::of(m_window)) {
+        const auto plugins = services->registry()->plugins();
         for (const KPluginMetaData &metaData : plugins) {
             views.append(metaData.pluginId());
         }
@@ -696,12 +708,20 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("dialogs"), dialogs()},
         {QStringLiteral("treeCache"), treeCacheState()},
         {QStringLiteral("viewMenu"), viewMenuState()},
+        // TB6: the main toolbar, the File View Toolbars of all tabs, Configure Toolbars.
+        {QStringLiteral("toolbars"),
+         QJsonObject{
+             {QStringLiteral("global"), WhaleDevToolbars::globalState(m_window)},
+             {QStringLiteral("fileViewsVisible"), WhaleToolbarSettings::self()->fileViewToolBarsVisible()},
+             {QStringLiteral("instances"), WhaleDevToolbars::instancesState(m_window)},
+         }},
+        {QStringLiteral("toolbarDialog"), WhaleDevToolbars::dialogState(m_window)},
     };
 }
 
 QJsonValue WhaleDevAutomation::viewMenuState() const
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    auto viewActions = windowViewActions();
     if (!viewActions) {
         return QJsonValue::Null;
     }
@@ -750,13 +770,20 @@ QJsonValue WhaleDevAutomation::viewMenuState() const
     };
 }
 
+WhaleViewActions *WhaleDevAutomation::windowViewActions() const
+{
+    // The window's action set (acting on the active view) is a direct child of the window;
+    // action sets bound to one view area live inside their view area.
+    return m_window->findChild<WhaleViewActions *>(QString(), Qt::FindDirectChildrenOnly);
+}
+
 QJsonValue WhaleDevAutomation::treeCacheState() const
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
-    if (!viewActions) {
+    WhaleViewServices *services = WhaleViewServices::of(m_window);
+    if (!services) {
         return QJsonValue::Null;
     }
-    const WhaleTreeCache::Statistics statistics = viewActions->treeCache()->statistics();
+    const WhaleTreeCache::Statistics statistics = services->treeCache()->statistics();
     return QJsonObject{
         {QStringLiteral("hits"), statistics.hits},
         {QStringLiteral("misses"), statistics.misses},
@@ -901,7 +928,7 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId,
         // The user's path: the entry of the view mode, which acts on the active pane. For
         // the file list, the entry of its current mode.
         const QString hostViewId = viewId == dolphinId ? WhaleViewHost::dolphinViewId() : viewId;
-        auto viewActions = m_window->findChild<WhaleViewActions *>();
+        auto viewActions = windowViewActions();
         container->setActive(true);
         QAction *entry = viewActions ? viewActions->viewModeAction(hostViewId) : nullptr;
         if (!entry) {
@@ -920,8 +947,8 @@ QJsonObject WhaleDevAutomation::setView(int paneIndexArg, const QString &viewId,
         host->showDolphinView();
         return ok();
     }
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
-    WhaleViewPlugin *plugin = viewActions ? viewActions->registry()->plugin(viewId) : nullptr;
+    WhaleViewServices *services = WhaleViewServices::of(m_window);
+    WhaleViewPlugin *plugin = services ? services->registry()->plugin(viewId) : nullptr;
     if (!plugin) {
         return failure(QStringLiteral("unknown view \"%1\"").arg(viewId));
     }
@@ -960,11 +987,11 @@ QJsonObject WhaleDevAutomation::setPreferredView(const QString &url, const QStri
 
 QJsonObject WhaleDevAutomation::setViewPluginAvailable(const QString &viewId, bool available)
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
-    if (!viewActions) {
-        return failure(QStringLiteral("no view actions"));
+    WhaleViewServices *services = WhaleViewServices::of(m_window);
+    if (!services) {
+        return failure(QStringLiteral("no view services"));
     }
-    viewActions->registry()->setPluginAvailable(viewId, available);
+    services->registry()->setPluginAvailable(viewId, available);
     return ok();
 }
 
@@ -1160,7 +1187,7 @@ QJsonObject WhaleDevAutomation::activateItems(int paneIndexArg, const QStringLis
 
 QJsonObject WhaleDevAutomation::actionState() const
 {
-    auto viewActions = m_window->findChild<WhaleViewActions *>();
+    auto viewActions = windowViewActions();
     QStringList names = WhaleViewActions::gateableActions();
     names << QStringLiteral("properties");
     QJsonObject state;
@@ -1419,6 +1446,107 @@ QJsonObject WhaleDevAutomation::triggerAction(const QString &actionId)
         return ok();
     }
     return failure(QStringLiteral("unknown or not allowed action \"%1\", allowed: %2").arg(actionId, actionIds().join(QStringLiteral(", "))));
+}
+
+DolphinViewContainer *WhaleDevAutomation::fileView(const QString &argument, QString *error) const
+{
+    bool isIndex = false;
+    const int index = argument.toInt(&isIndex);
+    if (argument == QLatin1String("active") || (isIndex && index < 0)) {
+        return m_window->activeViewContainer();
+    }
+    if (isIndex) {
+        return pane(index, error);
+    }
+    const auto all = WhaleDevToolbars::instances(m_window);
+    for (const WhaleDevToolbars::Instance &instance : all) {
+        if (WhaleDevToolbars::instanceId(instance.container) == argument) {
+            return instance.container;
+        }
+    }
+    *error = QStringLiteral("no file view with the instanceId \"%1\" in this window (closed, or another window?)").arg(argument);
+    return nullptr;
+}
+
+QJsonObject WhaleDevAutomation::locationBarInput(const QString &toolBarArg, const QString &text, bool submit)
+{
+    if (toolBarArg == WhaleToolbarDescriptor::globalId()) {
+        return failure(QStringLiteral("the main toolbar has no location bar; each file view has its own (a pane index or instanceId)"));
+    }
+    QString error;
+    DolphinViewContainer *container = fileView(toolBarArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    return WhaleDevToolbars::locationBarInput(container, text, submit);
+}
+
+QJsonObject WhaleDevAutomation::triggerToolbarAction(const QString &toolBarArg, const QString &actionId, const QString &menuEntry)
+{
+    KToolBar *toolBar = nullptr;
+    WhaleFileViewToolBar *fileViewToolBar = nullptr;
+    if (toolBarArg == WhaleToolbarDescriptor::globalId()) {
+        toolBar = m_window->findChild<KToolBar *>(QStringLiteral("mainToolBar"), Qt::FindDirectChildrenOnly);
+        if (!toolBar) {
+            return failure(QStringLiteral("the window has no main toolbar"));
+        }
+    } else {
+        QString error;
+        DolphinViewContainer *container = fileView(toolBarArg, &error);
+        if (!container) {
+            return failure(error);
+        }
+        fileViewToolBar = container ? container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly) : nullptr;
+        if (!fileViewToolBar) {
+            return failure(QStringLiteral("the view has no File View Toolbar"));
+        }
+        toolBar = fileViewToolBar;
+    }
+
+    // The same IDs as the actions in Whale.
+    const bool known = fileViewToolBar
+        ? WhaleViewCommandScope::allowedActions().contains(actionId) || actionId == WhaleLocationBar::actionName() // a widget: the answer says so
+        : m_window->actionCollection()->action(actionId) != nullptr;
+    if (!known) {
+        return failure(QStringLiteral("unknown action \"%1\" for this toolbar").arg(actionId));
+    }
+    if (WhaleDevToolbars::changesFiles(actionId) && !fileOperationsAllowed()) {
+        return failure(fileOperationsRefusal(actionId));
+    }
+    if (fileViewToolBar && !fileViewToolBar->scope()) {
+        // Never shown: it has no actions yet, and the automation does not create them.
+        return failure(QStringLiteral("the File View Toolbar has not been shown yet (hidden, or a tab never shown)"));
+    }
+    QAction *action = nullptr;
+    const auto actions = toolBar->actions();
+    for (QAction *candidate : actions) {
+        if (candidate->objectName() == actionId) {
+            action = candidate;
+        }
+    }
+    if (!action) {
+        QStringList layout;
+        for (const QAction *candidate : actions) {
+            if (!candidate->objectName().isEmpty()) {
+                layout.append(candidate->objectName());
+            }
+        }
+        return failure(QStringLiteral("\"%1\" is not in this toolbar (it has: %2)").arg(actionId, layout.join(QStringLiteral(", "))));
+    }
+    QString reason;
+    if (fileViewToolBar) {
+        WhaleViewCommandScope *scope = fileViewToolBar->scope();
+        reason = scope->disabledReason(action);
+        if (reason.isEmpty() && scope->viewActions()) {
+            reason = scope->viewActions()->gateReason(actionId);
+        }
+    }
+    return WhaleDevToolbars::click(toolBar, action, menuEntry, reason);
+}
+
+QJsonObject WhaleDevAutomation::configureToolbars(const QJsonObject &request)
+{
+    return WhaleDevToolbars::configure(m_window, request);
 }
 
 QJsonObject WhaleDevAutomation::evaluate(const QJsonObject &conditions) const

@@ -124,3 +124,48 @@ Erster Befund, noch nicht analysiert:
   Thumbnail-Größe)? Schließt KIO das Thumbnail-Verzeichnis selbst schon irgendwo aus?
   Für den Thumbnail-Ordner wäre eine eingebaute Standardregel sinnvoll, unabhängig von
   Nutzereinstellungen; das wäre auch ein Kandidat für einen Merge Request bei KDE (oder bei KIO).
+
+## 8. Alt+Klick auf den Ausklapppfeil klappt die ganze Hierarchie ein oder aus
+
+Ein Klick auf den Ausklapppfeil (Details-Ansicht, Ordner-Panel) mit gedrückter Alt-Taste klappt
+nicht nur den Ordner selbst, sondern die komplette Hierarchie darunter aus bzw. wieder ein.
+
+Erster Befund, noch nicht analysiert:
+- Der Klick auf den Pfeil landet in `KItemListController::onRelease()`
+  (`src/kitemviews/kitemlistcontroller.cpp:1928–1931`, `isAboveExpansionToggle()`), das nur
+  `m_model->setExpanded(index, !expanded)` für diesen einen Eintrag aufruft. Die Modifier werden an
+  dieser Stelle bisher nicht ausgewertet.
+- Rekursives Ausklappen ist asynchron: `KFileItemModel::setExpanded()` stößt nur das Laden des
+  Ordners an, die Unterordner sind erst danach bekannt. Es bräuchte also einen Mechanismus, der
+  nachgeladene Unterordner weiter ausklappt (ähnlich `expandParentDirectories()` bzw.
+  `m_urlsToExpand`).
+- Noch klären: Begrenzung bei sehr tiefen oder großen Bäumen (Abbruch, Tiefenlimit?), Verhalten bei
+  Netzwerk-Ordnern, und ob Alt+Klick mit dem Fenster-Verschieben des Fenstermanagers kollidiert
+  (KWin nutzt dafür standardmäßig Meta, andere Umgebungen teils Alt).
+
+## 9. Modus, der Symlinks auf Ordner stets auflöst
+
+Öffnet man einen Symlink auf einen Ordner, zeigt Whale wie Dolphin den Pfad über den Symlink an
+(`ordner-1/ordner-symlink/…`), nicht den echten Zielpfad. Ein optionaler Modus würde beim Öffnen
+stets zum aufgelösten Ziel navigieren.
+
+Bereits für Dolphin vorgeschlagen (2025-05-23):
+<https://discuss.kde.org/t/dolphin-option-to-follow-symlinked-folders-when-opened/34671>
+- Anlass dort: Der angezeigte Pfad ist verwirrend, Geschwisterordner des Ziels sind nicht
+  erreichbar, und Dolphin soll sich wie das Terminal (`cd -P`) verhalten.
+- Gegenstimmen: Der Symlink-Pfad ist ein gültiger Pfad, automatisches Auflösen würde andere Nutzer
+  überraschen. Deshalb höchstens als Option.
+- Laut `meven` im Thread wäre ein Patch annehmbar, hat für die Maintainer aber niedrige Priorität.
+  Ein Bugreport oder Merge Request ist dort nicht verlinkt.
+- Genannte Behelfe: Kontextmenü „Ziel anzeigen“, „Zu Orte hinzufügen“, `.desktop`-Datei mit
+  `Type=Link`, Bind-Mounts. Der Vorschlagende wünscht sich das Verhalten von „Ziel anzeigen“ im
+  selben Fenster und beim normalen Öffnen.
+
+Erster Befund, noch nicht analysiert:
+- „Ziel anzeigen“ gibt es schon: `DolphinMainWindow::showTarget()` (`src/dolphinmainwindow.cpp:610`)
+  löst `linkDest()` des selektierten Eintrags auf und prüft das Ziel per `KIO::stat`. Die Logik
+  ließe sich vermutlich wiederverwenden.
+- Noch klären: An welcher Stelle auflösen (nur beim Aktivieren eines Symlink-Eintrags oder bei jeder
+  URL-Änderung, also auch bei getippten Pfaden, Orten, Lesezeichen und aufgeklappten Bäumen)?
+  Verhalten von „Zurück“/„Nach oben“, Symlink-Ketten, relative und defekte Links, nicht lokale URLs.
+  Kandidat für einen Merge Request bei KDE.

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE gui SYSTEM "kpartgui.dtd">
+<!-- The File View Toolbar: one layout for the toolbars of all file views. -->
+<gui name="whale_fileview" version="1">
+    <ToolBar noMerge="1" name="whaleFileViewToolBar">
+        <text context="@title:menu">File View Toolbar</text>
+        <Action name="go_back" />
+        <Action name="go_forward" />
+        <Action name="go_up" />
+        <Action name="view_redisplay" />
+        <Action name="whale_location_bar" />
+        <Action name="view_settings" />
+    </ToolBar>
+</gui>
