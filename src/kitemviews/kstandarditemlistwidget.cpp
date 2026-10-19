@@ -1756,15 +1756,20 @@ void KStandardItemListWidget::drawSiblingsInformation(QPainter *painter)
 
     if (m_layout == CompactLayout) {
         // Whale: the compact view shows the expansion toggle only, without the lines of the
-        // tree, which make little sense in its columns (CX1).
+        // tree, which make little sense in its columns (CX1). Styles draw parts of these lines
+        // with every PE_IndicatorBranch (Breeze: above and below the arrow), so this is an arrow.
         if (m_isExpandable) {
             QStyleOption option;
             option.rect = siblingRect;
-            option.state = QStyle::State_Children;
+            option.direction = layoutDirection();
+            option.state = QStyle::State_Enabled;
+            option.palette = palette();
+            option.palette.setColor(QPalette::ButtonText, option.palette.color(QPalette::Text));
+            QStyle::PrimitiveElement arrow = layoutDirection() == Qt::LeftToRight ? QStyle::PE_IndicatorArrowRight : QStyle::PE_IndicatorArrowLeft;
             if (data().value("isExpanded").toBool()) {
-                option.state |= QStyle::State_Open;
+                arrow = QStyle::PE_IndicatorArrowDown;
             }
-            style()->drawPrimitive(QStyle::PE_IndicatorBranch, &option, painter);
+            style()->drawPrimitive(arrow, &option, painter);
         }
         return;
     }
