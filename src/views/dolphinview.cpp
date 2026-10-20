@@ -1001,9 +1001,13 @@ void DolphinView::applyLinkedSelection(bool listingCompleted)
             m_linkedExpansions.insert(url);
             m_model->expandParentDirectories(url);
         }
-        // Not shown when its folder has been listed.
+        // Not shown when its folder has been listed. An expanded folder without children may
+        // still be listed: the model reports the completion of a branch before the last folder
+        // that expandParentDirectories() expanded on its own.
         const int folderIndex = m_model->index(folder);
-        if (!listingCompleted || folderIndex < 0 || !m_model->isExpanded(folderIndex)) {
+        const bool folderShowsChildren = folderIndex >= 0 && folderIndex + 1 < m_model->count()
+            && m_model->expandedParentsCount(folderIndex + 1) > m_model->expandedParentsCount(folderIndex);
+        if (!listingCompleted || folderIndex < 0 || !m_model->isExpanded(folderIndex) || !folderShowsChildren) {
             waiting = true;
         }
         return -1;

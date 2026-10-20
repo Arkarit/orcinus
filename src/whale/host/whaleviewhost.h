@@ -8,6 +8,7 @@
 #define WHALEVIEWHOST_H
 
 #include "whalecontentscope.h"
+#include "whaleselection.h"
 #include "whaleviewstate.h"
 
 #include <QList>
@@ -74,6 +75,19 @@ public:
     WhaleView *currentView() const;
 
     bool isDolphinViewShown() const;
+
+    /**
+     * LK: @return The selection of the shown view, for the other view of a linked split
+     *         view: the selection of the view area, or the view's own (selectedItems())
+     *         of a plugin view that shows more than the listing, which may be deeper.
+     */
+    WhaleSelection linkedSelection() const;
+
+    /**
+     * LK: shows the selection of the other view of a linked split view in the shown view
+     *     (DolphinView::showLinkedSelection(), WhaleView::showLinkedSelection()).
+     */
+    void showLinkedSelection(const WhaleSelection &selection);
 
     /**
      * Shows the DolphinView and destroys the plugin view, if any.

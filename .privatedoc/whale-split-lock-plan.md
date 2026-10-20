@@ -217,3 +217,33 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
   verlinkte View ebenfalls nicht um.
 - Test `testViewModesKept` (beide Einstellungen, beide Richtungen, nach dem Lösen wieder der
   Modus des Ordners); scheitert ohne die Korrektur.
+
+## LK5: umgesetzt (2026-10-20)
+
+- **API 10:** `WhaleViewCapability::LinkedSelection` (`1 << 12`) und
+  `virtual void WhaleView::showLinkedSelection(const WhaleSelection &)`. Die Standard-Umsetzung
+  macht die Elemente des Listings zu Whales Auswahl (`context()->setSelection()`), was einer View
+  reicht, die Whales Auswahl zeigt. Die Auswahl darf tief sein (unterhalb des Listings).
+  `WHALE_VIEW_API_VERSION` 9 → 10. Dateiliste (Adapter) und Kissenansicht deklarieren die
+  Fähigkeit, die Test-Liste nicht (dient im Test als nicht verlinkbare View).
+- **Lockbarkeit:** statt „nur Dateiliste“ jetzt die Fähigkeit der angezeigten View
+  (`currentView()->capabilities()`); `capabilitiesChanged` des Hosts löst eine Prüfung aus.
+- **Host:** `WhaleViewHost::linkedSelection()` (Dateiliste: Auswahl + aktuelles Element; Plugin:
+  `selectedItems()`, also bei der Kissenansicht ihre eigene, ggf. tiefe Auswahl; aktuelles Element
+  ist ein ausgewähltes) und `showLinkedSelection()` (Dateiliste → `DolphinView::showLinkedSelection()`,
+  Plugin → `WhaleView::showLinkedSelection()`). `WhaleSplitLock` spiegelt zusätzlich bei
+  `viewSelectionChanged` des Hosts (eigene Auswahl eines Plugins).
+- **Kissenansicht:** zeigt ein Element: das aktuelle, wenn es ausgewählt ist, sonst das erste
+  ausgewählte; nichts ausgewählt → Auswahl leer. Tief ausgewählte Einträge gehen als tiefe Auswahl
+  in die andere View (Details/Kompakt klappen auf, Icons markieren den Ordner der obersten Ebene).
+- **Befund (Lücke aus LK4):** Beim Aufklappen über mehrere Ebenen meldet `KFileItemModel`
+  `directoryLoadingCompleted` schon, bevor der letzte Ordner gelistet ist
+  (`expandParentDirectories()` klappt ihn zusätzlich direkt nach dem Einfügen auf, `slotCompleted()`
+  findet ihn dann schon aufgeklappt). Die Auswahl verfiel dadurch. Jetzt wartet die View, solange
+  der aufgeklappte Ordner noch keine Kinder zeigt. Das Modell bleibt unverändert.
+- **Tests:** `whalesplitlocktest` jetzt 32 Fälle (+ Lock mit Kissenansicht, Spiegeln aus ihr inkl.
+  tief, Spiegeln in sie inkl. Mehrfach- und tiefer Auswahl, Test-Liste nicht verlinkbar);
+  `whaletreemaptest::testCapabilityGating` erwartet `LinkedSelection`.
+- **Hinweis Installation:** Die installierte Kissenansicht (API 9) wird von einem Whale mit API 10
+  abgelehnt; nach dem Merge neu installieren (privates Prefix und systemweit).
+

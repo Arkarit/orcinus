@@ -10,6 +10,8 @@
 #include "dolphinviewcontainer.h"
 #include "views/dolphinview.h"
 #include "whalefileviewtoolbar.h"
+#include "whaleselection.h"
+#include "whaleview.h"
 #include "whaleviewhost.h"
 
 #include <KLocalizedString>
@@ -67,9 +69,9 @@ WhaleSplitLock::Lockability WhaleSplitLock::lockability(const DolphinViewContain
     if (!url.isLocalFile()) {
         return {false, i18nc("@info", "Only local folders can be linked.")};
     }
-    // Plugin views get a way to show the selection of the other view later (LK5).
+    // The shown view has to show the selection of the other one (LK5).
     const WhaleViewHost *host = container->viewHost();
-    if (host && !host->isDolphinViewShown()) {
+    if (host && !(host->currentView()->capabilities() & WhaleViewCapability::LinkedSelection)) {
         return {false, i18nc("@info", "This view cannot be linked.")};
     }
     return {true, QString()};
@@ -135,6 +137,13 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
     });
     if (WhaleViewHost *host = container->viewHost()) {
         connect(host, &WhaleViewHost::currentViewChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+        connect(host, &WhaleViewHost::capabilitiesChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+        // LK5: the selection of a plugin view that is its own (e.g. deep in the treemap).
+        connect(host, &WhaleViewHost::viewSelectionChanged, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
+            if (view && m_page && m_page->activeViewContainer() == view) {
+                mirror(view);
+            }
+        });
     }
     connect(container, &QObject::destroyed, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
     // LK4: what the user selects in the active view.
@@ -194,7 +203,14 @@ void WhaleSplitLock::mirror(DolphinViewContainer *source)
         return;
     }
     m_mirroring = true;
-    other->view()->showLinkedSelection(source->view()->selectedItems().urlList(), source->view()->currentItemUrl());
+    const WhaleViewHost *sourceHost = source->viewHost();
+    const WhaleSelection selection =
+        sourceHost ? sourceHost->linkedSelection() : WhaleSelection(source->view()->selectedItems().urlList(), source->view()->currentItemUrl());
+    if (WhaleViewHost *otherHost = other->viewHost()) {
+        otherHost->showLinkedSelection(selection);
+    } else {
+        other->view()->showLinkedSelection(selection.selected(), selection.current());
+    }
     m_mirroring = false;
 }
 

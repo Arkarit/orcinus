@@ -18,6 +18,7 @@
 #include <memory>
 
 class QWidget;
+class WhaleSelection;
 class WhaleViewContext;
 class WhaleViewPrivate;
 
@@ -108,6 +109,19 @@ public:
      *         returns context()->selection().selected().
      */
     virtual QList<QUrl> selectedItems() const;
+
+    /**
+     * Shows the selection of the other view of a split view, while both are linked. Only
+     * called if capabilities() contain WhaleViewCapability::LinkedSelection, while the
+     * view is not the active one. The items are below the location: in the listing, or
+     * deeper (from a view that shows more than the listing). Missing items (filtered,
+     * hidden, not shown by the view) are left out. The selection is in one folder; the
+     * current item is one of the selected items if anything is selected.
+     *
+     * The default implementation makes the items of the listing Whale's selection
+     * (context()->setSelection()), which a view that shows Whale's selection follows.
+     */
+    virtual void showLinkedSelection(const WhaleSelection &selection);
 
 Q_SIGNALS:
     /**

@@ -24,8 +24,10 @@
 #include "whalefileviewtoolbar.h"
 #include "whalesplitviewbutton.h"
 #include "whaletoolbarsettings.h"
+#include "whaleview.h"
 #include "whaleviewcommandscope.h"
 #include "whaleviewhost.h"
+#include "whaleviewplugin.h"
 #include "whaleviewregistry.h"
 #include "whaleviewservices.h"
 
@@ -45,6 +47,20 @@
 namespace
 {
 const QString treemapId = QStringLiteral("whale_treemap");
+// A plugin view without LinkedSelection.
+const QString testListId = QStringLiteral("whale_testlist");
+
+QVariantMap treemapState(QWidget *view)
+{
+    QVariantMap state;
+    QMetaObject::invokeMethod(view, "treemapState", Qt::DirectConnection, Q_RETURN_ARG(QVariantMap, state));
+    return state;
+}
+
+QUrl treemapSelection(QWidget *view)
+{
+    return QUrl(treemapState(view).value(QStringLiteral("selected")).toString());
+}
 
 // Opening the split view animates the width of the new view (DolphinTabPage's expand
 // animation, a direct child of the splitter); until it ends, the view may be too narrow for
@@ -116,10 +132,17 @@ private Q_SLOTS:
     void testMirrorIntoIconsView();
     void testMirrorAfterFollowing();
     void testMirrorLeavesOutFilteredItems();
+    void testLockWithTreemap();
+    void testMirrorFromTreemap();
+    void testMirrorIntoTreemap();
 
 private:
     DolphinViewContainer *showMainWindow();
     void showSplit();
+    /// Shows the plugin view @p pluginId in @p container; @return its widget once it is ready.
+    QWidget *showPluginView(DolphinViewContainer *container, const QString &pluginId);
+    /// Clicks the cell of @p target in the treemap @p view, then goes up to it (Up selects the folder).
+    bool selectInTreemap(QWidget *view, const QUrl &target);
     DolphinTabPage *tabPage() const;
     WhaleSplitLock *lock() const;
     static WhaleFileViewToolBar *toolBar(DolphinViewContainer *container);
@@ -150,6 +173,7 @@ void WhaleSplitLockTest::initTestCase()
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->save();
 }
@@ -395,9 +419,9 @@ void WhaleSplitLockTest::testLockability()
     m_right->setUrl(m_dir->url());
     QTRY_COMPARE(m_right->url(), m_dir->url());
     QVERIFY(WhaleSplitLock::lockability(m_right).lockable);
-    WhaleViewPlugin *plugin = WhaleViewServices::of(m_mainWindow.data())->registry()->plugin(treemapId);
-    QVERIFY(plugin);
-    QVERIFY(m_right->viewHost()->showPluginView(treemapId, plugin));
+    QVERIFY(showPluginView(m_right, treemapId));
+    QVERIFY(WhaleSplitLock::lockability(m_right).lockable);
+    QVERIFY(showPluginView(m_right, testListId));
     QCOMPARE(WhaleSplitLock::lockability(m_right).reason, QStringLiteral("This view cannot be linked."));
 }
 
@@ -448,16 +472,14 @@ void WhaleSplitLockTest::testReleaseAtUnlockableLocation()
 
 void WhaleSplitLockTest::testReleaseForPluginView()
 {
-    // Until plugin views can show the selection of the other view (LK5), showing one releases
-    // the lock.
+    // A plugin view that cannot show the selection of the other view (no LinkedSelection)
+    // releases the lock.
     showSplit();
     if (QTest::currentTestFailed()) {
         return;
     }
     lock()->setLocked(true);
-    WhaleViewPlugin *plugin = WhaleViewServices::of(m_mainWindow.data())->registry()->plugin(treemapId);
-    QVERIFY(plugin);
-    QVERIFY(m_left->viewHost()->showPluginView(treemapId, plugin));
+    QVERIFY(showPluginView(m_left, testListId));
     QTRY_VERIFY(!lock()->isLocked());
     QTRY_COMPARE(messageText(m_left), QStringLiteral("The views are no longer linked. This view cannot be linked."));
     QVERIFY(!lock()->button()->isEnabled());
@@ -955,5 +977,118 @@ void WhaleSplitLockTest::testMirrorLeavesOutFilteredItems()
 }
 
 QTEST_MAIN(WhaleSplitLockTest)
+
+QWidget *WhaleSplitLockTest::showPluginView(DolphinViewContainer *container, const QString &pluginId)
+{
+    WhaleViewPlugin *plugin = WhaleViewServices::of(m_mainWindow.data())->registry()->plugin(pluginId);
+    if (!plugin || !container->viewHost()->showPluginView(pluginId, plugin)) {
+        return nullptr;
+    }
+    QWidget *view = container->viewHost()->currentView()->widget();
+    if (pluginId == treemapId
+        && !QTest::qWaitFor(
+            [view]() {
+                return treemapState(view).value(QStringLiteral("status")).toString() == QLatin1String("ready");
+            },
+            5000)) {
+        return nullptr;
+    }
+    return view;
+}
+
+bool WhaleSplitLockTest::selectInTreemap(QWidget *view, const QUrl &target)
+{
+    QRect rect;
+    QMetaObject::invokeMethod(view, "cellRect", Qt::DirectConnection, Q_RETURN_ARG(QRect, rect), Q_ARG(QUrl, target));
+    QWidget *canvas = view->findChild<QWidget *>(QStringLiteral("whaleTreemapCanvas"));
+    if (rect.isEmpty() || !canvas) {
+        return false;
+    }
+    QTest::mouseClick(canvas, Qt::LeftButton, {}, rect.center());
+    for (int step = 0; step < 10; ++step) {
+        if (treemapSelection(view) == target) {
+            return true;
+        }
+        QTest::keyClick(canvas, Qt::Key_Up);
+    }
+    return false;
+}
+
+void WhaleSplitLockTest::testLockWithTreemap()
+{
+    // LK5: the treemap can be linked, the lock stays when it is shown.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QVERIFY(showPluginView(m_left, treemapId));
+    QTRY_VERIFY(lock()->button()->isEnabled());
+    lock()->setLocked(true);
+    QVERIFY(lock()->isLocked());
+    QVERIFY(showPluginView(m_right, treemapId));
+    m_right->viewHost()->showDolphinView();
+    QTest::qWait(100);
+    QVERIFY(lock()->isLocked());
+}
+
+void WhaleSplitLockTest::testMirrorFromTreemap()
+{
+    // The treemap's selection, also deep, in the other view.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_right->view()->setViewMode(DolphinView::DetailsView);
+    QWidget *view = showPluginView(m_left, treemapId);
+    QVERIFY(view);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+
+    QVERIFY(selectInTreemap(view, url(QStringLiteral("a.txt"))));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("a.txt")});
+    QCOMPARE(current(m_right), QStringLiteral("a.txt"));
+
+    QVERIFY(selectInTreemap(view, url(QStringLiteral("sub/deeper/c.txt"))));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/deeper/c.txt")});
+    QCOMPARE(current(m_right), QStringLiteral("sub/deeper/c.txt"));
+    // The deep entry stays the treemap's own.
+    QCOMPARE(treemapSelection(view), url(QStringLiteral("sub/deeper/c.txt")));
+    QVERIFY(m_left->isActive());
+}
+
+void WhaleSplitLockTest::testMirrorIntoTreemap()
+{
+    // The other view's selection in the treemap: one entry, also deep.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->view()->setViewMode(DolphinView::DetailsView);
+    QWidget *view = showPluginView(m_right, treemapId);
+    QVERIFY(view);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+
+    select(m_left, {QStringLiteral("a.txt")}, QStringLiteral("a.txt"));
+    QTRY_COMPARE(treemapSelection(view), url(QStringLiteral("a.txt")));
+
+    // Several: the current one.
+    select(m_left, {QStringLiteral("a.txt"), QStringLiteral("sub")}, QStringLiteral("sub"));
+    QTRY_COMPARE(treemapSelection(view), url(QStringLiteral("sub")));
+
+    QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub"))), true));
+    QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/b.txt"))) >= 0);
+    select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
+    QTRY_COMPARE(treemapSelection(view), url(QStringLiteral("sub/b.txt")));
+
+    select(m_left, {}, QStringLiteral("a.txt"));
+    QTRY_VERIFY(treemapSelection(view).isEmpty());
+
+    // Nothing comes back: the left view keeps its state.
+    QTest::qWait(100);
+    QVERIFY(m_left->isActive());
+    QVERIFY(selected(m_left).isEmpty());
+    QCOMPARE(current(m_left), QStringLiteral("a.txt"));
+}
 
 #include "whalesplitlocktest.moc"

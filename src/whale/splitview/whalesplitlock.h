@@ -31,7 +31,8 @@ class QToolButton;
  * (DolphinView::setViewModeKept()): the point is to see the same folder in two ways.
  *
  * The inactive view shows the selection and the current item of the active one (LK4,
- * DolphinView::showLinkedSelection()). The user selects in the active view, so this goes both
+ * WhaleViewHost::linkedSelection() and showLinkedSelection(); a plugin view takes part with
+ * WhaleViewCapability::LinkedSelection, LK5). The user selects in the active view, so this goes both
  * ways, while changes of the inactive view (e.g. while it lists its new location) never reach
  * the active one. A selection is limited to the items of one folder (A1,
  * DolphinView::setSelectionLimitedToOneFolder()); a view says so when it refuses or leaves out
@@ -61,7 +62,7 @@ public:
 
     /**
      * @return Whether the view area @p container can be part of a lock: a local folder (no
-     *         search results) shown in the file list.
+     *         search results) shown in a view with WhaleViewCapability::LinkedSelection.
      */
     static Lockability lockability(const DolphinViewContainer *container);
 
