@@ -12,6 +12,7 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
+#include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
 #include "kitemviews/kitemlistselectionmanager.h"
@@ -104,6 +105,13 @@ private Q_SLOTS:
     void testNoFollowToUnlockableLocation();
     void testFollowSymlinkTarget();
     void testSelectionLimitedWhileLocked();
+    void testMirrorSelection();
+    void testMirrorOnLocking();
+    void testNoMirrorFromInactiveView();
+    void testMirrorIntoExpandableView();
+    void testMirrorIntoIconsView();
+    void testMirrorAfterFollowing();
+    void testMirrorLeavesOutFilteredItems();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -113,6 +121,12 @@ private:
     static WhaleFileViewToolBar *toolBar(DolphinViewContainer *container);
     QUrl url(const QString &relative) const;
     static QUrl normalized(const QUrl &url);
+    static KItemListSelectionManager *selectionManager(DolphinViewContainer *container);
+    static KFileItemModel *model(DolphinViewContainer *container);
+    void select(DolphinViewContainer *container, const QStringList &relativePaths, const QString &current);
+    QStringList selected(DolphinViewContainer *container) const;
+    QString current(DolphinViewContainer *container) const;
+    QString relative(const QUrl &url) const;
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -209,6 +223,57 @@ QUrl WhaleSplitLockTest::url(const QString &relative) const
 QUrl WhaleSplitLockTest::normalized(const QUrl &url)
 {
     return url.adjusted(QUrl::StripTrailingSlash);
+}
+
+KItemListSelectionManager *WhaleSplitLockTest::selectionManager(DolphinViewContainer *container)
+{
+    return container->view()->findChild<KItemListContainer *>()->controller()->selectionManager();
+}
+
+KFileItemModel *WhaleSplitLockTest::model(DolphinViewContainer *container)
+{
+    return qobject_cast<KFileItemModel *>(container->view()->findChild<KItemListContainer *>()->controller()->model());
+}
+
+void WhaleSplitLockTest::select(DolphinViewContainer *container, const QStringList &relativePaths, const QString &current)
+{
+    // As the user does it: in the active view.
+    container->setActive(true);
+    QTRY_VERIFY(container->isActive());
+    KItemSet items;
+    for (const QString &path : relativePaths) {
+        const int index = model(container)->index(url(path));
+        QVERIFY2(index >= 0, qPrintable(path));
+        items.insert(index);
+    }
+    // As a click does: the anchored selection ends before the current item changes.
+    KItemListSelectionManager *manager = selectionManager(container);
+    const int currentIndex = model(container)->index(url(current));
+    manager->endAnchoredSelection();
+    manager->setCurrentItem(currentIndex);
+    manager->setSelectedItems(items);
+    manager->beginAnchoredSelection(currentIndex);
+}
+
+QString WhaleSplitLockTest::relative(const QUrl &url) const
+{
+    return url.path().mid(m_dir->path().length() + 1);
+}
+
+QStringList WhaleSplitLockTest::selected(DolphinViewContainer *container) const
+{
+    QStringList result;
+    const auto items = container->view()->selectedItems();
+    for (const KFileItem &item : items) {
+        result.append(relative(item.url()));
+    }
+    result.sort();
+    return result;
+}
+
+QString WhaleSplitLockTest::current(DolphinViewContainer *container) const
+{
+    return relative(container->view()->currentItemUrl());
 }
 
 void WhaleSplitLockTest::testButtonPlacement()
@@ -650,6 +715,159 @@ void WhaleSplitLockTest::testSelectionLimitedWhileLocked()
     QTRY_VERIFY(!right);
     QTRY_VERIFY(!lock()->isLocked());
     QTRY_VERIFY(!m_left->view()->isSelectionLimitedToOneFolder());
+}
+
+void WhaleSplitLockTest::testMirrorSelection()
+{
+    // LK4: the inactive view shows the selection and the current item of the active one.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    select(m_left, {QStringLiteral("a.txt")}, QStringLiteral("a.txt"));
+    QCOMPARE(selected(m_right), QStringList{QStringLiteral("a.txt")});
+    QCOMPARE(current(m_right), QStringLiteral("a.txt"));
+    QVERIFY(m_left->isActive());
+
+    // The other way round: the user selects in the right view.
+    select(m_right, {QStringLiteral("sub")}, QStringLiteral("sub"));
+    QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub")});
+    QCOMPARE(current(m_left), QStringLiteral("sub"));
+    QCOMPARE(selected(m_right), QStringList{QStringLiteral("sub")});
+
+    // Nothing selected.
+    m_right->view()->clearSelection();
+    QVERIFY(selected(m_left).isEmpty());
+
+    // Unlocked: no more.
+    lock()->setLocked(false);
+    select(m_right, {QStringLiteral("a.txt")}, QStringLiteral("a.txt"));
+    QVERIFY(selected(m_left).isEmpty());
+}
+
+void WhaleSplitLockTest::testMirrorOnLocking()
+{
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    select(m_right, {QStringLiteral("a.txt")}, QStringLiteral("a.txt"));
+    QVERIFY(selected(m_left).isEmpty());
+    lock()->setLocked(true);
+    QCOMPARE(selected(m_left), QStringList{QStringLiteral("a.txt")});
+    QCOMPARE(current(m_left), QStringLiteral("a.txt"));
+}
+
+void WhaleSplitLockTest::testNoMirrorFromInactiveView()
+{
+    // What changes in the inactive view (e.g. while it lists its location) never reaches the
+    // active one.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    select(m_left, {QStringLiteral("a.txt")}, QStringLiteral("a.txt"));
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->isActive());
+    selectionManager(m_right)->clearSelection();
+    selectionManager(m_right)->setSelected(model(m_right)->index(url(QStringLiteral("sub"))));
+    QCOMPARE(selected(m_left), QStringList{QStringLiteral("a.txt")});
+}
+
+void WhaleSplitLockTest::testMirrorIntoExpandableView()
+{
+    // An item of a subfolder: the details view expands its branch and selects it.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->view()->setViewMode(DolphinView::DetailsView);
+    m_right->view()->setViewMode(DolphinView::DetailsView);
+    QVERIFY(m_left->view()->itemsExpandable());
+    QVERIFY(m_right->view()->itemsExpandable());
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub"))), true));
+    QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/deeper"))) >= 0);
+    QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub/deeper"))), true));
+    QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/deeper/c.txt"))) >= 0);
+
+    select(m_left, {QStringLiteral("sub/deeper/c.txt")}, QStringLiteral("sub/deeper/c.txt"));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/deeper/c.txt")});
+    QTRY_COMPARE(current(m_right), QStringLiteral("sub/deeper/c.txt"));
+    QVERIFY(m_left->isActive());
+    QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub/deeper/c.txt")});
+}
+
+void WhaleSplitLockTest::testMirrorIntoIconsView()
+{
+    // An item of a subfolder in a view that cannot expand: its top-level folder becomes the
+    // current item, nothing is selected (so nothing acts on it by surprise).
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->view()->setViewMode(DolphinView::DetailsView);
+    m_right->view()->setViewMode(DolphinView::IconsView);
+    QVERIFY(!m_right->view()->itemsExpandable());
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub"))), true));
+    QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/b.txt"))) >= 0);
+
+    select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
+    QTRY_COMPARE(current(m_right), QStringLiteral("sub"));
+    QVERIFY(selected(m_right).isEmpty());
+    // The left view keeps its selection.
+    QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub/b.txt")});
+}
+
+void WhaleSplitLockTest::testMirrorAfterFollowing()
+{
+    // The following view lists its new location: it shows the selection once the items come.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    m_left->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(m_left->view()->itemsCount(), 2);
+    select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/b.txt")});
+    QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub/b.txt")});
+
+    // Up: Dolphin makes the folder the view came from the current item; the other view too.
+    QTRY_VERIFY(toolBar(m_left)->scope());
+    toolBar(m_left)->scope()->action(QStringLiteral("go_up"))->trigger();
+    QTRY_COMPARE(normalized(m_right->url()), normalized(m_dir->url()));
+    QTRY_COMPARE(current(m_left), QStringLiteral("sub"));
+    QTRY_COMPARE(current(m_right), QStringLiteral("sub"));
+    QCOMPARE(selected(m_right), selected(m_left));
+}
+
+void WhaleSplitLockTest::testMirrorLeavesOutFilteredItems()
+{
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_right->view()->setNameFilter(QStringLiteral("sub"));
+    QTRY_COMPARE(m_right->view()->itemsCount(), 1);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    select(m_left, {QStringLiteral("a.txt"), QStringLiteral("sub")}, QStringLiteral("a.txt"));
+    QCOMPARE(selected(m_right), QStringList{QStringLiteral("sub")});
+    // Shown again: not selected later by surprise.
+    m_right->view()->setNameFilter(QString());
+    QTRY_COMPARE(m_right->view()->itemsCount(), 2);
+    QTest::qWait(100);
+    QCOMPARE(selected(m_right), QStringList{QStringLiteral("sub")});
 }
 
 QTEST_MAIN(WhaleSplitLockTest)

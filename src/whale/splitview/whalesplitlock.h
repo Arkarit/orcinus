@@ -27,9 +27,14 @@ class QToolButton;
  * disabled and its tooltip says why. Locked, both views are at the same location (E1): on
  * locking, the other view goes to the location of the active one, and from then on each view
  * follows where the other one goes. The following view navigates as usual, so it has an
- * entry in its history and stays the inactive view. A selection is limited to the items of one
- * folder (A1, DolphinView::setSelectionLimitedToOneFolder()); a view says so when it refuses
- * or leaves out items.
+ * entry in its history and stays the inactive view.
+ *
+ * The inactive view shows the selection and the current item of the active one (LK4,
+ * DolphinView::showLinkedSelection()). The user selects in the active view, so this goes both
+ * ways, while changes of the inactive view (e.g. while it lists its new location) never reach
+ * the active one. A selection is limited to the items of one folder (A1,
+ * DolphinView::setSelectionLimitedToOneFolder()); a view says so when it refuses or leaves out
+ * items.
  *
  * When a locked view becomes unlockable (another location or another view), the lock is
  * released and that view says why (E3); the other view stays where it is. Closing the split
@@ -82,6 +87,8 @@ private:
     void connectContainer(DolphinViewContainer *container);
     /// E1: the other view goes to the location of @p leader.
     void follow(DolphinViewContainer *leader);
+    /// LK4: the other view shows the selection of @p source.
+    void mirror(DolphinViewContainer *source);
     DolphinViewContainer *otherView(const DolphinViewContainer *container) const;
     /// Releases the lock: @p container is the view that became unlockable, nullptr when the
     /// split view closed.
@@ -95,6 +102,7 @@ private:
     bool m_locked = false;
     bool m_updateScheduled = false;
     bool m_following = false;
+    bool m_mirroring = false;
 };
 
 #endif

@@ -177,3 +177,29 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
 - Tests: `whaleselectionlimittest` (11 Fälle, echte `DolphinView` mit aufgeklapptem Baum, echte
   Tasten für Strg+Leertaste und Shift+Pfeile) und `whalesplitlocktest` (19 Fälle).
 
+## LK4: umgesetzt (2026-10-20)
+
+- **Richtung:** Gespiegelt wird immer von der **aktiven** in die inaktive View. Ein Klick macht
+  eine View zuerst aktiv, also geht es in beide Richtungen. Was sich in der inaktiven View ändert
+  (Laden nach dem Folgen, Aufklappen, Indexverschiebungen), erreicht die aktive nie. Das ersetzt
+  den Schutz gegen Hin- und Herspiegeln.
+- Beim Einrasten bekommt die andere View auch die Auswahl der aktiven.
+- `DolphinView::showLinkedSelection(selected, current)` (Dolphin-Diff, ~150 Zeilen insgesamt für
+  LK4), `currentItemUrl()`, Signal `linkedSelectionChanged()` (sofort, nicht nach 300 ms wie
+  `selectionChanged()`; nicht für die eigenen Änderungen durch `showLinkedSelection()`).
+  Darstellung nach der Tabelle oben:
+  - Elemente in der Liste (Ort, flache Ansicht, schon aufgeklappte Zweige): auswählen; das
+    aktuelle Element wird aktuell, Anker dort, die View scrollt hin.
+  - Unterordner in aufklappbarer View: `expandParentDirectories()` je Element einmal, Auswahl,
+    sobald die Elemente da sind.
+  - Unterordner in Icons: keine Auswahl, der Ordner der obersten Ebene wird aktuelles Element.
+  - Gefilterte oder versteckte Elemente fallen weg. Ausstehend bleibt nur, was noch geladen bzw.
+    aufgeklappt wird; danach wird nichts mehr nachträglich ausgewählt.
+  - Ausstehendes verfällt, sobald die View aktiv wird (der Benutzer übernimmt) oder eine neue
+    Spiegelung kommt.
+- Befund: Die Reaktion auf `KFileItemModel::itemsInserted` muss **verzögert** laufen (queued),
+  sonst verschiebt der Auswahlmanager die eben gesetzten Indizes noch einmal.
+- Tests: `whalesplitlocktest` jetzt 26 Fälle (+ Spiegeln in beide Richtungen, beim Einrasten,
+  nicht aus der inaktiven View, Aufklappen in Details, Icons nur aktueller Ordner, nach dem Folgen
+  inkl. „Hoch“, gefilterte Elemente).
+

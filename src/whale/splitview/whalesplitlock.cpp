@@ -95,8 +95,9 @@ void WhaleSplitLock::setLocked(bool locked)
     Q_EMIT lockedChanged(m_locked);
     if (m_locked) {
         // The other view goes where the active one is.
-        DolphinViewContainer *active = m_page->activeViewContainer();
-        follow(active == m_right ? m_right : m_left);
+        DolphinViewContainer *active = m_page->activeViewContainer() == m_right ? m_right.data() : m_left.data();
+        follow(active);
+        mirror(active);
     }
 }
 
@@ -136,6 +137,12 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
         connect(host, &WhaleViewHost::currentViewChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
     }
     connect(container, &QObject::destroyed, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+    // LK4: what the user selects in the active view.
+    connect(container->view(), &DolphinView::linkedSelectionChanged, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
+        if (view && m_page && m_page->activeViewContainer() == view) {
+            mirror(view);
+        }
+    });
     // A1: why an item could not be added to the selection.
     connect(container->view(), &DolphinView::selectionLimited, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
         if (!m_locked || !view) {
@@ -178,6 +185,17 @@ void WhaleSplitLock::follow(DolphinViewContainer *leader)
     m_following = true;
     other->setUrlWithoutActivation(url);
     m_following = false;
+}
+
+void WhaleSplitLock::mirror(DolphinViewContainer *source)
+{
+    DolphinViewContainer *other = otherView(source);
+    if (!m_locked || m_mirroring || !other) {
+        return;
+    }
+    m_mirroring = true;
+    other->view()->showLinkedSelection(source->view()->selectedItems().urlList(), source->view()->currentItemUrl());
+    m_mirroring = false;
 }
 
 void WhaleSplitLock::release(DolphinViewContainer *container, const QString &reason)

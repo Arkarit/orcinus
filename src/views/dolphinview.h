@@ -21,6 +21,7 @@
 
 #include <QMimeData>
 #include <QPointer>
+#include <QSet>
 #include <QUrl>
 #include <QWidget>
 
@@ -452,6 +453,23 @@ public Q_SLOTS:
     void setSelectionLimitedToOneFolder(bool limited);
     bool isSelectionLimitedToOneFolder() const;
 
+    /**
+     * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
+     */
+    QUrl currentItemUrl() const;
+
+    /**
+     * Whale: shows the selection of the other view of a locked split view (LK4): @p selected
+     * (items of one folder) and @p current. Items of the location, or listed by the view anyway
+     * (flat view, expanded folders), are selected. Items of a subfolder are selected in a view
+     * that can expand folders, which expands its branch for them; another view (icons) makes their
+     * top-level folder the current item without selecting anything. Items the view does not show
+     * (filter, hidden files) are left out. Items that are still being listed (the location is
+     * loading, a branch expanding) are selected when they come. What this changes does not emit
+     * linkedSelectionChanged().
+     */
+    void showLinkedSelection(const QList<QUrl> &selected, const QUrl &current);
+
     void clearSelection();
 
     /**
@@ -648,6 +666,12 @@ Q_SIGNALS:
      * folder (setSelectionLimitedToOneFolder()).
      */
     void selectionLimited();
+
+    /**
+     * Whale: the selection or the current item changed, at once (selectionChanged() comes
+     * later), unless showLinkedSelection() changed it.
+     */
+    void linkedSelectionChanged();
 
     /**
      * Is emitted if a context menu is requested for the item \a item,
@@ -1097,6 +1121,14 @@ private:
     int m_defaultZoomLevel = -1;
 
     QList<QUrl> m_selectedUrls; // Used for making the view to remember selections after F5 and file operations
+
+    // Whale: showLinkedSelection()
+    void applyLinkedSelection(bool listingCompleted);
+    QList<QUrl> m_linkedSelected;
+    QUrl m_linkedCurrent;
+    bool m_linkedPending = false;
+    bool m_applyingLinkedSelection = false;
+    QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;
     /// Decides whether items created by jobs should automatically be selected.
