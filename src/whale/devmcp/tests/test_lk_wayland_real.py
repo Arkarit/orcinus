@@ -149,18 +149,17 @@ def run(args, work):
         real.click()
         real.key_up(wayland_real_input.KEY_LEFTCTRL)
         s.expect("R3: Ctrl+click in another folder refused, with the message", {
-            "panes.0.selectedNames": ["b.txt"], "panes.0.currentName": "b.txt", "panes.0.message": ONE_FOLDER,
+            "panes.0.selectedNames": ["b.txt"], "panes.0.currentName": "b.txt", "panes.0.transientMessage": ONE_FOLDER,
             "panes.1.selectedNames": ["b.txt"]})
 
-        # R4: Shift+click across folders, from b.txt up to other. The message of R3 slides in
-        # above the file list and moves its items: wait until it has settled.
-        time.sleep(1.0)
+        # R4: Shift+click across folders, from b.txt up to other, right away: the message of R3
+        # floats above the view and moves nothing.
         hover(client, real, 0, "other", url("other"))
         real.key_down(KEY_LEFTSHIFT)
         real.click()
         real.key_up(KEY_LEFTSHIFT)
         s.expect("R4: Shift+click limited to the folder of the anchor", {
-            "panes.0.selectedNames": ["other", "sub", "a.txt", "b.txt"], "panes.0.message": ONE_FOLDER,
+            "panes.0.selectedNames": ["other", "sub", "a.txt", "b.txt"], "panes.0.transientMessage": ONE_FOLDER,
             "panes.1.selectedNames": ["other", "sub", "a.txt", "b.txt"]})
 
         # R5: a real click into the right view: it is active, its selection goes left

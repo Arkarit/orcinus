@@ -129,7 +129,8 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
 - `splitLock` (LK6): the lock of the current tab: `locked`, the button (`buttonVisible`,
   `buttonEnabled`, `buttonChecked`, `buttonIcon`, `toolTip` with the reason when it cannot
   lock, `buttonX`/`buttonY` its center in main window coordinates for real input) and per pane `lockable`, `reason`, `selectionLimited` (the selection rule A1 is on).
-  The transient messages of the lock are in the pane's `message`.
+  The messages of the lock float above the view (`panes.N.transientMessage`, while shown also
+  in `message`).
 - `splitAnimating`: opening or closing the split view is still animating the width of a
   view (a new right view starts 1 px wide). Wait for `false` before anything that depends
   on the geometry of the views, e.g. `perform_drag_drop` onto a view's background.

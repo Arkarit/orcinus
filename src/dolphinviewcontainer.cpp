@@ -559,30 +559,6 @@ void DolphinViewContainer::showMessage(const QString &message, KMessageWidget::M
 #endif
 }
 
-void DolphinViewContainer::showTransientMessage(const QString &message)
-{
-    if (message.isEmpty()) {
-        return;
-    }
-    if (!m_transientMessageTimer) {
-        m_transientMessageTimer = new QTimer(this);
-        m_transientMessageTimer->setSingleShot(true);
-        m_transientMessageTimer->setInterval(4000);
-        connect(m_transientMessageTimer, &QTimer::timeout, this, [this]() {
-            // Not when another message took its place in the meantime.
-            if (m_messageWidget->text() == m_transientMessageTimer->property("message").toString()) {
-                m_messageWidget->animatedHide();
-            }
-        });
-    }
-    const bool shown = m_messageWidget->isVisible() && !m_messageWidget->isHideAnimationRunning();
-    if (!shown || m_messageWidget->text() != message || m_messageWidget->messageType() != KMessageWidget::Information) {
-        showMessage(message, KMessageWidget::Information);
-    }
-    m_transientMessageTimer->setProperty("message", message);
-    m_transientMessageTimer->start();
-}
-
 void DolphinViewContainer::showProgress(const QString &currentlyRunningTaskTitle, int progressPercent)
 {
     m_statusBar->showProgress(currentlyRunningTaskTitle, progressPercent, DolphinStatusBar::CancelLoading::Disallowed);

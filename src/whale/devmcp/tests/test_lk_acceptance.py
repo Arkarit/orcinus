@@ -119,7 +119,7 @@ def run(args, work):
             "panes.1.viewId": TESTLIST, "splitLock.locked": False, "splitLock.buttonEnabled": False,
             "splitLock.panes.1.lockable": False, "splitLock.panes.1.reason": "This view cannot be linked.",
             "splitLock.toolTip": "The views cannot be linked. This view cannot be linked.",
-            "panes.1.message": "The views are no longer linked. This view cannot be linked.",
+            "panes.1.transientMessage": "The views are no longer linked. This view cannot be linked.",
             "splitLock.panes.0.selectionLimited": False})
         error = client.tool_error("set_split_lock", locked=True)
         if not error or "disabled" not in error:
@@ -135,7 +135,7 @@ def run(args, work):
         client.tool("set_location", pane=0, url="trash:/")
         s.expect("G: released in the trash", {
             "panes.0.url": "trash:/", "panes.1.url": up, "splitLock.locked": False,
-            "panes.0.message": "The views are no longer linked. Only local folders can be linked.",
+            "panes.0.transientMessage": "The views are no longer linked. Only local folders can be linked.",
             "splitLock.panes.0.reason": "Only local folders can be linked."})
         client.tool("set_location", pane=0, url=folder.as_uri())
         s.expect("G: back, not locked again by itself", {"panes.0.url": folder.as_uri(), "splitLock.buttonEnabled": True,

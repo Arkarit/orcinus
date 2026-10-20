@@ -278,9 +278,22 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
   neuen Element, `beginAnchoredSelection()` verwarf ihn danach ohne Signal. Jetzt beendet
   `applyLinkedSelection()` einen alten Anker zuerst. Test `testMirrorShowsWhatIsSelected`
   (scheitert ohne die Korrektur).
-- **Befund 2 (offen, UX):** Die Meldung („only items of one folder“) fährt **über** der Dateiliste
+- **Befund 2 (UX, behoben, Benutzer: „Overlay ist vermutlich deutlich besser“):** Die Meldung („only items of one folder“) fährt **über** der Dateiliste
   ein und schiebt sie um eine Zeile nach unten; nach 4 s rückt die Liste wieder hoch. Mitten beim
   Klicken springt also das Ziel unter dem Zeiger, im Test traf ein Shift+Klick deshalb erst
   nichts. Dolphins eigene Meldungen tun dasselbe, sind aber selten und verschwinden nicht von
   selbst. Vorschlag: die Lock-Meldungen als Overlay oder in der Statusleiste zeigen.
+
+### Lock-Meldungen als Overlay (2026-10-20)
+
+- `WhaleTransientMessage` (`src/whale/splitview/whaletransientmessage.*`): ein eigenes
+  `KMessageWidget` (Information, ohne Schließen-Knopf), schwebend unten mittig über dem View-Host,
+  so breit wie der Text (höchstens der Bereich), deckend hinterlegt, **für die Maus durchlässig**,
+  nach 4 s weg; derselbe Text startet nur die Zeit neu. Kind des `DolphinViewContainer` (nicht des
+  View-Hosts: dort holt ein View-Wechsel die gezeigte View nach oben und verdeckte das Overlay).
+- `DolphinViewContainer::showTransientMessage()` und sein Timer sind wieder entfernt (Dolphin-Diff
+  kleiner); Dolphins Meldungsleiste bleibt unberührt und unabhängig.
+- Dev MCP: `panes.N.transientMessage`. Test `testTransientMessage` prüft, dass der View-Host sich
+  nicht verschiebt, die Lage unten im Bereich und die Mausdurchlässigkeit. Im Wayland-Test fällt
+  die Wartezeit vor R4 weg.
 

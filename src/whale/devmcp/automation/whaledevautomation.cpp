@@ -33,6 +33,7 @@
 #include "whalesplitlock.h"
 #include "whaletoolbardescriptor.h"
 #include "whaletoolbarsettings.h"
+#include "whaletransientmessage.h"
 #include "whaletreecache.h"
 #include "whaleview.h"
 #include "whaleviewactions.h"
@@ -497,6 +498,9 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("fileOperations"), paneFileOperations(container)},
         {QStringLiteral("command"), commandState(container)},
         {QStringLiteral("message"), message},
+        // LK: the floating information of the view area (also in "message" while shown).
+        {QStringLiteral("transientMessage"),
+         WhaleTransientMessage::of(container) && WhaleTransientMessage::of(container)->isVisible() ? WhaleTransientMessage::of(container)->text() : QString()},
         {QStringLiteral("previews"), panePreviews(container)},
         {QStringLiteral("storedViewStates"), QJsonArray::fromStringList(storedStates)},
         {QStringLiteral("restore"), restoreState},

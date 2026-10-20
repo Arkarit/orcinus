@@ -197,12 +197,6 @@ public:
     void showMessage(const QString &message, KMessageWidget::MessageType messageType, std::initializer_list<QAction *> buttonActions = {});
 
     /**
-     * Whale: shows @p message as information that hides itself after a few seconds. The same
-     * message again only restarts the time, so it is not shown once more.
-     */
-    void showTransientMessage(const QString &message);
-
-    /**
      * Forwards to DolphinStatusBar::showProgress(). Only exception: The button to cancel the task is hidden.
      * @see DolphinStatusBar::showProgress().
      */
@@ -546,7 +540,6 @@ private:
     QAction *m_openInArchiveViewer = nullptr;
 
     KMessageWidget *m_messageWidget;
-    QTimer *m_transientMessageTimer = nullptr; // Whale: showTransientMessage()
 
     /// A bar shown at the top of the view to signify that selection mode is currently active.
     SelectionMode::TopBar *m_selectionModeTopBar;

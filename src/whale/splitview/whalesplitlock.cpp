@@ -11,6 +11,7 @@
 #include "views/dolphinview.h"
 #include "whalefileviewtoolbar.h"
 #include "whaleselection.h"
+#include "whaletransientmessage.h"
 #include "whaleview.h"
 #include "whaleviewhost.h"
 
@@ -160,11 +161,12 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
         // The flat view does not show the folders the rule is about.
         const WhaleViewHost *host = view->viewHost();
         if (host && host->isRecursiveContentShown()) {
-            view->showTransientMessage(i18nc(
-                "@info",
-                "While the views are linked, only items of one folder can be selected. This also applies to the flat view, which does not show the folders."));
+            WhaleTransientMessage::showIn(view,
+                                          i18nc("@info",
+                                                "While the views are linked, only items of one folder can be selected. This also applies to the flat view, "
+                                                "which does not show the folders."));
         } else {
-            view->showTransientMessage(i18nc("@info", "While the views are linked, only items of one folder can be selected."));
+            WhaleTransientMessage::showIn(view, i18nc("@info", "While the views are linked, only items of one folder can be selected."));
         }
     });
 }
@@ -218,7 +220,7 @@ void WhaleSplitLock::release(DolphinViewContainer *container, const QString &rea
 {
     m_locked = false;
     if (container) {
-        container->showTransientMessage(i18nc("@info %1 is why", "The views are no longer linked. %1", reason));
+        WhaleTransientMessage::showIn(container, i18nc("@info %1 is why", "The views are no longer linked. %1", reason));
     }
     Q_EMIT lockedChanged(false);
 }

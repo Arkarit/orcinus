@@ -24,6 +24,7 @@
 #include "whalefileviewtoolbar.h"
 #include "whalesplitviewbutton.h"
 #include "whaletoolbarsettings.h"
+#include "whaletransientmessage.h"
 #include "whaleview.h"
 #include "whaleviewcommandscope.h"
 #include "whaleviewhost.h"
@@ -536,26 +537,37 @@ void WhaleSplitLockTest::testNotInSession()
 
 void WhaleSplitLockTest::testTransientMessage()
 {
-    // A8: information that hides itself; the same message again restarts the time, another
-    // message is not hidden by it.
+    // A8: information that hides itself; the same message again restarts the time. It floats
+    // above the view, so nothing moves, and lets the mouse through; the message bar of the
+    // view area stays as it is.
     DolphinViewContainer *container = showMainWindow();
     QVERIFY(container);
-    container->showTransientMessage(QStringLiteral("first"));
-    QTRY_COMPARE(messageText(container), QStringLiteral("first"));
-    QCOMPARE(shownMessage(container)->messageType(), KMessageWidget::Information);
-    QTRY_VERIFY_WITH_TIMEOUT(messageText(container).isEmpty(), 8000);
+    const QRect viewGeometry = container->viewHost()->geometry();
+    WhaleTransientMessage::showIn(container, QStringLiteral("first"));
+    WhaleTransientMessage *message = WhaleTransientMessage::of(container);
+    QVERIFY(message);
+    QVERIFY(message->isVisible());
+    QCOMPARE(message->text(), QStringLiteral("first"));
+    QCOMPARE(message->messageType(), KMessageWidget::Information);
+    QVERIFY(message->testAttribute(Qt::WA_TransparentForMouseEvents));
+    const QRect area = container->viewHost()->geometry();
+    QVERIFY(area.contains(message->geometry()));
+    QVERIFY(message->geometry().top() > area.center().y()); // at the bottom
+    QTest::qWait(100);
+    QCOMPARE(container->viewHost()->geometry(), viewGeometry);
+    QTRY_VERIFY_WITH_TIMEOUT(!message->isVisible(), 8000);
 
-    container->showTransientMessage(QStringLiteral("again"));
-    QTRY_COMPARE(messageText(container), QStringLiteral("again"));
+    WhaleTransientMessage::showIn(container, QStringLiteral("again"));
     QTest::qWait(3000);
-    container->showTransientMessage(QStringLiteral("again"));
+    WhaleTransientMessage::showIn(container, QStringLiteral("again"));
     QTest::qWait(2000);
-    QCOMPARE(messageText(container), QStringLiteral("again"));
-    QTRY_VERIFY_WITH_TIMEOUT(messageText(container).isEmpty(), 8000);
+    QVERIFY(message->isVisible());
+    QTRY_VERIFY_WITH_TIMEOUT(!message->isVisible(), 8000);
 
-    container->showTransientMessage(QStringLiteral("transient"));
+    // Independent of the message bar.
     container->showMessage(QStringLiteral("error"), KMessageWidget::Error);
-    QTest::qWait(5000);
+    WhaleTransientMessage::showIn(container, QStringLiteral("transient"));
+    QTRY_VERIFY_WITH_TIMEOUT(!message->isVisible(), 8000);
     QCOMPARE(messageText(container), QStringLiteral("error"));
 }
 
