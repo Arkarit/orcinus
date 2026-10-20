@@ -42,7 +42,8 @@ E2 aus der ersten Fassung (tiefe Auswahl der Kissenansicht in der Dateiliste) is
 
 - **Abfrage:** Eine Funktion liefert pro View „lockbar ja/nein + Grund“. Ist eine Seite nicht
   lockbar, ist der Button deaktiviert und der Tooltip nennt den Grund.
-- **Ort:** Lockbar ist nur ein lokales Dateisystem (KIO-Protokollklasse `:local`).
+- **Ort:** Lockbar ist nur ein lokaler Ordner: `QUrl::isLocalFile()` und kein Such-URL (`isSearchUrl()`).
+  Die KIO-Protokollklasse `:local` taugt nicht, denn `trash:` gehört auch dazu.
 - **View:** Die View muss eine Auswahl abgleichen können. Dafür kommt eine neue Fähigkeit
   `WhaleViewCapability::LinkedSelection` dazu (`src/whale/api/whaleviewcapabilities.h`). Die
   eingebaute Dateiliste (`DolphinViewAdapter`) und die Kissenansicht bekommen sie, Plugins ohne
@@ -100,3 +101,29 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
 6. **LK5:** API-Erweiterung (`LinkedSelection`, tiefe Auswahl, API 10) und Kissenansicht.
 7. **LK6:** Lock-Zustand und ein Werkzeug zum Setzen im Dev MCP; Wayland-Abnahme nur nach
    Freigabe des Benutzers.
+
+## LK1: umgesetzt (2026-10-20)
+
+- `WhaleSplitLock` (`src/whale/splitview/whalesplitlock.*`), erzeugt in `DolphinTabPage` neben
+  `WhaleSplitViewButton`. Button `whale_split_lock_button`, ankreuzbar, Icon `link` (gelockt)
+  bzw. `remove-link`; Tooltip „Unlink Views“, „Link Views: …“ oder „The views cannot be linked.
+  <Grund>“, dann deaktiviert. `lockability()`, `isLocked()`, `setLocked()`, `lockedChanged()`.
+- Lockbar sind nur lokale Ordner (siehe oben) in der eingebauten Dateiliste, auch flach. Plugin-
+  Views sind bis LK5 nicht lockbar („This view cannot be linked.“).
+- Gelöst wird nach E3 bei Ortswechsel und Wechsel der View, jeweils mit Meldung in der View, die
+  nicht mehr lockbar ist; beim Schließen des Splits ohne Meldung. Neuer Split, neuer Tab und
+  wiederhergestellter Tab starten ungelockt (E4: `DolphinTabPage::saveState()` enthält den Lock
+  nicht).
+- `WhaleFileViewToolBar::setLeadingWidget()`: `QToolBarLayout` beachtet einen Innenrand am Anfang
+  nicht (es legt nur nach der Größe aus). Deshalb hält ein Platzhalter als erstes Element der
+  Zeile den Platz frei (`whale_leading_placeholder`), und der Button liegt darüber. Der
+  Platzhalter steht nicht in Configure Toolbars; `isLeadingPlaceholder()` blendet ihn in den
+  Layout-Hilfen der Tests und im Dev MCP (`layoutOf`, `actionsState`) aus.
+- A8: `DolphinViewContainer::showTransientMessage()` (Dolphin-Diff, ~25 Zeilen): Information,
+  verschwindet nach 4 s; dieselbe Meldung startet nur die Zeit neu; eine andere Meldung an ihrer
+  Stelle wird nicht ausgeblendet.
+- Test `whalesplitlocktest` (11 Fälle). Gesamte Suite seriell grün außer `dolphinmainwindowtest`,
+  das schon vorher scheitert (`testThumbnailAfterRename`, `testViewModeAfterDynamicView` hängt;
+  auf `master` 5739d9f55 ebenso).
+- Noch ohne Wirkung: Der Lock bindet weder Ort noch Auswahl (LK2–LK4).
+

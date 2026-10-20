@@ -78,9 +78,11 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
 WhaleFileViewToolBar::~WhaleFileViewToolBar()
 {
     // Not this toolbar's.
-    if (m_trailingWidget && m_trailingWidget->parentWidget() == this) {
-        m_trailingWidget->hide();
-        m_trailingWidget->setParent(nullptr);
+    for (QWidget *widget : {m_trailingWidget.data(), m_leadingWidget.data()}) {
+        if (widget && widget->parentWidget() == this) {
+            widget->hide();
+            widget->setParent(nullptr);
+        }
     }
 }
 
@@ -106,25 +108,50 @@ int WhaleFileViewToolBar::minimumLocationBarWidth()
 
 void WhaleFileViewToolBar::setTrailingWidget(QWidget *widget)
 {
-    if (widget == m_trailingWidget) {
+    setExtraWidget(m_trailingWidget, widget);
+}
+
+QWidget *WhaleFileViewToolBar::trailingWidget() const
+{
+    return m_trailingWidget;
+}
+
+void WhaleFileViewToolBar::setLeadingWidget(QWidget *widget)
+{
+    if (widget == m_leadingWidget) {
         return;
     }
-    if (m_trailingWidget && m_trailingWidget->parentWidget() == this) {
-        m_trailingWidget->hide();
-        m_trailingWidget->setParent(nullptr);
+    setExtraWidget(m_leadingWidget, widget);
+    // With or without its placeholder.
+    rebuild();
+}
+
+QWidget *WhaleFileViewToolBar::leadingWidget() const
+{
+    return m_leadingWidget;
+}
+
+bool WhaleFileViewToolBar::isLeadingPlaceholder(const QAction *action)
+{
+    return action && action->objectName() == QLatin1String("whale_leading_placeholder");
+}
+
+void WhaleFileViewToolBar::setExtraWidget(QPointer<QWidget> &slot, QWidget *widget)
+{
+    if (widget == slot) {
+        return;
     }
-    m_trailingWidget = widget;
+    if (slot && slot->parentWidget() == this) {
+        slot->hide();
+        slot->setParent(nullptr);
+    }
+    slot = widget;
     if (widget) {
         widget->setParent(this);
     }
     layOutExtras();
     // The room for the location bar has changed.
     scheduleWrapUpdate();
-}
-
-QWidget *WhaleFileViewToolBar::trailingWidget() const
-{
-    return m_trailingWidget;
 }
 
 void WhaleFileViewToolBar::showEvent(QShowEvent *event)
@@ -160,6 +187,12 @@ void WhaleFileViewToolBar::rebuild()
         return;
     }
     clear();
+    if (m_leadingWidget) {
+        // Keeps the room of the leading widget at the start of the row.
+        m_leadingPlaceholder = new QWidget(this);
+        m_leadingPlaceholder->setFixedWidth(m_leadingWidget->sizeHint().width());
+        addWidget(m_leadingPlaceholder)->setObjectName(QStringLiteral("whale_leading_placeholder"));
+    }
     const WhaleToolbarLayout layout = manager->fileViewLayout();
     // What the user changed about the actions in Configure Toolbars, for this view's actions.
     m_scope->applyActionProperties(layout.actionProperties());
@@ -265,8 +298,8 @@ void WhaleFileViewToolBar::setLocationBarWrapped(bool wrapped)
 
 void WhaleFileViewToolBar::layOutExtras()
 {
-    // Both outside of the area QToolBarLayout lays the buttons out in (contentsRect()): the
-    // second row below it, the trailing widget at its end.
+    // All outside of the area QToolBarLayout lays the buttons out in (contentsRect()): the
+    // second row below it, the leading widget at its start, the trailing widget at its end.
     const int margin = style()->pixelMetric(QStyle::PM_ToolBarItemMargin, nullptr, this) + style()->pixelMetric(QStyle::PM_ToolBarFrameWidth, nullptr, this);
     const int spacing = style()->pixelMetric(QStyle::PM_ToolBarItemSpacing, nullptr, this);
     const int rowHeight = m_locationBarWrapped ? m_locationBar->sizeHint().height() : 0;
@@ -289,6 +322,15 @@ void WhaleFileViewToolBar::layOutExtras()
         m_trailingWidget->setGeometry(x, (rowOneHeight - widgetHeight) / 2, trailingWidth, widgetHeight);
         m_trailingWidget->show();
         m_trailingWidget->raise();
+    }
+    // Over its placeholder, the first item of the row (QToolBarLayout ignores a margin at the start).
+    if (m_leadingWidget && m_leadingWidget->parentWidget() == this && m_leadingPlaceholder) {
+        const int rowOneHeight = height() - margins.bottom();
+        const int widgetHeight = std::min(m_leadingWidget->sizeHint().height(), rowOneHeight);
+        const QRect place = m_leadingPlaceholder->geometry();
+        m_leadingWidget->setGeometry(place.x(), (rowOneHeight - widgetHeight) / 2, place.width(), widgetHeight);
+        m_leadingWidget->setVisible(m_leadingPlaceholder->isVisible());
+        m_leadingWidget->raise();
     }
 }
 
@@ -328,6 +370,19 @@ void WhaleFileViewToolBar::contextMenuEvent(QContextMenuEvent *event)
 
 bool WhaleFileViewToolBar::eventFilter(QObject *watched, QEvent *event)
 {
+    // The leading widget follows its placeholder (also into the overflow menu: hidden).
+    if (watched == m_leadingPlaceholder) {
+        switch (event->type()) {
+        case QEvent::Move:
+        case QEvent::Resize:
+        case QEvent::Show:
+        case QEvent::Hide:
+            layOutExtras();
+            break;
+        default:
+            break;
+        }
+    }
     // Working with the toolbar of a view makes it the active view, as clicking into the view
     // or its location bar does. The actions act on this view in any case.
     if (event->type() == QEvent::MouseButtonPress && m_container) {

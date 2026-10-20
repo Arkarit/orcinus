@@ -276,3 +276,11 @@ ecm_add_test(whalesymlinktargettest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_D
     TEST_NAME whalesymlinktargettest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalesymlinktargettest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+
+# The lock of a split view (LK).
+ecm_add_test(whalesplitlocktest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalesplitlocktest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalesplitlocktest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+target_compile_definitions(whalesplitlocktest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalesplitlocktest whale_treemap)

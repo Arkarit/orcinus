@@ -77,6 +77,19 @@ public:
     void setTrailingWidget(QWidget *widget);
     QWidget *trailingWidget() const;
 
+    /**
+     * Shows @p widget at the start of the row of the buttons, as setTrailingWidget() does at
+     * its end.
+     */
+    void setLeadingWidget(QWidget *widget);
+    QWidget *leadingWidget() const;
+
+    /**
+     * @return True if @p action keeps the room of the leading widget at the start of the row:
+     *         not part of the layout, as the leading widget itself.
+     */
+    static bool isLeadingPlaceholder(const QAction *action);
+
 protected:
     void showEvent(QShowEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
@@ -94,7 +107,10 @@ private:
     void scheduleWrapUpdate(bool settle = false);
     void updateWrapOfTab();
     void setLocationBarWrapped(bool wrapped);
-    /// The second row of a wrapped location bar and the trailing widget, outside of the layout.
+    /// Replaces @p slot by @p widget (setTrailingWidget(), setLeadingWidget()).
+    void setExtraWidget(QPointer<QWidget> &slot, QWidget *widget);
+    /// The second row of a wrapped location bar and the leading and trailing widgets, outside
+    /// of the layout.
     void layOutExtras();
 
     QPointer<DolphinViewContainer> m_container;
@@ -103,6 +119,8 @@ private:
     bool m_hasLocationBar = false; // in the layout
     bool m_locationBarWrapped = false;
     QPointer<QWidget> m_trailingWidget;
+    QPointer<QWidget> m_leadingWidget;
+    QPointer<QWidget> m_leadingPlaceholder; // in the row, deleted by rebuild()
     QTimer *m_wrapTimer;
 };
 

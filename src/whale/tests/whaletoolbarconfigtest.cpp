@@ -434,6 +434,9 @@ QStringList WhaleToolbarConfigTest::layoutOf(const QToolBar *toolBar)
     QStringList result;
     const auto actions = toolBar->actions();
     for (QAction *action : actions) {
+        if (WhaleFileViewToolBar::isLeadingPlaceholder(action)) {
+            continue; // not part of the layout, as the lock of a split view on it
+        }
         if (action->isSeparator()) {
             result.append(QStringLiteral("-"));
         } else if (action->objectName().isEmpty()) {
