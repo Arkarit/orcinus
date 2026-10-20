@@ -167,11 +167,13 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
 - `WhaleSplitLock` schaltet die Regel in beiden Views, solange der Lock aktiv ist. Bei
   `selectionLimited()` zeigt die betroffene View: „While the views are linked, only items of one
   folder can be selected.“ (A8, dieselbe Meldung startet nur die Zeit neu).
-- Abgeleitet, noch nicht mit dem Benutzer besprochen:
+- Vom Benutzer bestätigt bzw. entschieden (2026-10-20):
   - **Flache Ansicht:** Die Regel gilt dort nach dem echten Elternordner, obwohl die Ordner nicht
-    zu sehen sind. Sonst läge die gespiegelte Auswahl nicht mehr in einem Ordner.
-  - Ein abgelehnter Strg+Klick macht das Element trotzdem zum aktuellen Element (Fokusrahmen),
-    wie Dolphin es bei jedem Klick tut.
+    zu sehen sind. Die Meldung sagt das dort ausdrücklich („This also applies to the flat view,
+    which does not show the folders.“).
+  - **Abgelehnter Strg+Klick (Maus):** Der Fokus geht zurück auf das Element vor dem Klick, ein
+    folgender Shift+Klick beginnt dort (`KItemListController::revertRefusedToggle()`, Dolphin-Diff
+    ~30 Zeilen). Strg+Leertaste lässt den Fokus, wo er ist: Dorthin hat man ihn selbst bewegt.
 - Tests: `whaleselectionlimittest` (11 Fälle, echte `DolphinView` mit aufgeklapptem Baum, echte
   Tasten für Strg+Leertaste und Shift+Pfeile) und `whalesplitlocktest` (19 Fälle).
 

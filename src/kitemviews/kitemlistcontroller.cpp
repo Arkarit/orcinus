@@ -1699,6 +1699,22 @@ void KItemListController::updateExtendedSelectionRegion()
     }
 }
 
+bool KItemListController::revertRefusedToggle(int index, bool wasSelected)
+{
+    // Only refusing leaves an unselected item unselected.
+    if (!m_selectionManager->isGroupLimited() || wasSelected || m_selectionManager->isSelected(index)) {
+        return false;
+    }
+    const int previous = m_currentItemBeforePress;
+    m_selectionManager->setCurrentItem(previous);
+    if (previous >= 0 && previous < m_model->count()) {
+        m_keyboardAnchorIndex = previous;
+        m_keyboardAnchorPos = keyboardAnchorPos(previous);
+        m_selectionManager->beginAnchoredSelection(previous);
+    }
+    return true;
+}
+
 bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifiers modifiers, const Qt::MouseButtons buttons)
 {
     Q_EMIT mouseButtonPressed(m_pressedIndex.value_or(-1), buttons);
@@ -1847,6 +1863,7 @@ bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifier
             return true;
         }
 
+        m_currentItemBeforePress = m_selectionManager->currentItem(); // Whale
         m_selectionManager->setCurrentItem(m_pressedIndex.value());
         m_keyboardAnchorIndex = m_pressedIndex.value();
         m_keyboardAnchorPos = keyboardAnchorPos(m_pressedIndex.value());
@@ -1868,8 +1885,11 @@ bool KItemListController::onPress(const QPointF &pos, const Qt::KeyboardModifier
                 if (hitTargetIsRowEmptyRegion) {
                     createRubberBand = true;
                 } else {
+                    const bool wasSelected = m_selectionManager->isSelected(m_pressedIndex.value()); // Whale
                     m_selectionManager->setSelected(m_pressedIndex.value(), 1, KItemListSelectionManager::Toggle);
-                    m_selectionManager->beginAnchoredSelection(m_pressedIndex.value());
+                    if (!revertRefusedToggle(m_pressedIndex.value(), wasSelected)) {
+                        m_selectionManager->beginAnchoredSelection(m_pressedIndex.value());
+                    }
                     createRubberBand = false; // multi selection, don't propagate any further
                     // This will be the start of an item drag-to-copy operation if the user now moves the mouse before releasing the mouse button.
                 }
@@ -1936,7 +1956,9 @@ bool KItemListController::onRelease(const QPointF &pos, const Qt::KeyboardModifi
                 // m_pressedIndex will have no value if we came from a multi-selection clearing onPress
                 // in that case, we don't select anything
                 if (controlPressed && m_selectionBehavior == MultiSelection) {
+                    const bool wasSelected = m_selectionManager->isSelected(m_pressedIndex.value()); // Whale
                     m_selectionManager->setSelected(m_pressedIndex.value(), 1, KItemListSelectionManager::Toggle);
+                    revertRefusedToggle(m_pressedIndex.value(), wasSelected);
                 } else {
                     m_selectionManager->setSelected(index.value());
                 }

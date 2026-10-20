@@ -13,9 +13,12 @@
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
 #include "kitemviews/kitemlistselectionmanager.h"
+#include "kitemviews/kitemlistview.h"
+#include "kitemviews/kstandarditemlistwidget.h"
 #include "testdir.h"
 #include "views/dolphinview.h"
 
+#include <QGraphicsSceneMouseEvent>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
@@ -32,6 +35,8 @@ private Q_SLOTS:
     void testUnlimited();
     void testCtrlToggleRefused();
     void testCtrlToggleInSameFolder();
+    void testCtrlClickRefusedKeepsFocus();
+    void testCtrlClickInSameFolder();
     void testShiftArrowsClamped();
     void testRangeClamped();
     void testSelectAllInCurrentFolder();
@@ -43,6 +48,7 @@ private:
     int indexOf(const QString &relativePath) const;
     KItemSet indexesOf(const QStringList &relativePaths) const;
     void setCurrent(const QString &relativePath);
+    void click(const QString &relativePath, Qt::KeyboardModifiers modifiers);
 
     TestDir *m_testDir = nullptr;
     DolphinView *m_view = nullptr;
@@ -121,6 +127,35 @@ void WhaleSelectionLimitTest::setCurrent(const QString &relativePath)
     m_selectionManager->beginAnchoredSelection(indexOf(relativePath));
 }
 
+void WhaleSelectionLimitTest::click(const QString &relativePath, Qt::KeyboardModifiers modifiers)
+{
+    KItemListView *view = m_container->controller()->view();
+    const int index = indexOf(relativePath);
+    KStandardItemListWidget *widget = nullptr;
+    const auto items = view->childItems();
+    for (QGraphicsItem *item : items) {
+        auto candidate = qobject_cast<KStandardItemListWidget *>(item->toGraphicsObject());
+        if (candidate && candidate->isVisible() && candidate->index() == index) {
+            widget = candidate;
+        }
+    }
+    QVERIFY(widget);
+    // On the name, where a click selects.
+    const QPointF pos = widget->mapToItem(view, widget->selectionRectCore().center());
+    QGraphicsSceneMouseEvent press(QEvent::GraphicsSceneMousePress);
+    press.setPos(pos);
+    press.setButton(Qt::LeftButton);
+    press.setButtons(Qt::LeftButton);
+    press.setModifiers(modifiers);
+    QGraphicsSceneMouseEvent release(QEvent::GraphicsSceneMouseRelease);
+    release.setPos(pos);
+    release.setButton(Qt::LeftButton);
+    release.setButtons(Qt::NoButton);
+    release.setModifiers(modifiers);
+    QCoreApplication::sendEvent(view, &press);
+    QCoreApplication::sendEvent(view, &release);
+}
+
 void WhaleSelectionLimitTest::testUnlimited()
 {
     // Without the limit: as in Dolphin, across folders.
@@ -167,6 +202,37 @@ void WhaleSelectionLimitTest::testCtrlToggleInSameFolder()
     m_selectionManager->setSelected(indexOf(QStringLiteral("dir/x.txt")), 1, KItemListSelectionManager::Toggle);
     QCOMPARE(m_selectionManager->selectedItems(), indexesOf({QStringLiteral("dir/sub")}));
     QCOMPARE(limited.count(), 0);
+}
+
+void WhaleSelectionLimitTest::testCtrlClickRefusedKeepsFocus()
+{
+    // A2 with the mouse: refused, and the focus goes back to the item it was on.
+    m_view->setSelectionLimitedToOneFolder(true);
+    QSignalSpy limited(m_view, &DolphinView::selectionLimited);
+    click(QStringLiteral("a.txt"), Qt::NoModifier);
+    QCOMPARE(m_selectionManager->selectedItems(), indexesOf({QStringLiteral("a.txt")}));
+    QCOMPARE(m_selectionManager->currentItem(), indexOf(QStringLiteral("a.txt")));
+
+    click(QStringLiteral("dir/x.txt"), Qt::ControlModifier);
+    QCOMPARE(m_selectionManager->selectedItems(), indexesOf({QStringLiteral("a.txt")}));
+    QCOMPARE(m_selectionManager->currentItem(), indexOf(QStringLiteral("a.txt")));
+    QVERIFY(limited.count() >= 1);
+
+    // Shift+click afterwards: from a.txt, as if the refused click had not happened.
+    click(QStringLiteral("b.txt"), Qt::ShiftModifier);
+    QCOMPARE(m_selectionManager->selectedItems(), indexesOf({QStringLiteral("a.txt"), QStringLiteral("b.txt")}));
+}
+
+void WhaleSelectionLimitTest::testCtrlClickInSameFolder()
+{
+    m_view->setSelectionLimitedToOneFolder(true);
+    click(QStringLiteral("dir/x.txt"), Qt::NoModifier);
+    click(QStringLiteral("dir/sub"), Qt::ControlModifier);
+    QCOMPARE(m_selectionManager->selectedItems(), indexesOf({QStringLiteral("dir/x.txt"), QStringLiteral("dir/sub")}));
+    QCOMPARE(m_selectionManager->currentItem(), indexOf(QStringLiteral("dir/sub")));
+    // Ctrl+click on a selected item of another folder is not possible; on one of this folder deselects.
+    click(QStringLiteral("dir/x.txt"), Qt::ControlModifier);
+    QCOMPARE(m_selectionManager->selectedItems(), indexesOf({QStringLiteral("dir/sub")}));
 }
 
 void WhaleSelectionLimitTest::testShiftArrowsClamped()

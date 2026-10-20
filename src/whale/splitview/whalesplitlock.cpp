@@ -138,7 +138,16 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
     connect(container, &QObject::destroyed, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
     // A1: why an item could not be added to the selection.
     connect(container->view(), &DolphinView::selectionLimited, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
-        if (m_locked && view) {
+        if (!m_locked || !view) {
+            return;
+        }
+        // The flat view does not show the folders the rule is about.
+        const WhaleViewHost *host = view->viewHost();
+        if (host && host->isRecursiveContentShown()) {
+            view->showTransientMessage(i18nc(
+                "@info",
+                "While the views are linked, only items of one folder can be selected. This also applies to the flat view, which does not show the folders."));
+        } else {
             view->showTransientMessage(i18nc("@info", "While the views are linked, only items of one folder can be selected."));
         }
     });

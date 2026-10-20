@@ -18,6 +18,7 @@
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
+#include "whalecontentscope.h"
 #include "whalefileviewtoolbar.h"
 #include "whalesplitviewbutton.h"
 #include "whaletoolbarsettings.h"
@@ -627,6 +628,16 @@ void WhaleSplitLockTest::testSelectionLimitedWhileLocked()
     Q_EMIT selection->selectionRestricted();
     QTRY_COMPARE(messageText(m_right), QStringLiteral("While the views are linked, only items of one folder can be selected."));
     QVERIFY(messageText(m_left).isEmpty());
+
+    // In the flat view, the message says that the rule is about folders it does not show.
+    m_right->viewHost()->selectContentScope(WhaleContentScope::RecursiveFiles);
+    QTRY_VERIFY(m_right->viewHost()->isRecursiveContentShown());
+    QVERIFY(lock()->isLocked());
+    Q_EMIT selection->selectionRestricted();
+    QTRY_COMPARE(messageText(m_right),
+                 QStringLiteral("While the views are linked, only items of one folder can be selected. This also applies to the flat view, which does "
+                                "not show the folders."));
+    m_right->viewHost()->selectContentScope(WhaleContentScope::CurrentFolder);
 
     lock()->setLocked(false);
     QVERIFY(!m_left->view()->isSelectionLimitedToOneFolder());
