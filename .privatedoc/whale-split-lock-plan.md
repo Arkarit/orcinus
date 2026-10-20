@@ -261,6 +261,26 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
   Ordner der obersten Ebene wird aktuell), Lösen durch die Test-Liste, durch `trash:/` und beim
   Schließen der geteilten Ansicht; kein Wieder-Einrasten von selbst. `test_m3_acceptance.py` führt
   das Werkzeug in der festen Werkzeugliste.
-- **Offen (Teil 2):** Wayland-Abnahme mit echter Eingabe (Klick auf den Button, Strg+Klick,
-  Gummiband, Klicks in die Kissenansicht) – nur nach ausdrücklicher Freigabe des Benutzers.
+
+## LK6, Teil 2: Wayland-Abnahme mit echter Eingabe (2026-10-20, freigegeben vom Benutzer)
+
+- `test_lk_wayland_real.py` (ydotool + KWin-Skript, privater D-Bus, nicht in ctest wie F1),
+  16 Schritte R1–R7 grün: echter Klick auf den Lock-Button (rechte View übernimmt den Ort,
+  behält Icons), Klick auf ein Element (gespiegelt), Rechts-Taste klappt auf, abgelehnter
+  Strg+Klick in einen Unterordner (Auswahl und aktuelles Element bleiben, Meldung), Shift+Klick
+  über Ordnergrenzen auf den Ordner des Ankers begrenzt (Meldung), Klick in die andere View
+  (sie wird aktiv, Spiegeln in Gegenrichtung), Klick auf einen tiefen Eintrag der Kissenansicht
+  (Details klappt auf und wählt ihn aus), echter Klick löst den Lock. Screenshots geprüft.
+- `splitLock.buttonX/buttonY` im Dev MCP (Mittelpunkt in Fensterkoordinaten).
+- **Befund 1 (behoben, Lücke aus LK4):** Die inaktive View zeichnete einen falschen Bereich
+  (`sub, a.txt, b.txt` statt `b.txt`), obwohl ihre Auswahl stimmte. Ein Shift-Anker von vorher
+  (aus einem tiefen Eintrag in Icons) blieb aktiv; `setCurrentItem()` meldete den Bereich bis zum
+  neuen Element, `beginAnchoredSelection()` verwarf ihn danach ohne Signal. Jetzt beendet
+  `applyLinkedSelection()` einen alten Anker zuerst. Test `testMirrorShowsWhatIsSelected`
+  (scheitert ohne die Korrektur).
+- **Befund 2 (offen, UX):** Die Meldung („only items of one folder“) fährt **über** der Dateiliste
+  ein und schiebt sie um eine Zeile nach unten; nach 4 s rückt die Liste wieder hoch. Mitten beim
+  Klicken springt also das Ziel unter dem Zeiger, im Test traf ein Shift+Klick deshalb erst
+  nichts. Dolphins eigene Meldungen tun dasselbe, sind aber selten und verschwinden nicht von
+  selbst. Vorschlag: die Lock-Meldungen als Overlay oder in der Statusleiste zeigen.
 

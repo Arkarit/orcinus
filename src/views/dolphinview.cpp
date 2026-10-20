@@ -1041,6 +1041,9 @@ void DolphinView::applyLinkedSelection(bool listingCompleted)
 
     KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
     m_applyingLinkedSelection = true;
+    // No anchored range of before reaches to the new current item: the view would draw it,
+    // and beginAnchoredSelection() below would drop it again without a signal.
+    selectionManager->endAnchoredSelection();
     if (selectionManager->selectedItems() != items) {
         selectionManager->clearSelection();
         selectionManager->setSelectedItems(items);

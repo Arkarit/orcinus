@@ -1068,7 +1068,11 @@ QJsonValue WhaleDevAutomation::splitLockState() const
         });
     }
     const QToolButton *button = lock->button();
+    // Where real input reaches the button, in the main window's coordinates.
+    const QPoint center = button->isVisible() ? button->mapTo(m_window, button->rect().center()) : QPoint();
     return QJsonObject{
+        {QStringLiteral("buttonX"), button->isVisible() ? QJsonValue(center.x()) : QJsonValue::Null},
+        {QStringLiteral("buttonY"), button->isVisible() ? QJsonValue(center.y()) : QJsonValue::Null},
         {QStringLiteral("locked"), lock->isLocked()},
         {QStringLiteral("buttonVisible"), button->isVisible()},
         {QStringLiteral("buttonEnabled"), button->isEnabled()},

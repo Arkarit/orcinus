@@ -131,6 +131,7 @@ private Q_SLOTS:
     void testMirrorIntoExpandableView();
     void testMirrorIntoIconsView();
     void testMirrorAfterFollowing();
+    void testMirrorShowsWhatIsSelected();
     void testMirrorLeavesOutFilteredItems();
     void testLockWithTreemap();
     void testMirrorFromTreemap();
@@ -930,6 +931,28 @@ void WhaleSplitLockTest::testMirrorIntoIconsView()
     QVERIFY(selected(m_right).isEmpty());
     // The left view keeps its selection.
     QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub/b.txt")});
+}
+
+void WhaleSplitLockTest::testMirrorShowsWhatIsSelected()
+{
+    // The other view draws what its selection manager reports: an anchored range of before
+    // (here from the top-level folder of a deep item) must not extend to the next current item.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_right->view()->setViewMode(DolphinView::IconsView);
+    m_left->setActive(true);
+    DolphinView *view = m_right->view();
+    view->showLinkedSelection({url(QStringLiteral("sub/b.txt"))}, url(QStringLiteral("sub/b.txt")));
+    QTRY_COMPARE(current(m_right), QStringLiteral("sub"));
+    QVERIFY(selected(m_right).isEmpty());
+
+    QSignalSpy spy(selectionManager(m_right), &KItemListSelectionManager::selectionChanged);
+    view->showLinkedSelection({url(QStringLiteral("a.txt"))}, url(QStringLiteral("a.txt")));
+    QCOMPARE(selected(m_right), QStringList{QStringLiteral("a.txt")});
+    QVERIFY(!spy.isEmpty());
+    QCOMPARE(spy.constLast().at(0).value<KItemSet>(), selectionManager(m_right)->selectedItems());
 }
 
 void WhaleSplitLockTest::testMirrorAfterFollowing()
