@@ -126,4 +126,26 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
   das schon vorher scheitert (`testThumbnailAfterRename`, `testViewModeAfterDynamicView` hängt;
   auf `master` 5739d9f55 ebenso).
 - Noch ohne Wirkung: Der Lock bindet weder Ort noch Auswahl (LK2–LK4).
+- Nachtrag: In einer schmalen rechten View belegt der Platzhalter einen Button-Platz, ein Button
+  mehr geht ins Überlaufmenü. `testMiddleClickNavigation` scheiterte deshalb manchmal (1 von 10),
+  weil die rechte View noch in der Öffnungsanimation war (149 statt 214 px). Die Tests warten in
+  `showSplit()` jetzt auf das Ende der Animation (wie die Abnahmetests seit 5739d9f55).
+
+## LK2: umgesetzt (2026-10-20)
+
+- Beim Einrasten geht die andere View an den Ort der aktiven View. Danach folgt jede View dem
+  Ort der anderen (`WhaleSplitLock::follow()` an `DolphinView::urlChanged`). Gleiche URLs
+  (ohne abschließenden Schrägstrich) beenden das Hin und Her.
+- Die folgende View navigiert normal und bekommt einen eigenen Eintrag in ihrer Historie.
+  „Zurück“ in einer View ist für die andere also ein neuer Ort, kein „Zurück“.
+- Sie bleibt dabei inaktiv: neue Dolphin-Methode `DolphinViewContainer::setUrlWithoutActivation()`
+  (Dolphin-Diff ~15 Zeilen), nach dem Muster von `redirect()`. Sonst aktiviert der URL-Navigator
+  die folgende View bei jeder Navigation.
+- An einen nicht lockbaren Ort folgt die andere View nicht; der Lock löst sich (E3).
+- Mit „Always follow symbolic links to their target“ landen beide Views am Ziel, die folgende
+  bleibt inaktiv.
+- Folge für LK5: Bevorzugt ein Ort eine Plugin-View (z. B. die Kissenansicht), wechselt die
+  folgende View dorthin, und der Lock löst sich, solange Plugins nicht lockbar sind.
+- Test `whalesplitlocktest` jetzt 18 Fälle (+ Einrasten in beide Richtungen, Folgen in beide
+  Richtungen, Zurück/Hoch, kein Folgen ohne Lock oder an nicht lockbare Orte, Symlink-Ziel).
 

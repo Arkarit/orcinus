@@ -24,9 +24,14 @@ class QToolButton;
  * button (WhaleFileViewToolBar::setLeadingWidget()), so not in Configure Toolbars.
  *
  * The views can be locked while both are lockable (lockability()); otherwise the button is
- * disabled and its tooltip says why. When a locked view becomes unlockable (another location
- * or another view), the lock is released and that view says why (E3). Closing the split view
- * releases it too. The lock is not part of the session (E4).
+ * disabled and its tooltip says why. Locked, both views are at the same location (E1): on
+ * locking, the other view goes to the location of the active one, and from then on each view
+ * follows where the other one goes. The following view navigates as usual, so it has an
+ * entry in its history and stays the inactive view.
+ *
+ * When a locked view becomes unlockable (another location or another view), the lock is
+ * released and that view says why (E3); the other view stays where it is. Closing the split
+ * view releases it too. The lock is not part of the session (E4).
  */
 class WhaleSplitLock : public QObject
 {
@@ -73,6 +78,9 @@ private:
     void update();
     void scheduleUpdate();
     void connectContainer(DolphinViewContainer *container);
+    /// E1: the other view goes to the location of @p leader.
+    void follow(DolphinViewContainer *leader);
+    DolphinViewContainer *otherView(const DolphinViewContainer *container) const;
     /// Releases the lock: @p container is the view that became unlockable, nullptr when the
     /// split view closed.
     void release(DolphinViewContainer *container, const QString &reason);
@@ -84,6 +92,7 @@ private:
     QPointer<DolphinViewContainer> m_right;
     bool m_locked = false;
     bool m_updateScheduled = false;
+    bool m_following = false;
 };
 
 #endif

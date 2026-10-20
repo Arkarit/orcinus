@@ -263,6 +263,12 @@ public Q_SLOTS:
     void setUrl(const QUrl &url);
 
     /**
+     * Whale: as setUrl(), but an inactive view stays inactive (as in redirect()), e.g. a view
+     * that follows the other view of a locked split view.
+     */
+    void setUrlWithoutActivation(const QUrl &url);
+
+    /**
      * Popups the filter bar above the status bar if \a visible is true.
      * It \a visible is true, it is assured that the filter bar gains
      * the keyboard focus.

@@ -93,6 +93,11 @@ void WhaleSplitLock::setLocked(bool locked)
     m_locked = locked;
     update();
     Q_EMIT lockedChanged(m_locked);
+    if (m_locked) {
+        // The other view goes where the active one is.
+        DolphinViewContainer *active = m_page->activeViewContainer();
+        follow(active == m_right ? m_right : m_left);
+    }
 }
 
 QToolButton *WhaleSplitLock::button() const
@@ -124,10 +129,40 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
 {
     // Whatever decides about the lockability: the location and the shown view.
     connect(container->view(), &DolphinView::urlChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+    connect(container->view(), &DolphinView::urlChanged, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
+        follow(view);
+    });
     if (WhaleViewHost *host = container->viewHost()) {
         connect(host, &WhaleViewHost::currentViewChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
     }
     connect(container, &QObject::destroyed, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+}
+
+DolphinViewContainer *WhaleSplitLock::otherView(const DolphinViewContainer *container) const
+{
+    if (!container) {
+        return nullptr;
+    }
+    return container == m_left ? m_right.data() : container == m_right ? m_left.data() : nullptr;
+}
+
+void WhaleSplitLock::follow(DolphinViewContainer *leader)
+{
+    DolphinViewContainer *other = otherView(leader);
+    if (!m_locked || m_following || !other) {
+        return;
+    }
+    // Not where the views cannot be linked: the lock is released instead (E3, update()).
+    if (!lockability(leader).lockable) {
+        return;
+    }
+    const QUrl url = leader->url();
+    if (other->url().adjusted(QUrl::StripTrailingSlash) == url.adjusted(QUrl::StripTrailingSlash)) {
+        return; // also the way back of the other view's own change
+    }
+    m_following = true;
+    other->setUrlWithoutActivation(url);
+    m_following = false;
 }
 
 void WhaleSplitLock::release(DolphinViewContainer *container, const QString &reason)

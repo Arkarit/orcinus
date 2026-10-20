@@ -28,13 +28,32 @@
 #include <KMessageWidget>
 
 #include <QSignalSpy>
+#include <QSplitter>
 #include <QStandardPaths>
 #include <QTest>
 #include <QToolButton>
+#include <QVariantAnimation>
+
+#include <algorithm>
 
 namespace
 {
 const QString treemapId = QStringLiteral("whale_treemap");
+
+// Opening the split view animates the width of the new view (DolphinTabPage's expand
+// animation, a direct child of the splitter); until it ends, the view may be too narrow for
+// all buttons of its File View Toolbar.
+bool splitAnimating(DolphinTabPage *page)
+{
+    auto splitter = page ? qobject_cast<QSplitter *>(page->primaryViewContainer()->parentWidget()) : nullptr;
+    if (!splitter) {
+        return false;
+    }
+    const auto animations = splitter->findChildren<QVariantAnimation *>(QString(), Qt::FindDirectChildrenOnly);
+    return std::any_of(animations.cbegin(), animations.cend(), [](const QVariantAnimation *animation) {
+        return animation->state() == QAbstractAnimation::Running;
+    });
+}
 
 // The message a view area shows in its message area.
 KMessageWidget *shownMessage(DolphinViewContainer *container)
@@ -73,6 +92,13 @@ private Q_SLOTS:
     void testReleaseWhenSplitCloses();
     void testNotInSession();
     void testTransientMessage();
+    void testLockTakesActiveLocation_data();
+    void testLockTakesActiveLocation();
+    void testViewsFollow();
+    void testFollowBack();
+    void testNoFollowWhenUnlocked();
+    void testNoFollowToUnlockableLocation();
+    void testFollowSymlinkTarget();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -80,6 +106,8 @@ private:
     DolphinTabPage *tabPage() const;
     WhaleSplitLock *lock() const;
     static WhaleFileViewToolBar *toolBar(DolphinViewContainer *container);
+    QUrl url(const QString &relative) const;
+    static QUrl normalized(const QUrl &url);
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -108,6 +136,7 @@ void WhaleSplitLockTest::init()
     m_dir.reset(new TestDir());
     m_dir->createFile(QStringLiteral("a.txt"));
     m_dir->createFile(QStringLiteral("sub/b.txt"));
+    m_dir->createFile(QStringLiteral("sub/deeper/c.txt"));
     m_mainWindow.reset(new DolphinMainWindow());
 }
 
@@ -117,6 +146,7 @@ void WhaleSplitLockTest::cleanup()
     m_dir.reset();
     m_left = m_right = nullptr;
     WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
+    GeneralSettings::self()->setFollowSymlinksToTarget(false);
 }
 
 DolphinViewContainer *WhaleSplitLockTest::showMainWindow()
@@ -146,6 +176,7 @@ void WhaleSplitLockTest::showSplit()
     m_right = tabPage()->secondaryViewContainer();
     QVERIFY(m_left && m_right);
     QTRY_COMPARE(m_right->view()->itemsCount(), 2);
+    QTRY_VERIFY(!splitAnimating(tabPage()));
     QTRY_VERIFY(toolBar(m_right)->scope());
     QTRY_VERIFY(lock()->button()->isVisible());
 }
@@ -163,6 +194,16 @@ WhaleSplitLock *WhaleSplitLockTest::lock() const
 WhaleFileViewToolBar *WhaleSplitLockTest::toolBar(DolphinViewContainer *container)
 {
     return container->findChild<WhaleFileViewToolBar *>(QString(), Qt::FindDirectChildrenOnly);
+}
+
+QUrl WhaleSplitLockTest::url(const QString &relative) const
+{
+    return QUrl::fromLocalFile(m_dir->path() + QLatin1Char('/') + relative);
+}
+
+QUrl WhaleSplitLockTest::normalized(const QUrl &url)
+{
+    return url.adjusted(QUrl::StripTrailingSlash);
 }
 
 void WhaleSplitLockTest::testButtonPlacement()
@@ -417,6 +458,150 @@ void WhaleSplitLockTest::testTransientMessage()
     container->showMessage(QStringLiteral("error"), KMessageWidget::Error);
     QTest::qWait(5000);
     QCOMPARE(messageText(container), QStringLiteral("error"));
+}
+
+void WhaleSplitLockTest::testLockTakesActiveLocation_data()
+{
+    QTest::addColumn<bool>("rightActive");
+    QTest::newRow("left active") << false;
+    QTest::newRow("right active") << true;
+}
+
+void WhaleSplitLockTest::testLockTakesActiveLocation()
+{
+    // E1: on locking, the other view goes to the location of the active one; the active view
+    // stays active and where it is.
+    QFETCH(bool, rightActive);
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_right->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    DolphinViewContainer *active = rightActive ? m_right : m_left;
+    DolphinViewContainer *other = rightActive ? m_left : m_right;
+    const QUrl target = normalized(active->url());
+    active->setActive(true);
+    QTRY_VERIFY(active->isActive());
+
+    lock()->setLocked(true);
+    QTRY_COMPARE(normalized(other->url()), target);
+    QCOMPARE(normalized(active->url()), target);
+    QVERIFY(active->isActive());
+    QVERIFY(!other->isActive());
+    QVERIFY(lock()->isLocked());
+}
+
+void WhaleSplitLockTest::testViewsFollow()
+{
+    // Each view follows where the other one goes, and stays the inactive one.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->setActive(true);
+    lock()->setLocked(true);
+
+    m_left->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    QTRY_COMPARE(m_right->view()->itemsCount(), 2);
+    QVERIFY(m_left->isActive());
+    QVERIFY(!m_right->isActive());
+
+    m_right->setActive(true);
+    QTRY_VERIFY(m_right->isActive());
+    m_right->setUrl(url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub/deeper")));
+    QVERIFY(m_right->isActive());
+    QVERIFY(!m_left->isActive());
+
+    // Settles: no view goes on after the other.
+    QTest::qWait(200);
+    QCOMPARE(normalized(m_left->url()), url(QStringLiteral("sub/deeper")));
+    QCOMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
+    QVERIFY(lock()->isLocked());
+}
+
+void WhaleSplitLockTest::testFollowBack()
+{
+    // Back and Up in one view: the other one follows to that location (as a new entry in its
+    // own history).
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    m_left->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    m_left->setUrl(url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
+
+    QTRY_VERIFY(toolBar(m_left)->scope());
+    toolBar(m_left)->scope()->action(QStringLiteral("go_back"))->trigger();
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+
+    toolBar(m_right)->scope()->action(QStringLiteral("go_up"))->trigger();
+    QTRY_COMPARE(normalized(m_right->url()), normalized(m_dir->url()));
+    QTRY_COMPARE(normalized(m_left->url()), normalized(m_dir->url()));
+    QVERIFY(lock()->isLocked());
+}
+
+void WhaleSplitLockTest::testNoFollowWhenUnlocked()
+{
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub")));
+    QTest::qWait(200);
+    QCOMPARE(normalized(m_right->url()), normalized(m_dir->url()));
+
+    // Nor after releasing.
+    lock()->setLocked(true);
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    lock()->setLocked(false);
+    m_left->setUrl(url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub/deeper")));
+    QTest::qWait(200);
+    QCOMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+}
+
+void WhaleSplitLockTest::testNoFollowToUnlockableLocation()
+{
+    // E3: the other view stays where it is; the lock is released.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    lock()->setLocked(true);
+    m_left->setUrl(QUrl(QStringLiteral("trash:/")));
+    QTRY_VERIFY(!lock()->isLocked());
+    QTest::qWait(200);
+    QCOMPARE(normalized(m_right->url()), normalized(m_dir->url()));
+}
+
+void WhaleSplitLockTest::testFollowSymlinkTarget()
+{
+    // "Always follow symbolic links to their target": both views end at the target, the
+    // following view stays inactive.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QVERIFY(QFile::link(m_dir->path() + QStringLiteral("/sub/deeper"), m_dir->path() + QStringLiteral("/link")));
+    GeneralSettings::self()->setFollowSymlinksToTarget(true);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    m_left->setUrl(url(QStringLiteral("link")));
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
+    QTest::qWait(200);
+    QCOMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
+    QVERIFY(m_left->isActive());
+    QVERIFY(!m_right->isActive());
 }
 
 QTEST_MAIN(WhaleSplitLockTest)
