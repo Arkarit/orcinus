@@ -49,10 +49,14 @@
 #include <QDomDocument>
 #include <QMenu>
 #include <QSignalSpy>
+#include <QSplitter>
 #include <QStandardPaths>
 #include <QTest>
 #include <QTimer>
 #include <QToolButton>
+#include <QVariantAnimation>
+
+#include <algorithm>
 
 #include <unistd.h>
 
@@ -78,6 +82,21 @@ QVariantMap treemapState(QWidget *view)
     QVariantMap state;
     QMetaObject::invokeMethod(view, "treemapState", Qt::DirectConnection, Q_RETURN_ARG(QVariantMap, state));
     return state;
+}
+
+// Opening the split view animates the width of the new view (DolphinTabPage's expand
+// animation, a direct child of the splitter); until it ends, the view may be too narrow for
+// all buttons of its File View Toolbar.
+bool splitAnimating(DolphinTabPage *page)
+{
+    auto splitter = page ? qobject_cast<QSplitter *>(page->primaryViewContainer()->parentWidget()) : nullptr;
+    if (!splitter) {
+        return false;
+    }
+    const auto animations = splitter->findChildren<QVariantAnimation *>(QString(), Qt::FindDirectChildrenOnly);
+    return std::any_of(animations.cbegin(), animations.cend(), [](const QVariantAnimation *animation) {
+        return animation->state() == QAbstractAnimation::Running;
+    });
 }
 
 // The message a view area shows in its message area.
@@ -258,6 +277,7 @@ void WhaleFileViewToolBarTest::showSplit()
     m_right = tabPage()->secondaryViewContainer();
     QVERIFY(m_left && m_right);
     QTRY_COMPARE(m_right->view()->itemsCount(), 3);
+    QTRY_VERIFY(!splitAnimating(tabPage()));
     QTRY_VERIFY(toolBar(m_left)->scope() && toolBar(m_right)->scope());
 }
 
