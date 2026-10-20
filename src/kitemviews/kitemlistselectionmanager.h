@@ -15,6 +15,8 @@
 
 #include <QObject>
 
+#include <functional>
+
 class KItemModelBase;
 
 /**
@@ -63,9 +65,22 @@ public:
 
     KItemModelBase *model() const;
 
+    /**
+     * Whale: limits the selection to items of one group, e.g. of one folder while the views of a
+     * split view are linked. @p sameGroup tells whether two items belong to the same group; an
+     * empty function removes the limit. Adding one item of another group to the selection is
+     * refused, a range (also an anchored one) is limited to the group of the selection or the
+     * anchor. selectionRestricted() tells about what was refused or left out. A selection of
+     * several groups is reduced to the group of the current item at once.
+     */
+    void setSameGroup(const std::function<bool(int, int)> &sameGroup);
+    bool isGroupLimited() const;
+
 Q_SIGNALS:
     void currentChanged(int current, int previous);
     void selectionChanged(const KItemSet &current, const KItemSet &previous);
+    /// Whale: items were left out of the selection because of setSameGroup().
+    void selectionRestricted();
 
 private:
     void setModel(KItemModelBase *model);
@@ -79,6 +94,11 @@ private:
      */
     int indexAfterRangesRemoving(int index, const KItemRangeList &itemRanges, const RangesRemovingBehaviour behaviour) const;
 
+    /// Whale: whether the anchored range may include @p index (setSameGroup()).
+    bool isInAnchoredGroup(int index) const;
+    /// Whale: @p items without those of another group than @p reference.
+    KItemSet itemsOfGroup(const KItemSet &items, int reference) const;
+
 private:
     int m_currentItem;
     int m_anchorItem;
@@ -86,6 +106,7 @@ private:
     bool m_isAnchoredSelectionActive;
 
     KItemModelBase *m_model;
+    std::function<bool(int, int)> m_sameGroup; // Whale: setSameGroup()
 
     friend class KItemListController; // Calls setModel()
     friend class KItemListView; // Calls itemsInserted(), itemsRemoved() and itemsMoved()

@@ -12,6 +12,9 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
+#include "kitemviews/kitemlistcontainer.h"
+#include "kitemviews/kitemlistcontroller.h"
+#include "kitemviews/kitemlistselectionmanager.h"
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
@@ -99,6 +102,7 @@ private Q_SLOTS:
     void testNoFollowWhenUnlocked();
     void testNoFollowToUnlockableLocation();
     void testFollowSymlinkTarget();
+    void testSelectionLimitedWhileLocked();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -602,6 +606,39 @@ void WhaleSplitLockTest::testFollowSymlinkTarget()
     QCOMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
     QVERIFY(m_left->isActive());
     QVERIFY(!m_right->isActive());
+}
+
+void WhaleSplitLockTest::testSelectionLimitedWhileLocked()
+{
+    // A1: only while locked, in both views; the view that refuses says why (A8).
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QVERIFY(!m_left->view()->isSelectionLimitedToOneFolder());
+    QVERIFY(!m_right->view()->isSelectionLimitedToOneFolder());
+    lock()->setLocked(true);
+    QVERIFY(m_left->view()->isSelectionLimitedToOneFolder());
+    QVERIFY(m_right->view()->isSelectionLimitedToOneFolder());
+
+    KItemListSelectionManager *selection = m_right->view()->findChild<KItemListContainer *>()->controller()->selectionManager();
+    selection->setSelected(0);
+    QVERIFY(selection->isGroupLimited());
+    Q_EMIT selection->selectionRestricted();
+    QTRY_COMPARE(messageText(m_right), QStringLiteral("While the views are linked, only items of one folder can be selected."));
+    QVERIFY(messageText(m_left).isEmpty());
+
+    lock()->setLocked(false);
+    QVERIFY(!m_left->view()->isSelectionLimitedToOneFolder());
+    QVERIFY(!m_right->view()->isSelectionLimitedToOneFolder());
+
+    // Released by the split view closing: the remaining view is not limited.
+    lock()->setLocked(true);
+    QPointer<DolphinViewContainer> right = m_right;
+    m_mainWindow->closeRightSplitView();
+    QTRY_VERIFY(!right);
+    QTRY_VERIFY(!lock()->isLocked());
+    QTRY_VERIFY(!m_left->view()->isSelectionLimitedToOneFolder());
 }
 
 QTEST_MAIN(WhaleSplitLockTest)

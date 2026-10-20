@@ -40,6 +40,17 @@ void KItemListSelectionManager::setCurrentItem(int current)
             if (selection != previousSelection) {
                 Q_EMIT selectionChanged(selection, previousSelection);
             }
+            // Whale: the range reaches into another group (setSameGroup()).
+            if (m_sameGroup && m_anchorItem != m_currentItem) {
+                const int from = qMin(m_anchorItem, m_currentItem);
+                const int to = qMax(m_anchorItem, m_currentItem);
+                for (int index = from; index <= to; ++index) {
+                    if (!isInAnchoredGroup(index)) {
+                        Q_EMIT selectionRestricted();
+                        break;
+                    }
+                }
+            }
         }
     }
 }
@@ -51,10 +62,26 @@ int KItemListSelectionManager::currentItem() const
 
 void KItemListSelectionManager::setSelectedItems(const KItemSet &items)
 {
-    if (m_selectedItems != items) {
+    KItemSet newItems = items;
+    bool restricted = false;
+    if (m_sameGroup && !items.isEmpty()) {
+        // Whale: in the group of the selection, e.g. of a growing rubber band, else of the current item.
+        int reference = items.first();
+        if (!m_selectedItems.isEmpty() && items.contains(m_selectedItems.first())) {
+            reference = m_selectedItems.first();
+        } else if (items.contains(m_currentItem)) {
+            reference = m_currentItem;
+        }
+        newItems = itemsOfGroup(items, reference);
+        restricted = newItems.count() != items.count();
+    }
+    if (m_selectedItems != newItems) {
         const KItemSet previous = m_selectedItems;
-        m_selectedItems = items;
+        m_selectedItems = newItems;
         Q_EMIT selectionChanged(m_selectedItems, previous);
+    }
+    if (restricted) {
+        Q_EMIT selectionRestricted();
     }
 }
 
@@ -69,7 +96,9 @@ KItemSet KItemListSelectionManager::selectedItems() const
         const int to = qMax(m_anchorItem, m_currentItem);
 
         for (int index = from; index <= to; ++index) {
-            selectedItems.insert(index);
+            if (isInAnchoredGroup(index)) { // Whale
+                selectedItems.insert(index);
+            }
         }
     }
 
@@ -89,7 +118,7 @@ bool KItemListSelectionManager::isSelected(int index) const
         const int to = qMax(m_anchorItem, m_currentItem);
 
         if (from <= index && index <= to) {
-            return true;
+            return isInAnchoredGroup(index); // Whale
         }
     }
 
@@ -98,7 +127,7 @@ bool KItemListSelectionManager::isSelected(int index) const
 
 bool KItemListSelectionManager::hasSelection() const
 {
-    return !m_selectedItems.isEmpty() || (m_isAnchoredSelectionActive && m_anchorItem != m_currentItem);
+    return !m_selectedItems.isEmpty() || (m_isAnchoredSelectionActive && m_anchorItem != m_currentItem && isInAnchoredGroup(m_anchorItem));
 }
 
 void KItemListSelectionManager::setSelected(int index, int count, SelectionMode mode)
@@ -109,6 +138,7 @@ void KItemListSelectionManager::setSelected(int index, int count, SelectionMode 
 
     endAnchoredSelection();
     const KItemSet previous = selectedItems();
+    const KItemSet before = m_selectedItems; // Whale
 
     count = qMin(count, m_model->count() - index);
 
@@ -141,9 +171,32 @@ void KItemListSelectionManager::setSelected(int index, int count, SelectionMode 
         break;
     }
 
+    // Whale: one group only (setSameGroup()).
+    bool restricted = false;
+    if (m_sameGroup && mode != Deselect && !m_selectedItems.isEmpty()) {
+        int reference = m_selectedItems.first();
+        if (!before.isEmpty()) {
+            reference = before.first();
+        } else if (m_selectedItems.contains(m_currentItem)) {
+            reference = m_currentItem;
+        }
+        if (count == 1 && !before.isEmpty() && !m_sameGroup(index, reference)) {
+            // One item of another group (Ctrl+click): refused.
+            m_selectedItems = before;
+            restricted = true;
+        } else {
+            const KItemSet limited = itemsOfGroup(m_selectedItems, reference);
+            restricted = limited.count() != m_selectedItems.count();
+            m_selectedItems = limited;
+        }
+    }
+
     const KItemSet selection = selectedItems();
     if (selection != previous) {
         Q_EMIT selectionChanged(selection, previous);
+    }
+    if (restricted) {
+        Q_EMIT selectionRestricted();
     }
 }
 
@@ -184,7 +237,9 @@ void KItemListSelectionManager::endAnchoredSelection()
         const int to = qMax(m_anchorItem, m_currentItem);
 
         for (int index = from; index <= to; ++index) {
-            m_selectedItems.insert(index);
+            if (isInAnchoredGroup(index)) { // Whale
+                m_selectedItems.insert(index);
+            }
         }
     }
 
@@ -194,6 +249,52 @@ void KItemListSelectionManager::endAnchoredSelection()
 bool KItemListSelectionManager::isAnchoredSelectionActive() const
 {
     return m_isAnchoredSelectionActive;
+}
+
+void KItemListSelectionManager::setSameGroup(const std::function<bool(int, int)> &sameGroup)
+{
+    // The whole anchored range belongs to the selection as it was.
+    endAnchoredSelection();
+    m_sameGroup = sameGroup;
+    if (!m_sameGroup || m_selectedItems.isEmpty()) {
+        return;
+    }
+    const int reference = m_selectedItems.contains(m_currentItem) ? m_currentItem : m_selectedItems.first();
+    const KItemSet limited = itemsOfGroup(m_selectedItems, reference);
+    if (limited != m_selectedItems) {
+        const KItemSet previous = m_selectedItems;
+        m_selectedItems = limited;
+        Q_EMIT selectionChanged(m_selectedItems, previous);
+        Q_EMIT selectionRestricted();
+    }
+}
+
+bool KItemListSelectionManager::isGroupLimited() const
+{
+    return bool(m_sameGroup);
+}
+
+bool KItemListSelectionManager::isInAnchoredGroup(int index) const
+{
+    if (!m_sameGroup) {
+        return true;
+    }
+    // Ctrl+Shift adds the range to a selection: not to one of another group.
+    if (!m_selectedItems.isEmpty() && !m_sameGroup(m_anchorItem, m_selectedItems.first())) {
+        return false;
+    }
+    return m_sameGroup(index, m_anchorItem);
+}
+
+KItemSet KItemListSelectionManager::itemsOfGroup(const KItemSet &items, int reference) const
+{
+    KItemSet result;
+    for (const int index : items) {
+        if (m_sameGroup(index, reference)) {
+            result.insert(index);
+        }
+    }
+    return result;
 }
 
 KItemModelBase *KItemListSelectionManager::model() const

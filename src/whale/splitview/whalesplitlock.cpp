@@ -136,6 +136,12 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
         connect(host, &WhaleViewHost::currentViewChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
     }
     connect(container, &QObject::destroyed, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+    // A1: why an item could not be added to the selection.
+    connect(container->view(), &DolphinView::selectionLimited, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
+        if (m_locked && view) {
+            view->showTransientMessage(i18nc("@info", "While the views are linked, only items of one folder can be selected."));
+        }
+    });
 }
 
 DolphinViewContainer *WhaleSplitLock::otherView(const DolphinViewContainer *container) const
@@ -199,6 +205,13 @@ void WhaleSplitLock::update()
             release(left, leftLockability.reason);
         } else if (!rightLockability.lockable) {
             release(right, rightLockability.reason);
+        }
+    }
+
+    // A1: while locked, a selection is in one folder.
+    for (DolphinViewContainer *container : {left, right}) {
+        if (container) {
+            container->view()->setSelectionLimitedToOneFolder(m_locked);
         }
     }
 

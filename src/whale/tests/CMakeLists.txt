@@ -284,3 +284,9 @@ ecm_add_test(whalesplitlocktest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/
 target_include_directories(whalesplitlocktest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalesplitlocktest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whalesplitlocktest whale_treemap)
+
+# The selection limited to one folder while the views of a split view are linked (LK3).
+ecm_add_test(whaleselectionlimittest.cpp ../../tests/testdir.cpp
+    TEST_NAME whaleselectionlimittest
+    LINK_LIBRARIES dolphinprivate Qt6::Test)
+target_include_directories(whaleselectionlimittest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

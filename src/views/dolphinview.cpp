@@ -265,6 +265,7 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent)
 
     KItemListSelectionManager *selectionManager = controller->selectionManager();
     connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, &DolphinView::slotSelectionChanged);
+    connect(selectionManager, &KItemListSelectionManager::selectionRestricted, this, &DolphinView::selectionLimited); // Whale
 
 #if HAVE_BALOO
     m_toolTipManager = new ToolTipManager(this);
@@ -847,16 +848,72 @@ void DolphinView::setUrl(const QUrl &url)
     Q_EMIT urlChanged(url);
 }
 
+namespace
+{
+// Whale: the folder an item is in (setSelectionLimitedToOneFolder()).
+QUrl folderOfItem(const KFileItemModel *model, int index)
+{
+    return model->fileItem(index).url().adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
+}
+}
+
 void DolphinView::selectAll()
 {
     KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    if (selectionManager->isGroupLimited()) {
+        // Whale: the items of the current folder.
+        const int current = selectionManager->currentItem();
+        const QUrl folder = current >= 0 ? folderOfItem(m_model, current) : url().adjusted(QUrl::StripTrailingSlash);
+        KItemSet items;
+        for (int index = 0; index < m_model->count(); ++index) {
+            if (folderOfItem(m_model, index) == folder) {
+                items.insert(index);
+            }
+        }
+        selectionManager->setSelectedItems(items);
+        return;
+    }
     selectionManager->setSelected(0, m_model->count());
 }
 
 void DolphinView::invertSelection()
 {
     KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    if (selectionManager->isGroupLimited()) {
+        // Whale: within the current folder.
+        const int current = selectionManager->currentItem();
+        const QUrl folder = current >= 0 ? folderOfItem(m_model, current) : url().adjusted(QUrl::StripTrailingSlash);
+        const KItemSet selected = selectionManager->selectedItems();
+        KItemSet items;
+        for (int index = 0; index < m_model->count(); ++index) {
+            if (folderOfItem(m_model, index) == folder && !selected.contains(index)) {
+                items.insert(index);
+            }
+        }
+        selectionManager->setSelectedItems(items);
+        return;
+    }
     selectionManager->setSelected(0, m_model->count(), KItemListSelectionManager::Toggle);
+}
+
+void DolphinView::setSelectionLimitedToOneFolder(bool limited)
+{
+    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    if (limited == selectionManager->isGroupLimited()) {
+        return;
+    }
+    if (limited) {
+        selectionManager->setSameGroup([this](int a, int b) {
+            return a == b || folderOfItem(m_model, a) == folderOfItem(m_model, b);
+        });
+    } else {
+        selectionManager->setSameGroup({});
+    }
+}
+
+bool DolphinView::isSelectionLimitedToOneFolder() const
+{
+    return m_container->controller()->selectionManager()->isGroupLimited();
 }
 
 void DolphinView::clearSelection()

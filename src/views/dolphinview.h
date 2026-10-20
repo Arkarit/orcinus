@@ -444,6 +444,14 @@ public Q_SLOTS:
      */
     void invertSelection();
 
+    /**
+     * Whale: limits the selection to items of one folder (the views of a split view are
+     * linked). Then selectAll() and invertSelection() work on the folder of the current item
+     * (else on the view's location); selectionLimited() tells when items were left out.
+     */
+    void setSelectionLimitedToOneFolder(bool limited);
+    bool isSelectionLimitedToOneFolder() const;
+
     void clearSelection();
 
     /**
@@ -634,6 +642,12 @@ Q_SIGNALS:
      * Is emitted whenever the selection has been changed.
      */
     void selectionChanged(const KFileItemList &selection);
+
+    /**
+     * Whale: items were left out of the selection or refused, because it is limited to one
+     * folder (setSelectionLimitedToOneFolder()).
+     */
+    void selectionLimited();
 
     /**
      * Is emitted if a context menu is requested for the item \a item,

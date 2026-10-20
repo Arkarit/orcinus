@@ -149,3 +149,29 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
 - Test `whalesplitlocktest` jetzt 18 Fälle (+ Einrasten in beide Richtungen, Folgen in beide
   Richtungen, Zurück/Hoch, kein Folgen ohne Lock oder an nicht lockbare Orte, Symlink-Ziel).
 
+## LK3: umgesetzt (2026-10-20)
+
+- `KItemListSelectionManager::setSameGroup()` (Dolphin-Diff, ~110 Zeilen, als Whale markiert):
+  eine optionale Regel „gehören zwei Elemente zur selben Gruppe?“. Damit greift A1 an einer
+  Stelle für alle Wege: Klick, Strg+Klick, Strg+Leertaste, Shift+Klick, Shift+Pfeil, Gummiband,
+  Auswahlmodus.
+  - Ein einzelnes Element einer anderen Gruppe kommt nicht hinzu (A2). Abwählen geht immer.
+  - Bereiche, auch der verankerte von Shift, behalten nur die Gruppe der bestehenden Auswahl
+    bzw. des Ankers (A3, A5). Strg+Shift hängt keinen Bereich einer anderen Gruppe an.
+  - Was weggelassen oder abgelehnt wird, meldet `selectionRestricted()`.
+  - Beim Einschalten wird eine Auswahl über mehrere Gruppen auf die Gruppe des aktuellen
+    Elements reduziert, ebenfalls mit Meldung.
+- `DolphinView::setSelectionLimitedToOneFolder()` (Dolphin-Diff, ~55 Zeilen): Gruppe = Elternordner
+  der URL. „Alles auswählen“ und „Auswahl umkehren“ wirken dann im Ordner des aktuellen Elements,
+  ohne aktuelles Element im Ort (A4, A6, A7). Signal `selectionLimited()`.
+- `WhaleSplitLock` schaltet die Regel in beiden Views, solange der Lock aktiv ist. Bei
+  `selectionLimited()` zeigt die betroffene View: „While the views are linked, only items of one
+  folder can be selected.“ (A8, dieselbe Meldung startet nur die Zeit neu).
+- Abgeleitet, noch nicht mit dem Benutzer besprochen:
+  - **Flache Ansicht:** Die Regel gilt dort nach dem echten Elternordner, obwohl die Ordner nicht
+    zu sehen sind. Sonst läge die gespiegelte Auswahl nicht mehr in einem Ordner.
+  - Ein abgelehnter Strg+Klick macht das Element trotzdem zum aktuellen Element (Fokusrahmen),
+    wie Dolphin es bei jedem Klick tut.
+- Tests: `whaleselectionlimittest` (11 Fälle, echte `DolphinView` mit aufgeklapptem Baum, echte
+  Tasten für Strg+Leertaste und Shift+Pfeile) und `whalesplitlocktest` (19 Fälle).
+

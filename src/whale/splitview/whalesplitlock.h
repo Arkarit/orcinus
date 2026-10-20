@@ -27,7 +27,9 @@ class QToolButton;
  * disabled and its tooltip says why. Locked, both views are at the same location (E1): on
  * locking, the other view goes to the location of the active one, and from then on each view
  * follows where the other one goes. The following view navigates as usual, so it has an
- * entry in its history and stays the inactive view.
+ * entry in its history and stays the inactive view. A selection is limited to the items of one
+ * folder (A1, DolphinView::setSelectionLimitedToOneFolder()); a view says so when it refuses
+ * or leaves out items.
  *
  * When a locked view becomes unlockable (another location or another view), the lock is
  * released and that view says why (E3); the other view stays where it is. Closing the split
