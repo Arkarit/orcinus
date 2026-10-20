@@ -127,6 +127,13 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}}, "required": ["enabled"]},
     },
     {
+        "name": "set_split_lock",
+        "description": "Links or unlinks the two views of the split view (a setter, not a toggle) by "
+        "clicking the lock button, as the user does. Fails while the button is hidden or disabled "
+        "(the reason is in splitLock.toolTip of get_ui_state).",
+        "inputSchema": {"type": "object", "properties": {"locked": {"type": "boolean"}}, "required": ["locked"]},
+    },
+    {
         "name": "set_window_size",
         "description": "Resizes the Whale window as the user does (the compositor may adjust it); "
         "window.width/height in get_ui_state show the result.",
@@ -592,6 +599,8 @@ class Whale:
             return result(iface.SetSplitRatio(float(args["left_share"])))
         if tool == "set_split_view":
             return result(iface.SetSplitView(bool(args["enabled"])))
+        if tool == "set_split_lock":
+            return result(iface.SetSplitLock(bool(args["locked"])))
         if tool == "set_location":
             return result(iface.SetLocation(pane, args["url"]))
         if tool == "set_filter_text":

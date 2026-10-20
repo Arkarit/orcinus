@@ -123,3 +123,10 @@ Hinweis: `set_split_view(false)` schließt wie der Schließen-Knopf die **aktive
   `trigger_action` zusätzlich `new_tab`, `activate_next_tab`, `activate_prev_tab`.
 - `test_m6_acceptance.py` (A–G, 36 Schritte) startet sich selbst unter `dbus-run-session`; grün offscreen
   und auf Wayland inkl. Neustarts.
+
+## LK6: Lock der geteilten Ansicht (2026-10-20, Branch `lock-file-panels`)
+
+Neu: Zustand `splitLock` in `get_ui_state` und Werkzeug `set_split_lock` (Setter, Klick auf den
+Lock-Button). Abnahme `tests/test_lk_acceptance.py` (offscreen, 20 Schritte). Details in
+`.privatedoc/whale-split-lock-plan.md`.
+

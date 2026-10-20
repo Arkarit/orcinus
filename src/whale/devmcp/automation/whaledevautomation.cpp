@@ -30,6 +30,7 @@
 #include "whalelocationbar.h"
 #include "whalepreviewproviderimpl.h"
 #include "whalerecursivecontent.h"
+#include "whalesplitlock.h"
 #include "whaletoolbardescriptor.h"
 #include "whaletoolbarsettings.h"
 #include "whaletreecache.h"
@@ -84,6 +85,7 @@
 #include <QRegion>
 #include <QSplitter>
 #include <QTimer>
+#include <QToolButton>
 #include <QVariantAnimation>
 #include <QWheelEvent>
 
@@ -699,6 +701,7 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("tabs"), QJsonObject{{QStringLiteral("count"), tabs->count()}, {QStringLiteral("current"), tabs->currentIndex()}}},
         {QStringLiteral("splitView"), all.count() > 1},
         {QStringLiteral("splitAnimating"), splitAnimating},
+        {QStringLiteral("splitLock"), splitLockState()},
         {QStringLiteral("paneCount"), all.count()},
         {QStringLiteral("activePane"), paneIndex(active)},
         {QStringLiteral("url"), active ? active->url().toString() : QString()},
@@ -1045,6 +1048,57 @@ QJsonObject WhaleDevAutomation::setSplitRatio(double leftShare)
     const int total = sizes.at(0) + sizes.at(1);
     splitter->setSizes({int(total * leftShare), total - int(total * leftShare)});
     return ok();
+}
+
+QJsonValue WhaleDevAutomation::splitLockState() const
+{
+    DolphinTabPage *page = tabWidget()->currentTabPage();
+    WhaleSplitLock *lock = WhaleSplitLock::of(page);
+    if (!lock) {
+        return QJsonValue::Null;
+    }
+    QJsonArray lockability;
+    const QList<DolphinViewContainer *> all = panes();
+    for (DolphinViewContainer *container : all) {
+        const WhaleSplitLock::Lockability state = WhaleSplitLock::lockability(container);
+        lockability.append(QJsonObject{
+            {QStringLiteral("lockable"), state.lockable},
+            {QStringLiteral("reason"), state.reason},
+            {QStringLiteral("selectionLimited"), container->view()->isSelectionLimitedToOneFolder()},
+        });
+    }
+    const QToolButton *button = lock->button();
+    return QJsonObject{
+        {QStringLiteral("locked"), lock->isLocked()},
+        {QStringLiteral("buttonVisible"), button->isVisible()},
+        {QStringLiteral("buttonEnabled"), button->isEnabled()},
+        {QStringLiteral("buttonChecked"), button->isChecked()},
+        {QStringLiteral("buttonIcon"), button->icon().name()},
+        {QStringLiteral("toolTip"), button->toolTip()},
+        {QStringLiteral("panes"), lockability},
+    };
+}
+
+QJsonObject WhaleDevAutomation::setSplitLock(bool locked)
+{
+    WhaleSplitLock *lock = WhaleSplitLock::of(tabWidget()->currentTabPage());
+    if (!lock) {
+        return failure(QStringLiteral("the current tab has no split lock"));
+    }
+    if (lock->isLocked() != locked) {
+        QToolButton *button = lock->button();
+        if (!button->isVisible()) {
+            return failure(QStringLiteral("the lock button is not shown (no split view)"));
+        }
+        if (!button->isEnabled()) {
+            return failure(QStringLiteral("the lock button is disabled: %1").arg(button->toolTip()));
+        }
+        // The same path as a click on the button.
+        button->click();
+    }
+    QJsonObject reply = ok();
+    reply.insert(QStringLiteral("locked"), lock->isLocked());
+    return reply;
 }
 
 QJsonObject WhaleDevAutomation::setWindowSize(int width, int height)

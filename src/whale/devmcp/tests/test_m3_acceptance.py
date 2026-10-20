@@ -65,7 +65,7 @@ def run(args, work):
                           "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
                           "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "quit",
                           "trigger_action", "wait_for_state", "screenshot", "get_preview_state", "request_preview",
-                          "perform_drag_drop", "choose_popup_entry", "set_split_ratio", "set_window_size",
+                          "perform_drag_drop", "choose_popup_entry", "set_split_ratio", "set_split_lock", "set_window_size",
                           "treemap_hover", "treemap_select", "treemap_activate", "treemap_zoom", "treemap_key",
                           "treemap_set_options", "treemap_context_menu", "file_operation", "answer_dialog",
                           "get_preferred_view", "set_preferred_view", "clear_preferred_view",

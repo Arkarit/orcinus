@@ -66,6 +66,8 @@ public:
     ~WhaleDevAutomation() override;
 
     QJsonObject uiState() const;
+    /// LK6: the lock of the split view of the current tab.
+    QJsonValue splitLockState() const;
     QJsonObject focusState() const;
 
     /**
@@ -87,6 +89,8 @@ public:
      * the left half gets @p leftShare (0.1 to 0.9) of the width.
      */
     QJsonObject setSplitRatio(double leftShare);
+    /// LK6: links or unlinks the views of the split view through the lock button, as the user does.
+    QJsonObject setSplitLock(bool locked);
     /// Resizes the main window, as the user does by dragging its border.
     QJsonObject setWindowSize(int width, int height);
     QJsonObject setLocation(int pane, const QString &url);

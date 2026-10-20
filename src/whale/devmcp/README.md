@@ -61,6 +61,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_view_plugin_available` | Test hook: a view plugin is treated as missing (`available: false`) or back, in the window's registry |
 | `activate_pane` | Make a pane the active view area |
 | `set_split_view` | Open/close split view (setter); closing closes the active side, like the Close button |
+| `set_split_lock` | LK6: link/unlink the views of the split view (setter) through the lock button; fails while it is hidden or disabled |
 | `set_split_ratio` | Move the handle between the halves (`left_share` 0.1–0.9), as dragging it does |
 | `set_window_size` | Resize the main window (`window.width`/`height` in the state) |
 | `set_location` | Navigate a pane through the location bar |
@@ -125,6 +126,10 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
 }
 ```
 
+- `splitLock` (LK6): the lock of the current tab: `locked`, the button (`buttonVisible`,
+  `buttonEnabled`, `buttonChecked`, `buttonIcon`, `toolTip` with the reason when it cannot
+  lock) and per pane `lockable`, `reason`, `selectionLimited` (the selection rule A1 is on).
+  The transient messages of the lock are in the pane's `message`.
 - `splitAnimating`: opening or closing the split view is still animating the width of a
   view (a new right view starts 1 px wide). Wait for `false` before anything that depends
   on the geometry of the views, e.g. `perform_drag_drop` onto a view's background.

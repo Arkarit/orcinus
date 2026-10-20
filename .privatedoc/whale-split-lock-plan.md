@@ -247,3 +247,20 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
 - **Hinweis Installation:** Die installierte Kissenansicht (API 9) wird von einem Whale mit API 10
   abgelehnt; nach dem Merge neu installieren (privates Prefix und systemweit).
 
+## LK6, Teil 1: Dev MCP (2026-10-20)
+
+- **Zustand:** `get_ui_state` → `splitLock` (null ohne Lock-Objekt): `locked`, `buttonVisible`,
+  `buttonEnabled`, `buttonChecked`, `buttonIcon`, `toolTip`, pro Pane `lockable`, `reason`,
+  `selectionLimited`. Die Meldungen stehen wie alle in `panes.N.message`.
+- **Werkzeug:** `set_split_lock(locked)`, ein Setter über einen Klick auf den Button. Er scheitert,
+  wenn der Button verborgen (keine geteilte Ansicht) oder deaktiviert ist, und nennt dann den
+  Tooltip als Grund.
+- **Abnahme offscreen:** `test_lk_acceptance.py` (ctest `whale_dev_mcp_lk_e2e`), 20 Schritte A–H:
+  Button nur in der geteilten Ansicht, Einrasten übernimmt den aktiven Ort, Folgen inkl. „Hoch“,
+  Auswahl in die andere View, Kissenansicht in beide Richtungen inkl. tiefem Eintrag (Icons:
+  Ordner der obersten Ebene wird aktuell), Lösen durch die Test-Liste, durch `trash:/` und beim
+  Schließen der geteilten Ansicht; kein Wieder-Einrasten von selbst. `test_m3_acceptance.py` führt
+  das Werkzeug in der festen Werkzeugliste.
+- **Offen (Teil 2):** Wayland-Abnahme mit echter Eingabe (Klick auf den Button, Strg+Klick,
+  Gummiband, Klicks in die Kissenansicht) – nur nach ausdrücklicher Freigabe des Benutzers.
+
