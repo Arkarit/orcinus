@@ -239,6 +239,8 @@ void WhaleSplitLock::update()
     for (DolphinViewContainer *container : {left, right}) {
         if (container) {
             container->view()->setSelectionLimitedToOneFolder(m_locked);
+            // Both show the same folder, each in its own view mode.
+            container->view()->setViewModeKept(m_locked);
         }
     }
 

@@ -19,6 +19,7 @@
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
+#include "views/viewproperties.h"
 #include "whalecontentscope.h"
 #include "whalefileviewtoolbar.h"
 #include "whalesplitviewbutton.h"
@@ -104,6 +105,9 @@ private Q_SLOTS:
     void testNoFollowWhenUnlocked();
     void testNoFollowToUnlockableLocation();
     void testFollowSymlinkTarget();
+    void testViewModesKept_data();
+    void testViewModesKept();
+    void testNoDynamicViewWhileLocked();
     void testSelectionLimitedWhileLocked();
     void testMirrorSelection();
     void testMirrorOnLocking();
@@ -166,6 +170,8 @@ void WhaleSplitLockTest::cleanup()
     m_left = m_right = nullptr;
     WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
     GeneralSettings::self()->setFollowSymlinksToTarget(false);
+    GeneralSettings::self()->setGlobalViewProps(true);
+    GeneralSettings::self()->setDynamicView(false);
 }
 
 DolphinViewContainer *WhaleSplitLockTest::showMainWindow()
@@ -672,6 +678,84 @@ void WhaleSplitLockTest::testFollowSymlinkTarget()
     QCOMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
     QVERIFY(m_left->isActive());
     QVERIFY(!m_right->isActive());
+}
+
+void WhaleSplitLockTest::testViewModesKept_data()
+{
+    QTest::addColumn<bool>("globalViewProps");
+    QTest::newRow("one style for all folders") << true;
+    QTest::newRow("a style per folder") << false;
+}
+
+void WhaleSplitLockTest::testViewModesKept()
+{
+    // Both views show the same folder, each in its own view mode, whichever view goes on.
+    QFETCH(bool, globalViewProps);
+    GeneralSettings::self()->setGlobalViewProps(globalViewProps);
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->view()->setViewMode(DolphinView::DetailsView);
+    m_right->view()->setViewMode(DolphinView::IconsView);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+
+    m_left->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    QCOMPARE(m_left->view()->viewMode(), DolphinView::DetailsView);
+    QCOMPARE(m_right->view()->viewMode(), DolphinView::IconsView);
+
+    m_right->setActive(true);
+    QTRY_VERIFY(m_right->isActive());
+    m_right->setUrl(url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub/deeper")));
+    QCOMPARE(m_left->view()->viewMode(), DolphinView::DetailsView);
+    QCOMPARE(m_right->view()->viewMode(), DolphinView::IconsView);
+
+    // Released, a view takes the view mode of the folder again.
+    lock()->setLocked(false);
+    {
+        ViewProperties props(url(QStringLiteral("sub")));
+        props.setViewMode(DolphinView::IconsView);
+    }
+    m_left->setUrl(url(QStringLiteral("sub")));
+    QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub")));
+    QCOMPARE(m_left->view()->viewMode(), DolphinView::IconsView);
+}
+
+void WhaleSplitLockTest::testNoDynamicViewWhileLocked()
+{
+    // The dynamic view (Icons for a folder of images) does not switch a linked view either.
+    GeneralSettings::self()->setDynamicView(true);
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    QImage image(16, 16, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    m_dir->createDir(QStringLiteral("images"));
+    for (const QString &name : {QStringLiteral("1.png"), QStringLiteral("2.png")}) {
+        QVERIFY(image.save(m_dir->path() + QStringLiteral("/images/") + name));
+    }
+    m_dir->createDir(QStringLiteral("more images"));
+    QVERIFY(image.save(m_dir->path() + QStringLiteral("/more images/3.png")));
+    m_left->view()->setViewMode(DolphinView::DetailsView);
+    m_right->view()->setViewMode(DolphinView::DetailsView);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+
+    m_left->setUrl(url(QStringLiteral("images")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("images")));
+    QTRY_COMPARE(m_right->view()->itemsCount(), 2);
+    QTest::qWait(200);
+    QCOMPARE(m_left->view()->viewMode(), DolphinView::DetailsView);
+    QCOMPARE(m_right->view()->viewMode(), DolphinView::DetailsView);
+
+    // Released, it does.
+    lock()->setLocked(false);
+    m_left->setUrl(url(QStringLiteral("more images")));
+    QTRY_COMPARE(m_left->view()->viewMode(), DolphinView::IconsView);
 }
 
 void WhaleSplitLockTest::testSelectionLimitedWhileLocked()

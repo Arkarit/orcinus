@@ -26,6 +26,7 @@ den Namen, und umgekehrt.
 | E1 | Bindet der Lock auch den Ort? | **Ja.** Beide Views navigieren gemeinsam. Beim Einrasten übernimmt die rechte View den Ort der aktiven View. |
 | E3 | Eine Seite navigiert an einen nicht lockbaren Ort (FTP, SFTP, SMB, `trash:`, Suchergebnisse) | **Lock lösen**, mit kurzer Meldung in der View. Zurück an einem lokalen Ort rastet der Lock **nicht** von selbst wieder ein. |
 | E4 | Lock-Zustand in der Session speichern? | **Erst mal nicht.** Nach einem Neustart ist der Lock aus. |
+| E5 | Ansichtsmodus beim gemeinsamen Navigieren | **Jede View behält ihren Modus** (Befund beim Test des Benutzers: mit „Use common display style for all folders“ übernahmen beide Views beim Betreten eines Ordners den zuletzt gewählten gemeinsamen Modus). Gilt auch bei Stil pro Ordner, solange der Lock aktiv ist. |
 | A1 | Mehrfachauswahl bei aktivem Lock | **Nur innerhalb desselben Ordners** (gleicher Elternordner), nicht über Hierarchieebenen. Ohne Lock bleibt die Auswahl wie in Dolphin. |
 | A2 | Strg+Klick auf ein Element in einem anderen Ordner | **Abgelehnt:** Die Auswahl bleibt, dazu eine kurze Splash Message, die die Regel erklärt. |
 | A3 | Shift+Klick und Gummiband über Ordnergrenzen | **Begrenzt** auf den Ordner des Ankers: Nur der Teil darin wird ausgewählt, dazu die Splash Message. |
@@ -203,3 +204,16 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
   nicht aus der inaktiven View, Aufklappen in Details, Icons nur aktueller Ordner, nach dem Folgen
   inkl. „Hoch“, gefilterte Elemente).
 
+### Nachtrag zu LK2: Ansichtsmodus (E5, 2026-10-20)
+
+- Ursache: `DolphinView::setUrl()` wendet die Ansichtseigenschaften des neuen Orts an. Mit einem
+  Stil für alle Ordner ist das **ein** gemeinsamer Modus, den die View zuletzt geschrieben hat,
+  in der man ihn geändert hat (Dolphins Verhalten, auch ohne Lock). Mit Lock betreten beide
+  Views jeden Ordner gemeinsam, also hatten danach beide denselben Modus.
+- `DolphinView::setViewModeKept(bool)` (Dolphin-Diff, ~20 Zeilen): `setUrl()` behält dann den
+  eigenen Modus (Eigenschaften ohne Speichern, Modus überschrieben); Sortierung, versteckte
+  Dateien usw. gelten wie gewohnt. `WhaleSplitLock` setzt es für beide Views, solange gelockt.
+- Die „dynamische Ansicht“ (Icons für Bilderordner, `applyDynamicView()`) schaltet eine
+  verlinkte View ebenfalls nicht um.
+- Test `testViewModesKept` (beide Einstellungen, beide Richtungen, nach dem Lösen wieder der
+  Modus des Ordners); scheitert ohne die Korrektur.

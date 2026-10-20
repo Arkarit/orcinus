@@ -27,7 +27,8 @@ class QToolButton;
  * disabled and its tooltip says why. Locked, both views are at the same location (E1): on
  * locking, the other view goes to the location of the active one, and from then on each view
  * follows where the other one goes. The following view navigates as usual, so it has an
- * entry in its history and stays the inactive view.
+ * entry in its history and stays the inactive view. Each view keeps its own view mode
+ * (DolphinView::setViewModeKept()): the point is to see the same folder in two ways.
  *
  * The inactive view shows the selection and the current item of the active one (LK4,
  * DolphinView::showLinkedSelection()). The user selects in the active view, so this goes both

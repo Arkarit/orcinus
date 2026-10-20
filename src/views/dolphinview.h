@@ -454,6 +454,14 @@ public Q_SLOTS:
     bool isSelectionLimitedToOneFolder() const;
 
     /**
+     * Whale: keeps the view mode of the view when it goes to another folder, also with one
+     * style for all folders (the views of a split view are linked and show the same folder,
+     * each in its own way), and the dynamic view does not switch it. The other view properties
+     * apply as usual.
+     */
+    void setViewModeKept(bool kept);
+
+    /**
      * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
      */
     QUrl currentItemUrl() const;
@@ -1128,6 +1136,7 @@ private:
     QUrl m_linkedCurrent;
     bool m_linkedPending = false;
     bool m_applyingLinkedSelection = false;
+    bool m_viewModeKept = false; // Whale: setViewModeKept()
     QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;

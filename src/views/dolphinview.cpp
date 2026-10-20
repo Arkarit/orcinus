@@ -868,7 +868,13 @@ void DolphinView::setUrl(const QUrl &url)
     // might be done on the existing items although they get cleared
     // anyhow afterwards by loadDirectory().
     m_model->clear();
-    applyViewProperties();
+    // Whale: a linked view keeps its view mode (setViewModeKept()).
+    ViewProperties props(viewPropertiesUrl());
+    if (m_viewModeKept) {
+        props.setAutoSaveEnabled(false);
+        props.setViewMode(m_mode);
+    }
+    applyViewProperties(props);
     loadDirectory(url);
 
     Q_EMIT urlChanged(url);
@@ -940,6 +946,11 @@ void DolphinView::setSelectionLimitedToOneFolder(bool limited)
 bool DolphinView::isSelectionLimitedToOneFolder() const
 {
     return m_container->controller()->selectionManager()->isGroupLimited();
+}
+
+void DolphinView::setViewModeKept(bool kept)
+{
+    m_viewModeKept = kept;
 }
 
 QUrl DolphinView::currentItemUrl() const
@@ -2858,7 +2869,8 @@ void DolphinView::applyDynamicView()
      * - the current view mode is already Icon View
      * - dynamic view has previously changed the view mode
      */
-    if (!GeneralSettings::dynamicView() || m_mode == IconsView) {
+    // Whale: not in a linked view (setViewModeKept()).
+    if (!GeneralSettings::dynamicView() || m_mode == IconsView || m_viewModeKept) {
         return;
     }
 
