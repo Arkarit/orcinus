@@ -5,7 +5,7 @@
 # Whale view plugins, see .privatedoc/whale-view-plugins-plan.md.
 
 # Exact version of the view plugin API. Plugins must be built against the same value.
-set(WHALE_VIEW_API_VERSION 9)
+set(WHALE_VIEW_API_VERSION 10)
 
 # kcoreaddons_add_plugin puts plugins below CMAKE_LIBRARY_OUTPUT_DIRECTORY (bin/), but there
 # bin/whale is the executable, so bin/whale/views cannot exist. View plugins of the build
@@ -124,7 +124,9 @@ target_sources(dolphinstatic PRIVATE
     toolbars/whaletoolbarsettings.cpp
     toolbars/whaleviewcommandscope.cpp
     toolbars/whaletoolbars.qrc
+    splitview/whalesplitlock.cpp
     splitview/whalesplitviewbutton.cpp
+    splitview/whaletransientmessage.cpp
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars ${CMAKE_CURRENT_SOURCE_DIR}/splitview)
 

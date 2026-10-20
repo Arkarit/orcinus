@@ -9,6 +9,7 @@
 
 #include "dolphin_generalsettings.h"
 #include "dolphinviewcontainer.h"
+#include "whalesplitlock.h" // Whale
 #include "whalesplitviewbutton.h" // Whale
 
 #include <QFrame>
@@ -50,6 +51,7 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
     m_splitter->addWidget(m_primaryViewContainer);
     m_primaryViewContainer->show();
     new WhaleSplitViewButton(this); // Whale: the split button of the File View Toolbar
+    new WhaleSplitLock(this); // Whale: the lock of the split view (LK)
 
     if (secondaryUrl.isValid() || GeneralSettings::splitView()) {
         // Provide a secondary view, if the given secondary url is valid or if the

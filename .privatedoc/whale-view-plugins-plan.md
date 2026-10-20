@@ -2715,3 +2715,10 @@ Direkt auf `master` (nach `bc827f46b`), nicht gepusht: `2c8dd08e6` (Umbenennung)
   `dolphinmainwindowtest::testAccessibilityTree` (auch auf `bc827f46b`). Wayland nicht getestet.
 - **Offen:** deutsche Übersetzungen der neuen Texte (Meldungen, Cut-Rückfrage) fehlen in
   `po-whale/de/whale.po`; Gating der Zielhälfte folgt späteren Änderungen der anderen Hälfte nicht live.
+
+### API 10: LinkedSelection (2026-10-20, Branch `lock-file-panels`)
+
+Für das Verlinken der Views einer geteilten Ansicht (LK5, `.privatedoc/whale-split-lock-plan.md`):
+Capability `LinkedSelection` und `WhaleView::showLinkedSelection()`. Dateiliste und Kissenansicht
+deklarieren sie, die Test-Liste nicht.
+

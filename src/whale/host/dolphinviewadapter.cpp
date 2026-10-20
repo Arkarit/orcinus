@@ -25,7 +25,7 @@ WhaleViewCapabilities DolphinViewAdapter::capabilities() const
 {
     using C = WhaleViewCapability;
     return C::Selection | C::MultiSelection | C::HostOrder | C::Grouping | C::Zoom | C::Previews | C::Drag | C::Drop | C::InlineRename | C::KeyboardNavigation
-        | C::HiddenFiles;
+        | C::HiddenFiles | C::LinkedSelection;
 }
 
 #include "moc_dolphinviewadapter.cpp"

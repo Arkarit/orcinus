@@ -265,6 +265,32 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent)
 
     KItemListSelectionManager *selectionManager = controller->selectionManager();
     connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, &DolphinView::slotSelectionChanged);
+    connect(selectionManager, &KItemListSelectionManager::selectionRestricted, this, &DolphinView::selectionLimited); // Whale
+    // Whale: LK4, the linked views of a split view.
+    const auto emitLinkedSelectionChanged = [this]() {
+        if (!m_applyingLinkedSelection) {
+            Q_EMIT linkedSelectionChanged();
+        }
+    };
+    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, emitLinkedSelectionChanged);
+    connect(selectionManager, &KItemListSelectionManager::currentChanged, this, emitLinkedSelectionChanged);
+    // Queued: after the view and the selection manager took the new items.
+    connect(
+        m_model,
+        &KFileItemModel::itemsInserted,
+        this,
+        [this]() {
+            applyLinkedSelection(false);
+        },
+        Qt::QueuedConnection);
+    connect(
+        m_model,
+        &KFileItemModel::directoryLoadingCompleted,
+        this,
+        [this]() {
+            applyLinkedSelection(true);
+        },
+        Qt::QueuedConnection);
 
 #if HAVE_BALOO
     m_toolTipManager = new ToolTipManager(this);
@@ -315,6 +341,7 @@ void DolphinView::setActive(bool active)
     updatePalette();
 
     if (active) {
+        m_linkedPending = false; // Whale: the user selects here now (showLinkedSelection())
         m_container->setFocus();
         Q_EMIT activated();
     }
@@ -841,22 +868,193 @@ void DolphinView::setUrl(const QUrl &url)
     // might be done on the existing items although they get cleared
     // anyhow afterwards by loadDirectory().
     m_model->clear();
-    applyViewProperties();
+    // Whale: a linked view keeps its view mode (setViewModeKept()).
+    ViewProperties props(viewPropertiesUrl());
+    if (m_viewModeKept) {
+        props.setAutoSaveEnabled(false);
+        props.setViewMode(m_mode);
+    }
+    applyViewProperties(props);
     loadDirectory(url);
 
     Q_EMIT urlChanged(url);
 }
 
+namespace
+{
+// Whale: the folder an item is in (setSelectionLimitedToOneFolder()).
+QUrl folderOfItem(const KFileItemModel *model, int index)
+{
+    return model->fileItem(index).url().adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
+}
+}
+
 void DolphinView::selectAll()
 {
     KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    if (selectionManager->isGroupLimited()) {
+        // Whale: the items of the current folder.
+        const int current = selectionManager->currentItem();
+        const QUrl folder = current >= 0 ? folderOfItem(m_model, current) : url().adjusted(QUrl::StripTrailingSlash);
+        KItemSet items;
+        for (int index = 0; index < m_model->count(); ++index) {
+            if (folderOfItem(m_model, index) == folder) {
+                items.insert(index);
+            }
+        }
+        selectionManager->setSelectedItems(items);
+        return;
+    }
     selectionManager->setSelected(0, m_model->count());
 }
 
 void DolphinView::invertSelection()
 {
     KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    if (selectionManager->isGroupLimited()) {
+        // Whale: within the current folder.
+        const int current = selectionManager->currentItem();
+        const QUrl folder = current >= 0 ? folderOfItem(m_model, current) : url().adjusted(QUrl::StripTrailingSlash);
+        const KItemSet selected = selectionManager->selectedItems();
+        KItemSet items;
+        for (int index = 0; index < m_model->count(); ++index) {
+            if (folderOfItem(m_model, index) == folder && !selected.contains(index)) {
+                items.insert(index);
+            }
+        }
+        selectionManager->setSelectedItems(items);
+        return;
+    }
     selectionManager->setSelected(0, m_model->count(), KItemListSelectionManager::Toggle);
+}
+
+void DolphinView::setSelectionLimitedToOneFolder(bool limited)
+{
+    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    if (limited == selectionManager->isGroupLimited()) {
+        return;
+    }
+    if (limited) {
+        selectionManager->setSameGroup([this](int a, int b) {
+            return a == b || folderOfItem(m_model, a) == folderOfItem(m_model, b);
+        });
+    } else {
+        selectionManager->setSameGroup({});
+    }
+}
+
+bool DolphinView::isSelectionLimitedToOneFolder() const
+{
+    return m_container->controller()->selectionManager()->isGroupLimited();
+}
+
+void DolphinView::setViewModeKept(bool kept)
+{
+    m_viewModeKept = kept;
+}
+
+QUrl DolphinView::currentItemUrl() const
+{
+    const int index = m_container->controller()->selectionManager()->currentItem();
+    return index >= 0 ? m_model->fileItem(index).url() : QUrl();
+}
+
+void DolphinView::showLinkedSelection(const QList<QUrl> &selected, const QUrl &current)
+{
+    m_linkedSelected = selected;
+    m_linkedCurrent = current;
+    m_linkedExpansions.clear();
+    m_linkedPending = true;
+    applyLinkedSelection(false);
+}
+
+void DolphinView::applyLinkedSelection(bool listingCompleted)
+{
+    if (!m_linkedPending) {
+        return;
+    }
+    const QUrl location = url().adjusted(QUrl::StripTrailingSlash);
+    const bool expandable = itemsExpandable();
+    bool waiting = false;
+    bool deep = false; // an item of a subfolder that this view cannot show
+
+    // @return The index of @p url to select, or -1.
+    const auto resolve = [&](const QUrl &url) {
+        const int index = m_model->index(url);
+        if (index >= 0) {
+            return index;
+        }
+        if (!location.isParentOf(url)) {
+            return -1; // elsewhere
+        }
+        const QUrl folder = url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
+        if (folder == location) {
+            // Still being listed, or not shown (filter, hidden files).
+            waiting = waiting || m_loadingState == LoadingState::Loading;
+            return -1;
+        }
+        if (!expandable) {
+            deep = true;
+            return -1;
+        }
+        if (!m_linkedExpansions.contains(url)) {
+            m_linkedExpansions.insert(url);
+            m_model->expandParentDirectories(url);
+        }
+        // Not shown when its folder has been listed. An expanded folder without children may
+        // still be listed: the model reports the completion of a branch before the last folder
+        // that expandParentDirectories() expanded on its own.
+        const int folderIndex = m_model->index(folder);
+        const bool folderShowsChildren = folderIndex >= 0 && folderIndex + 1 < m_model->count()
+            && m_model->expandedParentsCount(folderIndex + 1) > m_model->expandedParentsCount(folderIndex);
+        if (!listingCompleted || folderIndex < 0 || !m_model->isExpanded(folderIndex) || !folderShowsChildren) {
+            waiting = true;
+        }
+        return -1;
+    };
+    // @return The index of the item of the location that contains @p url, or -1.
+    const auto topLevelIndex = [&](const QUrl &url) {
+        if (!location.isParentOf(url)) {
+            return -1;
+        }
+        QString path = location.path();
+        if (!path.endsWith(QLatin1Char('/'))) {
+            path.append(QLatin1Char('/'));
+        }
+        QUrl topLevel = location;
+        topLevel.setPath(path + url.path().mid(path.length()).section(QLatin1Char('/'), 0, 0));
+        return m_model->index(topLevel);
+    };
+
+    KItemSet items;
+    for (const QUrl &url : std::as_const(m_linkedSelected)) {
+        if (const int index = resolve(url); index >= 0) {
+            items.insert(index);
+        }
+    }
+    int currentIndex = m_linkedCurrent.isValid() ? resolve(m_linkedCurrent) : -1;
+    if (deep) {
+        // E.g. icons: only the top-level folder that contains the items, as the current item.
+        items.clear();
+        currentIndex = topLevelIndex(m_linkedCurrent.isValid() ? m_linkedCurrent : m_linkedSelected.constFirst());
+    }
+
+    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    m_applyingLinkedSelection = true;
+    // No anchored range of before reaches to the new current item: the view would draw it,
+    // and beginAnchoredSelection() below would drop it again without a signal.
+    selectionManager->endAnchoredSelection();
+    if (selectionManager->selectedItems() != items) {
+        selectionManager->clearSelection();
+        selectionManager->setSelectedItems(items);
+    }
+    if (currentIndex >= 0) {
+        selectionManager->setCurrentItem(currentIndex);
+        selectionManager->beginAnchoredSelection(currentIndex);
+        m_container->controller()->view()->scrollToItem(currentIndex);
+    }
+    m_applyingLinkedSelection = false;
+    m_linkedPending = waiting;
 }
 
 void DolphinView::clearSelection()
@@ -2678,7 +2876,8 @@ void DolphinView::applyDynamicView()
      * - the current view mode is already Icon View
      * - dynamic view has previously changed the view mode
      */
-    if (!GeneralSettings::dynamicView() || m_mode == IconsView) {
+    // Whale: not in a linked view (setViewModeKept()).
+    if (!GeneralSettings::dynamicView() || m_mode == IconsView || m_viewModeKept) {
         return;
     }
 

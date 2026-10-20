@@ -841,7 +841,9 @@ void WhaleTreemapTest::testCapabilityGating()
     QVERIFY(showTreemap(container));
     WhaleViewActions *actions = viewActions();
     const WhaleViewCapabilities capabilities = container->viewHost()->currentView()->capabilities();
-    QCOMPARE(capabilities, WhaleViewCapability::Selection | WhaleViewCapability::RecursiveContent | WhaleViewCapability::KeyboardNavigation);
+    QCOMPARE(capabilities,
+             WhaleViewCapability::Selection | WhaleViewCapability::RecursiveContent | WhaleViewCapability::KeyboardNavigation
+                 | WhaleViewCapability::LinkedSelection);
     QCOMPARE(actions->gateReason(QStringLiteral("sort")), QStringLiteral("no HostOrder capability"));
     QCOMPARE(actions->gateReason(QStringLiteral("group_by")), QStringLiteral("no HostOrder capability"));
     QCOMPARE(actions->gateReason(QStringLiteral("additional_info")), QStringLiteral("no HostOrder capability"));

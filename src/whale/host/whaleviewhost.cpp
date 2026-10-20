@@ -78,6 +78,28 @@ bool WhaleViewHost::isDolphinViewShown() const
     return m_stack->currentWidget() == m_dolphinView;
 }
 
+WhaleSelection WhaleViewHost::linkedSelection() const
+{
+    if (!m_pluginView) {
+        return WhaleSelection(m_dolphinView->selectedItems().urlList(), m_dolphinView->currentItemUrl());
+    }
+    const QList<QUrl> selected = m_pluginView->selectedItems();
+    QUrl current = m_bridge->selection().current();
+    if (!selected.isEmpty() && !selected.contains(current)) {
+        current = selected.constFirst(); // e.g. a deep selection of the view
+    }
+    return WhaleSelection(selected, current);
+}
+
+void WhaleViewHost::showLinkedSelection(const WhaleSelection &selection)
+{
+    if (m_pluginView) {
+        m_pluginView->showLinkedSelection(selection);
+    } else {
+        m_dolphinView->showLinkedSelection(selection.selected(), selection.current());
+    }
+}
+
 void WhaleViewHost::showDolphinView()
 {
     m_initialPreferencePending = false;

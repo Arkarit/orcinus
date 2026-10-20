@@ -72,6 +72,11 @@ QString WhaleDevAutomationDBus::SetSplitView(bool enabled)
     return toJson(m_automation->setSplitView(enabled));
 }
 
+QString WhaleDevAutomationDBus::SetSplitLock(bool locked)
+{
+    return toJson(m_automation->setSplitLock(locked));
+}
+
 QString WhaleDevAutomationDBus::SetSplitRatio(double leftShare)
 {
     return toJson(m_automation->setSplitRatio(leftShare));

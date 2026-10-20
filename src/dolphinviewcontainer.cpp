@@ -676,6 +676,19 @@ void DolphinViewContainer::setUrl(const QUrl &newUrl)
     }
 }
 
+void DolphinViewContainer::setUrlWithoutActivation(const QUrl &url)
+{
+    const bool blockActivation = m_urlNavigatorConnected && !isActive();
+    if (blockActivation) {
+        disconnect(m_urlNavigatorConnected, &DolphinUrlNavigator::activated, this, &DolphinViewContainer::activate);
+    }
+    setUrl(url);
+    if (blockActivation) {
+        connect(m_urlNavigatorConnected, &DolphinUrlNavigator::activated, this, &DolphinViewContainer::activate);
+        m_urlNavigatorConnected->setActive(false);
+    }
+}
+
 void DolphinViewContainer::setFilterBarVisible(bool visible)
 {
     Q_ASSERT(m_filterBar);

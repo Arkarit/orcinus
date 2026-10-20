@@ -316,6 +316,13 @@ private:
     qreal keyboardAnchorPos(int index) const;
 
     /**
+     * Whale: after Ctrl+click toggled @p index: if the selection's limit to one group refused
+     * it (KItemListSelectionManager::setSameGroup()), the current item goes back to the one
+     * before the press, and @return true.
+     */
+    bool revertRefusedToggle(int index, bool wasSelected);
+
+    /**
      * Dependent on the selection-behavior the extendedSelectionRegion-property
      * of the KItemListStyleOption from the view should be adjusted: If no
      * rubberband selection is used the property should be enabled.
@@ -401,6 +408,7 @@ private:
      */
     int m_keyboardAnchorIndex;
     qreal m_keyboardAnchorPos;
+    int m_currentItemBeforePress = -1; // Whale: revertRefusedToggle()
 };
 
 #endif

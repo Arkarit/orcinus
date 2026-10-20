@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3, F1 and TB acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_tb_acceptance.py` (multi-toolbar, TB6), `test_f1_wayland_real.py` (real drags on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3, F1 and TB acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_tb_acceptance.py` (multi-toolbar, TB6), `test_lk_acceptance.py` (linked split view), `test_f1_wayland_real.py` (real drags on Plasma/Wayland), `test_lk_wayland_real.py` (the linked split view with real clicks on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -61,6 +61,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `set_view_plugin_available` | Test hook: a view plugin is treated as missing (`available: false`) or back, in the window's registry |
 | `activate_pane` | Make a pane the active view area |
 | `set_split_view` | Open/close split view (setter); closing closes the active side, like the Close button |
+| `set_split_lock` | LK6: link/unlink the views of the split view (setter) through the lock button; fails while it is hidden or disabled |
 | `set_split_ratio` | Move the handle between the halves (`left_share` 0.1–0.9), as dragging it does |
 | `set_window_size` | Resize the main window (`window.width`/`height` in the state) |
 | `set_location` | Navigate a pane through the location bar |
@@ -125,6 +126,11 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
 }
 ```
 
+- `splitLock` (LK6): the lock of the current tab: `locked`, the button (`buttonVisible`,
+  `buttonEnabled`, `buttonChecked`, `buttonIcon`, `toolTip` with the reason when it cannot
+  lock, `buttonX`/`buttonY` its center in main window coordinates for real input) and per pane `lockable`, `reason`, `selectionLimited` (the selection rule A1 is on).
+  The messages of the lock float above the view (`panes.N.transientMessage`, while shown also
+  in `message`).
 - `splitAnimating`: opening or closing the split view is still animating the width of a
   view (a new right view starts 1 px wide). Wait for `false` before anything that depends
   on the geometry of the views, e.g. `perform_drag_drop` onto a view's background.

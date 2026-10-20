@@ -51,6 +51,11 @@ enum class WhaleViewCapability : quint32 {
     /// follow it, because the host lists hidden items only then. Without it, the action is
     /// disabled while the view is shown.
     HiddenFiles = 1 << 11,
+    /// The view can be linked with the other view of a split view: it shows the selection
+    /// of the other view (WhaleView::showLinkedSelection()), and Whale shows its selection
+    /// (Whale's selection, or selectedItems() with RecursiveContent) in the other view.
+    /// Without it, the views cannot be linked while it is shown.
+    LinkedSelection = 1 << 12,
 };
 Q_DECLARE_FLAGS(WhaleViewCapabilities, WhaleViewCapability)
 Q_DECLARE_OPERATORS_FOR_FLAGS(WhaleViewCapabilities)

@@ -55,6 +55,11 @@ QList<QUrl> WhaleView::selectedItems() const
     return d->context->selection().selected();
 }
 
+void WhaleView::showLinkedSelection(const WhaleSelection &selection)
+{
+    d->context->setSelection(selection);
+}
+
 WhaleViewContext *WhaleView::context() const
 {
     return d->context;

@@ -116,6 +116,9 @@ QJsonArray layoutOf(const KToolBar *toolBar)
     QJsonArray layout;
     const auto actions = toolBar->actions();
     for (const QAction *action : actions) {
+        if (WhaleFileViewToolBar::isLeadingPlaceholder(action)) {
+            continue; // not part of the layout
+        }
         layout.append(action->isSeparator() ? QStringLiteral("-") : isSpacer(action) ? QStringLiteral("|") : action->objectName());
     }
     return layout;
@@ -167,7 +170,7 @@ QJsonArray actionsState(const KToolBar *toolBar, const WhaleViewCommandScope *sc
     QJsonArray result;
     const auto actions = toolBar->actions();
     for (QAction *action : actions) {
-        if (action->isSeparator() || isSpacer(action)) {
+        if (action->isSeparator() || isSpacer(action) || WhaleFileViewToolBar::isLeadingPlaceholder(action)) {
             continue;
         }
         QJsonArray shortcuts;

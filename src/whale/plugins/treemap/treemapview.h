@@ -170,6 +170,9 @@ private:
  *   changing the location.
  * - Arrow keys: Left/Right go to the neighbors, Up to the folder, Down to the largest entry.
  *
+ * Linked with the other view of a split view (LinkedSelection), the treemap shows one entry of
+ * the other view's selection, also deep, and the other view shows the treemap's selection.
+ *
  * The state (saveState()) is the zoomed folder, the selected entry, the color mode and
  * whether names are shown.
  */
@@ -192,6 +195,7 @@ public:
     QByteArray saveState() const override;
     void restoreState(const QByteArray &state) override;
     QList<QUrl> selectedItems() const override;
+    void showLinkedSelection(const WhaleSelection &selection) override;
 
     Status status() const
     {

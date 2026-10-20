@@ -514,7 +514,7 @@ WhaleViewCapabilities TreemapView::capabilities() const
     using C = WhaleViewCapability;
     // No Zoom: the host's zoom actions are about the file list; the treemap zooms itself.
     // No HiddenFiles: the scan counts hidden entries, whatever "Show Hidden Files" says.
-    return C::Selection | C::RecursiveContent | C::KeyboardNavigation;
+    return C::Selection | C::RecursiveContent | C::KeyboardNavigation | C::LinkedSelection;
 }
 
 TreemapRenderer::Options TreemapView::renderOptions() const
@@ -818,6 +818,17 @@ QList<QUrl> TreemapView::selectedItems() const
         return {};
     }
     return {m_selected};
+}
+
+void TreemapView::showLinkedSelection(const WhaleSelection &selection)
+{
+    // One entry: the current item if it is selected, else the first selected one.
+    const QList<QUrl> selected = selection.selected();
+    if (selected.isEmpty()) {
+        selectUrl(QUrl());
+    } else {
+        selectUrl(selected.contains(selection.current()) ? selection.current() : selected.constFirst());
+    }
 }
 
 void TreemapView::clearSelection()
