@@ -26,6 +26,7 @@ private Q_SLOTS:
     void testSharesChangedUpdatesOverlays();
     void testDirectoryContentsCounterWorkerDoesNotChangeCwd();
     void testItemChangedWhilePausedGetsAPreview();
+    void testOverlaysChangedKeepsThePreview();
 };
 
 void KFileItemModelRolesUpdaterTest::testSharesChangedUpdatesOverlays()
@@ -127,6 +128,36 @@ void KFileItemModelRolesUpdaterTest::testItemChangedWhilePausedGetsAPreview()
     updater.setPaused(false);
     QVERIFY(previewSpy.wait());
     QCOMPARE(model.fileItem(0).name(), QStringLiteral("b.png"));
+    QVERIFY(!model.data(0).value("iconPixmap").value<QPixmap>().isNull());
+}
+
+// Overlays that change, e.g. reported by a version control plugin, are written without the
+// preview being made again: the updater does not take its own change for a change of the file.
+void KFileItemModelRolesUpdaterTest::testOverlaysChangedKeepsThePreview()
+{
+    TestDir testDir;
+    QImage image(64, 64, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(testDir.path() + QStringLiteral("/a.png")));
+
+    KFileItemModel model;
+    KFileItemModelRolesUpdater updater(&model);
+    updater.setPreviewsShown(true);
+    updater.setIconSize(QSize(128, 128));
+    QSignalSpy loadingCompletedSpy(&model, &KFileItemModel::directoryLoadingCompleted);
+    model.loadDirectory(testDir.url());
+    QVERIFY(loadingCompletedSpy.wait());
+    updater.setVisibleIndexRange(0, 1);
+    QTRY_VERIFY(!model.data(0).value("iconPixmap").value<QPixmap>().isNull());
+    QTRY_COMPARE(updater.m_finishedItems.count(), model.count());
+    QTRY_VERIFY(!updater.m_previewJob);
+
+    QSignalSpy itemsChangedSpy(&model, &KFileItemModel::itemsChanged);
+    updater.slotOverlaysChanged(model.fileItem(0).url(), {});
+    QCOMPARE(itemsChangedSpy.count(), 1);
+    QVERIFY(updater.m_changedItems.isEmpty());
+    QVERIFY(updater.m_recentlyChangedItems.isEmpty());
+    QVERIFY(!updater.m_previewJob);
     QVERIFY(!model.data(0).value("iconPixmap").value<QPixmap>().isNull());
 }
 

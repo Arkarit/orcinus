@@ -1441,7 +1441,8 @@ void KFileItemModelRolesUpdater::slotOverlaysChanged(const QUrl &url, const QStr
     const int index = m_model->index(item);
     SmallHash data = m_model->data(index);
     data.insert("iconOverlays", itemOverlays(item));
-    m_model->setData(index, data);
+    // Whale: as its own change, so that the overlays do not make the preview again.
+    setModelData(index, data);
 }
 
 void KFileItemModelRolesUpdater::slotSharesChanged()
