@@ -1171,6 +1171,30 @@ void DolphinMainWindow::closeRightSplitView()
     updateViewActions();
 }
 
+void DolphinMainWindow::moveRightSplitViewToTab()
+{
+    DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+    if (!tabPage->splitViewEnabled()) {
+        return;
+    }
+    openNewTab(tabPage->secondaryViewContainer()->url());
+    closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::RightView);
+    m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
+    updateViewActions();
+}
+
+void DolphinMainWindow::popoutRightSplitView()
+{
+    DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+    if (!tabPage->splitViewEnabled()) {
+        return;
+    }
+    openNewWindow(tabPage->secondaryViewContainer()->url());
+    closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::RightView);
+    m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
+    updateViewActions();
+}
+
 void DolphinMainWindow::popoutSplitView()
 {
     DolphinTabPage *tabPage = m_tabWidget->currentTabPage();

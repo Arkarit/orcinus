@@ -15,6 +15,7 @@
 #include <KLocalizedString>
 
 #include <QEvent>
+#include <QMenu>
 #include <QSplitter>
 #include <QTimer>
 #include <QToolButton>
@@ -29,6 +30,8 @@ WhaleSplitViewButton::WhaleSplitViewButton(DolphinTabPage *page)
     m_button->setFocusPolicy(Qt::NoFocus); // as the buttons of a toolbar
     m_button->hide();
     connect(m_button, &QToolButton::clicked, this, &WhaleSplitViewButton::toggle);
+    m_button->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(m_button, &QToolButton::customContextMenuRequested, this, &WhaleSplitViewButton::showContextMenu);
 
     // The views come and go as children of the splitter.
     if (DolphinViewContainer *container = page->primaryViewContainer()) {
@@ -97,7 +100,8 @@ void WhaleSplitViewButton::update()
     // Points to where the right view opens or closes; mirrored with a right-to-left layout.
     const bool rightToLeft = m_page->layoutDirection() == Qt::RightToLeft;
     m_button->setIcon(QIcon::fromTheme(split != rightToLeft ? QStringLiteral("arrow-left-double") : QStringLiteral("arrow-right-double")));
-    m_button->setToolTip(split ? i18nc("@info View refer here to split view", "Close Right View") : i18nc("@info", "Split view"));
+    m_button->setToolTip(split ? i18nc("@info:tooltip View refer here to split view", "Close Right View\nRight-click to move it to a new tab or window")
+                               : i18nc("@info", "Split view"));
     if (toolBar) {
         m_button->setIconSize(toolBar->iconSize());
         toolBar->setTrailingWidget(m_button);
@@ -117,4 +121,24 @@ void WhaleSplitViewButton::toggle()
         split->trigger();
     }
     update();
+}
+
+void WhaleSplitViewButton::showContextMenu(const QPoint &pos)
+{
+    auto window = m_page ? qobject_cast<DolphinMainWindow *>(m_page->window()) : nullptr;
+    if (!window || !m_page->splitViewEnabled()) {
+        return;
+    }
+    // The same right view the button closes, whichever view is active.
+    auto menu = new QMenu(m_button);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    QAction *toTab =
+        menu->addAction(QIcon::fromTheme(QStringLiteral("tab-new")), i18nc("@action:intoolbar Splits both views into separate tabs", "Split View To Tabs"));
+    toTab->setObjectName(QStringLiteral("whale_split_view_to_tab"));
+    connect(toTab, &QAction::triggered, window, &DolphinMainWindow::moveRightSplitViewToTab);
+    QAction *popout =
+        menu->addAction(QIcon::fromTheme(QStringLiteral("window-new")), i18nc("@action:intoolbar Move right split view to a new window", "Pop out Right View"));
+    popout->setObjectName(QStringLiteral("whale_split_view_popout"));
+    connect(popout, &QAction::triggered, window, &DolphinMainWindow::popoutRightSplitView);
+    menu->popup(m_button->mapToGlobal(pos));
 }

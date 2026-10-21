@@ -153,6 +153,13 @@ public Q_SLOTS:
     void closeRightSplitView();
 
     /**
+     * Whale: moves the right view of the current tab's split view to a new tab, or to a new
+     * window, whichever view is active (the context menu of WhaleSplitViewButton).
+     */
+    void moveRightSplitViewToTab();
+    void popoutRightSplitView();
+
+    /**
      * Opens each directory in \p dirs in a separate tab. If \a splitView is set,
      * 2 directories are collected within one tab.
      * \pre \a dirs must contain at least one url.

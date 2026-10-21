@@ -21,7 +21,8 @@ class QToolButton;
  * pointing into the window) is in the only view and opens the right view, as the window's
  * "split_view" does. With a split view, it is in the right view, points back and closes it,
  * whatever the settings say about which view to close (DolphinMainWindow::closeRightSplitView()).
- * So it stays at the same place in the window.
+ * So it stays at the same place in the window. With a split view, its context menu moves the
+ * right view to a new tab or window instead of closing it.
  *
  * The button is fixed: not part of the toolbar's layout, so not in Configure Toolbars and
  * never in the overflow menu (WhaleFileViewToolBar::setTrailingWidget()). It belongs to this
@@ -51,6 +52,8 @@ private:
     void update();
     void scheduleUpdate();
     void toggle();
+    /// With a split view: moves the right view to a new tab or window.
+    void showContextMenu(const QPoint &pos);
 
     QPointer<DolphinTabPage> m_page;
     QPointer<QToolButton> m_button;

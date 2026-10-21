@@ -169,6 +169,7 @@ private Q_SLOTS:
     void testSplitButton();
     void testSplitButtonWhenLeftCloses();
     void testSplitButtonNarrow();
+    void testSplitButtonContextMenu();
     void testMiddleClickNavigation();
     void testReloadAnnouncement();
     void testStopState();
@@ -1523,6 +1524,51 @@ void WhaleFileViewToolBarTest::testSplitButtonNarrow()
             QVERIFY(!widget->geometry().intersects(button->geometry()));
         }
     }
+}
+
+void WhaleFileViewToolBarTest::testSplitButtonContextMenu()
+{
+    // "<<" has a context menu that moves the right view to a new tab or window instead of
+    // closing it: the same right view, also when the left one is active.
+    showSplit();
+    QToolButton *button = WhaleSplitViewButton::buttonOf(tabPage());
+    QVERIFY(button);
+    QTRY_COMPARE(button->parentWidget(), toolBar(m_right));
+    QVERIFY(button->toolTip().contains(QStringLiteral("Right-click")));
+    const QUrl leftUrl = m_left->url();
+    QVERIFY(QDir(leftUrl.toLocalFile()).mkpath(QStringLiteral("rightFolder")));
+    const QUrl rightUrl = QUrl::fromLocalFile(leftUrl.toLocalFile() + QStringLiteral("/rightFolder"));
+    m_right->setUrl(rightUrl);
+    QTRY_COMPARE(m_right->url(), rightUrl);
+    m_left->setActive(true);
+    QTRY_VERIFY(m_left->isActive());
+
+    Q_EMIT button->customContextMenuRequested(QPoint(button->width() / 2, button->height() / 2));
+    QMenu *menu = button->findChild<QMenu *>();
+    QVERIFY(menu);
+    auto toTab = menu->findChild<QAction *>(QStringLiteral("whale_split_view_to_tab"));
+    QVERIFY(toTab);
+    // Not triggered here: a new window is a process of its own.
+    QVERIFY(menu->findChild<QAction *>(QStringLiteral("whale_split_view_popout")));
+    QCOMPARE(menu->actions().count(), 2);
+
+    auto tabs = m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"));
+    const int tabCount = tabs->count();
+    DolphinTabPage *page = tabPage();
+    QPointer<DolphinViewContainer> right = m_right;
+    toTab->trigger();
+    menu->close();
+    QTRY_VERIFY(!right);
+    QCOMPARE(tabs->count(), tabCount + 1);
+    QVERIFY(!page->splitViewEnabled());
+    QCOMPARE(page->primaryViewContainer(), m_left);
+    QCOMPARE(m_left->url(), leftUrl);
+    QCOMPARE(tabs->tabPageAt(tabs->indexOf(page) + 1)->primaryViewContainer()->url(), rightUrl);
+
+    // Without a split view there is nothing to move: no menu.
+    QTRY_VERIFY(!button->findChild<QMenu *>());
+    Q_EMIT button->customContextMenuRequested(QPoint(1, 1));
+    QVERIFY(!button->findChild<QMenu *>());
 }
 
 void WhaleFileViewToolBarTest::testMiddleClickNavigation()
