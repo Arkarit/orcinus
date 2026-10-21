@@ -78,6 +78,8 @@ private Q_SLOTS:
     void testMovedViewKeepsItsStyle();
     void testViewsOfOneRoleKeepTheirOwnStyle();
     void testAPlaceWithItsOwnStyleIsLeftForTheOwnStyle();
+    void testApplyingSettingsKeepsTheOwnStyle();
+    void testTurningOnOneStyleForAllFoldersReadsIt();
     void testSplitViewAtStartup_data();
     void testSplitViewAtStartup();
     void testSplitViewAtStartupMigration_data();
@@ -588,8 +590,14 @@ namespace
 /** Turns on one style for all folders for a test and puts back what it found, in both roles. */
 auto useGlobalViewProps()
 {
+    // Saved, since DolphinView::readSettings() loads the settings again. Saving would also tell
+    // the windows about the other settings the tests changed, so it is done with signals blocked.
     const bool globalViewProps = GeneralSettings::globalViewProps();
     GeneralSettings::self()->setGlobalViewProps(true);
+    {
+        const QSignalBlocker blocker(GeneralSettings::self());
+        GeneralSettings::self()->save();
+    }
     DolphinView::Mode previousMode;
     {
         const ViewProperties left{QUrl()};
@@ -601,6 +609,8 @@ auto useGlobalViewProps()
             props.setViewMode(previousMode);
         }
         GeneralSettings::self()->setGlobalViewProps(globalViewProps);
+        const QSignalBlocker blocker(GeneralSettings::self());
+        GeneralSettings::self()->save();
     });
 }
 }
@@ -668,7 +678,6 @@ void DolphinMainWindowTest::testViewsOfOneRoleKeepTheirOwnStyle()
     QCOMPARE(first->viewMode(), DolphinView::CompactView);
 
     first->setUrl(subFolder);
-    QEXPECT_FAIL("", "VS2: going to another folder reads the style the other view wrote last", Continue);
     QCOMPARE(first->viewMode(), DolphinView::CompactView);
     first->setUrl(home);
     QCOMPARE(second->viewMode(), DolphinView::IconsView);
@@ -695,6 +704,54 @@ void DolphinMainWindowTest::testAPlaceWithItsOwnStyleIsLeftForTheOwnStyle()
     QCOMPARE(view->viewMode(), DolphinView::DetailsView);
     view->setUrl(home);
     QCOMPARE(view->viewMode(), DolphinView::CompactView);
+}
+
+// Whale (VS): applying the settings (any page of the settings dialog) does not read the style of
+// the view again, which another view at the same position may have written last.
+void DolphinMainWindowTest::testApplyingSettingsKeepsTheOwnStyle()
+{
+    auto restore = useGlobalViewProps();
+    const QUrl home = QUrl::fromLocalFile(m_tmpHome.path());
+
+    m_mainWindow->openDirectories({home}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    DolphinView *first = tabWidget->currentTabPage()->primaryViewContainer()->view();
+    first->setViewMode(DolphinView::CompactView);
+    DolphinView *second = m_mainWindow->openNewTab(home)->primaryViewContainer()->view();
+    second->setViewMode(DolphinView::IconsView);
+
+    m_mainWindow->refreshViews();
+    QCOMPARE(first->viewMode(), DolphinView::CompactView);
+    QCOMPARE(second->viewMode(), DolphinView::IconsView);
+}
+
+// Whale (VS): turning one style for all folders on reads the style of the position again, which
+// the settings page wrote from the current folder; the style the view had before is gone.
+void DolphinMainWindowTest::testTurningOnOneStyleForAllFoldersReadsIt()
+{
+    auto restore = useGlobalViewProps();
+    const QUrl home = QUrl::fromLocalFile(m_tmpHome.path());
+
+    m_mainWindow->openDirectories({home}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    view->setViewMode(DolphinView::CompactView);
+
+    const QSignalBlocker blocker(GeneralSettings::self());
+    GeneralSettings::self()->setGlobalViewProps(false);
+    GeneralSettings::self()->save();
+    view->readSettings();
+    {
+        ViewProperties left{QUrl()};
+        left.setViewMode(DolphinView::DetailsView);
+    }
+    GeneralSettings::self()->setGlobalViewProps(true);
+    GeneralSettings::self()->save();
+    view->readSettings();
+    QCOMPARE(view->viewMode(), DolphinView::DetailsView);
 }
 
 void DolphinMainWindowTest::testSplitViewAtStartup_data()

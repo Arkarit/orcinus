@@ -1013,6 +1013,44 @@ private:
     void applyViewProperties(const ViewProperties &props);
 
     /**
+     * Whale (VS): with one style for all folders, the style of this view. The view keeps it in
+     * every folder without a style of its own (ViewProperties::usesGlobalStyle()) instead of
+     * reading the properties of the folder again, and writes its changes down as the style new
+     * views at its position start from. Read from that style when first needed; nullptr with a
+     * style for each folder.
+     */
+    ViewProperties *ownStyle();
+
+    /** Whale (VS): ownStyle() where @p urlProps use the style of all folders, else nullptr. */
+    ViewProperties *ownStyleFor(const ViewProperties &urlProps);
+
+    /**
+     * Whale (VS): the view properties a change of the view goes to: ownStyle() where the url uses
+     * the style of all folders, else the properties of the url. A change of the own style is
+     * written down when this is dropped.
+     */
+    class PropertiesForChange
+    {
+    public:
+        explicit PropertiesForChange(DolphinView *view);
+        ~PropertiesForChange();
+        ViewProperties *operator->() const
+        {
+            return m_props;
+        }
+        ViewProperties &operator*() const
+        {
+            return *m_props;
+        }
+
+    private:
+        Q_DISABLE_COPY_MOVE(PropertiesForChange)
+        std::unique_ptr<ViewProperties> m_urlProps;
+        ViewProperties *m_props = nullptr;
+        ViewProperties *m_ownStyle = nullptr;
+    };
+
+    /**
      * Applies the m_mode property to the corresponding
      * itemlayout-property of the KItemListView.
      */
@@ -1150,6 +1188,7 @@ private:
     bool m_applyingLinkedSelection = false;
     bool m_viewModeKept = false; // Whale: setViewModeKept()
     PanelRole m_panelRole = PanelRole::Left; // Whale: setPanelRole()
+    std::unique_ptr<ViewProperties> m_ownStyle; // Whale (VS): ownStyle()
     QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;

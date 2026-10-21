@@ -749,7 +749,8 @@ void WhaleSplitLockTest::testViewModesKept()
     QCOMPARE(m_left->view()->viewMode(), DolphinView::DetailsView);
     QCOMPARE(m_right->view()->viewMode(), DolphinView::IconsView);
 
-    // Released, a view takes the view mode of the folder again.
+    // Released, a view takes the view mode of the folder again. With one style for all folders,
+    // the view keeps its own style instead, also where its position was written elsewhere (VS).
     lock()->setLocked(false);
     {
         ViewProperties props(url(QStringLiteral("sub")));
@@ -757,7 +758,7 @@ void WhaleSplitLockTest::testViewModesKept()
     }
     m_left->setUrl(url(QStringLiteral("sub")));
     QTRY_COMPARE(normalized(m_left->url()), url(QStringLiteral("sub")));
-    QCOMPARE(m_left->view()->viewMode(), DolphinView::IconsView);
+    QCOMPARE(m_left->view()->viewMode(), globalViewProps ? DolphinView::DetailsView : DolphinView::IconsView);
 }
 
 void WhaleSplitLockTest::testNoDynamicViewWhileLocked()

@@ -115,6 +115,12 @@ public:
      */
     void keepGlobalStyle();
 
+    /**
+     * Whale: writes down what was changed since the last time, if anything, for properties that
+     * are kept rather than dropped after a change (the own style of a view, VS).
+     */
+    void saveChanges();
+
     void setAutoSaveEnabled(bool autoSave);
     bool isAutoSaveEnabled() const;
 

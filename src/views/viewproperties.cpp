@@ -761,6 +761,13 @@ void ViewProperties::keepGlobalStyle()
     }
 }
 
+void ViewProperties::saveChanges()
+{
+    if (m_changedProps || m_forgetOnSave) {
+        save();
+    }
+}
+
 void ViewProperties::setAutoSaveEnabled(bool autoSave)
 {
     m_autoSave = autoSave;
