@@ -11,6 +11,7 @@
 #include "dolphinviewcontainer.h"
 #include "whalesplitlock.h" // Whale
 #include "whalesplitviewbutton.h" // Whale
+#include "whalesplitviewstartup.h" // Whale
 
 #include <QFrame>
 #include <QGridLayout>
@@ -53,7 +54,7 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
     new WhaleSplitViewButton(this); // Whale: the split button of the File View Toolbar
     new WhaleSplitLock(this); // Whale: the lock of the split view (LK)
 
-    if (secondaryUrl.isValid() || GeneralSettings::splitView()) {
+    if (secondaryUrl.isValid() || WhaleSplitViewStartup::openInSplitView()) {
         // Provide a secondary view, if the given secondary url is valid or if the
         // startup settings are set this way (use the url of the primary view).
         m_splitViewEnabled = true;
@@ -89,6 +90,7 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
     }
 
     m_splitViewEnabled = enabled;
+    WhaleSplitViewStartup::rememberSplitView(enabled); // Whale
     if (animated == WithAnimation
         && (style()->styleHint(QStyle::SH_Widget_Animation_Duration, nullptr, this) < 1 || GlobalConfig::animationDurationFactor() <= 0.0)) {
         animated = WithoutAnimation;

@@ -7,6 +7,7 @@
 #include "dbusinterface.h"
 #include "dolphin_generalsettings.h"
 #include "global.h"
+#include "whalesplitviewstartup.h" // Whale
 
 #include <KPropertiesDialog>
 #include <KWindowSystem>
@@ -33,7 +34,7 @@ void DBusInterface::ShowFolders(const QStringList &uriList, const QString &start
         return;
     }
     const auto serviceName = isDaemon() ? QString() : Dolphin::currentInstanceServiceName();
-    if (!Dolphin::attachToExistingInstance(urls, false, GeneralSettings::splitView(), serviceName, startUpId)) {
+    if (!Dolphin::attachToExistingInstance(urls, false, WhaleSplitViewStartup::openInSplitView(), serviceName, startUpId)) {
         Dolphin::openNewWindow(urls);
     }
 }
@@ -45,7 +46,7 @@ void DBusInterface::ShowItems(const QStringList &uriList, const QString &startUp
         return;
     }
     const auto serviceName = isDaemon() ? QString() : Dolphin::currentInstanceServiceName();
-    if (!Dolphin::attachToExistingInstance(urls, true, GeneralSettings::splitView(), serviceName, startUpId)) {
+    if (!Dolphin::attachToExistingInstance(urls, true, WhaleSplitViewStartup::openInSplitView(), serviceName, startUpId)) {
         Dolphin::openNewWindow(urls, nullptr, Dolphin::OpenNewWindowFlag::Select);
     };
 }

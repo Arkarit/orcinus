@@ -19,6 +19,7 @@
 #endif
 #if WHALE_ENABLE_DEV_MCP
 #include "whaledevautomation.h" // Whale: development automation
+#include "whalesplitviewstartup.h"
 #endif
 
 #include <KAboutData>
@@ -206,7 +207,8 @@ int main(int argc, char **argv)
     parser.process(app);
     aboutData.processCommandLine(&parser);
 
-    const bool splitView = parser.isSet(QStringLiteral("split")) || GeneralSettings::splitView();
+    WhaleSplitViewStartup::migrate();
+    const bool splitView = parser.isSet(QStringLiteral("split")) || WhaleSplitViewStartup::openInSplitView();
     const bool openFiles = parser.isSet(QStringLiteral("select"));
     const bool adminWorkerInfoWanted = parser.isSet(QStringLiteral("sudo")) || parser.isSet(QStringLiteral("admin"));
     const QStringList args = parser.positionalArguments();

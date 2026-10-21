@@ -10,7 +10,7 @@
     <kcfgfile name="whalerc"/>
     <signal name="tabBarChanged" />
     <signal name="sortingChoiceChanged" />
-    <signal name="splitViewChanged" />
+    <signal name="splitViewAtStartupChanged" />
     <signal name="showStatusBarChanged">
         <argument type="Bool">showStatusBar</argument>
     </signal>
@@ -82,10 +82,15 @@
             <label>Remember open folders and tabs</label>
             <default>true</default>
         </entry>
-        <entry name="SplitView" type="Bool">
-            <label>Place two views side by side</label>
-            <default>false</default>
-            <emit signal="splitViewChanged" />
+        <entry name="SplitViewAtStartup" type="Enum">
+            <choices>
+                <choice name="LastState" />
+                <choice name="AlwaysSplit" />
+                <choice name="AlwaysSingle" />
+            </choices>
+            <label>Whether new windows and tabs open with a split view</label>
+            <default code="true">EnumSplitViewAtStartup::LastState</default>
+            <emit signal="splitViewAtStartupChanged" />
         </entry>
         <entry name="FilterBar" type="Bool">
             <label>Should the filter bar be shown</label>

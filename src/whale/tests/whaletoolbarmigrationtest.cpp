@@ -301,6 +301,7 @@ void WhaleToolbarMigrationTest::initTestCase()
     qputenv("XDG_CONFIG_HOME", m_tmpHome.filePath(QStringLiteral("config")).toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain({"whale"});
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);

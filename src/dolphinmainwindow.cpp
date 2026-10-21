@@ -41,6 +41,7 @@
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
 #include "whalefocusorder.h"
+#include "whalesplitviewstartup.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaleviewactions.h"
@@ -308,7 +309,7 @@ DolphinMainWindow::DolphinMainWindow()
             setupFileItemActions();
         }
     });
-    connect(GeneralSettings::self(), &GeneralSettings::splitViewChanged, this, &DolphinMainWindow::slotSplitViewChanged);
+    connect(GeneralSettings::self(), &GeneralSettings::splitViewAtStartupChanged, this, &DolphinMainWindow::slotSplitViewChanged);
     connect(GeneralSettings::self(), &GeneralSettings::tabBarChanged, this, &DolphinMainWindow::slotTabBarChanged);
 }
 
@@ -550,7 +551,11 @@ void DolphinMainWindow::openNewWindow(const QUrl &url)
 
 void DolphinMainWindow::slotSplitViewChanged()
 {
-    m_tabWidget->currentTabPage()->setSplitViewEnabled(GeneralSettings::splitView(), WithAnimation);
+    // Whale: the last state of the split view is the one the window shows.
+    if (GeneralSettings::splitViewAtStartup() == GeneralSettings::EnumSplitViewAtStartup::LastState) {
+        return;
+    }
+    m_tabWidget->currentTabPage()->setSplitViewEnabled(WhaleSplitViewStartup::openInSplitView(), WithAnimation);
     updateSplitActions();
 }
 
@@ -784,6 +789,9 @@ void DolphinMainWindow::closeEvent(QCloseEvent *event)
             slotSaveSession();
         }
     }
+
+    // Whale: what the window shows when it closes is the last state of the split view.
+    WhaleSplitViewStartup::rememberSplitView(m_tabWidget->currentTabPage()->splitViewEnabled());
 
     GeneralSettings::setVersion(CurrentDolphinVersion);
     GeneralSettings::self()->save();

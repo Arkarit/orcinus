@@ -4,6 +4,8 @@
  */
 #pragma once
 
+#include "dolphin_generalsettings.h"
+
 #include <QApplication>
 #include <QTest>
 
@@ -21,6 +23,16 @@ inline void disableAnimations()
     QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
     QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
     QApplication::setEffectEnabled(Qt::UI_AnimateToolBox, false);
+}
+
+/**
+ * Whale: lets new windows and tabs open with a single view, whatever split view an earlier
+ * test left open (GeneralSettings::splitViewAtStartup() defaults to the last state).
+ * Call once in initTestCase() of a test that opens windows.
+ */
+inline void openNewWindowsInSingleView()
+{
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::AlwaysSingle);
 }
 
 } // namespace TestHelpers

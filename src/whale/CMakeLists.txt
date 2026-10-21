@@ -126,6 +126,7 @@ target_sources(dolphinstatic PRIVATE
     toolbars/whaletoolbars.qrc
     splitview/whalesplitlock.cpp
     splitview/whalesplitviewbutton.cpp
+    splitview/whalesplitviewstartup.cpp
     splitview/whaletransientmessage.cpp
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars ${CMAKE_CURRENT_SOURCE_DIR}/splitview)
