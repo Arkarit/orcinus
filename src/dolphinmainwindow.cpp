@@ -133,6 +133,21 @@ void closeSplitViewWithChoice(DolphinTabPage *tabPage, int choice)
     tabPage->setSplitViewEnabled(false, WithAnimation);
     GeneralSettings::self()->setCloseSplitViewChoice(settingsChoice);
 }
+
+// Whale: opens the folder of @p container in a tab of its own, with the style of its view (VS).
+void moveToNewTab(DolphinMainWindow *window, const DolphinViewContainer *container)
+{
+    DolphinTabPage *page = window->openNewTab(container->url());
+    // A tab of its own, whatever new tabs open with otherwise.
+    page->setSplitViewEnabled(false, WithoutAnimation);
+    page->primaryViewContainer()->view()->setOwnStyleData(container->view()->ownStyleData());
+}
+
+// Whale: opens the folder of @p container in a new window, with the style of its view (VS).
+void popOut(DolphinMainWindow *window, const DolphinViewContainer *container)
+{
+    Dolphin::openNewWindow({container->url()}, window, Dolphin::OpenNewWindowFlag::None, container->view()->ownStyleData());
+}
 }
 
 DolphinMainWindow::DolphinMainWindow()
@@ -1178,8 +1193,7 @@ void DolphinMainWindow::moveRightSplitViewToTab()
     if (!tabPage->splitViewEnabled()) {
         return;
     }
-    // Whale: a tab of its own, whatever new tabs open with otherwise.
-    openNewTab(tabPage->secondaryViewContainer()->url())->setSplitViewEnabled(false, WithoutAnimation);
+    moveToNewTab(this, tabPage->secondaryViewContainer());
     closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::RightView);
     m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
     updateViewActions();
@@ -1191,7 +1205,7 @@ void DolphinMainWindow::popoutRightSplitView()
     if (!tabPage->splitViewEnabled()) {
         return;
     }
-    openNewWindow(tabPage->secondaryViewContainer()->url());
+    popOut(this, tabPage->secondaryViewContainer());
     closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::RightView);
     m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
     updateViewActions();
@@ -1204,14 +1218,15 @@ void DolphinMainWindow::popoutSplitView()
         return;
     using Choice = GeneralSettings::EnumCloseSplitViewChoice;
     switch (GeneralSettings::closeSplitViewChoice()) {
+    // Whale: with the style of the view (VS).
     case Choice::ActiveView:
-        openNewWindow(tabPage->activeViewContainer()->url());
+        popOut(this, tabPage->activeViewContainer());
         break;
     case Choice::InactiveView:
-        openNewWindow(tabPage->inactiveViewContainer()->url());
+        popOut(this, tabPage->inactiveViewContainer());
         break;
     case Choice::RightView:
-        openNewWindow(tabPage->secondaryViewContainer()->url());
+        popOut(this, tabPage->secondaryViewContainer());
         break;
     default:
         Q_UNREACHABLE();
@@ -1227,8 +1242,7 @@ void DolphinMainWindow::moveSplitViewToTabs()
     if (!tabPage->splitViewEnabled())
         return;
 
-    // Whale: a tab of its own, whatever new tabs open with otherwise.
-    openNewTab(tabPage->activeViewContainer()->url())->setSplitViewEnabled(false, WithoutAnimation);
+    moveToNewTab(this, tabPage->activeViewContainer()); // Whale
 
     // Whale: the active view moved to the new tab, so close it here and keep the other one,
     // whichever view the settings close otherwise.

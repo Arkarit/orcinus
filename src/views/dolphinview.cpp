@@ -987,6 +987,24 @@ DolphinView::PanelRole DolphinView::panelRole() const
     return m_panelRole;
 }
 
+QByteArray DolphinView::ownStyleData() const
+{
+    return m_ownStyle ? m_ownStyle->toData() : QByteArray();
+}
+
+void DolphinView::setOwnStyleData(const QByteArray &data)
+{
+    ViewProperties *own = ownStyle();
+    if (!own || data.isEmpty()) {
+        return;
+    }
+    own->setDirProperties(data);
+    const ViewProperties props(viewPropertiesUrl(), m_panelRole);
+    if (props.usesGlobalStyle()) {
+        applyViewProperties(*own);
+    }
+}
+
 QUrl DolphinView::currentItemUrl() const
 {
     const int index = m_container->controller()->selectionManager()->currentItem();

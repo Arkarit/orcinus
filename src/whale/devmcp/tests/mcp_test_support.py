@@ -112,7 +112,7 @@ def keep_single_view_at_startup(config):
 
 
 def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False,
-                extra_plugin_dirs=(), confirm_delete=False):
+                extra_plugin_dirs=(), confirm_delete=False, extra_args=()):
     """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
     Without @p folder Whale restores its session (if it is the only Whale on the bus).
     @p plugin_dir may be None: then Whale finds no plugins of the build tree. It may list
@@ -120,7 +120,7 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
     views Hello/Test List, which live in a test plugin directory of their own).
     With @p file_operations the dev MCP may change files and the clipboard, and deleting
     needs no confirmation (with @p confirm_delete it does, as KDE's default); only for
-    throwaway test folders."""
+    throwaway test folders. @p extra_args go to Whale's command line before the folder."""
     env = dict(os.environ)
     env.pop("WHALE_DEV_MCP_FILE_OPERATIONS", None)
     for name in ("config", "data", "cache", "state"):
@@ -151,7 +151,7 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
     else:
         env.pop("WHALE_DEV_MCP", None)
     log = open(profile / "whale.log", "a")
-    args = [binary, "--new-window"] + ([str(folder)] if folder else [])
+    args = [binary, "--new-window", *extra_args] + ([str(folder)] if folder else [])
     return subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
 

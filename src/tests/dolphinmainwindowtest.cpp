@@ -23,6 +23,7 @@
 #include "kitemviews/private/kitemlistroleeditor.h"
 #include "search/bar.h"
 #include "settings/viewmodes/viewmodesettings.h"
+#include "settings/viewpropertiesdialog.h"
 #include "testdir.h"
 #include "views/dolphinitemlistview.h"
 #include "views/viewproperties.h"
@@ -38,6 +39,7 @@
 
 #include <QAccessible>
 #include <QApplication>
+#include <QComboBox>
 #include <QDomDocument>
 #include <QFileSystemWatcher>
 #include <QKeySequence>
@@ -79,6 +81,7 @@ private Q_SLOTS:
     void testViewsOfOneRoleKeepTheirOwnStyle();
     void testAPlaceWithItsOwnStyleIsLeftForTheOwnStyle();
     void testApplyingSettingsKeepsTheOwnStyle();
+    void testThePropertiesDialogShowsTheOwnStyle();
     void testTurningOnOneStyleForAllFoldersReadsIt();
     void testSplitViewAtStartup_data();
     void testSplitViewAtStartup();
@@ -652,8 +655,18 @@ void DolphinMainWindowTest::testMovedViewKeepsItsStyle()
     QCOMPARE(tabPage->primaryViewContainer()->view(), leftView);
     QCOMPARE(leftView->viewMode(), DolphinView::CompactView);
     DolphinView *movedView = tabWidget->tabPageAt(1)->primaryViewContainer()->view();
-    QEXPECT_FAIL("", "VS3: the moved view reads the style of the left position", Continue);
     QCOMPARE(movedView->viewMode(), DolphinView::IconsView);
+    // Moving writes nothing down: the style new left views start with stays the one chosen there.
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
+
+    // It keeps that style in other folders, and a change there is written down for its position.
+    QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("moved")));
+    movedView->setUrl(QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/moved")));
+    QCOMPARE(movedView->viewMode(), DolphinView::IconsView);
+    movedView->setViewMode(DolphinView::DetailsView);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), DolphinView::DetailsView);
+    QCOMPARE(leftView->viewMode(), DolphinView::CompactView);
 }
 
 // Whale (VS): with one style for all folders, two views at the same position (here the views
@@ -725,6 +738,27 @@ void DolphinMainWindowTest::testApplyingSettingsKeepsTheOwnStyle()
     m_mainWindow->refreshViews();
     QCOMPARE(first->viewMode(), DolphinView::CompactView);
     QCOMPARE(second->viewMode(), DolphinView::IconsView);
+}
+
+// Whale (VS): the dialog of the view properties shows the style of the view, also where another
+// view at its position wrote its style last.
+void DolphinMainWindowTest::testThePropertiesDialogShowsTheOwnStyle()
+{
+    auto restore = useGlobalViewProps();
+    const QUrl home = QUrl::fromLocalFile(m_tmpHome.path());
+
+    m_mainWindow->openDirectories({home}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    DolphinView *first = tabWidget->currentTabPage()->primaryViewContainer()->view();
+    first->setViewMode(DolphinView::CompactView);
+    m_mainWindow->openNewTab(home)->primaryViewContainer()->view()->setViewMode(DolphinView::IconsView);
+
+    ViewPropertiesDialog dialog(first);
+    const auto comboBoxes = dialog.findChildren<QComboBox *>();
+    QVERIFY(!comboBoxes.isEmpty());
+    QCOMPARE(comboBoxes.first()->currentIndex(), 1); // Icons, Compact, Details
 }
 
 // Whale (VS): turning one style for all folders on reads the style of the position again, which

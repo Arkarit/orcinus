@@ -13,6 +13,7 @@
 #include "dolphin_version.h"
 #include "dolphindebug.h"
 #include "dolphinmainwindow.h"
+#include "dolphinviewcontainer.h"
 #include "global.h"
 #include "whalesplitviewstartup.h" // Whale
 #if HAVE_KUSERFEEDBACK
@@ -190,6 +191,13 @@ int main(int argc, char **argv)
                                               "will be selected.")));
     parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("split"), i18nc("@info:shell", "Whale will get started with a split view.")));
     parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("new-window"), i18nc("@info:shell", "Whale will explicitly open in a new window.")));
+    {
+        // Whale (VS): internal, from "Pop out" (Dolphin::ViewStyleOption).
+        QCommandLineOption viewStyleOption(QString::fromLatin1(Dolphin::ViewStyleOption));
+        viewStyleOption.setValueName(QStringLiteral("style"));
+        viewStyleOption.setFlags(QCommandLineOption::HiddenFromHelp);
+        parser.addOption(viewStyleOption);
+    }
     parser.addOption(
         QCommandLineOption(QStringList() << QStringLiteral("sudo") << QStringLiteral("admin"), i18nc("@info:shell", "Set up Whale for administrative tasks.")));
 #if WHALE_PROVIDE_FILEMANAGER1
@@ -208,7 +216,10 @@ int main(int argc, char **argv)
     aboutData.processCommandLine(&parser);
 
     WhaleSplitViewStartup::migrate();
-    const bool splitView = parser.isSet(QStringLiteral("split")) || WhaleSplitViewStartup::openInSplitView();
+    // Whale (VS): a view popped out of a split view comes with its style and on its own.
+    const QByteArray viewStyle = QByteArray::fromBase64(parser.value(QString::fromLatin1(Dolphin::ViewStyleOption)).toLatin1(),
+                                                        QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+    const bool splitView = viewStyle.isEmpty() && (parser.isSet(QStringLiteral("split")) || WhaleSplitViewStartup::openInSplitView());
     const bool openFiles = parser.isSet(QStringLiteral("select"));
     const bool adminWorkerInfoWanted = parser.isSet(QStringLiteral("sudo")) || parser.isSet(QStringLiteral("admin"));
     const QStringList args = parser.positionalArguments();
@@ -334,6 +345,12 @@ int main(int argc, char **argv)
         } else {
             mainWindow->openDirectories(urls, splitView);
         }
+    }
+
+    if (!viewStyle.isEmpty()) {
+        // A window of its own, whatever new windows open with otherwise.
+        mainWindow->closeRightSplitView();
+        mainWindow->activeViewContainer()->view()->setOwnStyleData(viewStyle);
     }
 
     mainWindow->setSessionAutoSaveEnabled(GeneralSettings::rememberOpenedTabs());

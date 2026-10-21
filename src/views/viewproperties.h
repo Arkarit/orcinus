@@ -105,6 +105,13 @@ public:
     void setDirProperties(const ViewProperties &props);
 
     /**
+     * Whale: the properties as text (the groups this class writes), e.g. to hand the own style
+     * of a view to a new window (VS). setDirProperties(const QByteArray &) reads it.
+     */
+    QByteArray toData() const;
+    void setDirProperties(const QByteArray &data);
+
+    /**
      * If \a autoSave is true, the properties are automatically
      * saved when the destructor is called. Per default autosaving
      * is enabled.
@@ -231,6 +238,9 @@ private:
 
     /** Writes the style this folder comes with into the properties in hand. */
     void applyOwnDefaultStyle();
+
+    /** Whale: properties that only hold @p node (setDirProperties(const QByteArray &)). */
+    explicit ViewProperties(ViewPropertySettings *node);
 
     /** Whale: @returns the sub-directory of the global view properties of the view at @p role. */
     static QString globalSubDir(DolphinView::PanelRole role);

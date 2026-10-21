@@ -40,9 +40,20 @@ enum class OpenNewWindowFlag {
 Q_DECLARE_FLAGS(OpenNewWindowFlags, OpenNewWindowFlag)
 
 /**
- * Opens a new Dolphin window
+ * Whale (VS): the hidden command line option that gives the view of a new window the own style
+ * of the view it pops out of (DolphinView::ownStyleData(), Base64url). The window opens with a
+ * single view.
  */
-void openNewWindow(const QList<QUrl> &urls = {}, QWidget *window = nullptr, const OpenNewWindowFlags &flags = OpenNewWindowFlag::None);
+inline constexpr char ViewStyleOption[] = "whale-view-style";
+
+/**
+ * Opens a new Dolphin window
+ * @param viewStyle Whale (VS): the own style of the view, see ViewStyleOption.
+ */
+void openNewWindow(const QList<QUrl> &urls = {},
+                   QWidget *window = nullptr,
+                   const OpenNewWindowFlags &flags = OpenNewWindowFlag::None,
+                   const QByteArray &viewStyle = QByteArray());
 
 /**
  * Attaches URLs to an existing Dolphin instance if possible.

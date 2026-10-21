@@ -50,12 +50,19 @@ QString Dolphin::mainWindowDbusPath()
     return QStringLiteral("/" WHALE_COMPONENT "/" WHALE_DISPLAY_NAME "_1");
 }
 
-void Dolphin::openNewWindow(const QList<QUrl> &urls, QWidget *window, const OpenNewWindowFlags &flags)
+void Dolphin::openNewWindow(const QList<QUrl> &urls, QWidget *window, const OpenNewWindowFlags &flags, const QByteArray &viewStyle)
 {
     QString command = QStringLiteral(WHALE_EXECUTABLE " --new-window");
 
     if (flags.testFlag(OpenNewWindowFlag::Select)) {
         command.append(QLatin1String(" --select"));
+    }
+
+    if (!viewStyle.isEmpty()) {
+        // Base64url needs no quoting in the command line.
+        command.append(
+            QStringLiteral(" --%1 %2")
+                .arg(QLatin1String(ViewStyleOption), QString::fromLatin1(viewStyle.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals))));
     }
 
     if (!urls.isEmpty()) {

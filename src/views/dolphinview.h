@@ -474,6 +474,15 @@ public Q_SLOTS:
     PanelRole panelRole() const;
 
     /**
+     * Whale (VS): with one style for all folders, the own style of the view as text (see
+     * ViewProperties::toData()), else empty. setOwnStyleData() gives it to another view, e.g. the
+     * view that a moved view becomes in its new tab or window. The style taken is not written
+     * down until it is changed there.
+     */
+    QByteArray ownStyleData() const;
+    void setOwnStyleData(const QByteArray &data);
+
+    /**
      * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
      */
     QUrl currentItemUrl() const;

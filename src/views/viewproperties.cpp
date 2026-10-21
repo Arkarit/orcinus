@@ -768,6 +768,56 @@ void ViewProperties::saveChanges()
     }
 }
 
+namespace
+{
+// Whale: properties in memory, read from @p data.
+ViewPropertySettings *propertiesInBuffer(const QByteArray &data, std::shared_ptr<QBuffer> *bufferOut = nullptr)
+{
+    auto buffer = std::make_shared<QBuffer>();
+    buffer->setData(data);
+    if (!buffer->open(QIODevice::ReadWrite)) {
+        qCWarning(DolphinDebug) << "Could not open buffer";
+    }
+    if (bufferOut) {
+        *bufferOut = buffer;
+    }
+    return new ViewPropertySettings(std::make_unique<KConfig>(buffer, KConfig::OpenFlag::SimpleConfig));
+}
+}
+
+ViewProperties::ViewProperties(ViewPropertySettings *node)
+    : m_changedProps(false)
+    , m_autoSave(false)
+    , m_hasOwnDefaultStyle(false)
+    , m_hasStoredProperties(false)
+    , m_ownDefaultStyle(OwnDefaultStyle::None)
+    , m_node(node)
+{
+}
+
+QByteArray ViewProperties::toData() const
+{
+    std::shared_ptr<QBuffer> buffer;
+    std::unique_ptr<ViewPropertySettings> copy(propertiesInBuffer(QByteArray(), &buffer));
+    const auto items = m_node->items();
+    for (const KConfigSkeletonItem *item : items) {
+        if (KConfigSkeletonItem *target = copy->findItem(item->name())) {
+            target->setProperty(item->property());
+        }
+    }
+    copy->save();
+    return buffer->data();
+}
+
+void ViewProperties::setDirProperties(const QByteArray &data)
+{
+    const ViewProperties source(propertiesInBuffer(data));
+    // Text that holds no properties (e.g. a damaged command line) changes nothing.
+    if (source.m_node->config()->hasGroup(QStringLiteral("Dolphin"))) {
+        setDirProperties(source);
+    }
+}
+
 void ViewProperties::setAutoSaveEnabled(bool autoSave)
 {
     m_autoSave = autoSave;
