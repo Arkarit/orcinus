@@ -1177,7 +1177,8 @@ void DolphinMainWindow::moveRightSplitViewToTab()
     if (!tabPage->splitViewEnabled()) {
         return;
     }
-    openNewTab(tabPage->secondaryViewContainer()->url());
+    // Whale: a tab of its own, whatever new tabs open with otherwise.
+    openNewTab(tabPage->secondaryViewContainer()->url())->setSplitViewEnabled(false, WithoutAnimation);
     closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::RightView);
     m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
     updateViewActions();
@@ -1225,7 +1226,8 @@ void DolphinMainWindow::moveSplitViewToTabs()
     if (!tabPage->splitViewEnabled())
         return;
 
-    openNewTab(tabPage->activeViewContainer()->url());
+    // Whale: a tab of its own, whatever new tabs open with otherwise.
+    openNewTab(tabPage->activeViewContainer()->url())->setSplitViewEnabled(false, WithoutAnimation);
 
     // Whale: the active view moved to the new tab, so close it here and keep the other one,
     // whichever view the settings close otherwise.

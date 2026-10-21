@@ -477,6 +477,11 @@ void DolphinMainWindowTest::testMoveSplitViewToTabsKeepsBothFolders()
     QCOMPARE(rightViewContainer->url(), rightUrl);
 
     (leftViewActive ? leftViewContainer : rightViewContainer)->setActive(true);
+    // The new tab has a single view, also where new tabs open with a split view.
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::AlwaysSplit);
+    auto singleView = qScopeGuard([] {
+        TestHelpers::openNewWindowsInSingleView();
+    });
     const QUrl movedUrl = leftViewActive ? leftUrl : rightUrl;
     const QUrl keptUrl = leftViewActive ? rightUrl : leftUrl;
 

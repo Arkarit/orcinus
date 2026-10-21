@@ -1542,6 +1542,11 @@ void WhaleFileViewToolBarTest::testSplitButtonContextMenu()
     QTRY_COMPARE(m_right->url(), rightUrl);
     m_left->setActive(true);
     QTRY_VERIFY(m_left->isActive());
+    // The new tab has a single view, also where new tabs open with a split view.
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::AlwaysSplit);
+    auto singleView = qScopeGuard([] {
+        TestHelpers::openNewWindowsInSingleView();
+    });
 
     Q_EMIT button->customContextMenuRequested(QPoint(button->width() / 2, button->height() / 2));
     QMenu *menu = button->findChild<QMenu *>();
@@ -1564,6 +1569,7 @@ void WhaleFileViewToolBarTest::testSplitButtonContextMenu()
     QCOMPARE(page->primaryViewContainer(), m_left);
     QCOMPARE(m_left->url(), leftUrl);
     QCOMPARE(tabs->tabPageAt(tabs->indexOf(page) + 1)->primaryViewContainer()->url(), rightUrl);
+    QVERIFY(!tabs->tabPageAt(tabs->indexOf(page) + 1)->splitViewEnabled());
 
     // Without a split view there is nothing to move: no menu.
     QTRY_VERIFY(!button->findChild<QMenu *>());
