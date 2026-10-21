@@ -359,7 +359,7 @@ void DolphinView::setViewMode(Mode mode)
         m_container->horizontalScrollBar()->setValue(0);
         m_container->verticalScrollBar()->setValue(0);
 
-        ViewProperties props(viewPropertiesUrl());
+        ViewProperties props(viewPropertiesUrl(), m_panelRole);
         props.setViewMode(mode);
 
         // We pass the new ViewProperties to applyViewProperties, rather than
@@ -409,7 +409,7 @@ void DolphinView::setPreviewsShown(bool show)
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setPreviewsShown(show);
 
     const int oldZoomLevel = m_view->zoomLevel();
@@ -439,7 +439,7 @@ void DolphinView::setHiddenFilesShown(bool show)
     m_selectedUrls.clear();
     m_selectedUrls = itemList.urlList();
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setHiddenFilesShown(show);
 
     m_model->setShowHiddenFiles(show);
@@ -458,7 +458,7 @@ void DolphinView::setGroupedSorting(bool grouped)
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setGroupedSorting(grouped);
 
     m_model->setGroupedSorting(grouped);
@@ -557,7 +557,7 @@ void DolphinView::setZoomLevel(int level)
     m_view->setZoomLevel(level);
     const int newZoomLevel = zoomLevel();
     if (newZoomLevel != oldZoomLevel) {
-        ViewProperties props(viewPropertiesUrl());
+        ViewProperties props(viewPropertiesUrl(), m_panelRole);
         props.setZoomLevel(level == m_defaultZoomLevel ? -1 : level);
 
         hideToolTip();
@@ -575,7 +575,7 @@ int DolphinView::zoomLevel() const
 void DolphinView::setSortRole(const QByteArray &role)
 {
     if (role != sortRole()) {
-        ViewProperties props(viewPropertiesUrl());
+        ViewProperties props(viewPropertiesUrl(), m_panelRole);
         props.setSortRole(role);
 
         const Qt::SortOrder preferredOrder = preferredSortOrder(role);
@@ -606,7 +606,7 @@ void DolphinView::setGroupRole(const QByteArray &role)
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setGroupRole(role);
 
     model->setGroupRole(role);
@@ -629,7 +629,7 @@ QByteArray DolphinView::rawGroupRole() const
 void DolphinView::setSortOrder(Qt::SortOrder order)
 {
     if (sortOrder() != order) {
-        ViewProperties props(viewPropertiesUrl());
+        ViewProperties props(viewPropertiesUrl(), m_panelRole);
         props.setSortOrder(order);
 
         m_model->setSortOrder(order);
@@ -672,7 +672,7 @@ void DolphinView::setVisibleRoles(const QList<QByteArray> &roles)
 {
     const QList<QByteArray> &previousRoles = roles;
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setVisibleRoles(roles);
 
     m_visibleRoles = roles;
@@ -869,7 +869,7 @@ void DolphinView::setUrl(const QUrl &url)
     // anyhow afterwards by loadDirectory().
     m_model->clear();
     // Whale: a linked view keeps its view mode (setViewModeKept()).
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     if (m_viewModeKept) {
         props.setAutoSaveEnabled(false);
         props.setViewMode(m_mode);
@@ -951,6 +951,24 @@ bool DolphinView::isSelectionLimitedToOneFolder() const
 void DolphinView::setViewModeKept(bool kept)
 {
     m_viewModeKept = kept;
+}
+
+void DolphinView::setPanelRole(PanelRole role)
+{
+    if (role == m_panelRole) {
+        return;
+    }
+    // The view properties of the old position are what the view shows, so they go along to the
+    // new one. Where both positions share their view properties, this writes them back unchanged.
+    const ViewProperties oldProps(viewPropertiesUrl(), m_panelRole);
+    ViewProperties newProps(viewPropertiesUrl(), role);
+    newProps.setDirProperties(oldProps);
+    m_panelRole = role;
+}
+
+DolphinView::PanelRole DolphinView::panelRole() const
+{
+    return m_panelRole;
 }
 
 QUrl DolphinView::currentItemUrl() const
@@ -1570,7 +1588,7 @@ void DolphinView::slotViewContextMenuRequested(const QPointF &pos)
 
 void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
 {
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
 
     QPointer<QMenu> menu = new QMenu(this);
     QMenu *const rawMenu = menu;
@@ -1695,7 +1713,7 @@ void DolphinView::slotHeaderColumnWidthChangeFinished(const QByteArray &role, qr
 {
     const QList<QByteArray> visibleRoles = m_view->visibleRoles();
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     QList<int> columnWidths = props.headerColumnWidths();
     if (columnWidths.count() != visibleRoles.count()) {
         columnWidths.clear();
@@ -1716,7 +1734,7 @@ void DolphinView::slotHeaderColumnWidthChangeFinished(const QByteArray &role, qr
 
 void DolphinView::slotSidePaddingWidthChanged(qreal leftPaddingWidth, qreal rightPaddingWidth)
 {
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     DetailsModeSettings::setLeftPadding(int(leftPaddingWidth));
     DetailsModeSettings::setRightPadding(int(rightPaddingWidth));
     m_view->writeSettings();
@@ -1952,7 +1970,7 @@ void DolphinView::slotStatJobResult(KJob *job)
 
 void DolphinView::updateSortFoldersFirst(bool foldersFirst)
 {
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setSortFoldersFirst(foldersFirst);
 
     m_model->setSortDirectoriesFirst(foldersFirst);
@@ -1964,7 +1982,7 @@ void DolphinView::updateSortFoldersFirst(bool foldersFirst)
 
 void DolphinView::updateSortHiddenLast(bool hiddenLast)
 {
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setSortHiddenLast(hiddenLast);
 
     m_model->setSortHiddenLast(hiddenLast);
@@ -2325,13 +2343,13 @@ void DolphinView::updateViewState()
 
 bool DolphinView::isViewSettingsDefaults() const
 {
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     return props.isDefaults();
 }
 
 void DolphinView::restoreViewSettingsToDefaults()
 {
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.restoreToDefaults();
 
     applyViewProperties(props);
@@ -2490,7 +2508,7 @@ void DolphinView::slotSortOrderChangedByHeader(Qt::SortOrder current, Qt::SortOr
     const QByteArray currentRole = m_model->sortRole();
     m_rolesSortOrder[currentRole] = current;
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setSortOrder(current);
 
     Q_EMIT sortOrderChanged(current);
@@ -2501,7 +2519,7 @@ void DolphinView::slotSortRoleChangedByHeader(const QByteArray &current, const Q
     Q_UNUSED(previous)
     Q_ASSERT(m_model->sortRole() == current);
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setSortRole(current);
 
     const Qt::SortOrder preferredOrder = preferredSortOrder(current);
@@ -2523,7 +2541,7 @@ void DolphinView::slotVisibleRolesChangedByHeader(const QList<QByteArray> &curre
 
     m_visibleRoles = current;
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     props.setVisibleRoles(m_visibleRoles);
 
     Q_EMIT visibleRolesChanged(m_visibleRoles, previousVisibleRoles);
@@ -2706,7 +2724,7 @@ void DolphinView::loadDirectory(const QUrl &url, bool reload)
 
 void DolphinView::applyViewProperties()
 {
-    const ViewProperties props(viewPropertiesUrl());
+    const ViewProperties props(viewPropertiesUrl(), m_panelRole);
     applyViewProperties(props);
 }
 
@@ -2881,7 +2899,7 @@ void DolphinView::applyDynamicView()
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl());
+    ViewProperties props(viewPropertiesUrl(), m_panelRole);
     if (props.dynamicViewPassed()) {
         return;
     }

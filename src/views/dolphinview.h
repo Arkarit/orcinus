@@ -84,6 +84,16 @@ public:
     };
 
     /**
+     * Whale: the position of the view in its tab. With one style for all folders, each position
+     * has its own view properties (see ViewProperties), so the left and the right view of a
+     * split view keep their own style.
+     */
+    enum class PanelRole {
+        Left,
+        Right,
+    };
+
+    /**
      * @param url              Specifies the content which should be shown.
      * @param parent           Parent widget of the view.
      */
@@ -460,6 +470,13 @@ public Q_SLOTS:
      * apply as usual.
      */
     void setViewModeKept(bool kept);
+
+    /**
+     * Whale: sets the position of the view in its tab (default PanelRole::Left). A view that
+     * changes its position carries its view properties along, so it keeps its style.
+     */
+    void setPanelRole(PanelRole role);
+    PanelRole panelRole() const;
 
     /**
      * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
@@ -1137,6 +1154,7 @@ private:
     bool m_linkedPending = false;
     bool m_applyingLinkedSelection = false;
     bool m_viewModeKept = false; // Whale: setViewModeKept()
+    PanelRole m_panelRole = PanelRole::Left; // Whale: setPanelRole()
     QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;
