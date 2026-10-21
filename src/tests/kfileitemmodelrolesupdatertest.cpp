@@ -8,7 +8,10 @@
 #include "kitemviews/kfileitemmodel.h"
 #include "testdir.h"
 
+#include <KIO/CopyJob>
 #include <KSambaShare>
+
+#include <QImage>
 
 #include <QSignalSpy>
 #include <QTest>
@@ -22,6 +25,7 @@ class KFileItemModelRolesUpdaterTest : public QObject
 private Q_SLOTS:
     void testSharesChangedUpdatesOverlays();
     void testDirectoryContentsCounterWorkerDoesNotChangeCwd();
+    void testItemChangedWhilePausedGetsAPreview();
 };
 
 void KFileItemModelRolesUpdaterTest::testSharesChangedUpdatesOverlays()
@@ -85,6 +89,45 @@ void KFileItemModelRolesUpdaterTest::testDirectoryContentsCounterWorkerDoesNotCh
         QCOMPARE(intermediateCwd, initialCwd);
     }
     QCOMPARE(QDir::currentPath(), initialCwd);
+}
+
+// An item that changes while the updater is paused, e.g. a file renamed while the view scrolls
+// to it, gets its roles and its preview again once the updater goes on, also when all items had
+// been resolved before. Otherwise a preview that failed for the old name is never replaced.
+void KFileItemModelRolesUpdaterTest::testItemChangedWhilePausedGetsAPreview()
+{
+    TestDir testDir;
+    QImage image(64, 64, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(testDir.path() + QStringLiteral("/a.png")));
+
+    KFileItemModel model;
+    KFileItemModelRolesUpdater updater(&model);
+    updater.setPreviewsShown(true);
+    updater.setIconSize(QSize(128, 128));
+    QSignalSpy loadingCompletedSpy(&model, &KFileItemModel::directoryLoadingCompleted);
+    model.loadDirectory(testDir.url());
+    QVERIFY(loadingCompletedSpy.wait());
+    QCOMPARE(model.count(), 1);
+    QSignalSpy previewSpy(&updater, &KFileItemModelRolesUpdater::previewJobFinished);
+    updater.setVisibleIndexRange(0, 1);
+    QTRY_VERIFY(!model.data(0).value("iconPixmap").value<QPixmap>().isNull());
+    // All items are resolved now.
+    QTRY_COMPARE(updater.m_finishedItems.count(), model.count());
+
+    updater.setPaused(true);
+    const QUrl renamedUrl = QUrl::fromLocalFile(testDir.path() + QStringLiteral("/b.png"));
+    KIO::CopyJob *job = KIO::moveAs(model.fileItem(0).url(), renamedUrl, KIO::HideProgressInfo);
+    QVERIFY(job->exec());
+    QTRY_VERIFY(model.index(renamedUrl) >= 0);
+    // Changes noticed while paused are resolved once the updater goes on.
+    QTRY_VERIFY(updater.m_changedItems.contains(model.fileItem(0)));
+
+    previewSpy.clear();
+    updater.setPaused(false);
+    QVERIFY(previewSpy.wait());
+    QCOMPARE(model.fileItem(0).name(), QStringLiteral("b.png"));
+    QVERIFY(!model.data(0).value("iconPixmap").value<QPixmap>().isNull());
 }
 
 QTEST_MAIN(KFileItemModelRolesUpdaterTest)

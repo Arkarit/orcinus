@@ -450,6 +450,8 @@ private:
     Baloo::FileMonitor *m_balooFileMonitor;
     Baloo::IndexerConfig m_balooConfig;
 #endif
+
+    friend class KFileItemModelRolesUpdaterTest; // Whale: accesses the finished and changed items
 };
 
 #endif

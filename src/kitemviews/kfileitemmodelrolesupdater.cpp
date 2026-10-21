@@ -280,6 +280,13 @@ void KFileItemModelRolesUpdater::setPaused(bool paused)
         }
 
         startUpdating();
+
+        // Whale: items that changed while paused (updateChangedItems() waits then) are not
+        // covered by startUpdating(), which stops early when as many items are finished as
+        // the model holds, e.g. a renamed item whose old name is still in m_finishedItems.
+        if (!m_changedItems.isEmpty()) {
+            updateChangedItems();
+        }
     }
 }
 
