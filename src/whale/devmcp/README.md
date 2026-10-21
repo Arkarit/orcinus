@@ -107,7 +107,7 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   "paneCount": 2, "activePane": 0,
   "availableViews": ["dolphin", "whale_hello", "whale_testlist"],
   "panes": [{
-    "index": 0, "side": "left", "active": true, "url": "file:///…",
+    "index": 0, "side": "left", "panelRole": "left", "active": true, "url": "file:///…",
     "viewId": "whale_testlist", "dolphinViewVisible": false, "pluginWidgetVisible": true,
     "viewMode": "icons", "loading": false, "itemCount": 4,
     "items": ["sub", "a.txt"], "pluginRows": ["sub", "a.txt"],
@@ -131,6 +131,11 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   lock, `buttonX`/`buttonY` its center in main window coordinates for real input) and per pane `lockable`, `reason`, `selectionLimited` (the selection rule A1 is on).
   The messages of the lock float above the view (`panes.N.transientMessage`, while shown also
   in `message`).
+- `panes.N.panelRole` (PI): the position whose global view properties the view reads and
+  writes (`left`/`right`). It follows `side`; a view that moves (the left view closes) takes its
+  style along.
+- `splitViewAtStartup` (PI3): `choice` (`last-state`, `always-split`, `always-single`) and
+  `openInSplitView`, whether a new window or tab opens with a split view now.
 - `splitAnimating`: opening or closing the split view is still animating the width of a
   view (a new right view starts 1 px wide). Wait for `false` before anything that depends
   on the geometry of the views, e.g. `perform_drag_drop` onto a view's background.

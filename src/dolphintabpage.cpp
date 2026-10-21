@@ -11,6 +11,7 @@
 #include "dolphinviewcontainer.h"
 #include "whalesplitlock.h" // Whale
 #include "whalesplitviewbutton.h" // Whale
+#include "whalesplitviewstartup.h" // Whale
 
 #include <QFrame>
 #include <QGridLayout>
@@ -44,7 +45,7 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
     layout->setRowStretch(2, 1);
 
     // Create a new primary view
-    m_primaryViewContainer = createViewContainer(primaryUrl);
+    m_primaryViewContainer = createViewContainer(primaryUrl, DolphinView::PanelRole::Left);
     connect(m_primaryViewContainer->view(), &DolphinView::urlChanged, this, &DolphinTabPage::activeViewUrlChanged);
     connect(m_primaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
 
@@ -53,12 +54,12 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
     new WhaleSplitViewButton(this); // Whale: the split button of the File View Toolbar
     new WhaleSplitLock(this); // Whale: the lock of the split view (LK)
 
-    if (secondaryUrl.isValid() || GeneralSettings::splitView()) {
+    if (secondaryUrl.isValid() || WhaleSplitViewStartup::openInSplitView()) {
         // Provide a secondary view, if the given secondary url is valid or if the
         // startup settings are set this way (use the url of the primary view).
         m_splitViewEnabled = true;
         const QUrl &url = secondaryUrl.isValid() ? secondaryUrl : primaryUrl;
-        m_secondaryViewContainer = createViewContainer(url);
+        m_secondaryViewContainer = createViewContainer(url, DolphinView::PanelRole::Right);
         connect(m_secondaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
         m_splitter->addWidget(m_secondaryViewContainer);
         m_secondaryViewContainer->show();
@@ -89,6 +90,7 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
     }
 
     m_splitViewEnabled = enabled;
+    WhaleSplitViewStartup::rememberSplitView(enabled); // Whale
     if (animated == WithAnimation
         && (style()->styleHint(QStyle::SH_Widget_Animation_Duration, nullptr, this) < 1 || GlobalConfig::animationDurationFactor() <= 0.0)) {
         animated = WithoutAnimation;
@@ -103,7 +105,7 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
     if (enabled) {
         QList<int> splitterSizes = m_splitter->sizes();
         const QUrl &url = (secondaryUrl.isEmpty()) ? m_primaryViewContainer->url() : secondaryUrl;
-        m_secondaryViewContainer = createViewContainer(url);
+        m_secondaryViewContainer = createViewContainer(url, DolphinView::PanelRole::Right);
 
         if (m_navigatorsWidget) { // Whale: none, every view has its own (WhaleLocationBar)
             auto secondaryNavigator = m_navigatorsWidget->secondaryUrlNavigator();
@@ -169,6 +171,8 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
         default:
             Q_UNREACHABLE();
         }
+        // Whale: the view that is left is the left one now and keeps its style there.
+        m_primaryViewContainer->view()->setPanelRole(DolphinView::PanelRole::Left);
         m_primaryViewContainer->setActive(true);
         if (m_navigatorsWidget) {
             m_navigatorsWidget->followViewContainersGeometry(m_primaryViewContainer, nullptr);
@@ -544,9 +548,9 @@ void DolphinTabPage::switchActiveView()
     }
 }
 
-DolphinViewContainer *DolphinTabPage::createViewContainer(const QUrl &url) const
+DolphinViewContainer *DolphinTabPage::createViewContainer(const QUrl &url, WhalePanelRole role) const
 {
-    DolphinViewContainer *container = new DolphinViewContainer(url, m_splitter);
+    DolphinViewContainer *container = new DolphinViewContainer(url, m_splitter, role);
     container->setActive(false);
 
     const DolphinView *view = container->view();

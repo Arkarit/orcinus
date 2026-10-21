@@ -233,7 +233,7 @@ public Q_SLOTS:
      */
     void openNewWindow(const QUrl &url);
 
-    /** @see GeneralSettings::splitViewChanged() */
+    /** @see GeneralSettings::splitViewAtStartupChanged() */
     void slotSplitViewChanged();
 
     /** @see GeneralSettings::tabBarChanged() */

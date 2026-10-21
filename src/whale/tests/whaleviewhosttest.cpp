@@ -168,6 +168,7 @@ void WhaleViewHostTest::initTestCase()
     qputenv("HOME", m_tmpHome.path().toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain({"whale"});
 
     // Only the plugins of this build tree (the Hello plugin).

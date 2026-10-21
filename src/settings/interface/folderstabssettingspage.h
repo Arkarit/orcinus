@@ -66,7 +66,7 @@ private:
     QRadioButton *m_openNewTabAfterLastTab;
     QRadioButton *m_openNewTabAfterCurrentTab;
 
-    QCheckBox *m_splitView;
+    QComboBox *m_splitView; // Whale: GeneralSettings::splitViewAtStartup()
     QCheckBox *m_filterBar;
     QCheckBox *m_showFullPathInTitlebar;
     QCheckBox *m_openExternallyCalledFolderInNewTab;

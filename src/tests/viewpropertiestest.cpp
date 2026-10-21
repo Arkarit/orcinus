@@ -10,9 +10,12 @@
 
 #include <KFileMetaData/UserMetaData>
 
+#include <QScopeGuard>
 #include <QStorageInfo>
 #include <QTemporaryDir>
 #include <QTest>
+
+#include <functional>
 
 #ifdef Q_OS_UNIX
 #include <unistd.h>
@@ -42,6 +45,10 @@ private Q_SLOTS:
     void testDownloadsKeepsTheOrdinaryStyleWhenChosen();
     void testDownloadsHasItsOwnStyleWithGlobalViewProps();
     void testAnEmptyUrlHoldsTheStyleEveryFolderStartsFrom();
+    void testTheRightViewHasAGlobalStyleOfItsOwn();
+    void testTheRightViewStartsFromTheLeftOne();
+    void testTheRightViewKeepsAStyleLikeTheLeftOne();
+    void testBothViewsShareTheStyleOfAFolder();
     void testWhichFoldersComeWithAStyleOfTheirOwn();
     void testAStoreThatWillNotOpenReadsTheStyleTheFolderComesWith();
     void testChangingAFolderWithItsOwnStyleOffersTheRestore();
@@ -57,6 +64,9 @@ private Q_SLOTS:
 
 private:
     bool m_globalViewProps;
+    /** Puts back the global style of both views when the test is done with it. */
+    static QScopeGuard<std::function<void()>> keepGlobalStyles();
+
     TestDir *m_testDir;
     // These tests write to the downloads folder, which is read from the home directory, so they are
     // given a home directory of their own rather than the one of whoever runs them. It sits in that
@@ -971,6 +981,133 @@ void ViewPropertiesTest::testAnEmptyUrlHoldsTheStyleEveryFolderStartsFrom()
     }
     GeneralSettings::self()->setGlobalViewProps(false);
     GeneralSettings::self()->save();
+}
+
+QScopeGuard<std::function<void()>> ViewPropertiesTest::keepGlobalStyles()
+{
+    DolphinView::Mode leftMode;
+    {
+        const ViewProperties left{QUrl()};
+        leftMode = left.viewMode();
+    }
+    return QScopeGuard<std::function<void()>>([leftMode] {
+        {
+            ViewProperties left{QUrl()};
+            left.setViewMode(leftMode);
+            left.save();
+        }
+        ViewProperties right{QUrl(), DolphinView::PanelRole::Right};
+        QVERIFY(right.forgetStoredProperties());
+    });
+}
+
+// Whale: with one style for all folders, the left and the right view of a split view each keep
+// their own one.
+void ViewPropertiesTest::testTheRightViewHasAGlobalStyleOfItsOwn()
+{
+    GeneralSettings::self()->setGlobalViewProps(true);
+    auto restore = keepGlobalStyles();
+    const QUrl folder = QUrl::fromLocalFile(m_testDir->path());
+
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        QCOMPARE(left.m_filePath, left.destinationDir(QStringLiteral("global")));
+        left.setViewMode(DolphinView::CompactView);
+    }
+    {
+        ViewProperties right(folder, DolphinView::PanelRole::Right);
+        QCOMPARE(right.m_filePath, right.destinationDir(QStringLiteral("global-right")));
+        right.setViewMode(DolphinView::IconsView);
+    }
+
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
+    // An empty url and no role are the left view, as for every caller that knows of no views.
+    QCOMPARE(ViewProperties(QUrl()).viewMode(), DolphinView::CompactView);
+}
+
+// Until the right view is given a style of its own, it reads the one of the left view, so nothing
+// changes for someone who has never chosen one there.
+void ViewPropertiesTest::testTheRightViewStartsFromTheLeftOne()
+{
+    GeneralSettings::self()->setGlobalViewProps(true);
+    auto restore = keepGlobalStyles();
+    const QUrl folder = QUrl::fromLocalFile(m_testDir->path());
+
+    {
+        ViewProperties right(folder, DolphinView::PanelRole::Right);
+        QVERIFY(right.forgetStoredProperties());
+    }
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        left.setViewMode(DolphinView::CompactView);
+        left.setHiddenFilesShown(true);
+    }
+    {
+        const ViewProperties right(folder, DolphinView::PanelRole::Right);
+        QVERIFY(!right.m_hasStoredProperties);
+        QCOMPARE(right.viewMode(), DolphinView::CompactView);
+        QVERIFY(right.hiddenFilesShown());
+    }
+    // Reading it wrote nothing down, so it still follows the left view.
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        left.setViewMode(DolphinView::DetailsView);
+    }
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Right).viewMode(), DolphinView::DetailsView);
+
+    // A right view that is shown keeps what it shows.
+    {
+        ViewProperties right(folder, DolphinView::PanelRole::Right);
+        right.keepGlobalStyle();
+        QVERIFY(right.m_hasStoredProperties);
+    }
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        left.setViewMode(DolphinView::IconsView);
+    }
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Right).viewMode(), DolphinView::DetailsView);
+}
+
+// A style the right view was given stays its own, also where it matches the left one at the time.
+void ViewPropertiesTest::testTheRightViewKeepsAStyleLikeTheLeftOne()
+{
+    GeneralSettings::self()->setGlobalViewProps(true);
+    auto restore = keepGlobalStyles();
+    const QUrl folder = QUrl::fromLocalFile(m_testDir->path());
+
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        left.setViewMode(DolphinView::CompactView);
+    }
+    {
+        ViewProperties right(folder, DolphinView::PanelRole::Right);
+        right.setViewMode(DolphinView::IconsView);
+        right.save();
+        right.setViewMode(DolphinView::CompactView);
+    }
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        left.setViewMode(DolphinView::DetailsView);
+    }
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Right).viewMode(), DolphinView::CompactView);
+}
+
+// With a style for each folder, the style belongs to the folder, whichever view shows it.
+void ViewPropertiesTest::testBothViewsShareTheStyleOfAFolder()
+{
+    QVERIFY(!GeneralSettings::self()->globalViewProps());
+    const QUrl folder = QUrl::fromLocalFile(m_testDir->path());
+
+    {
+        ViewProperties right(folder, DolphinView::PanelRole::Right);
+        QCOMPARE(right.m_filePath, ViewProperties(folder).m_filePath);
+        // Nothing of a global style to keep here.
+        right.keepGlobalStyle();
+        QVERIFY(!right.m_hasStoredProperties);
+        right.setViewMode(DolphinView::CompactView);
+    }
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
 }
 
 // The settings page asks a folder this before it lets its style become the one every folder starts

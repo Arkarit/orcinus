@@ -96,6 +96,21 @@ def install_test_opener(profile, log):
     (profile / "config" / "mimeapps.list").write_text("[Default Applications]\ntext/plain=whale-test-opener.desktop\n")
 
 
+def keep_single_view_at_startup(config):
+    """New windows and tabs open with a single view, as before PI3, unless the test chose
+    otherwise: by default they open with the split view that was open last."""
+    whalerc = config / "whalerc"
+    text = whalerc.read_text() if whalerc.exists() else ""
+    if "SplitViewAtStartup=" in text:
+        return
+    entry = "SplitViewAtStartup=AlwaysSingle\n"
+    if "[General]\n" in text:
+        text = text.replace("[General]\n", "[General]\n" + entry, 1)
+    else:
+        text = "[General]\n" + entry + ("\n" + text if text else "")
+    whalerc.write_text(text)
+
+
 def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False,
                 extra_plugin_dirs=(), confirm_delete=False):
     """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
@@ -110,6 +125,7 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
     env.pop("WHALE_DEV_MCP_FILE_OPERATIONS", None)
     for name in ("config", "data", "cache", "state"):
         (profile / name).mkdir(parents=True, exist_ok=True)
+    keep_single_view_at_startup(profile / "config")
     if opener_log:
         install_test_opener(profile, opener_log)
     if file_operations:

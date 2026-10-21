@@ -167,9 +167,19 @@ FoldersTabsSettingsPage::FoldersTabsSettingsPage(QWidget *parent)
     splitViewLabel->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::MinimumExpanding);
     topLayout->addRow(splitViewLabel, closeSplitViewWidget);
 
-    // 'Begin in split view mode'
-    m_splitView = new QCheckBox(i18nc("@option:check Startup Settings", "Open new windows in split view mode"));
-    topLayout->addRow(QString(), m_splitView);
+    // Whale: whether new windows and tabs open with a split view, in the order of
+    // GeneralSettings::EnumSplitViewAtStartup
+    m_splitView = new QComboBox(this);
+    m_splitView->addItems({i18nc("@item:inlistbox Split view in new windows and tabs", "As last used"),
+                           i18nc("@item:inlistbox Split view in new windows and tabs", "Always"),
+                           i18nc("@item:inlistbox Split view in new windows and tabs", "Never")});
+    auto splitViewAtStartupLayout = new QHBoxLayout();
+    auto splitViewAtStartupWidget = new QWidget();
+    splitViewAtStartupWidget->setLayout(splitViewAtStartupLayout);
+    splitViewAtStartupLayout->setContentsMargins(0, 0, 0, 0);
+    splitViewAtStartupLayout->addWidget(new QLabel(i18nc("@label:listbox", "Split new windows and tabs")));
+    splitViewAtStartupLayout->addWidget(m_splitView);
+    topLayout->addRow(QString(), splitViewAtStartupWidget);
 
     loadSettings();
 
@@ -179,7 +189,7 @@ FoldersTabsSettingsPage::FoldersTabsSettingsPage(QWidget *parent)
     connect(m_rememberOpenedTabsRadioButton, &QRadioButton::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
     connect(m_homeUrlRadioButton, &QRadioButton::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
 
-    connect(m_splitView, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
+    connect(m_splitView, &QComboBox::currentIndexChanged, this, &FoldersTabsSettingsPage::slotSettingsChanged);
     connect(m_filterBar, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
 
     connect(m_openExternallyCalledFolderInNewTab, &QCheckBox::toggled, this, &FoldersTabsSettingsPage::slotSettingsChanged);
@@ -230,7 +240,7 @@ void FoldersTabsSettingsPage::applySettings()
     }
 
     settings->setRememberOpenedTabs(m_rememberOpenedTabsRadioButton->isChecked());
-    settings->setSplitView(m_splitView->isChecked());
+    settings->setSplitViewAtStartup(m_splitView->currentIndex());
     settings->setFilterBar(m_filterBar->isChecked());
     settings->setOpenExternallyCalledFolderInNewTab(m_openExternallyCalledFolderInNewTab->isChecked());
     settings->setFollowSymlinksToTarget(m_followSymlinksToTarget->isChecked());
@@ -318,7 +328,7 @@ void FoldersTabsSettingsPage::loadSettings()
     m_homeUrl->setText(url.toDisplayString(QUrl::PreferLocalFile));
     m_rememberOpenedTabsRadioButton->setChecked(GeneralSettings::rememberOpenedTabs());
     m_homeUrlRadioButton->setChecked(!GeneralSettings::rememberOpenedTabs());
-    m_splitView->setChecked(GeneralSettings::splitView());
+    m_splitView->setCurrentIndex(GeneralSettings::splitViewAtStartup());
     m_filterBar->setChecked(GeneralSettings::filterBar());
     m_showFullPathInTitlebar->setChecked(GeneralSettings::showFullPathInTitlebar());
     m_openExternallyCalledFolderInNewTab->setChecked(GeneralSettings::openExternallyCalledFolderInNewTab());

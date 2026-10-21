@@ -302,7 +302,7 @@ bool ViewProperties::isDefaults() const
     // clang-format on
 }
 
-ViewProperties::ViewProperties(const QUrl &url)
+ViewProperties::ViewProperties(const QUrl &url, DolphinView::PanelRole role)
     : m_changedProps(false)
     , m_autoSave(true)
     , m_hasOwnDefaultStyle(false)
@@ -348,7 +348,7 @@ ViewProperties::ViewProperties(const QUrl &url)
             }
         }
     } else if (useGlobalViewProps && m_ownDefaultStyle == OwnDefaultStyle::None) {
-        m_filePath = destinationDir(QStringLiteral("global"));
+        m_filePath = destinationDir(globalSubDir(role));
     } else if (url.isLocalFile()) {
         m_filePath = url.toLocalFile();
         const QString localPath = m_filePath;
@@ -431,6 +431,13 @@ ViewProperties::ViewProperties(const QUrl &url)
     if (!m_hasStoredProperties) {
         // Nothing is written down for m_filePath, so the folder is read with the style it comes with.
         useDefaultSettings = true;
+    }
+
+    if (!m_hasStoredProperties && m_filePath == destinationDir(globalSubDir(DolphinView::PanelRole::Right))) {
+        // Whale: nothing is written down for the right view yet, so it starts from the left one.
+        const ViewProperties leftProps{QUrl()};
+        setDirProperties(leftProps);
+        m_changedProps = false;
     }
 
     // default values for special directories
@@ -739,6 +746,13 @@ void ViewProperties::setDirProperties(const ViewProperties &props)
     m_node->setVersion(props.m_node->version());
 }
 
+void ViewProperties::keepGlobalStyle()
+{
+    if (!m_hasStoredProperties && m_filePath == destinationDir(globalSubDir(DolphinView::PanelRole::Right))) {
+        save();
+    }
+}
+
 void ViewProperties::setAutoSaveEnabled(bool autoSave)
 {
     m_autoSave = autoSave;
@@ -789,7 +803,9 @@ void ViewProperties::save()
     // Default settings must not be cleared, and neither must those of a folder that has a style of
     // its own to fall back on: there, holding nothing on disk is what asks for that style, so a
     // style the user chose has to stay even where it matches the one other folders start from.
-    bool allDefault = !m_hasOwnDefaultStyle && ViewProperties::destinationDir(QStringLiteral("global")) != m_filePath;
+    // Whale: neither must those of the right view, which would then follow the left one again.
+    bool allDefault = !m_hasOwnDefaultStyle && ViewProperties::destinationDir(globalSubDir(DolphinView::PanelRole::Left)) != m_filePath
+        && ViewProperties::destinationDir(globalSubDir(DolphinView::PanelRole::Right)) != m_filePath;
     const auto defaultConfig = defaultProperties();
     for (const auto item : items) {
         if (item->name() == "Timestamp") {
@@ -871,6 +887,11 @@ void ViewProperties::save()
 
     m_changedProps = false;
     m_hasStoredProperties = true;
+}
+
+QString ViewProperties::globalSubDir(DolphinView::PanelRole role)
+{
+    return role == DolphinView::PanelRole::Right ? QStringLiteral("global-right") : QStringLiteral("global");
 }
 
 QString ViewProperties::destinationDir(const QString &subDir) const

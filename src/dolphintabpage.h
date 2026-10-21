@@ -9,6 +9,7 @@
 #define DOLPHIN_TAB_PAGE_H
 
 #include "global.h"
+#include "whale/splitview/whalepanelrole.h"
 
 #include <QPointer>
 #include <QSplitter>
@@ -192,7 +193,7 @@ private:
     /**
      * Creates a new view container and does the default initialization.
      */
-    DolphinViewContainer *createViewContainer(const QUrl &url) const;
+    DolphinViewContainer *createViewContainer(const QUrl &url, WhalePanelRole role) const;
 
     /**
      * Starts an animation that transitions between split view mode states.

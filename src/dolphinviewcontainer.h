@@ -67,7 +67,8 @@ class DolphinViewContainer : public QWidget
     Q_OBJECT
 
 public:
-    DolphinViewContainer(const QUrl &url, QWidget *parent);
+    /** @param role Whale: the position of the view in its tab (see DolphinView::setPanelRole()). */
+    DolphinViewContainer(const QUrl &url, QWidget *parent, DolphinView::PanelRole role = DolphinView::PanelRole::Left);
     ~DolphinViewContainer() override;
 
     /**

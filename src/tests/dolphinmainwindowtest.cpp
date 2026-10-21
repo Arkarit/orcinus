@@ -27,6 +27,7 @@
 #include "views/dolphinitemlistview.h"
 #include "views/viewproperties.h"
 #include "views/zoomlevelinfo.h"
+#include "whalesplitviewstartup.h"
 
 #include <KActionCollection>
 #include <KConfig>
@@ -69,6 +70,14 @@ private Q_SLOTS:
     void testOpeningOnASearchUrlUsesTheSearchViewProperties();
     void testActiveViewAfterClosingSplitView_data();
     void testActiveViewAfterClosingSplitView();
+    void testMoveSplitViewToTabsKeepsBothFolders_data();
+    void testMoveSplitViewToTabsKeepsBothFolders();
+    void testEachViewOfASplitViewKeepsItsGlobalStyle_data();
+    void testEachViewOfASplitViewKeepsItsGlobalStyle();
+    void testSplitViewAtStartup_data();
+    void testSplitViewAtStartup();
+    void testSplitViewAtStartupMigration_data();
+    void testSplitViewAtStartupMigration();
     void testUpdateWindowTitleAfterClosingSplitView();
     void testUpdateWindowTitleAfterChangingSplitView();
     void testOpenInNewTabTitle();
@@ -136,6 +145,7 @@ void DolphinMainWindowTest::initTestCase()
     qputenv("HOME", m_tmpHome.path().toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::openNewWindowsInSingleView();
     // Use fullWidth statusbar during testing, to test out most of the features.
     GeneralSettings *settings = GeneralSettings::self();
     settings->setShowStatusBar(GeneralSettings::EnumShowStatusBar::FullWidth);
@@ -420,6 +430,249 @@ void DolphinMainWindowTest::testActiveViewAfterClosingSplitView()
         QVERIFY(!rightViewContainer->isActive());
         QCOMPARE(leftViewContainer, tabWidget->currentTabPage()->activeViewContainer());
     }
+}
+
+void DolphinMainWindowTest::testMoveSplitViewToTabsKeepsBothFolders_data()
+{
+    QTest::addColumn<int>("closeSplitViewChoice");
+    QTest::addColumn<bool>("leftViewActive");
+
+    using Choice = GeneralSettings::EnumCloseSplitViewChoice;
+    for (const int choice : {Choice::ActiveView, Choice::InactiveView, Choice::RightView}) {
+        for (const bool leftViewActive : {true, false}) {
+            QTest::addRow("choice %d, %s view active", choice, leftViewActive ? "left" : "right") << choice << leftViewActive;
+        }
+    }
+}
+
+// Whale: "Split View To Tabs" moves the active view to a new tab and keeps the other one, whichever
+// view the settings close otherwise.
+void DolphinMainWindowTest::testMoveSplitViewToTabsKeepsBothFolders()
+{
+    QFETCH(int, closeSplitViewChoice);
+    QFETCH(bool, leftViewActive);
+
+    const int savedChoice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(closeSplitViewChoice);
+    auto restoreChoice = qScopeGuard([savedChoice] {
+        GeneralSettings::self()->setCloseSplitViewChoice(savedChoice);
+    });
+
+    const QUrl leftUrl = QUrl::fromLocalFile(m_tmpHome.path());
+    QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("moveSplitRight")));
+    const QUrl rightUrl = QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/moveSplitRight"));
+
+    m_mainWindow->openDirectories({leftUrl, rightUrl}, true);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    QVERIFY(tabWidget);
+    QCOMPARE(tabWidget->count(), 1);
+    DolphinTabPage *tabPage = tabWidget->currentTabPage();
+    QVERIFY(tabPage->splitViewEnabled());
+    auto leftViewContainer = tabPage->primaryViewContainer();
+    auto rightViewContainer = tabPage->secondaryViewContainer();
+    QCOMPARE(leftViewContainer->url(), leftUrl);
+    QCOMPARE(rightViewContainer->url(), rightUrl);
+
+    (leftViewActive ? leftViewContainer : rightViewContainer)->setActive(true);
+    const QUrl movedUrl = leftViewActive ? leftUrl : rightUrl;
+    const QUrl keptUrl = leftViewActive ? rightUrl : leftUrl;
+
+    m_mainWindow->actionCollection()->action(QStringLiteral("move_to_tabs_split_view"))->trigger();
+
+    QCOMPARE(tabWidget->count(), 2);
+    QVERIFY(!tabPage->splitViewEnabled());
+    QCOMPARE(tabPage->primaryViewContainer(), leftViewActive ? rightViewContainer : leftViewContainer);
+    QCOMPARE(tabPage->primaryViewContainer()->url(), keptUrl);
+    QVERIFY(!tabWidget->tabPageAt(1)->splitViewEnabled());
+    QCOMPARE(tabWidget->tabPageAt(1)->primaryViewContainer()->url(), movedUrl);
+}
+
+void DolphinMainWindowTest::testEachViewOfASplitViewKeepsItsGlobalStyle_data()
+{
+    QTest::addColumn<bool>("closeLeftView");
+
+    QTest::newRow("close right view") << false;
+    QTest::newRow("close left view") << true;
+}
+
+// Whale (PI): with one style for all folders, the left and the right view each keep their own
+// style. The view that is left when the split view closes is the left one and keeps its style, so
+// a new window starts with it.
+void DolphinMainWindowTest::testEachViewOfASplitViewKeepsItsGlobalStyle()
+{
+    QFETCH(bool, closeLeftView);
+
+    const bool globalViewProps = GeneralSettings::globalViewProps();
+    GeneralSettings::self()->setGlobalViewProps(true);
+    DolphinView::Mode previousMode;
+    {
+        const ViewProperties left{QUrl()};
+        previousMode = left.viewMode();
+    }
+    // The other tests start from the style they found, in both views.
+    auto restore = qScopeGuard([globalViewProps, previousMode] {
+        for (const auto role : {DolphinView::PanelRole::Left, DolphinView::PanelRole::Right}) {
+            ViewProperties props{QUrl(), role};
+            props.setViewMode(previousMode);
+        }
+        GeneralSettings::self()->setGlobalViewProps(globalViewProps);
+    });
+
+    m_mainWindow->openDirectories({QUrl::fromLocalFile(m_tmpHome.path())}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    QVERIFY(tabWidget);
+    DolphinTabPage *tabPage = tabWidget->currentTabPage();
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    QVERIFY(tabPage->splitViewEnabled());
+    DolphinView *leftView = tabPage->primaryViewContainer()->view();
+    DolphinView *rightView = tabPage->secondaryViewContainer()->view();
+    QCOMPARE(leftView->panelRole(), DolphinView::PanelRole::Left);
+    QCOMPARE(rightView->panelRole(), DolphinView::PanelRole::Right);
+
+    leftView->setViewMode(DolphinView::CompactView);
+    rightView->setViewMode(DolphinView::IconsView);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
+
+    if (closeLeftView) {
+        tabPage->primaryViewContainer()->setActive(true);
+        using Choice = GeneralSettings::EnumCloseSplitViewChoice;
+        const int choice = GeneralSettings::closeSplitViewChoice();
+        GeneralSettings::self()->setCloseSplitViewChoice(Choice::ActiveView);
+        m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+        GeneralSettings::self()->setCloseSplitViewChoice(choice);
+    } else {
+        m_mainWindow->closeRightSplitView();
+    }
+    QVERIFY(!tabPage->splitViewEnabled());
+    DolphinView *remainingView = tabPage->primaryViewContainer()->view();
+    QCOMPARE(remainingView, closeLeftView ? rightView : leftView);
+    QCOMPARE(remainingView->panelRole(), DolphinView::PanelRole::Left);
+    const DolphinView::Mode remainingMode = closeLeftView ? DolphinView::IconsView : DolphinView::CompactView;
+    QCOMPARE(remainingView->viewMode(), remainingMode);
+
+    // What a new window shows: the left view with the style of the remaining one, and a right
+    // view with its own style.
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), remainingMode);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
+
+    // Going to another folder reads the style of the position, not the one of the other view.
+    QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("eachViewStyle")));
+    remainingView->setUrl(QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/eachViewStyle")));
+    QCOMPARE(remainingView->viewMode(), remainingMode);
+
+    // Opening the split view again gives the right view its own style.
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    QVERIFY(tabPage->splitViewEnabled());
+    QCOMPARE(tabPage->secondaryViewContainer()->view()->viewMode(), DolphinView::IconsView);
+    QCOMPARE(tabPage->primaryViewContainer()->view()->viewMode(), remainingMode);
+}
+
+void DolphinMainWindowTest::testSplitViewAtStartup_data()
+{
+    QTest::addColumn<int>("splitViewAtStartup");
+    QTest::addColumn<bool>("splitWhenClosed");
+    QTest::addColumn<bool>("expectedSplit");
+
+    using Choice = GeneralSettings::EnumSplitViewAtStartup;
+    QTest::newRow("last state, split") << int(Choice::LastState) << true << true;
+    QTest::newRow("last state, single") << int(Choice::LastState) << false << false;
+    QTest::newRow("always split") << int(Choice::AlwaysSplit) << false << true;
+    QTest::newRow("always single") << int(Choice::AlwaysSingle) << true << false;
+}
+
+// Whale (PI3): new windows and tabs open with a split view always, never, or as the last window
+// showed it when it closed.
+void DolphinMainWindowTest::testSplitViewAtStartup()
+{
+    QFETCH(int, splitViewAtStartup);
+    QFETCH(bool, splitWhenClosed);
+    QFETCH(bool, expectedSplit);
+
+    // The other tests start with a single view. Saving would split the views of open windows.
+    auto restore = qScopeGuard([] {
+        TestHelpers::openNewWindowsInSingleView();
+    });
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::LastState);
+
+    const QUrl home = QUrl::fromLocalFile(m_tmpHome.path());
+    m_mainWindow->openDirectories({home}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    QVERIFY(tabWidget);
+    // Toggling remembers the state, closing the window as well: open and close it once, so that
+    // the state the window closes with is the one that counts.
+    tabWidget->currentTabPage()->setSplitViewEnabled(!splitWhenClosed, WithoutAnimation);
+    tabWidget->currentTabPage()->setSplitViewEnabled(splitWhenClosed, WithoutAnimation);
+    QCOMPARE(WhaleSplitViewStartup::openInSplitView(), splitWhenClosed);
+    // The window closes on the first tab, after the other one was toggled last.
+    m_mainWindow->openNewTab(home);
+    QCOMPARE(tabWidget->count(), 2);
+    tabWidget->setCurrentIndex(0);
+    tabWidget->tabPageAt(1)->setSplitViewEnabled(!tabWidget->tabPageAt(1)->splitViewEnabled(), WithoutAnimation);
+    tabWidget->tabPageAt(1)->setSplitViewEnabled(!splitWhenClosed, WithoutAnimation);
+    QVERIFY(m_mainWindow->close());
+
+    GeneralSettings::setSplitViewAtStartup(splitViewAtStartup);
+    QCOMPARE(WhaleSplitViewStartup::openInSplitView(), expectedSplit);
+
+    m_mainWindow.reset(new DolphinMainWindow());
+    m_mainWindow->openDirectories({home}, false);
+    tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    QCOMPARE(tabWidget->currentTabPage()->splitViewEnabled(), expectedSplit);
+    // New tabs open the same way.
+    m_mainWindow->openNewTab(home);
+    QCOMPARE(tabWidget->tabPageAt(1)->splitViewEnabled(), expectedSplit);
+}
+
+void DolphinMainWindowTest::testSplitViewAtStartupMigration_data()
+{
+    QTest::addColumn<bool>("formerSplitView");
+    QTest::addColumn<int>("expected");
+
+    using Choice = GeneralSettings::EnumSplitViewAtStartup;
+    QTest::newRow("split") << true << int(Choice::AlwaysSplit);
+    QTest::newRow("single") << false << int(Choice::LastState);
+}
+
+// Whale (PI3): the former option "Open new windows in split view mode" becomes "always" where it
+// was on. Off was the default rather than a choice, so it becomes the last state.
+void DolphinMainWindowTest::testSplitViewAtStartupMigration()
+{
+    QFETCH(bool, formerSplitView);
+    QFETCH(int, expected);
+
+    auto restore = qScopeGuard([] {
+        TestHelpers::openNewWindowsInSingleView();
+        const QSignalBlocker blocker(GeneralSettings::self());
+        GeneralSettings::self()->save();
+    });
+    {
+        const QSignalBlocker blocker(GeneralSettings::self());
+        GeneralSettings::self()->setDefaults();
+        GeneralSettings::self()->save();
+    }
+    KConfigGroup general(GeneralSettings::self()->config(), QStringLiteral("General"));
+    general.writeEntry("SplitView", formerSplitView);
+
+    {
+        const QSignalBlocker blocker(GeneralSettings::self());
+        WhaleSplitViewStartup::migrate();
+    }
+    QCOMPARE(int(GeneralSettings::splitViewAtStartup()), expected);
+    QVERIFY(!general.hasKey(QStringLiteral("SplitView")));
+
+    // Once is enough: a later choice stays.
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::AlwaysSingle);
+    WhaleSplitViewStartup::migrate();
+    QCOMPARE(int(GeneralSettings::splitViewAtStartup()), int(GeneralSettings::EnumSplitViewAtStartup::AlwaysSingle));
 }
 
 // Test case for bug #385111
@@ -1313,14 +1566,14 @@ void DolphinMainWindowTest::testOpenFilesAtStartupInSplitView()
     QFETCH(QStringList, files);
 
     // New tabs read this global setting, so restore it even when the test aborts early.
-    // Saving emits splitViewChanged(), which would split the views of the window, so it is saved with signals blocked.
-    const bool splitViewBefore = GeneralSettings::splitView();
+    // Saving emits splitViewAtStartupChanged(), which would split the views of the window, so it is saved with signals blocked.
+    const int splitViewBefore = GeneralSettings::splitViewAtStartup();
     auto restoreSplitView = qScopeGuard([splitViewBefore] {
-        GeneralSettings::setSplitView(splitViewBefore);
+        GeneralSettings::setSplitViewAtStartup(splitViewBefore);
         const QSignalBlocker blocker(GeneralSettings::self());
         GeneralSettings::self()->save();
     });
-    GeneralSettings::setSplitView(true);
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::AlwaysSplit);
 
     QScopedPointer<TestDir> testDir{new TestDir()};
     testDir->createFiles(files);

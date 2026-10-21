@@ -12,6 +12,7 @@
 #include "dolphintabwidget.h"
 #include "kitemviews/private/kfileitemmodelfilter.h"
 #include "tooltips/tooltipmanager.h"
+#include "whale/splitview/whalepanelrole.h"
 
 #include "config-dolphin.h"
 #include <KFileItem>
@@ -83,11 +84,15 @@ public:
         CompactView
     };
 
+    /** Whale: the position of the view in its tab (see WhalePanelRole). */
+    using PanelRole = WhalePanelRole;
+
     /**
      * @param url              Specifies the content which should be shown.
      * @param parent           Parent widget of the view.
+     * @param role             Whale: the position of the view in its tab (see setPanelRole()).
      */
-    DolphinView(const QUrl &url, QWidget *parent);
+    DolphinView(const QUrl &url, QWidget *parent, PanelRole role = PanelRole::Left);
 
     ~DolphinView() override;
 
@@ -460,6 +465,13 @@ public Q_SLOTS:
      * apply as usual.
      */
     void setViewModeKept(bool kept);
+
+    /**
+     * Whale: sets the position of the view in its tab (default PanelRole::Left). A view that
+     * changes its position carries its view properties along, so it keeps its style.
+     */
+    void setPanelRole(PanelRole role);
+    PanelRole panelRole() const;
 
     /**
      * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
@@ -1137,6 +1149,7 @@ private:
     bool m_linkedPending = false;
     bool m_applyingLinkedSelection = false;
     bool m_viewModeKept = false; // Whale: setViewModeKept()
+    PanelRole m_panelRole = PanelRole::Left; // Whale: setPanelRole()
     QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;

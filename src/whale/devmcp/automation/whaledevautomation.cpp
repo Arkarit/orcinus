@@ -6,6 +6,7 @@
 
 #include "whaledevautomation.h"
 
+#include "dolphin_generalsettings.h"
 #include "dolphinmainwindow.h"
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
@@ -31,6 +32,7 @@
 #include "whalepreviewproviderimpl.h"
 #include "whalerecursivecontent.h"
 #include "whalesplitlock.h"
+#include "whalesplitviewstartup.h"
 #include "whaletoolbardescriptor.h"
 #include "whaletoolbarsettings.h"
 #include "whaletransientmessage.h"
@@ -210,6 +212,19 @@ QString viewModeName(DolphinView::Mode mode)
         return QStringLiteral("details");
     }
     return QStringLiteral("unknown");
+}
+
+// GeneralSettings::splitViewAtStartup() (PI3).
+QString splitViewAtStartupName()
+{
+    switch (GeneralSettings::splitViewAtStartup()) {
+    case GeneralSettings::EnumSplitViewAtStartup::AlwaysSplit:
+        return QStringLiteral("always-split");
+    case GeneralSettings::EnumSplitViewAtStartup::AlwaysSingle:
+        return QStringLiteral("always-single");
+    default:
+        return QStringLiteral("last-state");
+    }
 }
 
 // A condition is the expected value, or {"$contains": x}: a string containing the
@@ -481,6 +496,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
     return {
         {QStringLiteral("index"), index},
         {QStringLiteral("side"), index == 0 ? QStringLiteral("left") : QStringLiteral("right")},
+        {QStringLiteral("panelRole"), view->panelRole() == WhalePanelRole::Left ? QStringLiteral("left") : QStringLiteral("right")},
         {QStringLiteral("active"), container->isActive()},
         {QStringLiteral("url"), container->url().toString()},
         {QStringLiteral("viewId"), semanticViewId(host->currentViewId())},
@@ -706,6 +722,11 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("splitView"), all.count() > 1},
         {QStringLiteral("splitAnimating"), splitAnimating},
         {QStringLiteral("splitLock"), splitLockState()},
+        {QStringLiteral("splitViewAtStartup"),
+         QJsonObject{
+             {QStringLiteral("choice"), splitViewAtStartupName()},
+             {QStringLiteral("openInSplitView"), WhaleSplitViewStartup::openInSplitView()},
+         }},
         {QStringLiteral("paneCount"), all.count()},
         {QStringLiteral("activePane"), paneIndex(active)},
         {QStringLiteral("url"), active ? active->url().toString() : QString()},

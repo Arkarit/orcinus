@@ -217,6 +217,7 @@ void GeneralViewSettingsPage::applySettings()
 {
     GeneralSettings *settings = GeneralSettings::self();
     ViewProperties props(m_url); // read current view properties
+    const bool switchesToGlobalViewProps = m_globalViewProps->isChecked() && !settings->globalViewProps();
     const bool useGlobalViewProps = m_globalViewProps->isChecked();
     settings->setGlobalViewProps(useGlobalViewProps);
 #if HAVE_BALOO
@@ -238,6 +239,12 @@ void GeneralViewSettingsPage::applySettings()
         // the trash does not hand every folder the column for the time a file was deleted.
         ViewProperties globalProps{QUrl()};
         globalProps.setDirProperties(props);
+        if (switchesToGlobalViewProps) {
+            // Whale: the right view starts from the same style. Once one style for all folders is
+            // on, it keeps its own, so applying the page again does not hand it the left one.
+            ViewProperties rightProps{QUrl(), DolphinView::PanelRole::Right};
+            rightProps.setDirProperties(props);
+        }
     }
 }
 

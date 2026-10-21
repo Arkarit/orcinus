@@ -59,7 +59,7 @@ ViewPropertiesDialog::ViewPropertiesDialog(DolphinView *dolphinView)
     setWindowTitle(i18nc("@title:window", "View Display Style"));
 
     const QUrl &url = dolphinView->url();
-    m_viewProps = new ViewProperties(url);
+    m_viewProps = new ViewProperties(url, dolphinView->panelRole());
     m_viewProps->setAutoSaveEnabled(false);
 
     auto layout = new QFormLayout(this);

@@ -66,6 +66,9 @@ def run(args, work):
             "splitLock.buttonIcon": "remove-link", "splitLock.toolTip": {"$contains": "Link Views"},
             "splitLock.panes.0.lockable": True, "splitLock.panes.1.lockable": True,
             "splitLock.panes.0.selectionLimited": False})
+        s.expect("A: each view at its position (PI)", {
+            "panes.0.panelRole": "left", "panes.1.panelRole": "right",
+            "splitViewAtStartup.choice": "always-single", "splitViewAtStartup.openInSplitView": False})
 
         # B: locking takes the location of the active view
         client.tool("set_location", pane=1, url=url("other"))
