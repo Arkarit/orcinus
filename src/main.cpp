@@ -14,12 +14,12 @@
 #include "dolphindebug.h"
 #include "dolphinmainwindow.h"
 #include "global.h"
+#include "whalesplitviewstartup.h" // Whale
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #endif
 #if WHALE_ENABLE_DEV_MCP
 #include "whaledevautomation.h" // Whale: development automation
-#include "whalesplitviewstartup.h"
 #endif
 
 #include <KAboutData>
