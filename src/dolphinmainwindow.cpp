@@ -551,8 +551,9 @@ void DolphinMainWindow::openNewWindow(const QUrl &url)
 
 void DolphinMainWindow::slotSplitViewChanged()
 {
-    // Whale: the last state of the split view is the one the window shows.
-    if (GeneralSettings::splitViewAtStartup() == GeneralSettings::EnumSplitViewAtStartup::LastState) {
+    // Whale: the last state of the split view is the one the window shows. A window without a
+    // tab yet (e.g. while it is being set up) has nothing to split.
+    if (GeneralSettings::splitViewAtStartup() == GeneralSettings::EnumSplitViewAtStartup::LastState || !m_tabWidget->currentTabPage()) {
         return;
     }
     m_tabWidget->currentTabPage()->setSplitViewEnabled(WhaleSplitViewStartup::openInSplitView(), WithAnimation);
