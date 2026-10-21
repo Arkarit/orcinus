@@ -74,6 +74,10 @@ private Q_SLOTS:
     void testMoveSplitViewToTabsKeepsBothFolders();
     void testEachViewOfASplitViewKeepsItsGlobalStyle_data();
     void testEachViewOfASplitViewKeepsItsGlobalStyle();
+    void testMovedViewKeepsItsStyle_data();
+    void testMovedViewKeepsItsStyle();
+    void testViewsOfOneRoleKeepTheirOwnStyle();
+    void testAPlaceWithItsOwnStyleIsLeftForTheOwnStyle();
     void testSplitViewAtStartup_data();
     void testSplitViewAtStartup();
     void testSplitViewAtStartupMigration_data();
@@ -577,6 +581,120 @@ void DolphinMainWindowTest::testEachViewOfASplitViewKeepsItsGlobalStyle()
     QVERIFY(tabPage->splitViewEnabled());
     QCOMPARE(tabPage->secondaryViewContainer()->view()->viewMode(), DolphinView::IconsView);
     QCOMPARE(tabPage->primaryViewContainer()->view()->viewMode(), remainingMode);
+}
+
+namespace
+{
+/** Turns on one style for all folders for a test and puts back what it found, in both roles. */
+auto useGlobalViewProps()
+{
+    const bool globalViewProps = GeneralSettings::globalViewProps();
+    GeneralSettings::self()->setGlobalViewProps(true);
+    DolphinView::Mode previousMode;
+    {
+        const ViewProperties left{QUrl()};
+        previousMode = left.viewMode();
+    }
+    return qScopeGuard([globalViewProps, previousMode] {
+        for (const auto role : {DolphinView::PanelRole::Left, DolphinView::PanelRole::Right}) {
+            ViewProperties props{QUrl(), role};
+            props.setViewMode(previousMode);
+        }
+        GeneralSettings::self()->setGlobalViewProps(globalViewProps);
+    });
+}
+}
+
+void DolphinMainWindowTest::testMovedViewKeepsItsStyle_data()
+{
+    QTest::addColumn<bool>("fromSplitButton");
+
+    QTest::newRow("split button menu") << true;
+    QTest::newRow("window action, right view active") << false;
+}
+
+// Whale (VS): a view moved to a tab of its own takes its style along, and the view that stays
+// keeps its own.
+void DolphinMainWindowTest::testMovedViewKeepsItsStyle()
+{
+    QFETCH(bool, fromSplitButton);
+    auto restore = useGlobalViewProps();
+
+    m_mainWindow->openDirectories({QUrl::fromLocalFile(m_tmpHome.path())}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    DolphinTabPage *tabPage = tabWidget->currentTabPage();
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    QVERIFY(tabPage->splitViewEnabled());
+    DolphinView *leftView = tabPage->primaryViewContainer()->view();
+    leftView->setViewMode(DolphinView::CompactView);
+    tabPage->secondaryViewContainer()->view()->setViewMode(DolphinView::IconsView);
+
+    if (fromSplitButton) {
+        m_mainWindow->moveRightSplitViewToTab();
+    } else {
+        tabPage->secondaryViewContainer()->setActive(true);
+        m_mainWindow->actionCollection()->action(QStringLiteral("move_to_tabs_split_view"))->trigger();
+    }
+    QCOMPARE(tabWidget->count(), 2);
+    QVERIFY(!tabPage->splitViewEnabled());
+    QCOMPARE(tabPage->primaryViewContainer()->view(), leftView);
+    QCOMPARE(leftView->viewMode(), DolphinView::CompactView);
+    DolphinView *movedView = tabWidget->tabPageAt(1)->primaryViewContainer()->view();
+    QEXPECT_FAIL("", "VS3: the moved view reads the style of the left position", Continue);
+    QCOMPARE(movedView->viewMode(), DolphinView::IconsView);
+}
+
+// Whale (VS): with one style for all folders, two views at the same position (here the views
+// of two tabs) keep their own style: going to another folder does not take the style the other
+// one wrote last.
+void DolphinMainWindowTest::testViewsOfOneRoleKeepTheirOwnStyle()
+{
+    auto restore = useGlobalViewProps();
+    QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("ownStyle")));
+    const QUrl home = QUrl::fromLocalFile(m_tmpHome.path());
+    const QUrl subFolder = QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/ownStyle"));
+
+    m_mainWindow->openDirectories({home}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    DolphinView *first = tabWidget->currentTabPage()->primaryViewContainer()->view();
+    first->setViewMode(DolphinView::CompactView);
+    DolphinView *second = m_mainWindow->openNewTab(home)->primaryViewContainer()->view();
+    QCOMPARE(second->panelRole(), DolphinView::PanelRole::Left);
+    second->setViewMode(DolphinView::IconsView);
+    QCOMPARE(first->viewMode(), DolphinView::CompactView);
+
+    first->setUrl(subFolder);
+    QEXPECT_FAIL("", "VS2: going to another folder reads the style the other view wrote last", Continue);
+    QCOMPARE(first->viewMode(), DolphinView::CompactView);
+    first->setUrl(home);
+    QCOMPARE(second->viewMode(), DolphinView::IconsView);
+}
+
+// Whale (VS): with one style for all folders, the trash still shows its own style, and leaving
+// it gives the view back the style it had.
+void DolphinMainWindowTest::testAPlaceWithItsOwnStyleIsLeftForTheOwnStyle()
+{
+    const QUrl trashUrl(QStringLiteral("trash:/"));
+    if (!KProtocolManager::supportsListing(trashUrl)) {
+        QSKIP("The trash worker is not installed.");
+    }
+    auto restore = useGlobalViewProps();
+    const QUrl home = QUrl::fromLocalFile(m_tmpHome.path());
+
+    m_mainWindow->openDirectories({home}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    view->setViewMode(DolphinView::CompactView);
+
+    view->setUrl(trashUrl);
+    QCOMPARE(view->viewMode(), DolphinView::DetailsView);
+    view->setUrl(home);
+    QCOMPARE(view->viewMode(), DolphinView::CompactView);
 }
 
 void DolphinMainWindowTest::testSplitViewAtStartup_data()
