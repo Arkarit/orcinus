@@ -654,11 +654,9 @@ void DolphinMainWindowTest::testSplitViewAtStartupMigration()
         const QSignalBlocker blocker(GeneralSettings::self());
         GeneralSettings::self()->save();
     });
-    {
-        const QSignalBlocker blocker(GeneralSettings::self());
-        GeneralSettings::self()->setDefaults();
-        GeneralSettings::self()->save();
-    }
+    // Starts from the default choice. Only this setting is reset: the other tests rely on the
+    // settings of initTestCase(), e.g. the zoom slider that testAccessibilityTree() reaches.
+    GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::LastState);
     KConfigGroup general(GeneralSettings::self()->config(), QStringLiteral("General"));
     general.writeEntry("SplitView", formerSplitView);
 
@@ -2143,7 +2141,6 @@ void DolphinMainWindowTest::testThumbnailAfterRename()
     DolphinView *view = m_mainWindow->activeViewContainer()->view();
     // Prepare signal spies
     QSignalSpy viewDirectoryLoadingCompletedSpy(view, &DolphinView::directoryLoadingCompleted);
-    QSignalSpy itemsChangedSpy(view->m_model, &KFileItemModel::itemsChanged);
     QSignalSpy modelDirectoryLoadingCompletedSpy(view->m_model, &KFileItemModel::directoryLoadingCompleted);
     QSignalSpy previewUpdatedSpy(view->m_view->m_modelRolesUpdater, &KFileItemModelRolesUpdater::previewJobFinished);
     // Show window and check that our preview has been updated, then wait for it to appear
@@ -2167,14 +2164,17 @@ void DolphinMainWindowTest::testThumbnailAfterRename()
     QVERIFY(view->m_view->m_editingRole);
     QTest::keyClick(QApplication::focusWidget(), Qt::Key_B);
     QTest::keyClick(QApplication::focusWidget(), Qt::Key_Enter);
-    QVERIFY(itemsChangedSpy.wait()); // Make sure that rename worked
+    // Make sure that rename worked. Whale: wait for the renamed item rather than for any change
+    // of the items: the rename reaches the model only when the directory lister reports it, and
+    // the roles updater changes items (icons, previews) in the meantime.
+    const QUrl renamedUrl(testDir->url().toString() + "/b.jpg");
+    QTRY_VERIFY(view->m_model->index(renamedUrl) >= 0);
     QVERIFY(!view->m_view->m_editingRole);
 
     // The renamed file must still show a thumbnail afterwards. Don't require a fresh preview
     // job to run: a rename keeps the file's content and its already-correct thumbnail, so
     // whether a new job is dispatched is timing- and platform-dependent.
-    const int renamedIndex = view->m_model->index(QUrl(testDir->url().toString() + "/b.jpg"));
-    QVERIFY(renamedIndex >= 0);
+    const int renamedIndex = view->m_model->index(renamedUrl);
     QTRY_VERIFY(!view->m_model->data(renamedIndex).value("iconPixmap").value<QPixmap>().isNull());
     QCOMPARE(view->m_model->fileItem(renamedIndex).name(), "b.jpg");
     QCOMPARE(view->m_model->count(), 1);
