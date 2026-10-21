@@ -122,6 +122,16 @@ const int CurrentDolphinVersion = 202;
 const int MaxNumberOfNavigationentries = 12;
 // The maximum number of "Go to Tab" shortcuts
 const int MaxActivateTabShortcuts = 9;
+
+// Whale: DolphinTabPage closes the view the settings name. Closes the view @p choice names instead,
+// for this call only.
+void closeSplitViewWithChoice(DolphinTabPage *tabPage, int choice)
+{
+    const int settingsChoice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(choice);
+    tabPage->setSplitViewEnabled(false, WithAnimation);
+    GeneralSettings::self()->setCloseSplitViewChoice(settingsChoice);
+}
 }
 
 DolphinMainWindow::DolphinMainWindow()
@@ -1148,11 +1158,7 @@ void DolphinMainWindow::closeRightSplitView()
     if (!tabPage->splitViewEnabled()) {
         return;
     }
-    // DolphinTabPage closes the view the settings name: the right one for this call only.
-    const int choice = GeneralSettings::closeSplitViewChoice();
-    GeneralSettings::self()->setCloseSplitViewChoice(GeneralSettings::EnumCloseSplitViewChoice::RightView);
-    tabPage->setSplitViewEnabled(false, WithAnimation);
-    GeneralSettings::self()->setCloseSplitViewChoice(choice);
+    closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::RightView);
     m_tabWidget->updateTabName(m_tabWidget->indexOf(tabPage));
     updateViewActions();
 }
@@ -1189,7 +1195,9 @@ void DolphinMainWindow::moveSplitViewToTabs()
 
     openNewTab(tabPage->activeViewContainer()->url());
 
-    tabPage->setSplitViewEnabled(false, WithAnimation);
+    // Whale: the active view moved to the new tab, so close it here and keep the other one,
+    // whichever view the settings close otherwise.
+    closeSplitViewWithChoice(tabPage, GeneralSettings::EnumCloseSplitViewChoice::ActiveView);
     updateSplitActions();
 }
 

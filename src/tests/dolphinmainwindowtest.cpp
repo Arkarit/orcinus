@@ -69,6 +69,8 @@ private Q_SLOTS:
     void testOpeningOnASearchUrlUsesTheSearchViewProperties();
     void testActiveViewAfterClosingSplitView_data();
     void testActiveViewAfterClosingSplitView();
+    void testMoveSplitViewToTabsKeepsBothFolders_data();
+    void testMoveSplitViewToTabsKeepsBothFolders();
     void testUpdateWindowTitleAfterClosingSplitView();
     void testUpdateWindowTitleAfterChangingSplitView();
     void testOpenInNewTabTitle();
@@ -420,6 +422,64 @@ void DolphinMainWindowTest::testActiveViewAfterClosingSplitView()
         QVERIFY(!rightViewContainer->isActive());
         QCOMPARE(leftViewContainer, tabWidget->currentTabPage()->activeViewContainer());
     }
+}
+
+void DolphinMainWindowTest::testMoveSplitViewToTabsKeepsBothFolders_data()
+{
+    QTest::addColumn<int>("closeSplitViewChoice");
+    QTest::addColumn<bool>("leftViewActive");
+
+    using Choice = GeneralSettings::EnumCloseSplitViewChoice;
+    for (const int choice : {Choice::ActiveView, Choice::InactiveView, Choice::RightView}) {
+        for (const bool leftViewActive : {true, false}) {
+            QTest::addRow("choice %d, %s view active", choice, leftViewActive ? "left" : "right") << choice << leftViewActive;
+        }
+    }
+}
+
+// Whale: "Split View To Tabs" moves the active view to a new tab and keeps the other one, whichever
+// view the settings close otherwise.
+void DolphinMainWindowTest::testMoveSplitViewToTabsKeepsBothFolders()
+{
+    QFETCH(int, closeSplitViewChoice);
+    QFETCH(bool, leftViewActive);
+
+    const int savedChoice = GeneralSettings::closeSplitViewChoice();
+    GeneralSettings::self()->setCloseSplitViewChoice(closeSplitViewChoice);
+    auto restoreChoice = qScopeGuard([savedChoice] {
+        GeneralSettings::self()->setCloseSplitViewChoice(savedChoice);
+    });
+
+    const QUrl leftUrl = QUrl::fromLocalFile(m_tmpHome.path());
+    QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("moveSplitRight")));
+    const QUrl rightUrl = QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/moveSplitRight"));
+
+    m_mainWindow->openDirectories({leftUrl, rightUrl}, true);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    QVERIFY(tabWidget);
+    QCOMPARE(tabWidget->count(), 1);
+    DolphinTabPage *tabPage = tabWidget->currentTabPage();
+    QVERIFY(tabPage->splitViewEnabled());
+    auto leftViewContainer = tabPage->primaryViewContainer();
+    auto rightViewContainer = tabPage->secondaryViewContainer();
+    QCOMPARE(leftViewContainer->url(), leftUrl);
+    QCOMPARE(rightViewContainer->url(), rightUrl);
+
+    (leftViewActive ? leftViewContainer : rightViewContainer)->setActive(true);
+    const QUrl movedUrl = leftViewActive ? leftUrl : rightUrl;
+    const QUrl keptUrl = leftViewActive ? rightUrl : leftUrl;
+
+    m_mainWindow->actionCollection()->action(QStringLiteral("move_to_tabs_split_view"))->trigger();
+
+    QCOMPARE(tabWidget->count(), 2);
+    QVERIFY(!tabPage->splitViewEnabled());
+    QCOMPARE(tabPage->primaryViewContainer(), leftViewActive ? rightViewContainer : leftViewContainer);
+    QCOMPARE(tabPage->primaryViewContainer()->url(), keptUrl);
+    QVERIFY(!tabWidget->tabPageAt(1)->splitViewEnabled());
+    QCOMPARE(tabWidget->tabPageAt(1)->primaryViewContainer()->url(), movedUrl);
 }
 
 // Test case for bug #385111
