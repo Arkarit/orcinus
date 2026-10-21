@@ -91,7 +91,7 @@ QUrl symlinkTargetUrl(const QUrl &url)
 }
 }
 
-DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
+DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent, DolphinView::PanelRole role)
     : QWidget(parent)
     , m_topLayout(nullptr)
     , m_urlNavigator{new DolphinUrlNavigator(symlinkTargetUrl(url))}
@@ -140,7 +140,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent)
     connect(m_filterBar, &FilterBar::focusViewRequest, this, &DolphinViewContainer::requestFocus);
 
     // Initialize the main view
-    m_view = new DolphinView(symlinkTargetUrl(url), this);
+    m_view = new DolphinView(symlinkTargetUrl(url), this, role);
     connect(m_view, &DolphinView::urlChanged, m_filterBar, &FilterBar::clearIfUnlocked);
     connect(m_view, &DolphinView::urlChanged, m_messageWidget, &KMessageWidget::hide);
     // m_urlNavigator stays in sync with m_view's location changes and

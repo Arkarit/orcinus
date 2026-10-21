@@ -71,6 +71,8 @@ private Q_SLOTS:
     void testActiveViewAfterClosingSplitView();
     void testMoveSplitViewToTabsKeepsBothFolders_data();
     void testMoveSplitViewToTabsKeepsBothFolders();
+    void testEachViewOfASplitViewKeepsItsGlobalStyle_data();
+    void testEachViewOfASplitViewKeepsItsGlobalStyle();
     void testUpdateWindowTitleAfterClosingSplitView();
     void testUpdateWindowTitleAfterChangingSplitView();
     void testOpenInNewTabTitle();
@@ -480,6 +482,90 @@ void DolphinMainWindowTest::testMoveSplitViewToTabsKeepsBothFolders()
     QCOMPARE(tabPage->primaryViewContainer()->url(), keptUrl);
     QVERIFY(!tabWidget->tabPageAt(1)->splitViewEnabled());
     QCOMPARE(tabWidget->tabPageAt(1)->primaryViewContainer()->url(), movedUrl);
+}
+
+void DolphinMainWindowTest::testEachViewOfASplitViewKeepsItsGlobalStyle_data()
+{
+    QTest::addColumn<bool>("closeLeftView");
+
+    QTest::newRow("close right view") << false;
+    QTest::newRow("close left view") << true;
+}
+
+// Whale (PI): with one style for all folders, the left and the right view each keep their own
+// style. The view that is left when the split view closes is the left one and keeps its style, so
+// a new window starts with it.
+void DolphinMainWindowTest::testEachViewOfASplitViewKeepsItsGlobalStyle()
+{
+    QFETCH(bool, closeLeftView);
+
+    const bool globalViewProps = GeneralSettings::globalViewProps();
+    GeneralSettings::self()->setGlobalViewProps(true);
+    DolphinView::Mode previousMode;
+    {
+        const ViewProperties left{QUrl()};
+        previousMode = left.viewMode();
+    }
+    // The other tests start from the style they found, in both views.
+    auto restore = qScopeGuard([globalViewProps, previousMode] {
+        for (const auto role : {DolphinView::PanelRole::Left, DolphinView::PanelRole::Right}) {
+            ViewProperties props{QUrl(), role};
+            props.setViewMode(previousMode);
+        }
+        GeneralSettings::self()->setGlobalViewProps(globalViewProps);
+    });
+
+    m_mainWindow->openDirectories({QUrl::fromLocalFile(m_tmpHome.path())}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+
+    auto tabWidget = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget");
+    QVERIFY(tabWidget);
+    DolphinTabPage *tabPage = tabWidget->currentTabPage();
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    QVERIFY(tabPage->splitViewEnabled());
+    DolphinView *leftView = tabPage->primaryViewContainer()->view();
+    DolphinView *rightView = tabPage->secondaryViewContainer()->view();
+    QCOMPARE(leftView->panelRole(), DolphinView::PanelRole::Left);
+    QCOMPARE(rightView->panelRole(), DolphinView::PanelRole::Right);
+
+    leftView->setViewMode(DolphinView::CompactView);
+    rightView->setViewMode(DolphinView::IconsView);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
+
+    if (closeLeftView) {
+        tabPage->primaryViewContainer()->setActive(true);
+        using Choice = GeneralSettings::EnumCloseSplitViewChoice;
+        const int choice = GeneralSettings::closeSplitViewChoice();
+        GeneralSettings::self()->setCloseSplitViewChoice(Choice::ActiveView);
+        m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+        GeneralSettings::self()->setCloseSplitViewChoice(choice);
+    } else {
+        m_mainWindow->closeRightSplitView();
+    }
+    QVERIFY(!tabPage->splitViewEnabled());
+    DolphinView *remainingView = tabPage->primaryViewContainer()->view();
+    QCOMPARE(remainingView, closeLeftView ? rightView : leftView);
+    QCOMPARE(remainingView->panelRole(), DolphinView::PanelRole::Left);
+    const DolphinView::Mode remainingMode = closeLeftView ? DolphinView::IconsView : DolphinView::CompactView;
+    QCOMPARE(remainingView->viewMode(), remainingMode);
+
+    // What a new window shows: the left view with the style of the remaining one, and a right
+    // view with its own style.
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), remainingMode);
+    QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
+
+    // Going to another folder reads the style of the position, not the one of the other view.
+    QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("eachViewStyle")));
+    remainingView->setUrl(QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/eachViewStyle")));
+    QCOMPARE(remainingView->viewMode(), remainingMode);
+
+    // Opening the split view again gives the right view its own style.
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    QVERIFY(tabPage->splitViewEnabled());
+    QCOMPARE(tabPage->secondaryViewContainer()->view()->viewMode(), DolphinView::IconsView);
+    QCOMPARE(tabPage->primaryViewContainer()->view()->viewMode(), remainingMode);
 }
 
 // Test case for bug #385111

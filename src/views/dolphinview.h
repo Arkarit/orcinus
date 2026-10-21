@@ -12,6 +12,7 @@
 #include "dolphintabwidget.h"
 #include "kitemviews/private/kfileitemmodelfilter.h"
 #include "tooltips/tooltipmanager.h"
+#include "whale/splitview/whalepanelrole.h"
 
 #include "config-dolphin.h"
 #include <KFileItem>
@@ -83,21 +84,15 @@ public:
         CompactView
     };
 
-    /**
-     * Whale: the position of the view in its tab. With one style for all folders, each position
-     * has its own view properties (see ViewProperties), so the left and the right view of a
-     * split view keep their own style.
-     */
-    enum class PanelRole {
-        Left,
-        Right,
-    };
+    /** Whale: the position of the view in its tab (see WhalePanelRole). */
+    using PanelRole = WhalePanelRole;
 
     /**
      * @param url              Specifies the content which should be shown.
      * @param parent           Parent widget of the view.
+     * @param role             Whale: the position of the view in its tab (see setPanelRole()).
      */
-    DolphinView(const QUrl &url, QWidget *parent);
+    DolphinView(const QUrl &url, QWidget *parent, PanelRole role = PanelRole::Left);
 
     ~DolphinView() override;
 

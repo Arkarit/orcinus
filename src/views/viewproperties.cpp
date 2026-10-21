@@ -746,6 +746,13 @@ void ViewProperties::setDirProperties(const ViewProperties &props)
     m_node->setVersion(props.m_node->version());
 }
 
+void ViewProperties::keepGlobalStyle()
+{
+    if (!m_hasStoredProperties && m_filePath == destinationDir(globalSubDir(DolphinView::PanelRole::Right))) {
+        save();
+    }
+}
+
 void ViewProperties::setAutoSaveEnabled(bool autoSave)
 {
     m_autoSave = autoSave;

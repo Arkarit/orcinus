@@ -87,7 +87,7 @@
 #include <QToolTip>
 #include <QVBoxLayout>
 
-DolphinView::DolphinView(const QUrl &url, QWidget *parent)
+DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     : QWidget(parent)
     , m_active(true)
     , m_tabsForFiles(false)
@@ -117,6 +117,7 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent)
     , m_placeholderLabel(nullptr)
     , m_showLoadingPlaceholderTimer(nullptr)
 {
+    m_panelRole = role; // Whale: before the view properties are read below
     m_topLayout = new QVBoxLayout(this);
     m_topLayout->setSpacing(0);
     m_topLayout->setContentsMargins(0, 0, 0, 0);
@@ -311,6 +312,11 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent)
     connect(m_twoClicksRenamingTimer, &QTimer::timeout, this, &DolphinView::slotTwoClicksRenamingTimerTimeout);
 
     applyViewProperties();
+    if (m_panelRole == PanelRole::Right) {
+        // Whale: the style the right view shows from now on is its own.
+        ViewProperties props(viewPropertiesUrl(), m_panelRole);
+        props.keepGlobalStyle();
+    }
     m_topLayout->addWidget(m_container);
     updateContainerFrame();
 

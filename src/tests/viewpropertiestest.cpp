@@ -1055,6 +1055,18 @@ void ViewPropertiesTest::testTheRightViewStartsFromTheLeftOne()
         left.setViewMode(DolphinView::DetailsView);
     }
     QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Right).viewMode(), DolphinView::DetailsView);
+
+    // A right view that is shown keeps what it shows.
+    {
+        ViewProperties right(folder, DolphinView::PanelRole::Right);
+        right.keepGlobalStyle();
+        QVERIFY(right.m_hasStoredProperties);
+    }
+    {
+        ViewProperties left(folder, DolphinView::PanelRole::Left);
+        left.setViewMode(DolphinView::IconsView);
+    }
+    QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Right).viewMode(), DolphinView::DetailsView);
 }
 
 // A style the right view was given stays its own, also where it matches the left one at the time.
@@ -1090,6 +1102,9 @@ void ViewPropertiesTest::testBothViewsShareTheStyleOfAFolder()
     {
         ViewProperties right(folder, DolphinView::PanelRole::Right);
         QCOMPARE(right.m_filePath, ViewProperties(folder).m_filePath);
+        // Nothing of a global style to keep here.
+        right.keepGlobalStyle();
+        QVERIFY(!right.m_hasStoredProperties);
         right.setViewMode(DolphinView::CompactView);
     }
     QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);

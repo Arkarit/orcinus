@@ -41,7 +41,7 @@ public:
     /**
      * @param role Whale: the position of the view the properties are for. With one style for all
      *             folders, the right view has its own properties. As long as nothing is written
-     *             down for it, it reads those of the left view.
+     *             down for it, it reads those of the left view (see keepGlobalStyle()).
      */
     explicit ViewProperties(const QUrl &url, DolphinView::PanelRole role = DolphinView::PanelRole::Left);
     virtual ~ViewProperties();
@@ -109,6 +109,12 @@ public:
      * saved when the destructor is called. Per default autosaving
      * is enabled.
      */
+    /**
+     * Whale: writes down the global style of the right view where it is still read from the left
+     * one, so that it stays what the right view shows when the left one changes.
+     */
+    void keepGlobalStyle();
+
     void setAutoSaveEnabled(bool autoSave);
     bool isAutoSaveEnabled() const;
 
