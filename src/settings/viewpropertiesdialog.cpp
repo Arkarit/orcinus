@@ -61,6 +61,11 @@ ViewPropertiesDialog::ViewPropertiesDialog(DolphinView *dolphinView)
     const QUrl &url = dolphinView->url();
     m_viewProps = new ViewProperties(url, dolphinView->panelRole());
     m_viewProps->setAutoSaveEnabled(false);
+    if (m_viewProps->usesGlobalStyle()) {
+        // Whale (VS): the style the view shows, which another view at its position may have
+        // changed since in the properties of all folders.
+        m_viewProps->setDirProperties(dolphinView->ownStyleData());
+    }
 
     auto layout = new QFormLayout(this);
     // Otherwise the dialog won't resize when we collapse the KCollapsibleGroupBox.

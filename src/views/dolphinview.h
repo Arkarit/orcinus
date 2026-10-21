@@ -27,6 +27,7 @@
 #include <QWidget>
 
 #include <memory>
+#include <optional>
 
 using CommandType = KIO::FileUndoManager::CommandType;
 class QVBoxLayout;
@@ -459,10 +460,10 @@ public Q_SLOTS:
     bool isSelectionLimitedToOneFolder() const;
 
     /**
-     * Whale: keeps the view mode of the view when it goes to another folder, also with one
-     * style for all folders (the views of a split view are linked and show the same folder,
-     * each in its own way), and the dynamic view does not switch it. The other view properties
-     * apply as usual.
+     * Whale: keeps the view mode of the view when it goes to another folder with a style for
+     * each folder (the views of a split view are linked and show the same folder, each in its
+     * own way), and the dynamic view does not switch it. The other view properties apply as
+     * usual. With one style for all folders, a view keeps its whole style anyway (ownStyle()).
      */
     void setViewModeKept(bool kept);
 
@@ -472,6 +473,21 @@ public Q_SLOTS:
      */
     void setPanelRole(PanelRole role);
     PanelRole panelRole() const;
+
+    /**
+     * Whale (VS): with one style for all folders, the own style of the view as text (see
+     * ViewProperties::toData()), else empty. setOwnStyleData() gives it to another view, e.g. the
+     * view that a moved view becomes in its new tab or window. The style taken is not written
+     * down until it is changed there.
+     */
+    QByteArray ownStyleData() const;
+    void setOwnStyleData(const QByteArray &data);
+
+    /**
+     * Whale (VS): the view mode of the own style, which differs from viewMode() where a place
+     * with a style of its own or the dynamic view shows another one; nothing without an own style.
+     */
+    std::optional<Mode> ownStyleViewMode() const;
 
     /**
      * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
@@ -1013,6 +1029,44 @@ private:
     void applyViewProperties(const ViewProperties &props);
 
     /**
+     * Whale (VS): with one style for all folders, the style of this view. The view keeps it in
+     * every folder without a style of its own (ViewProperties::usesGlobalStyle()) instead of
+     * reading the properties of the folder again, and writes its changes down as the style new
+     * views at its position start from. Read from that style when first needed; nullptr with a
+     * style for each folder.
+     */
+    ViewProperties *ownStyle();
+
+    /** Whale (VS): ownStyle() where @p urlProps use the style of all folders, else nullptr. */
+    ViewProperties *ownStyleFor(const ViewProperties &urlProps);
+
+    /**
+     * Whale (VS): the view properties a change of the view goes to: ownStyle() where the url uses
+     * the style of all folders, else the properties of the url. A change of the own style is
+     * written down when this is dropped.
+     */
+    class PropertiesForChange
+    {
+    public:
+        explicit PropertiesForChange(DolphinView *view);
+        ~PropertiesForChange();
+        ViewProperties *operator->() const
+        {
+            return m_props;
+        }
+        ViewProperties &operator*() const
+        {
+            return *m_props;
+        }
+
+    private:
+        Q_DISABLE_COPY_MOVE(PropertiesForChange)
+        std::unique_ptr<ViewProperties> m_urlProps;
+        ViewProperties *m_props = nullptr;
+        ViewProperties *m_ownStyle = nullptr;
+    };
+
+    /**
      * Applies the m_mode property to the corresponding
      * itemlayout-property of the KItemListView.
      */
@@ -1150,6 +1204,7 @@ private:
     bool m_applyingLinkedSelection = false;
     bool m_viewModeKept = false; // Whale: setViewModeKept()
     PanelRole m_panelRole = PanelRole::Left; // Whale: setPanelRole()
+    std::unique_ptr<ViewProperties> m_ownStyle; // Whale (VS): ownStyle()
     QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;

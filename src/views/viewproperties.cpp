@@ -223,6 +223,11 @@ bool ViewProperties::hasSpecialDefaultViewSettings() const
     return m_hasOwnDefaultStyle;
 }
 
+bool ViewProperties::usesGlobalStyle() const
+{
+    return m_usesGlobalStyle;
+}
+
 bool ViewProperties::forgetStoredProperties()
 {
     // Whatever the storage does with this, the properties in hand are not to be written back.
@@ -349,6 +354,9 @@ ViewProperties::ViewProperties(const QUrl &url, DolphinView::PanelRole role)
         }
     } else if (useGlobalViewProps && m_ownDefaultStyle == OwnDefaultStyle::None) {
         m_filePath = destinationDir(globalSubDir(role));
+        // An empty url reaches these properties also with a style for each folder, as the
+        // style new folders start from.
+        m_usesGlobalStyle = settings->globalViewProps();
     } else if (url.isLocalFile()) {
         m_filePath = url.toLocalFile();
         const QString localPath = m_filePath;
@@ -750,6 +758,63 @@ void ViewProperties::keepGlobalStyle()
 {
     if (!m_hasStoredProperties && m_filePath == destinationDir(globalSubDir(DolphinView::PanelRole::Right))) {
         save();
+    }
+}
+
+void ViewProperties::saveChanges()
+{
+    if (m_changedProps || m_forgetOnSave) {
+        save();
+    }
+}
+
+namespace
+{
+// Whale: properties in memory, read from @p data.
+ViewPropertySettings *propertiesInBuffer(const QByteArray &data, std::shared_ptr<QBuffer> *bufferOut = nullptr)
+{
+    auto buffer = std::make_shared<QBuffer>();
+    buffer->setData(data);
+    if (!buffer->open(QIODevice::ReadWrite)) {
+        qCWarning(DolphinDebug) << "Could not open buffer";
+    }
+    if (bufferOut) {
+        *bufferOut = buffer;
+    }
+    return new ViewPropertySettings(std::make_unique<KConfig>(buffer, KConfig::OpenFlag::SimpleConfig));
+}
+}
+
+ViewProperties::ViewProperties(ViewPropertySettings *node)
+    : m_changedProps(false)
+    , m_autoSave(false)
+    , m_hasOwnDefaultStyle(false)
+    , m_hasStoredProperties(false)
+    , m_ownDefaultStyle(OwnDefaultStyle::None)
+    , m_node(node)
+{
+}
+
+QByteArray ViewProperties::toData() const
+{
+    std::shared_ptr<QBuffer> buffer;
+    std::unique_ptr<ViewPropertySettings> copy(propertiesInBuffer(QByteArray(), &buffer));
+    const auto items = m_node->items();
+    for (const KConfigSkeletonItem *item : items) {
+        if (KConfigSkeletonItem *target = copy->findItem(item->name())) {
+            target->setProperty(item->property());
+        }
+    }
+    copy->save();
+    return buffer->data();
+}
+
+void ViewProperties::setDirProperties(const QByteArray &data)
+{
+    const ViewProperties source(propertiesInBuffer(data));
+    // Text that holds no properties (e.g. a damaged command line) changes nothing.
+    if (source.m_node->config()->hasGroup(QStringLiteral("Dolphin"))) {
+        setDirProperties(source);
     }
 }
 

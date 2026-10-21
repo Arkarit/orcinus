@@ -503,6 +503,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         {QStringLiteral("dolphinViewVisible"), view->isVisible()},
         {QStringLiteral("pluginWidgetVisible"), pluginWidget ? QJsonValue(pluginWidget->isVisible()) : QJsonValue::Null},
         {QStringLiteral("viewMode"), viewModeName(view->viewMode())},
+        {QStringLiteral("ownViewMode"), view->ownStyleViewMode() ? QJsonValue(viewModeName(*view->ownStyleViewMode())) : QJsonValue::Null},
         {QStringLiteral("loading"), loading},
         {QStringLiteral("itemCount"), fileItems.count()},
         {QStringLiteral("items"), items},

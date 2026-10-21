@@ -49,6 +49,8 @@ private Q_SLOTS:
     void testTheRightViewStartsFromTheLeftOne();
     void testTheRightViewKeepsAStyleLikeTheLeftOne();
     void testBothViewsShareTheStyleOfAFolder();
+    void testWhichUrlsUseTheGlobalStyle();
+    void testPropertiesAsText();
     void testWhichFoldersComeWithAStyleOfTheirOwn();
     void testAStoreThatWillNotOpenReadsTheStyleTheFolderComesWith();
     void testChangingAFolderWithItsOwnStyleOffersTheRestore();
@@ -1108,6 +1110,84 @@ void ViewPropertiesTest::testBothViewsShareTheStyleOfAFolder()
         right.setViewMode(DolphinView::CompactView);
     }
     QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
+}
+
+// Whale (VS): with one style for all folders, a view keeps its own style in every folder that
+// has no style of its own. With a style for each folder, no url reads a style all folders share.
+void ViewPropertiesTest::testWhichUrlsUseTheGlobalStyle()
+{
+    const QUrl folder = QUrl::fromLocalFile(m_testDir->path());
+    const QUrl remote(QStringLiteral("sftp://example.org/folder"));
+    const QList<QUrl> ownStyle{QUrl(QStringLiteral("trash:/")),
+                               QUrl(QStringLiteral("search:/images")),
+                               QUrl(QStringLiteral("recentlyused:/files")),
+                               QUrl(QStringLiteral("timeline:/today"))};
+
+    GeneralSettings::self()->setGlobalViewProps(true);
+    for (const auto role : {DolphinView::PanelRole::Left, DolphinView::PanelRole::Right}) {
+        QVERIFY(ViewProperties(folder, role).usesGlobalStyle());
+        QVERIFY(ViewProperties(remote, role).usesGlobalStyle());
+        QVERIFY(ViewProperties(QUrl(), role).usesGlobalStyle());
+        for (const QUrl &url : ownStyle) {
+            QVERIFY2(!ViewProperties(url, role).usesGlobalStyle(), qPrintable(url.toString()));
+        }
+        if (!m_downloadsPath.isEmpty()) {
+            QVERIFY(!ViewProperties(QUrl::fromLocalFile(m_downloadsPath), role).usesGlobalStyle());
+        }
+    }
+
+    // Back to a style for each folder, as init() sets it for every test.
+    GeneralSettings::self()->setGlobalViewProps(false);
+    QVERIFY(!ViewProperties(folder).usesGlobalStyle());
+    QVERIFY(!ViewProperties(remote).usesGlobalStyle());
+    // The style new folders start from is no style all folders share.
+    QVERIFY(!ViewProperties(QUrl()).usesGlobalStyle());
+    QVERIFY(!ViewProperties(QUrl(QStringLiteral("trash:/"))).usesGlobalStyle());
+}
+
+// Whale (VS): the properties go as text to a new window and come back the same there.
+void ViewPropertiesTest::testPropertiesAsText()
+{
+    QByteArray data;
+    {
+        ViewProperties props(QUrl::fromLocalFile(m_testDir->path()));
+        props.setAutoSaveEnabled(false);
+        props.setViewMode(DolphinView::DetailsView);
+        props.setHiddenFilesShown(true);
+        props.setSortRole("size");
+        props.setSortOrder(Qt::DescendingOrder);
+        props.setGroupedSorting(true);
+        props.setVisibleRoles({"text", "size", "modificationtime"});
+        props.setHeaderColumnWidths({300, 80, 120});
+        data = props.toData();
+    }
+    QVERIFY(!data.isEmpty());
+
+    ViewProperties copy(QUrl::fromLocalFile(m_testDir->path()));
+    copy.setAutoSaveEnabled(false);
+    QCOMPARE(copy.viewMode(), DolphinView::IconsView);
+    copy.setDirProperties(data);
+    QCOMPARE(copy.viewMode(), DolphinView::DetailsView);
+    QVERIFY(copy.hiddenFilesShown());
+    QCOMPARE(copy.sortRole(), QByteArray("size"));
+    QCOMPARE(copy.sortOrder(), Qt::DescendingOrder);
+    QVERIFY(copy.groupedSorting());
+    QCOMPARE(copy.visibleRoles(), (QList<QByteArray>{"text", "size", "modificationtime"}));
+    QCOMPARE(copy.headerColumnWidths(), (QList<int>{300, 80, 120}));
+
+    // Nothing usable: the properties stay as they are.
+    copy.setDirProperties(QByteArray("no properties"));
+    QCOMPARE(copy.viewMode(), DolphinView::DetailsView);
+
+    // Properties that are all at their defaults are properties as well.
+    const QUrl other = QUrl::fromLocalFile(m_testDir->path() + QStringLiteral("/other"));
+    QVERIFY(QDir().mkpath(other.toLocalFile()));
+    ViewProperties defaults(other);
+    defaults.setAutoSaveEnabled(false);
+    QVERIFY(defaults.isDefaults());
+    copy.setDirProperties(defaults.toData());
+    QCOMPARE(copy.viewMode(), defaults.viewMode());
+    QCOMPARE(copy.sortRole(), defaults.sortRole());
 }
 
 // The settings page asks a folder this before it lets its style become the one every folder starts

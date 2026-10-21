@@ -314,8 +314,9 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     applyViewProperties();
     if (m_panelRole == PanelRole::Right) {
         // Whale: the style the right view shows from now on is its own.
-        ViewProperties props(viewPropertiesUrl(), m_panelRole);
-        props.keepGlobalStyle();
+        if (ViewProperties *own = ownStyle()) {
+            own->keepGlobalStyle();
+        }
     }
     m_topLayout->addWidget(m_container);
     updateContainerFrame();
@@ -365,14 +366,14 @@ void DolphinView::setViewMode(Mode mode)
         m_container->horizontalScrollBar()->setValue(0);
         m_container->verticalScrollBar()->setValue(0);
 
-        ViewProperties props(viewPropertiesUrl(), m_panelRole);
-        props.setViewMode(mode);
+        PropertiesForChange props(this);
+        props->setViewMode(mode);
 
         // We pass the new ViewProperties to applyViewProperties, rather than
         // storing them on disk and letting applyViewProperties() read them
         // from there, to prevent that changing the view mode fails if the
         // .directory file is not writable (see bug 318534).
-        applyViewProperties(props);
+        applyViewProperties(*props);
     }
 }
 
@@ -415,8 +416,8 @@ void DolphinView::setPreviewsShown(bool show)
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setPreviewsShown(show);
+    PropertiesForChange props(this);
+    props->setPreviewsShown(show);
 
     const int oldZoomLevel = m_view->zoomLevel();
     m_view->setPreviewsShown(show);
@@ -427,7 +428,7 @@ void DolphinView::setPreviewsShown(bool show)
     if (newZoomLevel != oldZoomLevel) {
         Q_EMIT zoomLevelChanged(newZoomLevel, oldZoomLevel);
     }
-    Q_EMIT viewSettingsChanged(props.isDefaults());
+    Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
 bool DolphinView::previewsShown() const
@@ -445,12 +446,12 @@ void DolphinView::setHiddenFilesShown(bool show)
     m_selectedUrls.clear();
     m_selectedUrls = itemList.urlList();
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setHiddenFilesShown(show);
+    PropertiesForChange props(this);
+    props->setHiddenFilesShown(show);
 
     m_model->setShowHiddenFiles(show);
     Q_EMIT hiddenFilesShownChanged(show);
-    Q_EMIT viewSettingsChanged(props.isDefaults());
+    Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
 bool DolphinView::hiddenFilesShown() const
@@ -464,13 +465,13 @@ void DolphinView::setGroupedSorting(bool grouped)
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setGroupedSorting(grouped);
+    PropertiesForChange props(this);
+    props->setGroupedSorting(grouped);
 
     m_model->setGroupedSorting(grouped);
 
     Q_EMIT groupedSortingChanged(grouped);
-    Q_EMIT viewSettingsChanged(props.isDefaults());
+    Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
 bool DolphinView::groupedSorting() const
@@ -563,13 +564,13 @@ void DolphinView::setZoomLevel(int level)
     m_view->setZoomLevel(level);
     const int newZoomLevel = zoomLevel();
     if (newZoomLevel != oldZoomLevel) {
-        ViewProperties props(viewPropertiesUrl(), m_panelRole);
-        props.setZoomLevel(level == m_defaultZoomLevel ? -1 : level);
+        PropertiesForChange props(this);
+        props->setZoomLevel(level == m_defaultZoomLevel ? -1 : level);
 
         hideToolTip();
 
         Q_EMIT zoomLevelChanged(newZoomLevel, oldZoomLevel);
-        Q_EMIT viewSettingsChanged(props.isDefaults());
+        Q_EMIT viewSettingsChanged(props->isDefaults());
     }
 }
 
@@ -581,12 +582,12 @@ int DolphinView::zoomLevel() const
 void DolphinView::setSortRole(const QByteArray &role)
 {
     if (role != sortRole()) {
-        ViewProperties props(viewPropertiesUrl(), m_panelRole);
-        props.setSortRole(role);
+        PropertiesForChange props(this);
+        props->setSortRole(role);
 
         const Qt::SortOrder preferredOrder = preferredSortOrder(role);
         if (sortOrder() != preferredOrder) {
-            props.setSortOrder(preferredOrder);
+            props->setSortOrder(preferredOrder);
             KItemModelBase *model = m_container->controller()->model();
             model->setSortOrder(preferredOrder);
         }
@@ -595,7 +596,7 @@ void DolphinView::setSortRole(const QByteArray &role)
         model->setSortRole(role);
 
         Q_EMIT sortRoleChanged(role);
-        Q_EMIT viewSettingsChanged(props.isDefaults());
+        Q_EMIT viewSettingsChanged(props->isDefaults());
     }
 }
 
@@ -612,8 +613,8 @@ void DolphinView::setGroupRole(const QByteArray &role)
         return;
     }
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setGroupRole(role);
+    PropertiesForChange props(this);
+    props->setGroupRole(role);
 
     model->setGroupRole(role);
 
@@ -635,13 +636,13 @@ QByteArray DolphinView::rawGroupRole() const
 void DolphinView::setSortOrder(Qt::SortOrder order)
 {
     if (sortOrder() != order) {
-        ViewProperties props(viewPropertiesUrl(), m_panelRole);
-        props.setSortOrder(order);
+        PropertiesForChange props(this);
+        props->setSortOrder(order);
 
         m_model->setSortOrder(order);
 
         Q_EMIT sortOrderChanged(order);
-        Q_EMIT viewSettingsChanged(props.isDefaults());
+        Q_EMIT viewSettingsChanged(props->isDefaults());
     }
 }
 
@@ -678,14 +679,14 @@ void DolphinView::setVisibleRoles(const QList<QByteArray> &roles)
 {
     const QList<QByteArray> &previousRoles = roles;
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setVisibleRoles(roles);
+    PropertiesForChange props(this);
+    props->setVisibleRoles(roles);
 
     m_visibleRoles = roles;
     m_view->setVisibleRoles(roles);
 
     Q_EMIT visibleRolesChanged(m_visibleRoles, previousRoles);
-    Q_EMIT viewSettingsChanged(props.isDefaults());
+    Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
 QList<QByteArray> DolphinView::visibleRoles() const
@@ -874,13 +875,18 @@ void DolphinView::setUrl(const QUrl &url)
     // might be done on the existing items although they get cleared
     // anyhow afterwards by loadDirectory().
     m_model->clear();
-    // Whale: a linked view keeps its view mode (setViewModeKept()).
     ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    if (m_viewModeKept) {
-        props.setAutoSaveEnabled(false);
-        props.setViewMode(m_mode);
+    if (ViewProperties *own = ownStyleFor(props)) {
+        // Whale (VS): the view keeps its style, with one style for all folders.
+        applyViewProperties(*own);
+    } else {
+        // Whale: a linked view keeps its view mode (setViewModeKept()).
+        if (m_viewModeKept) {
+            props.setAutoSaveEnabled(false);
+            props.setViewMode(m_mode);
+        }
+        applyViewProperties(props);
     }
-    applyViewProperties(props);
     loadDirectory(url);
 
     Q_EMIT urlChanged(url);
@@ -964,17 +970,44 @@ void DolphinView::setPanelRole(PanelRole role)
     if (role == m_panelRole) {
         return;
     }
-    // The view properties of the old position are what the view shows, so they go along to the
-    // new one. Where both positions share their view properties, this writes them back unchanged.
-    const ViewProperties oldProps(viewPropertiesUrl(), m_panelRole);
-    ViewProperties newProps(viewPropertiesUrl(), role);
-    newProps.setDirProperties(oldProps);
+    // The own style of the view goes along to the new position and is written down there. With a
+    // style for each folder, both positions share the properties of the folder.
+    if (ViewProperties *own = ownStyle()) {
+        auto moved = std::make_unique<ViewProperties>(QUrl(), role);
+        moved->setAutoSaveEnabled(false);
+        moved->setDirProperties(*own);
+        moved->saveChanges();
+        m_ownStyle = std::move(moved);
+    }
     m_panelRole = role;
 }
 
 DolphinView::PanelRole DolphinView::panelRole() const
 {
     return m_panelRole;
+}
+
+QByteArray DolphinView::ownStyleData() const
+{
+    return m_ownStyle ? m_ownStyle->toData() : QByteArray();
+}
+
+std::optional<DolphinView::Mode> DolphinView::ownStyleViewMode() const
+{
+    return m_ownStyle ? std::optional(m_ownStyle->viewMode()) : std::nullopt;
+}
+
+void DolphinView::setOwnStyleData(const QByteArray &data)
+{
+    ViewProperties *own = ownStyle();
+    if (!own || data.isEmpty()) {
+        return;
+    }
+    own->setDirProperties(data);
+    const ViewProperties props(viewPropertiesUrl(), m_panelRole);
+    if (props.usesGlobalStyle()) {
+        applyViewProperties(*own);
+    }
 }
 
 QUrl DolphinView::currentItemUrl() const
@@ -1594,7 +1627,7 @@ void DolphinView::slotViewContextMenuRequested(const QPointF &pos)
 
 void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
 {
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
+    PropertiesForChange props(this);
 
     QPointer<QMenu> menu = new QMenu(this);
     QMenu *const rawMenu = menu;
@@ -1644,7 +1677,7 @@ void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
     rawMenu->addSeparator();
 
     QActionGroup *widthsGroup = new QActionGroup(rawMenu);
-    const bool autoColumnWidths = props.headerColumnWidths().isEmpty();
+    const bool autoColumnWidths = props->headerColumnWidths().isEmpty();
 
     QAction *toggleSidePaddingAction = rawMenu->addAction(i18nc("@action:inmenu", "Side Padding"));
     toggleSidePaddingAction->setCheckable(true);
@@ -1667,7 +1700,7 @@ void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
         if (action == autoAdjustWidthsAction) {
             // Clear the column-widths from the viewproperties and turn on
             // the automatic resizing of the columns
-            props.setHeaderColumnWidths(QList<int>());
+            props->setHeaderColumnWidths(QList<int>());
             header->setAutomaticColumnResizing(true);
         } else if (action == customWidthsAction) {
             // Apply the current column-widths as custom column-widths and turn
@@ -1678,7 +1711,7 @@ void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
             for (const QByteArray &role : visibleRoles) {
                 columnWidths.append(header->columnWidth(role));
             }
-            props.setHeaderColumnWidths(columnWidths);
+            props->setHeaderColumnWidths(columnWidths);
             header->setAutomaticColumnResizing(false);
         } else if (action == toggleSidePaddingAction) {
             if (toggleSidePaddingAction->isChecked()) {
@@ -1698,7 +1731,7 @@ void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
             }
 
             view->setVisibleRoles(visibleRoles);
-            props.setVisibleRoles(visibleRoles);
+            props->setVisibleRoles(visibleRoles);
 
             QList<int> columnWidths;
             if (!header->automaticColumnResizing()) {
@@ -1708,7 +1741,7 @@ void DolphinView::slotHeaderContextMenuRequested(const QPointF &pos)
                     columnWidths.append(header->columnWidth(role));
                 }
             }
-            props.setHeaderColumnWidths(columnWidths);
+            props->setHeaderColumnWidths(columnWidths);
         }
     }
 
@@ -1719,8 +1752,8 @@ void DolphinView::slotHeaderColumnWidthChangeFinished(const QByteArray &role, qr
 {
     const QList<QByteArray> visibleRoles = m_view->visibleRoles();
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    QList<int> columnWidths = props.headerColumnWidths();
+    PropertiesForChange props(this);
+    QList<int> columnWidths = props->headerColumnWidths();
     if (columnWidths.count() != visibleRoles.count()) {
         columnWidths.clear();
         columnWidths.reserve(visibleRoles.count());
@@ -1735,12 +1768,12 @@ void DolphinView::slotHeaderColumnWidthChangeFinished(const QByteArray &role, qr
     Q_ASSERT(roleIndex >= 0 && roleIndex < columnWidths.count());
     columnWidths[roleIndex] = current;
 
-    props.setHeaderColumnWidths(columnWidths);
+    props->setHeaderColumnWidths(columnWidths);
 }
 
 void DolphinView::slotSidePaddingWidthChanged(qreal leftPaddingWidth, qreal rightPaddingWidth)
 {
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
+    PropertiesForChange props(this);
     DetailsModeSettings::setLeftPadding(int(leftPaddingWidth));
     DetailsModeSettings::setRightPadding(int(rightPaddingWidth));
     m_view->writeSettings();
@@ -1976,26 +2009,26 @@ void DolphinView::slotStatJobResult(KJob *job)
 
 void DolphinView::updateSortFoldersFirst(bool foldersFirst)
 {
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setSortFoldersFirst(foldersFirst);
+    PropertiesForChange props(this);
+    props->setSortFoldersFirst(foldersFirst);
 
     m_model->setSortDirectoriesFirst(foldersFirst);
 
     Q_EMIT sortFoldersFirstChanged(foldersFirst);
 
-    Q_EMIT viewSettingsChanged(props.isDefaults());
+    Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
 void DolphinView::updateSortHiddenLast(bool hiddenLast)
 {
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setSortHiddenLast(hiddenLast);
+    PropertiesForChange props(this);
+    props->setSortHiddenLast(hiddenLast);
 
     m_model->setSortHiddenLast(hiddenLast);
 
     Q_EMIT sortHiddenLastChanged(hiddenLast);
 
-    Q_EMIT viewSettingsChanged(props.isDefaults());
+    Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
 QPair<bool, QString> DolphinView::pasteInfo() const
@@ -2349,16 +2382,18 @@ void DolphinView::updateViewState()
 
 bool DolphinView::isViewSettingsDefaults() const
 {
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    return props.isDefaults();
+    const ViewProperties props(viewPropertiesUrl(), m_panelRole);
+    // Whale (VS): the own style of the view, where it keeps one.
+    const ViewProperties *own = props.usesGlobalStyle() ? m_ownStyle.get() : nullptr;
+    return (own ? *own : props).isDefaults();
 }
 
 void DolphinView::restoreViewSettingsToDefaults()
 {
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.restoreToDefaults();
+    PropertiesForChange props(this);
+    props->restoreToDefaults();
 
-    applyViewProperties(props);
+    applyViewProperties(*props);
 }
 
 void DolphinView::hideToolTip(const ToolTipManager::HideBehavior behavior)
@@ -2514,8 +2549,8 @@ void DolphinView::slotSortOrderChangedByHeader(Qt::SortOrder current, Qt::SortOr
     const QByteArray currentRole = m_model->sortRole();
     m_rolesSortOrder[currentRole] = current;
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setSortOrder(current);
+    PropertiesForChange props(this);
+    props->setSortOrder(current);
 
     Q_EMIT sortOrderChanged(current);
 }
@@ -2525,12 +2560,12 @@ void DolphinView::slotSortRoleChangedByHeader(const QByteArray &current, const Q
     Q_UNUSED(previous)
     Q_ASSERT(m_model->sortRole() == current);
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setSortRole(current);
+    PropertiesForChange props(this);
+    props->setSortRole(current);
 
     const Qt::SortOrder preferredOrder = preferredSortOrder(current);
     if (m_model->sortOrder() != preferredOrder) {
-        props.setSortOrder(preferredOrder);
+        props->setSortOrder(preferredOrder);
         m_model->setSortOrder(preferredOrder);
         Q_EMIT sortOrderChanged(preferredOrder);
     }
@@ -2547,8 +2582,8 @@ void DolphinView::slotVisibleRolesChangedByHeader(const QList<QByteArray> &curre
 
     m_visibleRoles = current;
 
-    ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    props.setVisibleRoles(m_visibleRoles);
+    PropertiesForChange props(this);
+    props->setVisibleRoles(m_visibleRoles);
 
     Q_EMIT visibleRolesChanged(m_visibleRoles, previousVisibleRoles);
 }
@@ -2731,7 +2766,49 @@ void DolphinView::loadDirectory(const QUrl &url, bool reload)
 void DolphinView::applyViewProperties()
 {
     const ViewProperties props(viewPropertiesUrl(), m_panelRole);
-    applyViewProperties(props);
+    // Whale (VS): with one style for all folders, the view keeps its own style.
+    const ViewProperties *own = ownStyleFor(props);
+    applyViewProperties(own ? *own : props);
+}
+
+ViewProperties *DolphinView::ownStyle()
+{
+    if (!GeneralSettings::globalViewProps()) {
+        // Read again when one style for all folders is turned on again: switching to it hands
+        // the style of the current folder to both positions.
+        m_ownStyle.reset();
+        return nullptr;
+    }
+    if (!m_ownStyle) {
+        m_ownStyle = std::make_unique<ViewProperties>(QUrl(), m_panelRole);
+        // Written down by PropertiesForChange when a change is done.
+        m_ownStyle->setAutoSaveEnabled(false);
+    }
+    return m_ownStyle.get();
+}
+
+ViewProperties *DolphinView::ownStyleFor(const ViewProperties &urlProps)
+{
+    ViewProperties *own = ownStyle();
+    return urlProps.usesGlobalStyle() ? own : nullptr;
+}
+
+DolphinView::PropertiesForChange::PropertiesForChange(DolphinView *view)
+    : m_urlProps(std::make_unique<ViewProperties>(view->viewPropertiesUrl(), view->m_panelRole))
+    , m_props(m_urlProps.get())
+{
+    if (ViewProperties *own = view->ownStyleFor(*m_urlProps)) {
+        m_urlProps.reset();
+        m_props = own;
+        m_ownStyle = own;
+    }
+}
+
+DolphinView::PropertiesForChange::~PropertiesForChange()
+{
+    if (m_ownStyle) {
+        m_ownStyle->saveChanges();
+    }
 }
 
 void DolphinView::applyViewProperties(const ViewProperties &props)
@@ -2956,6 +3033,10 @@ void DolphinView::applyDynamicView()
     }
 
     props.setAutoSaveEnabled(!GeneralSettings::globalViewProps());
+    if (const ViewProperties *own = ownStyleFor(props)) {
+        // Whale (VS): shown on top of the own style of the view, which stays as it is.
+        props.setDirProperties(*own);
+    }
     props.setDynamicViewPassed(true);
     props.setViewMode(IconsView);
     applyViewProperties(props);

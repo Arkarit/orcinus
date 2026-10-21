@@ -105,6 +105,13 @@ public:
     void setDirProperties(const ViewProperties &props);
 
     /**
+     * Whale: the properties as text (the groups this class writes), e.g. to hand the own style
+     * of a view to a new window (VS). setDirProperties(const QByteArray &) reads it.
+     */
+    QByteArray toData() const;
+    void setDirProperties(const QByteArray &data);
+
+    /**
      * If \a autoSave is true, the properties are automatically
      * saved when the destructor is called. Per default autosaving
      * is enabled.
@@ -114,6 +121,12 @@ public:
      * one, so that it stays what the right view shows when the left one changes.
      */
     void keepGlobalStyle();
+
+    /**
+     * Whale: writes down what was changed since the last time, if anything, for properties that
+     * are kept rather than dropped after a change (the own style of a view, VS).
+     */
+    void saveChanges();
 
     void setAutoSaveEnabled(bool autoSave);
     bool isAutoSaveEnabled() const;
@@ -155,6 +168,13 @@ public:
     /** @returns whether this folder comes with a display style of its own, as the trash and the
      * searches do, rather than the one every other folder starts from. */
     bool hasSpecialDefaultViewSettings() const;
+
+    /**
+     * Whale: @returns whether these are the properties of all folders, with one style for all
+     * folders (GeneralSettings::globalViewProps()): a folder without a style of its own. Then a
+     * view keeps its own style there instead of reading these (VS).
+     */
+    bool usesGlobalStyle() const;
 
 private:
     /**
@@ -219,6 +239,9 @@ private:
     /** Writes the style this folder comes with into the properties in hand. */
     void applyOwnDefaultStyle();
 
+    /** Whale: properties that only hold @p node (setDirProperties(const QByteArray &)). */
+    explicit ViewProperties(ViewPropertySettings *node);
+
     /** Whale: @returns the sub-directory of the global view properties of the view at @p role. */
     static QString globalSubDir(DolphinView::PanelRole role);
 
@@ -236,6 +259,7 @@ private:
     /** Set where a restore could not write yet, so that save() does the removal it asked for. */
     bool m_forgetOnSave = false;
     OwnDefaultStyle m_ownDefaultStyle;
+    bool m_usesGlobalStyle = false; // Whale: usesGlobalStyle()
     /** The folder this is about, which the style it comes with is worked out from. */
     QUrl m_url;
     QString m_filePath;
