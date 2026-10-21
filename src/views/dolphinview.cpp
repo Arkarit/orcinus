@@ -992,6 +992,11 @@ QByteArray DolphinView::ownStyleData() const
     return m_ownStyle ? m_ownStyle->toData() : QByteArray();
 }
 
+std::optional<DolphinView::Mode> DolphinView::ownStyleViewMode() const
+{
+    return m_ownStyle ? std::optional(m_ownStyle->viewMode()) : std::nullopt;
+}
+
 void DolphinView::setOwnStyleData(const QByteArray &data)
 {
     ViewProperties *own = ownStyle();

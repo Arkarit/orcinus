@@ -67,7 +67,7 @@ def run(args, work):
 
         s.expect("A: the style of the popped out view, on its own", {
             "paneCount": 1, "panes.0.loading": False, "panes.0.viewMode": "compact",
-            "panes.0.hiddenFiles": True})
+            "panes.0.ownViewMode": "compact", "panes.0.hiddenFiles": True})
         print("ok    A: style from the command line")
 
         client.tool("set_location", pane=0, url=(folder / "sub").as_uri())
@@ -78,7 +78,7 @@ def run(args, work):
         if "ViewMode=2" in stored_style(profile):
             raise Failure("C: the style taken was written down: " + stored_style(profile))
         client.tool("trigger_action", action="view_details")
-        s.expect("C: changed", {"panes.0.viewMode": "details"})
+        s.expect("C: changed", {"panes.0.viewMode": "details", "panes.0.ownViewMode": "details"})
         deadline = time.monotonic() + 10
         while "ViewMode=1" not in stored_style(profile):
             if time.monotonic() > deadline:

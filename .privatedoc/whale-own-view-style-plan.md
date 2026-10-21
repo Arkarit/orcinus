@@ -26,6 +26,38 @@ Folgen:
 - Mit nur einem Satz pro Position lassen sich zwei einzelne linke Views mit verschiedenen Stilen
   nicht abbilden.
 
+## Stand (2026-10-21)
+
+Branch `feature/own-view-style` (von `master` ac272a9b0), nicht gepusht:
+
+| Schritt | Commit | Inhalt |
+|---|---|---|
+| VS0 | 02cfb8197 | Tests zuerst (Repro 2, kein Springen, Papierkorb). |
+| VS1 | 132f50c77 | `ViewProperties::usesGlobalStyle()`. |
+| VS2 | 55cbab739 (+ f6233e788) | `DolphinView::ownStyle()`, `PropertiesForChange`; kein Neu-Lesen bei Ordnerwechsel und Apply. Nebenbei: `slotSplitViewChanged()` in einem Fenster ohne Tab. |
+| VS3 | f787eb3ab | Stil wandert mit in Tab und Fenster (`--whale-view-style`), Dialog zeigt eigenen Stil. |
+| VS4 | (dieser Commit) | Aufräumen: `setViewModeKept()`-Doku, `panes.N.ownViewMode` im Dev MCP, Doku-Gliederung 2.4. |
+
+Abweichungen vom Plan:
+
+- **`setViewModeKept()` bleibt.** Es wirkt noch im Ordnermodus beim Ordnerwechsel und bei der
+  dynamischen Ansicht (beide Modi). Nur die Beschreibung wurde angepasst.
+- **Serialisierung:** `ViewProperties::toData()` / `setDirProperties(const QByteArray &)`. Text
+  ohne `[Dolphin]` ändert nichts.
+- **Pop out:** Das neue Fenster schließt einen Split, den es wegen „Always“ bekommen hätte,
+  ausdrücklich (`closeRightSplitView()` in `main.cpp`). Der E2E-Test hat das gefunden.
+- **Neuer E2E-Test** `whale_dev_mcp_vs_e2e` (`test_vs_acceptance.py`), `start_whale()` kann
+  zusätzliche Argumente.
+
+Offen / bekannt:
+
+- „Pop out“ startet `whale --new-window` über den `PATH` (Upstream-Verhalten). Ein älteres
+  installiertes Whale kennt `--whale-view-style` nicht und bricht ab. Vor dem Test also
+  installieren. Alternative bei Bedarf: Übergabe per Umgebungsvariable.
+- Wählt man bei aktiver dynamischer Ansicht (Icons) ausdrücklich Icons, bleibt der eigene Stil
+  beim vorherigen Modus. Das ist Upstream-Verhalten und unverändert.
+- VS5 (Stil in der Sitzung) kommt mit dem Style-System (F4).
+
 ## Grundidee
 
 Im **globalen Modus** besitzt jede `DolphinView` ihren Stil selbst, im Speicher (`m_ownStyle`):

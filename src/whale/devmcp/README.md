@@ -134,6 +134,10 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
 - `panes.N.panelRole` (PI): the position whose global view properties the view reads and
   writes (`left`/`right`). It follows `side`; a view that moves (the left view closes) takes its
   style along.
+- `panes.N.ownViewMode` (VS): with one style for all folders, the view mode of the view's own
+  style, which it keeps in every folder without a style of its own; it differs from `viewMode`
+  where such a place (trash, search) or the dynamic view shows another one. `null` with a style
+  for each folder.
 - `splitViewAtStartup` (PI3): `choice` (`last-state`, `always-split`, `always-single`) and
   `openInSplitView`, whether a new window or tab opens with a split view now.
 - `splitAnimating`: opening or closing the split view is still animating the width of a

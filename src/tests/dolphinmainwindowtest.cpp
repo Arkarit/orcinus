@@ -576,7 +576,7 @@ void DolphinMainWindowTest::testEachViewOfASplitViewKeepsItsGlobalStyle()
     QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Left).viewMode(), remainingMode);
     QCOMPARE(ViewProperties(QUrl(), DolphinView::PanelRole::Right).viewMode(), DolphinView::IconsView);
 
-    // Going to another folder reads the style of the position, not the one of the other view.
+    // Going to another folder keeps the style of the view (VS), not the one of the other view.
     QVERIFY(QDir(m_tmpHome.path()).mkpath(QStringLiteral("eachViewStyle")));
     remainingView->setUrl(QUrl::fromLocalFile(m_tmpHome.path() + QStringLiteral("/eachViewStyle")));
     QCOMPARE(remainingView->viewMode(), remainingMode);

@@ -27,6 +27,7 @@
 #include <QWidget>
 
 #include <memory>
+#include <optional>
 
 using CommandType = KIO::FileUndoManager::CommandType;
 class QVBoxLayout;
@@ -459,10 +460,10 @@ public Q_SLOTS:
     bool isSelectionLimitedToOneFolder() const;
 
     /**
-     * Whale: keeps the view mode of the view when it goes to another folder, also with one
-     * style for all folders (the views of a split view are linked and show the same folder,
-     * each in its own way), and the dynamic view does not switch it. The other view properties
-     * apply as usual.
+     * Whale: keeps the view mode of the view when it goes to another folder with a style for
+     * each folder (the views of a split view are linked and show the same folder, each in its
+     * own way), and the dynamic view does not switch it. The other view properties apply as
+     * usual. With one style for all folders, a view keeps its whole style anyway (ownStyle()).
      */
     void setViewModeKept(bool kept);
 
@@ -481,6 +482,12 @@ public Q_SLOTS:
      */
     QByteArray ownStyleData() const;
     void setOwnStyleData(const QByteArray &data);
+
+    /**
+     * Whale (VS): the view mode of the own style, which differs from viewMode() where a place
+     * with a style of its own or the dynamic view shows another one; nothing without an own style.
+     */
+    std::optional<Mode> ownStyleViewMode() const;
 
     /**
      * Whale: @return The URL of the current item (the one with the keyboard focus), or an empty URL.
