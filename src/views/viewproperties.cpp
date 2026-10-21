@@ -223,6 +223,11 @@ bool ViewProperties::hasSpecialDefaultViewSettings() const
     return m_hasOwnDefaultStyle;
 }
 
+bool ViewProperties::usesGlobalStyle() const
+{
+    return m_usesGlobalStyle;
+}
+
 bool ViewProperties::forgetStoredProperties()
 {
     // Whatever the storage does with this, the properties in hand are not to be written back.
@@ -349,6 +354,9 @@ ViewProperties::ViewProperties(const QUrl &url, DolphinView::PanelRole role)
         }
     } else if (useGlobalViewProps && m_ownDefaultStyle == OwnDefaultStyle::None) {
         m_filePath = destinationDir(globalSubDir(role));
+        // An empty url reaches these properties also with a style for each folder, as the
+        // style new folders start from.
+        m_usesGlobalStyle = settings->globalViewProps();
     } else if (url.isLocalFile()) {
         m_filePath = url.toLocalFile();
         const QString localPath = m_filePath;

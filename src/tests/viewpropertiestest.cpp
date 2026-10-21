@@ -49,6 +49,7 @@ private Q_SLOTS:
     void testTheRightViewStartsFromTheLeftOne();
     void testTheRightViewKeepsAStyleLikeTheLeftOne();
     void testBothViewsShareTheStyleOfAFolder();
+    void testWhichUrlsUseTheGlobalStyle();
     void testWhichFoldersComeWithAStyleOfTheirOwn();
     void testAStoreThatWillNotOpenReadsTheStyleTheFolderComesWith();
     void testChangingAFolderWithItsOwnStyleOffersTheRestore();
@@ -1108,6 +1109,39 @@ void ViewPropertiesTest::testBothViewsShareTheStyleOfAFolder()
         right.setViewMode(DolphinView::CompactView);
     }
     QCOMPARE(ViewProperties(folder, DolphinView::PanelRole::Left).viewMode(), DolphinView::CompactView);
+}
+
+// Whale (VS): with one style for all folders, a view keeps its own style in every folder that
+// has no style of its own. With a style for each folder, no url reads a style all folders share.
+void ViewPropertiesTest::testWhichUrlsUseTheGlobalStyle()
+{
+    const QUrl folder = QUrl::fromLocalFile(m_testDir->path());
+    const QUrl remote(QStringLiteral("sftp://example.org/folder"));
+    const QList<QUrl> ownStyle{QUrl(QStringLiteral("trash:/")),
+                               QUrl(QStringLiteral("search:/images")),
+                               QUrl(QStringLiteral("recentlyused:/files")),
+                               QUrl(QStringLiteral("timeline:/today"))};
+
+    GeneralSettings::self()->setGlobalViewProps(true);
+    for (const auto role : {DolphinView::PanelRole::Left, DolphinView::PanelRole::Right}) {
+        QVERIFY(ViewProperties(folder, role).usesGlobalStyle());
+        QVERIFY(ViewProperties(remote, role).usesGlobalStyle());
+        QVERIFY(ViewProperties(QUrl(), role).usesGlobalStyle());
+        for (const QUrl &url : ownStyle) {
+            QVERIFY2(!ViewProperties(url, role).usesGlobalStyle(), qPrintable(url.toString()));
+        }
+        if (!m_downloadsPath.isEmpty()) {
+            QVERIFY(!ViewProperties(QUrl::fromLocalFile(m_downloadsPath), role).usesGlobalStyle());
+        }
+    }
+
+    // Back to a style for each folder, as init() sets it for every test.
+    GeneralSettings::self()->setGlobalViewProps(false);
+    QVERIFY(!ViewProperties(folder).usesGlobalStyle());
+    QVERIFY(!ViewProperties(remote).usesGlobalStyle());
+    // The style new folders start from is no style all folders share.
+    QVERIFY(!ViewProperties(QUrl()).usesGlobalStyle());
+    QVERIFY(!ViewProperties(QUrl(QStringLiteral("trash:/"))).usesGlobalStyle());
 }
 
 // The settings page asks a folder this before it lets its style become the one every folder starts

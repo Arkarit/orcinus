@@ -156,6 +156,13 @@ public:
      * searches do, rather than the one every other folder starts from. */
     bool hasSpecialDefaultViewSettings() const;
 
+    /**
+     * Whale: @returns whether these are the properties of all folders, with one style for all
+     * folders (GeneralSettings::globalViewProps()): a folder without a style of its own. Then a
+     * view keeps its own style there instead of reading these (VS).
+     */
+    bool usesGlobalStyle() const;
+
 private:
     /**
      * Returns the view-mode prefix when storing additional properties for
@@ -236,6 +243,7 @@ private:
     /** Set where a restore could not write yet, so that save() does the removal it asked for. */
     bool m_forgetOnSave = false;
     OwnDefaultStyle m_ownDefaultStyle;
+    bool m_usesGlobalStyle = false; // Whale: usesGlobalStyle()
     /** The folder this is about, which the style it comes with is worked out from. */
     QUrl m_url;
     QString m_filePath;
