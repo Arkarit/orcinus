@@ -95,7 +95,8 @@ public:
     QJsonObject setSplitLock(bool locked);
     /// ST3: applies a style through its action, as its menu entry or shortcut does.
     QJsonObject applyStyle(const QString &id);
-    /// ST3: saves the current state of the window as a style (as "Save as Style…" without the dialog).
+    /// ST3: saves the current state of the window as a style (as "Save as Style…" without the dialog);
+    /// without a name, the style applied or saved last ("Save Style").
     QJsonObject saveStyle(const QString &name);
     /// Resizes the main window, as the user does by dragging its border.
     QJsonObject setWindowSize(int width, int height);

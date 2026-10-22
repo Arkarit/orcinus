@@ -19,7 +19,9 @@
 
 #include <KActionCollection>
 #include <KActionMenu>
+#include <KConfigGroup>
 #include <KLocalizedString>
+#include <KSharedConfig>
 #include <KToolBar>
 #include <KXMLGUIFactory>
 
@@ -48,6 +50,7 @@ private Q_SLOTS:
     void testShortcutsFromConfigureShortcuts();
     void testStylesAfterRestart();
     void testAppliedStyleIsStartOfNextWindow();
+    void testSaveLastStyle();
 
 private:
     DolphinMainWindow *openWindow();
@@ -98,6 +101,7 @@ void WhaleStyleManagerTest::cleanup()
         store.removeStyle(id);
     }
     WhaleStyles::self()->save();
+    KSharedConfig::openStateConfig()->deleteGroup(QStringLiteral("Styles"));
     WhaleToolbarSettings::self()->setFileViewToolBarsVisible(true);
     TestHelpers::openNewWindowsInSingleView();
     GeneralSettings::self()->save();
@@ -188,7 +192,7 @@ void WhaleStyleManagerTest::testActionsWithoutStyles()
     QVERIFY(window);
     QVERIFY(window->actionCollection()->action(WhaleStyleManager::menuActionName()));
     QVERIFY(window->actionCollection()->action(WhaleStyleManager::saveActionName()));
-    QCOMPARE(menuEntries(window), QStringList{WhaleStyleManager::saveActionName()});
+    QCOMPARE(menuEntries(window), (QStringList{WhaleStyleManager::saveLastActionName(), WhaleStyleManager::saveActionName()}));
     // In the View menu, placed by the XML GUI file.
     auto viewMenu = qobject_cast<QMenu *>(window->guiFactory()->container(QStringLiteral("view"), window));
     QVERIFY(viewMenu);
@@ -209,7 +213,8 @@ void WhaleStyleManagerTest::testSaveAddsActionInAllWindows()
         QAction *action = window->actionCollection()->action(actionName);
         QVERIFY(action);
         QCOMPARE(action->text(), QStringLiteral("Bilder && mehr"));
-        QCOMPARE(menuEntries(window), (QStringList{actionName, QStringLiteral("--"), WhaleStyleManager::saveActionName()}));
+        QCOMPARE(menuEntries(window),
+                 (QStringList{actionName, QStringLiteral("--"), WhaleStyleManager::saveLastActionName(), WhaleStyleManager::saveActionName()}));
     }
 
     // Saved at once, with all elements available in the window: all but the filter of a right view.
@@ -261,6 +266,7 @@ void WhaleStyleManagerTest::testSwitchBetweenSchlichtAndBilder()
              (QStringList{WhaleStyleManager::actionName(schlicht),
                           WhaleStyleManager::actionName(bilder),
                           QStringLiteral("--"),
+                          WhaleStyleManager::saveLastActionName(),
                           WhaleStyleManager::saveActionName()}));
 
     DolphinView *view = tabPage(window)->primaryViewContainer()->view();
@@ -390,6 +396,69 @@ void WhaleStyleManagerTest::testAppliedStyleIsStartOfNextWindow()
     QVERIFY(!window->menuBar()->isHidden());
     QVERIFY(!window->toolBar(QStringLiteral("mainToolBar"))->isHidden());
     QVERIFY(!dock(window, "infoDock")->isHidden());
+}
+
+void WhaleStyleManagerTest::testSaveLastStyle()
+{
+    DolphinMainWindow *window = openWindow();
+    QVERIFY(window);
+    WhaleStyleManager *manager = WhaleStyleManager::ensure(window);
+    QAction *saveLast = window->actionCollection()->action(WhaleStyleManager::saveLastActionName());
+    QVERIFY(saveLast);
+    // Nothing applied yet.
+    QVERIFY(!saveLast->isEnabled());
+    QVERIFY(!manager->saveLastStyle());
+
+    // Saving as a style makes it the last one.
+    DolphinView *view = tabPage(window)->primaryViewContainer()->view();
+    view->setViewMode(DolphinView::IconsView);
+    const QString bilder = manager->saveCurrentAsStyle(QStringLiteral("Bilder"));
+    QCOMPARE(manager->lastStyleId(), bilder);
+    QVERIFY(saveLast->isEnabled());
+    QVERIFY(saveLast->text().contains(QLatin1String("Bilder")));
+    WhaleStyle style = *WhaleStyles::self()->store().style(bilder);
+    style.shortcut = QKeySequence(QStringLiteral("Ctrl+Alt+2"));
+    style.elements[QStringLiteral("panels")].enabled = false;
+    WhaleStyles::self()->editableStore().updateStyle(style);
+    WhaleStyles::self()->save();
+
+    view->setViewMode(DolphinView::CompactView);
+    const QString schlicht = manager->saveCurrentAsStyle(QStringLiteral("Schlicht"));
+    QVERIFY(saveLast->text().contains(QLatin1String("Schlicht")));
+
+    // Applying makes it the last one; "Save Style" captures it again.
+    window->actionCollection()->action(WhaleStyleManager::actionName(bilder))->trigger();
+    QCOMPARE(view->viewMode(), DolphinView::IconsView);
+    QCOMPARE(manager->lastStyleId(), bilder);
+    view->setViewMode(DolphinView::DetailsView);
+    saveLast->trigger();
+    const WhaleStyle *saved = WhaleStyles::self()->store().style(bilder);
+    QVERIFY(saved->elements.value(QStringLiteral("viewStyle.left")).value.contains(QLatin1String("ViewMode=1")));
+    QCOMPARE(saved->shortcut, QKeySequence(QStringLiteral("Ctrl+Alt+2")));
+    QVERIFY(!saved->elements.value(QStringLiteral("panels")).enabled);
+    QCOMPARE(WhaleStyles::self()->store().ids(), (QStringList{bilder, schlicht}));
+    // Saved at once.
+    QVERIFY(WhaleStyleStore(WhaleStyleStore::defaultConfig())
+                .style(bilder)
+                ->elements.value(QStringLiteral("viewStyle.left"))
+                .value.contains(QLatin1String("ViewMode=1")));
+
+    // Renamed: the entry follows.
+    WhaleStyles::self()->editableStore().renameStyle(bilder, QStringLiteral("Fotos"));
+    WhaleStyles::self()->save();
+    QVERIFY(saveLast->text().contains(QLatin1String("Fotos")));
+
+    // A new window starts with the style remembered last.
+    DolphinMainWindow *second = openWindow();
+    QVERIFY(second);
+    QCOMPARE(WhaleStyleManager::ensure(second)->lastStyleId(), bilder);
+
+    // Deleted: nothing to save.
+    WhaleStyles::self()->editableStore().removeStyle(bilder);
+    WhaleStyles::self()->save();
+    QVERIFY(!saveLast->isEnabled());
+    QVERIFY(!manager->saveLastStyle());
+    QCOMPARE(WhaleStyles::self()->store().ids(), QStringList{schlicht});
 }
 
 QTEST_MAIN(WhaleStyleManagerTest)

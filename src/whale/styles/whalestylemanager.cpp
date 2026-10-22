@@ -14,6 +14,7 @@
 #include <KActionCategory>
 #include <KActionCollection>
 #include <KActionMenu>
+#include <KConfigGroup>
 #include <KLocalizedString>
 #include <KMessageBox>
 #include <KXMLGUIFactory>
@@ -25,6 +26,9 @@
 namespace
 {
 const QString ActionPrefix = QStringLiteral("whale_style_");
+// The style a window applied or saved last; new windows start from it (E3).
+const QString StateGroup = QStringLiteral("Styles");
+const QString LastStyleKey = QStringLiteral("LastStyle");
 
 // The ID of a style whose name is @p name, ignoring case and spaces around it.
 QString idOfName(const QString &name)
@@ -63,9 +67,15 @@ QString WhaleStyleManager::saveActionName()
     return QStringLiteral("whale_save_style");
 }
 
+QString WhaleStyleManager::saveLastActionName()
+{
+    return QStringLiteral("whale_save_last_style");
+}
+
 WhaleStyleManager::WhaleStyleManager(DolphinMainWindow *window)
     : QObject(window)
     , m_window(window)
+    , m_lastStyleId(KSharedConfig::openStateConfig()->group(StateGroup).readEntry(LastStyleKey, QString()))
 {
 }
 
@@ -93,7 +103,13 @@ void WhaleStyleManager::setupActions()
     m_saveAction->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
     connect(m_saveAction, &QAction::triggered, this, &WhaleStyleManager::askAndSaveCurrentAsStyle);
 
+    m_saveLastAction = collection->addAction(saveLastActionName());
+    m_saveLastAction->setIcon(QIcon::fromTheme(QStringLiteral("document-save")));
+    connect(m_saveLastAction, &QAction::triggered, this, &WhaleStyleManager::saveLastStyle);
+    updateSaveLastAction();
+
     m_category = new KActionCategory(i18nc("@title:group of shortcuts", "Styles"), collection);
+    m_menu->addAction(m_saveLastAction);
     m_menu->addAction(m_saveAction);
 }
 
@@ -128,6 +144,54 @@ void WhaleStyleManager::applyStyle(const WhaleStyle &style)
             element->apply(m_window, state.value);
         }
     }
+    setLastStyle(style.id);
+}
+
+QString WhaleStyleManager::lastStyleId() const
+{
+    return m_lastStyleId;
+}
+
+bool WhaleStyleManager::saveLastStyle()
+{
+    WhaleStyles *styles = WhaleStyles::self();
+    styles->reload();
+    const WhaleStyle *style = styles->store().style(m_lastStyleId);
+    if (!style) {
+        return false;
+    }
+    styles->editableStore().updateStyle(recaptureStyle(*style));
+    styles->save();
+    return true;
+}
+
+void WhaleStyleManager::setLastStyle(const QString &id)
+{
+    if (id.isEmpty()) {
+        return;
+    }
+    m_lastStyleId = id;
+    KConfigGroup state = KSharedConfig::openStateConfig()->group(StateGroup);
+    state.writeEntry(LastStyleKey, id);
+    state.sync();
+    updateSaveLastAction();
+}
+
+void WhaleStyleManager::updateSaveLastAction()
+{
+    if (!m_saveLastAction) {
+        return;
+    }
+    const WhaleStyle *style = WhaleStyles::self()->store().style(m_lastStyleId);
+    if (style) {
+        m_saveLastAction->setText(
+            i18nc("@action:inmenu Styles, %1 the style applied last", "Save Style \"%1\"", QString(style->name).replace(u'&', QLatin1String("&&"))));
+        m_saveLastAction->setToolTip(i18nc("@info:tooltip", "Save the current state of the window as the style \"%1\"", style->name));
+    } else {
+        m_saveLastAction->setText(i18nc("@action:inmenu Styles", "Save Style"));
+        m_saveLastAction->setToolTip(i18nc("@info:tooltip", "Apply a style first; this saves the current state of the window as that style"));
+    }
+    m_saveLastAction->setEnabled(style);
 }
 
 WhaleStyle WhaleStyleManager::captureStyle() const
@@ -172,6 +236,7 @@ QString WhaleStyleManager::saveCurrentAsStyle(const QString &name)
         store.updateStyle(recaptureStyle(*store.style(id)));
     }
     styles->save();
+    setLastStyle(id);
     return id;
 }
 
@@ -222,6 +287,9 @@ void WhaleStyleManager::rebuildStyleActions()
     if (!styles.isEmpty()) {
         m_menu->menu()->addSeparator();
     }
+    // Renamed or deleted meanwhile.
+    updateSaveLastAction();
+    m_menu->addAction(m_saveLastAction);
     m_menu->addAction(m_saveAction);
 }
 

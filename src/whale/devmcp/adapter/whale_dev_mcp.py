@@ -143,8 +143,9 @@ TOOLS = [
         "name": "save_style",
         "description": "ST3: saves the current state of the window as a style, as View > Styles > Save as Style... "
         "does without its dialog. A style of the same name (ignoring case) is captured again and keeps its id "
-        "and shortcut. Returns the id.",
-        "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+        "and shortcut. Without a name: View > Styles > Save Style, the style applied or saved last "
+        "(styles.lastStyle). Returns the id.",
+        "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}},
     },
     {
         "name": "set_window_size",
@@ -617,7 +618,7 @@ class Whale:
         if tool == "apply_style":
             return result(iface.ApplyStyle(args["id"]))
         if tool == "save_style":
-            return result(iface.SaveStyle(args["name"]))
+            return result(iface.SaveStyle(args.get("name", "")))
         if tool == "set_location":
             return result(iface.SetLocation(pane, args["url"]))
         if tool == "set_filter_text":

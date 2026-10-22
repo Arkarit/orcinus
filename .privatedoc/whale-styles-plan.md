@@ -243,3 +243,12 @@ werden entfernt, wie es `ServiceMenuShortcutManager::cleanupStaleShortcuts()` ma
   keine Icongrößen). Bekannt: Speichert ein anderes Fenster einen Style, während der Dialog offen
   ist, überschreibt OK diese Änderung. Test `whalestylessettingspagetest` (11) am echten Dialog;
   Aussehen offscreen per Screenshot geprüft.
+- **Save Style** (2026-10-22, Wunsch des Benutzers): Menüpunkt „Save Style "…"“
+  (`whale_save_last_style`, vor „Save as Style…“) speichert den zuletzt geladenen Style neu
+  (ID, Kürzel und Haken bleiben), ohne Rückfrage. Jedes Fenster merkt sich den Style, den es
+  zuletzt angewendet (Menü, Kürzel, „Apply to Window“) oder gespeichert hat; neue Fenster starten
+  mit dem zuletzt gemerkten (`[Styles] LastStyle` im State-Config, passend zu E3). Ausgegraut ohne
+  solchen Style oder wenn er gelöscht ist. **Abweichung von F3:** Ein „zuletzt geladener“ Style
+  wird jetzt gemerkt; eine Anzeige „verändert“ gibt es weiterhin nicht. Die Aktion entsteht vor
+  `setupGUI()`, ein Kürzel dafür speichert KXmlGui also selbst. Dev MCP: `save_style` ohne Namen,
+  `styles.lastStyle`.

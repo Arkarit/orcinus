@@ -820,6 +820,8 @@ QJsonObject WhaleDevAutomation::stylesState() const
         {QStringLiteral("current"), current},
         // The menu bar itself, which follows its action a moment later.
         {QStringLiteral("menuBarVisible"), !m_window->menuBar()->isHidden()},
+        // The style applied or saved last, which "Save Style" saves.
+        {QStringLiteral("lastStyle"), WhaleStyleManager::ensure(m_window)->lastStyleId()},
     };
 }
 
@@ -1203,6 +1205,17 @@ QJsonObject WhaleDevAutomation::applyStyle(const QString &id)
 
 QJsonObject WhaleDevAutomation::saveStyle(const QString &name)
 {
+    if (name.isEmpty()) {
+        // "Save Style": the style applied or saved last, through its action.
+        QAction *action = m_window->actionCollection()->action(WhaleStyleManager::saveLastActionName());
+        if (!action || !action->isEnabled()) {
+            return failure(QStringLiteral("no style applied or saved yet in this window (\"Save Style\" is disabled)"));
+        }
+        action->trigger();
+        QJsonObject reply = ok();
+        reply.insert(QStringLiteral("id"), WhaleStyleManager::ensure(m_window)->lastStyleId());
+        return reply;
+    }
     const QString id = WhaleStyleManager::ensure(m_window)->saveCurrentAsStyle(name);
     if (id.isEmpty()) {
         return failure(QStringLiteral("a style needs a name"));

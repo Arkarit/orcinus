@@ -22,17 +22,20 @@ class QAction;
  *
  * Exactly one per main window, a direct child of it (ensure()). It offers:
  *
- * - "whale_styles": the menu View → Styles with one entry per style and "Save as Style…"
- *   ("whale_save_style"). Both are created before the window's setupGUI(), so the XML GUI file
- *   can place them (setupActions()).
+ * - "whale_styles": the menu View → Styles with one entry per style, "Save Style "…""
+ *   ("whale_save_last_style", the style applied or saved last) and "Save as Style…"
+ *   ("whale_save_style"). They are created before the window's setupGUI(), so the XML GUI file
+ *   can place them and Configure Shortcuts keeps their shortcuts (setupActions()).
  * - "whale_style_<id>": one action per style with the style's shortcut, in the category
  *   "Styles" of Configure Shortcuts. They are created after setupGUI() (plugStyles()):
  *   XML GUI would otherwise give them shortcuts it saved itself. whalestylesrc is the only place
  *   of these shortcuts; takeShortcuts() writes changes made in Configure Shortcuts back to it.
  *
  * Applying sets the enabled elements in the order of the registry (WhaleStyleElements); an
- * element not available in the window is skipped. Afterwards everything can be changed as usual;
- * no style is "active" (F3).
+ * element not available in the window is skipped. Afterwards everything can be changed as usual.
+ * The window remembers the style it applied or saved last (lastStyleId()), so "Save Style" can
+ * capture it again; it does not tell whether the window still looks like it. New windows start
+ * with the style remembered last in any window, as they start with its look (E3).
  */
 class WhaleStyleManager : public QObject
 {
@@ -47,6 +50,7 @@ public:
 
     static QString menuActionName();
     static QString saveActionName();
+    static QString saveLastActionName();
 
     ~WhaleStyleManager() override;
 
@@ -64,6 +68,16 @@ public:
 
     /** Applies @p style, which need not be saved (e.g. as edited on the settings page). */
     void applyStyle(const WhaleStyle &style);
+
+    /** @return The ID of the style applied or saved last in this window, or empty. */
+    QString lastStyleId() const;
+
+    /**
+     * Captures the style applied or saved last again ("Save Style"); it keeps its ID, shortcut and
+     * which elements it sets.
+     * @return Whether there is such a style.
+     */
+    bool saveLastStyle();
 
     /** @return The current state of the window: all elements available in it, enabled. */
     WhaleStyle captureStyle() const;
@@ -92,12 +106,16 @@ private:
     explicit WhaleStyleManager(DolphinMainWindow *window);
 
     void rebuildStyleActions();
+    void setLastStyle(const QString &id);
+    void updateSaveLastAction();
     void askAndSaveCurrentAsStyle();
     void removeSavedActionProperties();
 
     DolphinMainWindow *m_window;
     KActionMenu *m_menu = nullptr;
     QAction *m_saveAction = nullptr;
+    QAction *m_saveLastAction = nullptr;
+    QString m_lastStyleId;
     KActionCategory *m_category = nullptr;
     QStringList m_styleActionNames;
     bool m_plugged = false;

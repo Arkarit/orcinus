@@ -344,6 +344,8 @@ void WhaleStylesSettingsPageTest::testApplyToWindowKeepsStatusBarOnOk()
     elementItem(QStringLiteral("panels"))->setCheckState(0, Qt::Unchecked);
     child<QPushButton>("applyStyle")->click();
     QCOMPARE(view->viewMode(), DolphinView::CompactView);
+    // "Save Style" saves it then.
+    QCOMPARE(WhaleStyleManager::ensure(m_mainWindow.data())->lastStyleId(), QStringLiteral("schlicht"));
     QCOMPARE(GeneralSettings::showStatusBar(), GeneralSettings::EnumShowStatusBar::Disabled);
 
     // OK of the dialog: the page of the status bar does not set its former value again.

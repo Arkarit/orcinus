@@ -176,7 +176,7 @@ def run(args, work):
         # A
         state = s.expect("A: the styles of the file", {
             "panes.0.loading": False,
-            "styles.menu": ["whale_style_schlicht", "whale_style_bilder", "-", "whale_save_style"]}, focus=False)
+            "styles.menu": ["whale_style_schlicht", "whale_style_bilder", "-", "whale_save_last_style", "whale_save_style"]}, focus=False)
         styles = {style["id"]: style for style in state["styles"]["list"]}
         check(styles["schlicht"]["actionShortcut"] == "Ctrl+Alt+1", "A: shortcut of Schlicht", styles["schlicht"])
         check(styles["bilder"]["actionShortcut"] == "Ctrl+Alt+2", "A: shortcut of Bilder", styles["bilder"])
@@ -212,11 +212,14 @@ def run(args, work):
         s.expect("C: menu closed", {"popupMenu": None}, focus=False)
         print("ok    B: the way back from Schlicht (F5)")
 
-        # D: saving "Bilder" again
+        # D: "Save Style" after applying Bilder, then saving "Bilder" again by name
+        check(client.state()["styles"]["lastStyle"] == "bilder", "D: Bilder applied last")
+        reply = client.tool("save_style")
+        check('"id":"bilder"' in reply[0]["text"].replace(" ", ""), "D: Save Style saves Bilder", reply)
         reply = client.tool("save_style", name="bilder")
         check('"id":"bilder"' in reply[0]["text"].replace(" ", ""), "D: same id", reply)
         state = s.expect("D: still two styles", {
-            "styles.menu": ["whale_style_schlicht", "whale_style_bilder", "-", "whale_save_style"]}, focus=False)
+            "styles.menu": ["whale_style_schlicht", "whale_style_bilder", "-", "whale_save_last_style", "whale_save_style"]}, focus=False)
         bilder = state["styles"]["list"][1]
         check(bilder["name"] == "Bilder" and bilder["shortcut"] == "Ctrl+Alt+2", "D: name and shortcut kept", bilder)
         check("fromTheFuture" in bilder["elements"], "D: the element of a newer Whale kept", bilder)
@@ -248,7 +251,7 @@ def run(args, work):
         s.require_keyboard_focus = False
         s.expect("F: restarted as Schlicht", dict(SCHLICHT, **{
             "panes.0.loading": False,
-            "styles.menu": ["whale_style_schlicht", "whale_style_bilder", "whale_style_zwei", "-", "whale_save_style"]}),
+            "styles.menu": ["whale_style_schlicht", "whale_style_bilder", "whale_style_zwei", "-", "whale_save_last_style", "whale_save_style"]}),
             focus=False)
         print("ok    F: restart")
 
