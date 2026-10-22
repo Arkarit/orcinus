@@ -300,6 +300,10 @@ public:
     void setFilterCaseSensitive(bool caseSensitive);
     bool isFilterCaseSensitive() const;
 
+    /** Whale: FB2, the items the name filter applies to: files, folders or both. */
+    void setFilterScope(KFileItemModelFilter::Scope scope);
+    KFileItemModelFilter::Scope filterScope() const;
+
     /**
      * Tells the view to generate an updated status bar text. The result
      * is returned through the statusBarTextChanged(QString statusBarText) signal.

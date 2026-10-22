@@ -1330,6 +1330,20 @@ bool KFileItemModel::isFilterCaseSensitive() const
     return m_filter.isCaseSensitive();
 }
 
+void KFileItemModel::setFilterScope(KFileItemModelFilter::Scope scope)
+{
+    if (m_filter.scope() != scope) {
+        dispatchPendingItemsToInsert();
+        m_filter.setScope(scope);
+        applyFilters();
+    }
+}
+
+KFileItemModelFilter::Scope KFileItemModel::filterScope() const
+{
+    return m_filter.scope();
+}
+
 void KFileItemModel::setExcludeMimeTypeFilter(const QStringList &filters)
 {
     if (m_filter.excludeMimeTypes() != filters) {

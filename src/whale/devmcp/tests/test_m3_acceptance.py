@@ -140,10 +140,12 @@ def run(args, work):
         s.expect("hidden files hidden", {"panes.0.hiddenFiles": False, "panes.0.pluginRows": ["sub", "a.txt", "b.txt", "c.txt"]})
 
         client.tool("set_filter_text", pane=0, text="b.")
-        s.expect("name filter set", {"panes.0.filter": {"text": "b.", "barVisible": True}, "panes.0.pluginRows": ["b.txt"],
+        # FB2: the filter applies to files by default, the folder stays shown.
+        s.expect("name filter set", {"panes.0.filter": {"text": "b.", "barVisible": True, "scope": "files"},
+                                     "panes.0.pluginRows": ["sub", "b.txt"],
                                      "focus.role": "filter-bar"})
         client.tool("clear_filter", pane=0)
-        s.expect("name filter cleared", {"panes.0.filter": {"text": "", "barVisible": False},
+        s.expect("name filter cleared", {"panes.0.filter": {"text": "", "barVisible": False, "scope": "files"},
                                          "panes.0.pluginRows": ["sub", "a.txt", "b.txt", "c.txt"],
                                          "focus.role": "plugin:whale_testlist"})
 

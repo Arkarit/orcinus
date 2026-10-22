@@ -393,8 +393,10 @@ void WhaleDevAutomationTest::testFilter()
     QVERIFY(reaches(expect({
         {QStringLiteral("panes.0.filter.text"), QStringLiteral("b.")},
         {QStringLiteral("panes.0.filter.barVisible"), true},
-        {QStringLiteral("panes.0.items"), QJsonArray{QStringLiteral("b.txt")}},
-        {QStringLiteral("panes.0.pluginRows"), QJsonArray{QStringLiteral("b.txt")}},
+        // FB2: the filter applies to files by default, the folder stays shown.
+        {QStringLiteral("panes.0.filter.scope"), QStringLiteral("files")},
+        {QStringLiteral("panes.0.items"), QJsonArray{QStringLiteral("sub"), QStringLiteral("b.txt")}},
+        {QStringLiteral("panes.0.pluginRows"), QJsonArray{QStringLiteral("sub"), QStringLiteral("b.txt")}},
         {QStringLiteral("focus.role"), QStringLiteral("filter-bar")},
     })));
 

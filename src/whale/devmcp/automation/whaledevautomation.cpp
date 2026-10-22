@@ -550,6 +550,11 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
          QJsonObject{
              {QStringLiteral("text"), view->nameFilter()},
              {QStringLiteral("barVisible"), container->isFilterBarVisible()},
+             // FB2: what the filter applies to
+             {QStringLiteral("scope"),
+              view->filterScope() == KFileItemModelFilter::Scope::Files         ? QStringLiteral("files")
+                  : view->filterScope() == KFileItemModelFilter::Scope::Folders ? QStringLiteral("folders")
+                                                                                : QStringLiteral("files-and-folders")},
          }},
         {QStringLiteral("selectionMode"), container->isSelectionModeEnabled()},
         {QStringLiteral("focusProxy"), focusProxy},

@@ -403,6 +403,9 @@ private Q_SLOTS:
      */
     void setFilterCaseSensitive(const bool caseSensitive);
 
+    /** Whale: FB2, the items the filter applies to. */
+    void setFilterScope(KFileItemModelFilter::Scope scope);
+
     /**
      * Marks the view container as active
      * (see DolphinViewContainer::setActive()).

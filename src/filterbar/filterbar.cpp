@@ -15,13 +15,44 @@
 
 #include <KColorScheme>
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QComboBox>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPalette>
 #include <QToolButton>
+
+namespace
+{
+// Whale: FB2, the choices of what the filter applies to, as stored in the state config.
+struct ScopeChoice {
+    KFileItemModelFilter::Scope scope;
+    QLatin1String name;
+    QLatin1String icon;
+};
+
+constexpr ScopeChoice scopeChoices[] = {
+    {KFileItemModelFilter::Scope::Files, QLatin1String("Files"), QLatin1String("text-x-generic")},
+    {KFileItemModelFilter::Scope::Folders, QLatin1String("Folders"), QLatin1String("folder")},
+    {KFileItemModelFilter::Scope::FilesAndFolders, QLatin1String("FilesAndFolders"), QLatin1String("folder-documents")},
+};
+
+QString scopeText(KFileItemModelFilter::Scope scope)
+{
+    switch (scope) {
+    case KFileItemModelFilter::Scope::Files:
+        return i18nc("@item:inmenu the filter applies to", "Files (Folders Stay Shown)");
+    case KFileItemModelFilter::Scope::Folders:
+        return i18nc("@item:inmenu the filter applies to", "Folders (Files Stay Shown)");
+    case KFileItemModelFilter::Scope::FilesAndFolders:
+        return i18nc("@item:inmenu the filter applies to", "Files and Folders");
+    }
+    return QString();
+}
+}
 
 FilterBar::FilterBar(QWidget *parent)
     : AnimatedHeightWidget{parent}
@@ -71,6 +102,23 @@ FilterBar::FilterBar(QWidget *parent)
     });
     connect(m_filterModeComboBox, &QComboBox::currentIndexChanged, this, &FilterBar::updateInvalidPatternView);
 
+    // Whale: FB2, what the filter applies to
+    m_scopeButton = new QToolButton(contentsContainer);
+    m_scopeButton->setAutoRaise(true);
+    m_scopeButton->setPopupMode(QToolButton::InstantPopup);
+    auto scopeMenu = new QMenu(m_scopeButton);
+    auto scopeGroup = new QActionGroup(scopeMenu);
+    for (const ScopeChoice &choice : scopeChoices) {
+        QAction *action = scopeMenu->addAction(QIcon::fromTheme(choice.icon), scopeText(choice.scope));
+        action->setCheckable(true);
+        action->setData(QVariant::fromValue(static_cast<int>(choice.scope)));
+        scopeGroup->addAction(action);
+    }
+    connect(scopeGroup, &QActionGroup::triggered, this, [this](QAction *action) {
+        setFilterScope(static_cast<KFileItemModelFilter::Scope>(action->data().toInt()));
+    });
+    m_scopeButton->setMenu(scopeMenu);
+
     // Create close button
     QToolButton *closeButton = new QToolButton(contentsContainer);
     closeButton->setAutoRaise(true);
@@ -85,9 +133,10 @@ FilterBar::FilterBar(QWidget *parent)
     hLayout->addWidget(m_filterInput);
     hLayout->addWidget(m_caseSensitiveButton);
     hLayout->addWidget(m_filterModeComboBox);
+    hLayout->addWidget(m_scopeButton); // Whale: FB2
     hLayout->addWidget(closeButton);
 
-    setTabOrder({m_lockButton, m_caseSensitiveButton, m_filterModeComboBox, closeButton, m_filterInput});
+    setTabOrder({m_lockButton, m_caseSensitiveButton, m_filterModeComboBox, m_scopeButton, closeButton, m_filterInput});
 
     KConfigGroup filterBarConfig(KSharedConfig::openStateConfig(), QStringLiteral("FilterBar"));
     bool caseSensitiveEnabled = filterBarConfig.readEntry("caseSensitive", false);
@@ -98,6 +147,15 @@ FilterBar::FilterBar(QWidget *parent)
     // Whale: FB1, the filter is kept when changing folders unless the user chose otherwise. Written
     // at once, so the filter bars of views opened later start with it.
     m_lockButton->setChecked(filterBarConfig.readEntry("keepFilter", true));
+
+    // Whale: FB2, files by default; written at once like the lock.
+    const QString scopeName = filterBarConfig.readEntry("filterScope", QStringLiteral("Files"));
+    for (const ScopeChoice &choice : scopeChoices) {
+        if (scopeName == choice.name) {
+            m_scope = choice.scope;
+        }
+    }
+    updateScopeButton();
     connect(m_lockButton, &QToolButton::toggled, this, [](bool checked) {
         KConfigGroup config(KSharedConfig::openStateConfig(), QStringLiteral("FilterBar"));
         config.writeEntry("keepFilter", checked);
@@ -131,6 +189,41 @@ KFileItemModelFilter::FilterMode FilterBar::filterMode() const
 bool FilterBar::isCaseSensitive() const
 {
     return m_caseSensitiveButton->isChecked();
+}
+
+KFileItemModelFilter::Scope FilterBar::filterScope() const
+{
+    return m_scope;
+}
+
+void FilterBar::setFilterScope(KFileItemModelFilter::Scope scope)
+{
+    if (scope == m_scope) {
+        return;
+    }
+    m_scope = scope;
+    updateScopeButton();
+    for (const ScopeChoice &choice : scopeChoices) {
+        if (choice.scope == scope) {
+            KConfigGroup config(KSharedConfig::openStateConfig(), QStringLiteral("FilterBar"));
+            config.writeEntry("filterScope", QString(choice.name));
+        }
+    }
+    Q_EMIT filterScopeChanged(scope);
+}
+
+void FilterBar::updateScopeButton()
+{
+    for (const ScopeChoice &choice : scopeChoices) {
+        if (choice.scope == m_scope) {
+            m_scopeButton->setIcon(QIcon::fromTheme(choice.icon));
+        }
+    }
+    m_scopeButton->setToolTip(i18nc("@info:tooltip", "Filter Applies To: %1", scopeText(m_scope)));
+    const auto actions = m_scopeButton->menu()->actions();
+    for (QAction *action : actions) {
+        action->setChecked(static_cast<KFileItemModelFilter::Scope>(action->data().toInt()) == m_scope);
+    }
 }
 
 void FilterBar::clear()

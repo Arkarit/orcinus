@@ -18,6 +18,7 @@
 #include <KSharedConfig>
 
 #include <QLineEdit>
+#include <QMenu>
 #include <QStandardPaths>
 #include <QTest>
 #include <QToolButton>
@@ -40,11 +41,16 @@ private Q_SLOTS:
     void testClosingKeepsLock();
     void testLockRemembered();
 
+    void testScope_data();
+    void testScope();
+    void testScopeFromMenuRemembered();
+
 private:
     DolphinViewContainer *showMainWindow();
     static FilterBar *filterBar(DolphinViewContainer *container);
     static QToolButton *lockButton(DolphinViewContainer *container);
     static QLineEdit *filterInput(DolphinViewContainer *container);
+    static QStringList shownNames(DolphinViewContainer *container);
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -193,6 +199,87 @@ void WhaleFilterBarTest::testLockRemembered()
     container->setFilterBarVisible(true);
     lockButton(container)->click();
     QVERIFY(KSharedConfig::openStateConfig()->group(QStringLiteral("FilterBar")).readEntry("keepFilter", false));
+}
+
+QStringList WhaleFilterBarTest::shownNames(DolphinViewContainer *container)
+{
+    QStringList names;
+    const KFileItemList items = container->view()->items();
+    for (const KFileItem &item : items) {
+        names.append(item.text());
+    }
+    names.sort();
+    return names;
+}
+
+void WhaleFilterBarTest::testScope_data()
+{
+    using Scope = KFileItemModelFilter::Scope;
+    QTest::addColumn<Scope>("scope");
+    QTest::addColumn<int>("mode");
+    QTest::addColumn<QString>("pattern");
+    QTest::addColumn<QStringList>("shown");
+
+    const auto glob = int(KFileItemModelFilter::Glob);
+    const auto plain = int(KFileItemModelFilter::PlainText);
+    // Files a.txt, b.jpg and the folder sub.
+    QTest::newRow("files, glob") << Scope::Files << glob << QStringLiteral("*.jpg") << QStringList{QStringLiteral("b.jpg"), QStringLiteral("sub")};
+    QTest::newRow("files, plain") << Scope::Files << plain << QStringLiteral("txt") << QStringList{QStringLiteral("a.txt"), QStringLiteral("sub")};
+    QTest::newRow("folders, matching") << Scope::Folders << glob << QStringLiteral("su*")
+                                       << QStringList{QStringLiteral("a.txt"), QStringLiteral("b.jpg"), QStringLiteral("sub")};
+    QTest::newRow("folders, none") << Scope::Folders << glob << QStringLiteral("x*") << QStringList{QStringLiteral("a.txt"), QStringLiteral("b.jpg")};
+    QTest::newRow("both, as Dolphin") << Scope::FilesAndFolders << glob << QStringLiteral("*.jpg") << QStringList{QStringLiteral("b.jpg")};
+}
+
+void WhaleFilterBarTest::testScope()
+{
+    QFETCH(KFileItemModelFilter::Scope, scope);
+    QFETCH(int, mode);
+    QFETCH(QString, pattern);
+    QFETCH(QStringList, shown);
+
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    container->setFilterBarVisible(true);
+    filterBar(container)->setFilterScope(scope);
+    container->view()->setFilterMode(static_cast<KFileItemModelFilter::FilterMode>(mode));
+    QCOMPARE(container->view()->filterScope(), scope);
+    filterInput(container)->setText(pattern);
+    QTRY_COMPARE(shownNames(container), shown);
+}
+
+void WhaleFilterBarTest::testScopeFromMenuRemembered()
+{
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    // Files by default: the folders stay shown.
+    QCOMPARE(filterBar(container)->filterScope(), KFileItemModelFilter::Scope::Files);
+    QCOMPARE(container->view()->filterScope(), KFileItemModelFilter::Scope::Files);
+
+    container->setFilterBarVisible(true);
+    QToolButton *scopeButton = nullptr;
+    const auto buttons = filterBar(container)->findChildren<QToolButton *>();
+    for (QToolButton *button : buttons) {
+        if (button->menu()) {
+            scopeButton = button;
+        }
+    }
+    QVERIFY(scopeButton);
+    const auto entries = scopeButton->menu()->actions();
+    QCOMPARE(entries.size(), 3);
+    QVERIFY(entries.at(0)->isChecked());
+    entries.at(2)->trigger();
+    QCOMPARE(container->view()->filterScope(), KFileItemModelFilter::Scope::FilesAndFolders);
+    QVERIFY(entries.at(2)->isChecked() && !entries.at(0)->isChecked());
+    QVERIFY(scopeButton->toolTip().contains(entries.at(2)->text()));
+
+    filterInput(container)->setText(QStringLiteral("*.jpg"));
+    QTRY_COMPARE(shownNames(container), QStringList{QStringLiteral("b.jpg")});
+
+    m_mainWindow.reset(new DolphinMainWindow());
+    container = showMainWindow();
+    QVERIFY(container);
+    QCOMPARE(container->view()->filterScope(), KFileItemModelFilter::Scope::FilesAndFolders);
 }
 
 QTEST_MAIN(WhaleFilterBarTest)

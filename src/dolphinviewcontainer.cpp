@@ -136,6 +136,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent, Dol
     connect(m_filterBar, &FilterBar::filterChanged, this, &DolphinViewContainer::setNameFilter);
     connect(m_filterBar, &FilterBar::filterModeChanged, this, &DolphinViewContainer::setFilterMode);
     connect(m_filterBar, &FilterBar::caseSensitiveChanged, this, &DolphinViewContainer::setFilterCaseSensitive);
+    connect(m_filterBar, &FilterBar::filterScopeChanged, this, &DolphinViewContainer::setFilterScope); // Whale: FB2
     connect(m_filterBar, &FilterBar::closeRequest, this, &DolphinViewContainer::closeFilterBar);
     connect(m_filterBar, &FilterBar::focusViewRequest, this, &DolphinViewContainer::requestFocus);
 
@@ -246,6 +247,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent, Dol
     // Update the view with the current state of the filter bar (from the state config)
     m_view->setFilterMode(m_filterBar->filterMode());
     m_view->setFilterCaseSensitive(m_filterBar->isCaseSensitive());
+    m_view->setFilterScope(m_filterBar->filterScope()); // Whale: FB2
 }
 
 DolphinViewContainer::~DolphinViewContainer() = default;
@@ -977,6 +979,12 @@ void DolphinViewContainer::setFilterMode(const KFileItemModelFilter::FilterMode 
 void DolphinViewContainer::setFilterCaseSensitive(const bool caseSensitive)
 {
     m_view->setFilterCaseSensitive(caseSensitive);
+    delayedStatusBarUpdate();
+}
+
+void DolphinViewContainer::setFilterScope(KFileItemModelFilter::Scope scope)
+{
+    m_view->setFilterScope(scope);
     delayedStatusBarUpdate();
 }
 

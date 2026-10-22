@@ -41,6 +41,13 @@ public:
     KFileItemModelFilter::FilterMode filterMode() const;
     bool isCaseSensitive() const;
 
+    /**
+     * Whale: FB2, the items the filter applies to (files by default, so folders stay shown).
+     * The last choice is remembered for new filter bars.
+     */
+    KFileItemModelFilter::Scope filterScope() const;
+    void setFilterScope(KFileItemModelFilter::Scope scope);
+
 public Q_SLOTS:
     /** Clears the input field. */
     void clear();
@@ -66,6 +73,9 @@ Q_SIGNALS:
      */
     void filterModeChanged(KFileItemModelFilter::FilterMode mode);
 
+    /** Whale: FB2, emitted when the items the filter applies to have been changed. */
+    void filterScopeChanged(KFileItemModelFilter::Scope scope);
+
     /**
      * Emitted as soon as the filterbar should get closed.
      */
@@ -88,10 +98,15 @@ private:
     QToolButton *m_lockButton;
     QToolButton *m_caseSensitiveButton;
     QComboBox *m_filterModeComboBox;
+    QToolButton *m_scopeButton; // Whale: FB2
+    KFileItemModelFilter::Scope m_scope = KFileItemModelFilter::Scope::Files; // Whale: FB2
     QAction *m_invalidPatternAction;
 
     /** Enable or disable the alterative view for when a pattern is invalid */
     void updateInvalidPatternView();
+
+    /** Whale: FB2, shows the current scope on its button and in its menu. */
+    void updateScopeButton();
 };
 
 #endif

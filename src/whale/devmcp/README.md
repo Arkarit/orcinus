@@ -116,7 +116,7 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
     "current": "file:///…/c.txt", "currentName": "c.txt",
     "pluginSelection": ["a.txt"], "pluginCurrent": "c.txt", "statusText": "1 file selected (300 B)",
     "hiddenFiles": false, "sort": {"field": "name", "order": "ascending", "foldersFirst": true},
-    "filter": {"text": "", "barVisible": false},
+    "filter": {"text": "", "barVisible": false, "scope": "files"},
     "focusProxy": "plugin-widget", "hiddenDolphinViewHasFocus": false
   }],
   "focus": {"role": "plugin:whale_testlist", "pane": 0, "activePane": 0, "widgetClass": "QListView",
@@ -132,6 +132,8 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   lock, `buttonX`/`buttonY` its center in main window coordinates for real input) and per pane `lockable`, `reason`, `selectionLimited` (the selection rule A1 is on).
   The messages of the lock float above the view (`panes.N.transientMessage`, while shown also
   in `message`).
+- `panes.N.filter.scope` (FB2): what the filter applies to: `files` (folders stay shown, the
+  default), `folders` (files stay shown) or `files-and-folders` (Dolphin's behavior).
 - `styles` (ST3): `list` of the styles in their order (`id`, `name`, `shortcut` as stored,
   `action` and `actionShortcut` of the window's action, `elements` with `enabled`, `known` and
   the `description` of each value) and `menu`, the entries of View > Styles (object names, `-`

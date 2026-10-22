@@ -226,6 +226,10 @@ public:
     void setFilterCaseSensitive(bool caseSensitive);
     bool isFilterCaseSensitive() const;
 
+    /** Whale: FB2, the items the name filter applies to (KFileItemModelFilter::setScope()). */
+    void setFilterScope(KFileItemModelFilter::Scope scope);
+    KFileItemModelFilter::Scope filterScope() const;
+
     void setExcludeMimeTypeFilter(const QStringList &filters);
     QStringList excludeMimeTypeFilter() const;
 

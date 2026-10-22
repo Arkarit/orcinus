@@ -60,6 +60,20 @@ public:
     void setCaseSensitive(bool caseSensitive);
     bool isCaseSensitive() const;
 
+    /** Whale: FB2, the items the pattern applies to; the others always match it. */
+    enum class Scope {
+        Files,
+        Folders,
+        FilesAndFolders, // Dolphin's behavior, the default
+    };
+
+    /**
+     * Whale: FB2, sets the items the pattern applies to, e.g. files only, so that all folders stay
+     * shown. The mimetype filters are not affected.
+     */
+    void setScope(Scope scope);
+    Scope scope() const;
+
     /**
      * Set the list of mimetypes that are used for comparison with the
      * item in KFileItemModelFilter::matchesMimeType.
@@ -103,6 +117,7 @@ private:
 
     FilterMode m_filterMode; // The current filtering mode.
     bool m_caseSensitive; // If true the matching will be case sensitive.
+    Scope m_scope = Scope::FilesAndFolders; // Whale: FB2
 
     QRegularExpression *m_regExp;
     QString m_lowerCasePattern; // Lowercase version of m_filter for

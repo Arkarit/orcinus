@@ -771,6 +771,16 @@ bool DolphinView::isFilterCaseSensitive() const
     return m_model->isFilterCaseSensitive();
 }
 
+void DolphinView::setFilterScope(KFileItemModelFilter::Scope scope)
+{
+    m_model->setFilterScope(scope);
+}
+
+KFileItemModelFilter::Scope DolphinView::filterScope() const
+{
+    return m_model->filterScope();
+}
+
 void DolphinView::requestStatusBarText()
 {
     if (m_statJobForStatusBarText) {

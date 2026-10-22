@@ -57,6 +57,16 @@ bool KFileItemModelFilter::isCaseSensitive() const
     return m_caseSensitive;
 }
 
+void KFileItemModelFilter::setScope(Scope scope)
+{
+    m_scope = scope;
+}
+
+KFileItemModelFilter::Scope KFileItemModelFilter::scope() const
+{
+    return m_scope;
+}
+
 QString KFileItemModelFilter::pattern() const
 {
     return m_pattern;
@@ -132,6 +142,10 @@ bool KFileItemModelFilter::matches(const KFileItem &item) const
 
 bool KFileItemModelFilter::matchesPattern(const KFileItem &item) const
 {
+    // Whale: FB2, items the pattern does not apply to always match it.
+    if ((m_scope == Scope::Files && item.isDir()) || (m_scope == Scope::Folders && !item.isDir())) {
+        return true;
+    }
     if (m_filterMode == Glob || m_filterMode == Regex) {
         return m_regExp->isValid() && m_regExp->match(item.text()).hasMatch();
     } else if (m_caseSensitive) {
