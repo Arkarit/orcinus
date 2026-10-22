@@ -82,6 +82,11 @@ StatusAndLocationBarsSettingsPage::StatusAndLocationBarsSettingsPage(QWidget *pa
     connect(m_statusBarButtonGroup, &QButtonGroup::idClicked, this, &StatusAndLocationBarsSettingsPage::changed);
     connect(m_statusBarButtonGroup, &QButtonGroup::idClicked, this, &StatusAndLocationBarsSettingsPage::onShowStatusBarToggled);
     connect(m_showZoomSlider, &QCheckBox::toggled, this, &StatusAndLocationBarsSettingsPage::changed);
+    // Whale: ST4, a style applied while the dialog is open sets the status bar; OK must keep it.
+    connect(GeneralSettings::self(), &GeneralSettings::showStatusBarChanged, this, [this]() {
+        m_statusBarButtonGroup->button(GeneralSettings::showStatusBar())->setChecked(true);
+        onShowStatusBarToggled();
+    });
 }
 
 StatusAndLocationBarsSettingsPage::~StatusAndLocationBarsSettingsPage() = default;

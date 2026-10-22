@@ -33,6 +33,10 @@
 #include "whalerecursivecontent.h"
 #include "whalesplitlock.h"
 #include "whalesplitviewstartup.h"
+#include "whalestyleelement.h"
+#include "whalestyleelements.h"
+#include "whalestylemanager.h"
+#include "whalestyles.h"
 #include "whaletoolbardescriptor.h"
 #include "whaletoolbarsettings.h"
 #include "whaletransientmessage.h"
@@ -48,6 +52,7 @@
 #include "whaleviewservices.h"
 
 #include <KActionCollection>
+#include <KActionMenu>
 #include <KCoreDirLister>
 #include <KIO/Paste>
 #include <KIO/RenameFileDialog>
@@ -760,6 +765,56 @@ QJsonObject WhaleDevAutomation::uiState() const
              {QStringLiteral("instances"), WhaleDevToolbars::instancesState(m_window)},
          }},
         {QStringLiteral("toolbarDialog"), WhaleDevToolbars::dialogState(m_window)},
+        {QStringLiteral("styles"), stylesState()},
+    };
+}
+
+QJsonObject WhaleDevAutomation::stylesState() const
+{
+    QJsonArray styles;
+    const QList<WhaleStyle> all = WhaleStyles::self()->store().styles();
+    for (const WhaleStyle &style : all) {
+        // The enabled elements and what they set, as the settings page will describe them.
+        QJsonObject elements;
+        for (auto it = style.elements.cbegin(); it != style.elements.cend(); ++it) {
+            const WhaleStyleElement *element = WhaleStyleElements::self().element(it.key());
+            elements.insert(it.key(),
+                            QJsonObject{
+                                {QStringLiteral("enabled"), it->enabled},
+                                {QStringLiteral("known"), element != nullptr},
+                                {QStringLiteral("description"), element ? element->describe(it->value) : QString()},
+                            });
+        }
+        const QAction *action = m_window->actionCollection()->action(WhaleStyleManager::actionName(style.id));
+        styles.append(QJsonObject{
+            {QStringLiteral("id"), style.id},
+            {QStringLiteral("name"), style.name},
+            {QStringLiteral("shortcut"), style.shortcut.toString(QKeySequence::PortableText)},
+            {QStringLiteral("action"), action ? action->objectName() : QString()},
+            {QStringLiteral("actionShortcut"), action ? action->shortcut().toString(QKeySequence::PortableText) : QString()},
+            {QStringLiteral("elements"), elements},
+        });
+    }
+    // The menu View > Styles as the user sees it: object names, "-" for a separator.
+    QJsonArray menu;
+    if (auto menuAction = qobject_cast<KActionMenu *>(m_window->actionCollection()->action(WhaleStyleManager::menuActionName()))) {
+        const auto entries = menuAction->menu()->actions();
+        for (const QAction *entry : entries) {
+            menu.append(entry->isSeparator() ? QStringLiteral("-") : entry->objectName());
+        }
+    }
+    // What the window shows now, element by element, as "Save as Style…" would capture it.
+    QJsonObject current;
+    const auto elements = WhaleStyleElements::self().elements();
+    for (const WhaleStyleElement *element : elements) {
+        current.insert(element->key(), element->isAvailable(m_window) ? QJsonValue(element->capture(m_window)) : QJsonValue::Null);
+    }
+    return {
+        {QStringLiteral("list"), styles},
+        {QStringLiteral("menu"), menu},
+        {QStringLiteral("current"), current},
+        // The menu bar itself, which follows its action a moment later.
+        {QStringLiteral("menuBarVisible"), !m_window->menuBar()->isHidden()},
     };
 }
 
@@ -1128,6 +1183,27 @@ QJsonObject WhaleDevAutomation::setSplitLock(bool locked)
     }
     QJsonObject reply = ok();
     reply.insert(QStringLiteral("locked"), lock->isLocked());
+    return reply;
+}
+
+QJsonObject WhaleDevAutomation::applyStyle(const QString &id)
+{
+    QAction *action = m_window->actionCollection()->action(WhaleStyleManager::actionName(id));
+    if (!action) {
+        return failure(QStringLiteral("no style \"%1\" in this window, styles: %2").arg(id, WhaleStyles::self()->store().ids().join(QStringLiteral(", "))));
+    }
+    action->trigger();
+    return ok();
+}
+
+QJsonObject WhaleDevAutomation::saveStyle(const QString &name)
+{
+    const QString id = WhaleStyleManager::ensure(m_window)->saveCurrentAsStyle(name);
+    if (id.isEmpty()) {
+        return failure(QStringLiteral("a style needs a name"));
+    }
+    QJsonObject reply = ok();
+    reply.insert(QStringLiteral("id"), id);
     return reply;
 }
 

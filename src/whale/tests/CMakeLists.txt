@@ -290,3 +290,26 @@ ecm_add_test(whaleselectionlimittest.cpp ../../tests/testdir.cpp
     TEST_NAME whaleselectionlimittest
     LINK_LIBRARIES dolphinprivate Qt6::Test)
 target_include_directories(whaleselectionlimittest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# The model, registry and file of styles (ST1).
+ecm_add_test(whalestylestoretest.cpp
+    TEST_NAME whalestylestoretest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+
+# The element types of styles at a main window (ST2).
+ecm_add_test(whalestyleelementstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalestyleelementstest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalestyleelementstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# Applying, capturing and the actions of styles in main windows (ST3).
+ecm_add_test(whalestylemanagertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalestylemanagertest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalestylemanagertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# The page "Styles" of the settings dialog (ST4).
+ecm_add_test(whalestylessettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalestylessettingspagetest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalestylessettingspagetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

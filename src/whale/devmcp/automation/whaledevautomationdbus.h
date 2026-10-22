@@ -40,6 +40,8 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString SetSplitView(bool enabled);
     Q_SCRIPTABLE QString SetSplitRatio(double leftShare);
     Q_SCRIPTABLE QString SetSplitLock(bool locked);
+    Q_SCRIPTABLE QString ApplyStyle(const QString &id);
+    Q_SCRIPTABLE QString SaveStyle(const QString &name);
     Q_SCRIPTABLE QString SetWindowSize(int width, int height);
     Q_SCRIPTABLE QString SetLocation(int pane, const QString &url);
     Q_SCRIPTABLE QString SetFilterText(int pane, const QString &text);

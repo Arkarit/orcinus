@@ -38,13 +38,13 @@ class McpClient:
         self.process.stdin.write(json.dumps({"jsonrpc": "2.0", "method": method}) + "\n")
         self.process.stdin.flush()
 
-    def tool(self, name, **arguments):
+    def tool(self, name, /, **arguments):  # a tool may have an argument "name"
         result = self.request("tools/call", {"name": name, "arguments": arguments})
         if result["isError"]:
             raise Failure(f"{name}{arguments}: {result['content'][0]['text']}")
         return result["content"]
 
-    def tool_error(self, name, **arguments):
+    def tool_error(self, name, /, **arguments):
         result = self.request("tools/call", {"name": name, "arguments": arguments})
         return result["content"][0]["text"] if result["isError"] else None
 

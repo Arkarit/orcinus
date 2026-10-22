@@ -77,6 +77,16 @@ QString WhaleDevAutomationDBus::SetSplitLock(bool locked)
     return toJson(m_automation->setSplitLock(locked));
 }
 
+QString WhaleDevAutomationDBus::ApplyStyle(const QString &id)
+{
+    return toJson(m_automation->applyStyle(id));
+}
+
+QString WhaleDevAutomationDBus::SaveStyle(const QString &name)
+{
+    return toJson(m_automation->saveStyle(name));
+}
+
 QString WhaleDevAutomationDBus::SetSplitRatio(double leftShare)
 {
     return toJson(m_automation->setSplitRatio(leftShare));

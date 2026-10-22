@@ -151,6 +151,32 @@ viel ändert; der Plan ist ein Startpunkt.
 | F5 | Zurück aus „Schlicht“ ohne sichtbare Bedienelemente | Kürzel. Dazu bleibt der Weg zurück zu versteckten Toolbars ohne Menüleiste (Multi-Toolbar-Feature). Prüfen, dass er auch erreichbar ist, wenn Menüleiste **und** alle Toolbars aus sind. |
 | F6 | Zoom ist global pro Modus | v1 setzt den globalen Zoom des Modus. Das wirkt auf alle Views dieses Modus; für Schlicht/Bilder passt das. Zoom pro View kommt später. |
 
+## F2-Versuch (2026-10-22)
+
+Kleines Testprogramm gegen KXmlGui 6.24 (offscreen, eigene XDG-Verzeichnisse), drei Aktionen in
+der `actionCollection()` des Fensters: eine vor `setupGUI()` erzeugt, zwei danach (eine davon mit
+`KActionCollection::setDefaultShortcut()`).
+
+- **Anzeige:** Alle drei stehen in „Configure Shortcuts“ (`KShortcutsEditor` liest die Sammlung
+  beim Öffnen).
+- **Speichern:** `KShortcutsEditor::save()` schreibt alle drei als `<ActionProperties>` in die
+  lokale `ui.rc` des Fensters.
+- **Neustart:** KXmlGui wendet die gespeicherten Kürzel nur auf Aktionen an, die es bei
+  `setupGUI()` schon gibt. Die später erzeugten Aktionen bekommen nichts.
+- **„Standard“:** `allDefault()` setzt Aktionen ohne Standardkürzel auf leer, die anderen auf ihr
+  Standardkürzel.
+- **Signale:** `QAction::changed` kommt bei jeder Änderung. Dolphin öffnet den Dialog selbst
+  (`DolphinMainWindow::slotKeyBindings()`), deshalb kommt `KXMLGUIFactory::shortcutsSaved` nicht;
+  der Haken ist `KShortcutsDialog::saved`.
+- **Vorbild upstream:** `ServiceMenuShortcutManager` (Kürzel für Service-Menüs) lässt KXmlGui
+  speichern und räumt veraltete `ActionProperties` selbst auf.
+
+Folgerung für ST3: **`whalestylesrc` ist die einzige Quelle.** Die Aktionen `whale_style_<id>`
+entstehen nach `setupGUI()` und bekommen das Kürzel des Styles (ohne Standardkürzel). In
+`slotKeyBindings()` hängt ein Haken an `KShortcutsDialog::saved`, der die Kürzel der
+Style-Aktionen in die Styles zurückschreibt. Einträge `whale_style_*` in den `ActionProperties`
+werden entfernt, wie es `ServiceMenuShortcutManager::cleanupStaleShortcuts()` macht.
+
 ## Risiken
 
 - **Fensterzustand:** Toolbars und Docks gehören teils KXmlGui (`saveState`/`restoreState`,
@@ -161,3 +187,59 @@ viel ändert; der Plan ist ein Startpunkt.
   (Menü, Einstellungsdialog `addPage`, Erzeugen des Managers im Fenster).
 - **Versionen:** Das Format ist versioniert. Unbekannte Elemente bleiben erhalten, damit ältere
   und neuere Whale-Versionen dieselbe Datei teilen können.
+
+## Stand
+
+- **ST1** (2026-10-22, `6975e8901`): `WhaleStyle`, `WhaleStyleElement`, `WhaleStyleElements`,
+  `WhaleStyleStore`; `whalestylestoretest`.
+- **ST2** (2026-10-22): die neun Element-Typen in `whalestyleelementtypes.cpp`, registriert in der
+  Reihenfolge der Tabelle; `whalestyleelementstest` (pro Element und ein Gesamttest „Bilder“ →
+  alles verändern → anwenden → wie vorher). Keine Änderung an Dolphin-Dateien. Abweichungen und
+  Befunde:
+  - `viewStyle.*` schreibt beim Anwenden direkt den Satz der Rolle (`ViewProperties(QUrl(), role)`)
+    und gibt den Stil der View der Position im aktuellen Tab (`setOwnStyleData()`). So wirkt
+    `viewStyle.right` auch ohne Split: Der nächste Split startet damit. Erfasst wird ohne rechte
+    View der gespeicherte Satz der rechten Position. Der Wert lässt `Timestamp` weg, sonst wäre
+    jeder Wert anders.
+  - `zoom` speichert pro Modus zwei Größen: ohne und mit Vorschaubildern
+    (`ViewModeSettings::iconSize()`/`previewSize()`).
+  - `menuBar`: Dolphin verbindet die Aktion mit `Qt::QueuedConnection` (Bug 286822). Erfasst wird
+    der Haken der Aktion, die Menüleiste folgt im nächsten Durchlauf der Ereignisschleife.
+  - `toolBars`: nicht `KMainWindow::toolBar(name)`, das eine fehlende Leiste anlegen würde.
+  - `zoom` und `statusBar` rufen je `DolphinMainWindow::refreshViews()` (private Slot, per
+    `invokeMethod`) wie der Einstellungsdialog. Beim Anwenden eines ganzen Styles kann das zweimal
+    passieren; ggf. in ST3 bündeln.
+  - Den Tab-Widget-Zugriff gibt es nicht öffentlich: `findChild<DolphinTabWidget *>("tabWidget")`,
+    wie in den Tests.
+- **ST3** (2026-10-22): `WhaleStyles` (gemeinsamer Speicher des Prozesses, speichert sofort,
+  Signal `changed()`), `WhaleStyleManager` pro Fenster. Menü „Ansicht → Styles“ (`whale_styles`,
+  im `ui.rc` Version 54, Telefon-`rc` Version 11) mit den Styles und „Save as Style…“
+  (`whale_save_style`, Name per Dialog; gleicher Name ohne Groß/Klein: Rückfrage „Ersetzen“, dann
+  neu erfasst mit gleicher ID, Kürzel und Haken). Aktionen `whale_style_<id>` nach `setupGUI()`,
+  Kategorie „Styles“ in „Configure Shortcuts“; nach dem Dialog schreibt `takeShortcuts()` die
+  Kürzel zurück und entfernt `whale_style_*` aus den `ActionProperties`. „Styles“ auch im
+  Hamburger-Menü und im Kontextmenü des View-Hintergrunds, solange die File View Toolbars
+  versteckt sind (F5: der Weg zurück aus „Schlicht“, dazu Strg+M und die Kürzel).
+  „Save as Style“ erfasst alle im Fenster verfügbaren Elemente mit Haken.
+  Dev MCP: `styles` im Zustand (`list`, `menu`, `current` = erfasste Werte, `menuBarVisible`),
+  Werkzeuge `apply_style` (über die Aktion) und `save_style`; kein `get_styles` (steht im
+  Zustand). `McpClient.tool()` nimmt den Werkzeugnamen jetzt nur positionell (Argument `name`).
+  Tests: `whalestylemanagertest` (9), `test_st_acceptance.py` (A–G: Schlicht/Bilder hin und her,
+  Hintergrundmenü, neu speichern, „Zwei“ mit Split, Neustart). Nicht automatisch geprüft: der
+  echte Dialog „Configure Shortcuts“ (simuliert über `writeSettings()` + `takeShortcuts()`) und
+  ein Test auf dem echten Wayland-Desktop.
+- **ST4** (2026-10-22): `WhaleStylesSettingsPage`, Seite „Styles“ zwischen „View“ und „Context
+  Menu“. Links die Liste (Ziehen oder Knöpfe zum Umordnen, „New from Window“ mit Namen
+  „New Style“/„New Style 2“ zum sofortigen Umbenennen, „Delete“), rechts Name, Kürzel
+  (`KKeySequenceWidget`; belegt durch einen anderen Style oder eine Aktion des Fensters →
+  Meldung, abgelehnt), Elemente mit Haken und Beschreibung (nicht erfasst: ausgegraut; im
+  Ordnermodus nicht verfügbar: ausgegraut mit Hinweis, F1; aus neuerer Version: am Ende,
+  ausgegraut), „Capture Again“ (Haken bleiben), „Apply to Window“ (sofort, auch ungespeichert).
+  Bearbeitet wird eine Kopie, gespeichert mit Anwenden/OK (`WhaleStyleStore::replaceStyles()`).
+  „Restore Defaults“ lässt die Styles in Ruhe. Haken in Dolphin-Dateien:
+  `DolphinSettingsDialog` (Seite) und `StatusAndLocationBarsSettingsPage`: folgt
+  `showStatusBarChanged`, sonst setzte OK nach „Apply to Window“ die alte Statusleiste wieder
+  (Test schlägt ohne den Haken fehl). Zoom ist davon nicht betroffen (die View-Seite schreibt
+  keine Icongrößen). Bekannt: Speichert ein anderes Fenster einen Style, während der Dialog offen
+  ist, überschreibt OK diese Änderung. Test `whalestylessettingspagetest` (11) am echten Dialog;
+  Aussehen offscreen per Screenshot geprüft.

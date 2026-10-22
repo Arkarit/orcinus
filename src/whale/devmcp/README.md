@@ -62,6 +62,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `activate_pane` | Make a pane the active view area |
 | `set_split_view` | Open/close split view (setter); closing closes the active side, like the Close button |
 | `set_split_lock` | LK6: link/unlink the views of the split view (setter) through the lock button; fails while it is hidden or disabled |
+| `apply_style` / `save_style` | ST3: apply a style by `id` through its action (as its menu entry or shortcut); save the window's state as a style by `name` (as "Save as Style…", an existing name is captured again); `styles` in the state |
 | `set_split_ratio` | Move the handle between the halves (`left_share` 0.1–0.9), as dragging it does |
 | `set_window_size` | Resize the main window (`window.width`/`height` in the state) |
 | `set_location` | Navigate a pane through the location bar |
@@ -131,6 +132,12 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   lock, `buttonX`/`buttonY` its center in main window coordinates for real input) and per pane `lockable`, `reason`, `selectionLimited` (the selection rule A1 is on).
   The messages of the lock float above the view (`panes.N.transientMessage`, while shown also
   in `message`).
+- `styles` (ST3): `list` of the styles in their order (`id`, `name`, `shortcut` as stored,
+  `action` and `actionShortcut` of the window's action, `elements` with `enabled`, `known` and
+  the `description` of each value) and `menu`, the entries of View > Styles (object names, `-`
+  for a separator), `current`: the value of each element in the window now (as captured, `null`
+  where not available), and `menuBarVisible`, the menu bar itself (it follows its action a
+  moment later).
 - `panes.N.panelRole` (PI): the position whose global view properties the view reads and
   writes (`left`/`right`). It follows `side`; a view that moves (the left view closes) takes its
   style along.
