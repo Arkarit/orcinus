@@ -143,6 +143,17 @@ Erster Befund, noch nicht analysiert:
   Netzwerk-Ordnern, und ob Alt+Klick mit dem Fenster-Verschieben des Fenstermanagers kollidiert
   (KWin nutzt dafür standardmäßig Meta, andere Umgebungen teils Alt).
 
+**Umgesetzt 2026-10-19** als CX2 der Compact Expansion (b459268eb Code, 4d41393b7 Test
+`whalecompactexpansiontest`, Plan `whale-compact-expansion-plan.md`): Alt+Linksklick auf den Pfeil
+(nur auf den Pfeil) und die Taste `*` rufen `KItemModelBase::setExpandedRecursively()`. Das gilt
+überall, wo `KItemListController` aufklappbare Einträge hat: Details, Kompakt und Ordner-Panel.
+`KFileItemModel` klappt nachgeladene Unterordner in `slotCompleted()` Ebene für Ebene weiter auf
+(`continueRecursiveExpansion()`), ohne Links auf Ordner zu folgen. Grenze: 10 000 hinzugekommene
+Elemente (`setRecursiveExpansionLimit()`), danach Stopp und eine Info-Meldung in `DolphinView`
+(im Ordner-Panel stoppt es ohne Meldung). Rekursives Zuklappen beendet laufende Aufklappungen und
+vergisst die gemerkten aufgeklappten Kinder. Offen laut Plan: Abnahme unter Wayland mit echter
+Eingabe (auch ob Alt+Klick mit dem Fenstermanager kollidiert).
+
 ## 9. Modus, der Symlinks auf Ordner stets auflöst
 
 Öffnet man einen Symlink auf einen Ordner, zeigt Whale wie Dolphin den Pfad über den Symlink an
