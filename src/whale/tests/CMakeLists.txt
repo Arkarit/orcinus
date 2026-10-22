@@ -319,3 +319,8 @@ ecm_add_test(whalefilterbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/
     TEST_NAME whalefilterbartest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whalefilterbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+ecm_add_test(whalemenubartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalemenubartest
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
+target_include_directories(whalemenubartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)

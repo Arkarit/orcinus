@@ -71,3 +71,11 @@ schaltet das Element automatisch auf ein Burger-Menü um.
 - Abnahme offscreen: Element hinzufügen, Fenster verkleinern/vergrößern, Screenshots prüfen.
 
 Reihenfolge: TM1 → TM2 → TM3, je ein Commit direkt auf `master`.
+
+## Stand
+
+- **TM1** (2026-10-22): `WhaleMenuBarAction` (`src/whale/menubar/`, `whale_menu_bar`, „Menu Bar“,
+  Icon `application-menu`), angelegt vor `setupGUI()`. Widget `WhaleToolBarMenu` mit eigener
+  `QMenuBar` (nicht nativ), dieselben Menü-Aktionen, nachgeführt über Event-Filter
+  (gebündelt). Breite fest (`QSizePolicy::Fixed`). Alt+Buchstabe öffnet das Menü auch, wenn beide
+  Leisten sichtbar sind (offscreen geprüft). Test `whalemenubartest`.

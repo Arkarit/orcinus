@@ -41,6 +41,7 @@
 #include "views/viewproperties.h"
 #include "whalecommandrouter.h"
 #include "whalefocusorder.h"
+#include "whalemenubaraction.h"
 #include "whalesplitviewstartup.h"
 #include "whalestylemanager.h"
 #include "whaletoolbarconfigurator.h"
@@ -259,6 +260,7 @@ DolphinMainWindow::DolphinMainWindow()
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
     WhaleToolbarManager::ensure(this)->setupActions(this); // Whale: Show File View Toolbars
     WhaleStyleManager::ensure(this)->setupActions(); // Whale: ST3, the Styles menu
+    actionCollection()->addAction(WhaleMenuBarAction::actionName(), new WhaleMenuBarAction(menuBar(), this)); // Whale: TM1
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
     WhaleStyleManager::ensure(this)->plugStyles(); // Whale: ST3, after setupGUI() (see there)
