@@ -196,6 +196,27 @@ if(WHALE_INSTALL_DOLPHIN_EXTRAS)
 endif()
 add_subdirectory(appiumtests)
 
+# Whale: the tests under src/ run on the offscreen Qt platform, so a plain ctest never opens
+# windows on the developer's desktop. Not the Appium tests, which need a real session.
+option(WHALE_TESTS_OFFSCREEN "Run the tests under src/ on the offscreen Qt platform" ON)
+function(whale_tests_offscreen directory)
+    get_property(tests DIRECTORY ${directory} PROPERTY TESTS)
+    foreach(test IN LISTS tests)
+        set_property(TEST ${test} DIRECTORY ${directory} APPEND PROPERTY ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endforeach()
+    get_property(subdirectories DIRECTORY ${directory} PROPERTY SUBDIRECTORIES)
+    foreach(subdirectory IN LISTS subdirectories)
+        whale_tests_offscreen(${subdirectory})
+    endforeach()
+endfunction()
+if(BUILD_TESTING AND WHALE_TESTS_OFFSCREEN)
+    if(CMAKE_VERSION VERSION_LESS 3.28)
+        message(WARNING "CMake 3.28 or newer is needed to run the tests offscreen; set QT_QPA_PLATFORM=offscreen yourself")
+    else()
+        whale_tests_offscreen(${CMAKE_CURRENT_SOURCE_DIR}/src)
+    endif()
+endif()
+
 # CMake files
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/DolphinVcs")
 
