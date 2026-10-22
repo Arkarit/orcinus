@@ -297,3 +297,48 @@ Jede Phase besteht aus Code, Tests und Plan-Eintrag.
   nicht verschiebt, die Lage unten im Bereich und die Mausdurchlässigkeit. Im Wayland-Test fällt
   die Wartezeit vor R4 weg.
 
+
+## LK7: Befunde aus dem Alltag (2026-10-22, Plan)
+
+Drei Befunde des Benutzers nach dem ersten Einsatz.
+
+**B1: Aufklappen in der anderen View taugt nicht.** Mit dem Lock klappt die inaktive View für
+eine Auswahl in einem Unterordner diesen Zweig auf (LK4, `DolphinView::applyLinkedSelection()`,
+`expandParentDirectories()`). In echten Ordnern öffnen sich so riesige Bäume, und besuchte Zweige
+klappen nie wieder zu.
+
+**B2: Icons links, Kissen rechts, von rechts nach links „geht gar nicht“.** Offscreen
+nachgestellt: Ein Klick in die Treemap trifft immer den tiefsten Eintrag (ein Ordner ist von seinen
+Einträgen bedeckt), die Auswahl liegt also fast immer in einem Unterordner. Icons kann nicht
+aufklappen und macht nur den obersten Ordner zum aktuellen Element (LK4-Rückfall), ohne Auswahl;
+in Icons kaum sichtbar. Vom Benutzer bestätigt. Liegt der Eintrag direkt im Ordner, funktioniert
+es.
+
+**B3: Der Lock soll Teil eines Styles sein.**
+
+### Entscheidungen
+
+- **E6 (ersetzt das Aufklappen aus LK4):** Der Ordner des aktuellen Elements der aktiven View (wie
+  A7) bestimmt die andere View. Kann die andere View den Eintrag **an Ort und Stelle** zeigen
+  (Treemap unter ihrem Ort, ein vom Benutzer selbst aufgeklappter Zweig in Details/Kompakt),
+  wählt sie ihn dort aus, ohne zu wechseln. Sonst **wechselt sie in den Ordner des Eintrags** und
+  wählt ihn dort aus. Kehrt die Auswahl zurück (z. B. auf einen Eintrag direkt am Ort der aktiven
+  View), wechselt sie wieder zurück. Von sich aus klappt sie nie mehr etwas auf. Der Wechsel
+  nimmt die aktive View nicht mit (heute folgt jede View jedem `urlChanged` der anderen: Sperre
+  nötig). E1 gilt weiter für die Navigation der aktiven View.
+- **E7:** Solche durch die Auswahl ausgelösten Wechsel erzeugen **keinen Verlaufseintrag**; der
+  Verlauf einer View enthält nur ihre eigene Navigation (Weg wie bei „Symlinks folgen“:
+  `goBack()` mit blockierten Signalen, dann neuer Ort; vorher prüfen, ob es sauberer geht).
+- **E8:** Neues Style-Element `splitLock` (an/aus), nach `viewStyle.left/right` (die Lockbarkeit
+  hängt von der gezeigten View ab), nur bei `split = true` wirksam. Ältere Styles ohne das
+  Element lassen den Lock unverändert. Ist eine Seite nicht lockbar, bleibt er aus (mit der
+  üblichen Meldung). Gilt **nur für den aktuellen Tab**, nicht für neue Tabs/Fenster (wie E4).
+
+### Schritte
+
+- **LK7a:** E6 + E7 in `WhaleSplitLock` / `DolphinView::applyLinkedSelection()`; Aufklappcode
+  (`m_linkedExpansions`) und Icons-Rückfall entfernen. Tests anpassen (`whalesplitlocktest`,
+  `test_lk_acceptance.py` Schritt E), neue Fälle: Icons folgt in den Unterordner und zurück, Treemap
+  bleibt an Ort und Stelle, aufgeklappter Zweig rechts bleibt, aktive View bleibt stehen,
+  Verlauf der anderen View unverändert.
+- **LK7b:** E8 (`WhaleStyleElementTypes`, `whalestyleelementstest`, Dev-MCP-Abnahme).
