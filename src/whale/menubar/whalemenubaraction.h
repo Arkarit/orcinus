@@ -98,6 +98,7 @@ private:
     QToolButton *m_burgerButton;
     QMenu *m_burgerMenu;
     bool m_burger = false;
+    int m_fullWidth = -1;
     bool m_syncScheduled = false;
     bool m_updateScheduled = false;
 

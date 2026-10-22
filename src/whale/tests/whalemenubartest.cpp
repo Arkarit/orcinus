@@ -52,6 +52,8 @@ private Q_SLOTS:
     void testBurgerWhenVertical();
     void testHamburgerLeftOut();
     void testHamburgerLeftOutAfterShowMenubar();
+    void testNoChangesOnHover();
+    void testMnemonicsOnlyElement();
 
 private:
     /** Shows the window with the element in the main toolbar; @return its widget. */
@@ -370,6 +372,61 @@ void WhaleMenuBarTest::testHamburgerLeftOutAfterShowMenubar()
     QVERIFY(hamburger);
     QTest::qWait(50);
     QCOMPARE(hamburger->width(), 0);
+}
+
+namespace
+{
+class EventCounter : public QObject
+{
+public:
+    QMap<int, int> counts;
+    bool eventFilter(QObject *, QEvent *event) override
+    {
+        counts[event->type()]++;
+        return false;
+    }
+};
+}
+
+void WhaleMenuBarTest::testNoChangesOnHover()
+{
+    WhaleToolBarMenu *element = showWithElement();
+    QVERIFY(element);
+    QAction *showMenuBar = m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::ShowMenubar));
+    showMenuBar->trigger();
+    QTRY_VERIFY(m_mainWindow->menuBar()->isVisible());
+    QTest::qWait(100);
+
+    // Both menu bars show the same actions: hovering must not change them (it flickered when
+    // KAcceleratorManager gave both the same title different accelerators, again and again).
+    EventCounter source, toolBar;
+    m_mainWindow->menuBar()->installEventFilter(&source);
+    m_mainWindow->toolBar()->installEventFilter(&toolBar);
+    for (QMenuBar *bar : {element->menuBar(), m_mainWindow->menuBar()}) {
+        const auto actions = bar->actions();
+        for (QAction *action : actions) {
+            if (!action->isSeparator()) {
+                QTest::mouseMove(bar, bar->actionGeometry(action).center());
+                QTest::qWait(20);
+            }
+        }
+    }
+    QTest::qWait(50);
+    QCOMPARE(source.counts.value(QEvent::ActionChanged), 0);
+    QCOMPARE(toolBar.counts.value(QEvent::LayoutRequest), 0);
+}
+
+void WhaleMenuBarTest::testMnemonicsOnlyElement()
+{
+    WhaleToolBarMenu *element = showWithElement();
+    QVERIFY(element);
+    QVERIFY(!m_mainWindow->menuBar()->isVisible());
+    QMenu *fileMenu = element->menuBar()->actions().constFirst()->menu();
+    QVERIFY(fileMenu);
+    m_mainWindow->QWidget::activateWindow();
+    QTest::keyClick(m_mainWindow.data(), Qt::Key_F, Qt::AltModifier);
+    QTRY_VERIFY(fileMenu->isVisible());
+    fileMenu->close();
 }
 
 QTEST_MAIN(WhaleMenuBarTest)

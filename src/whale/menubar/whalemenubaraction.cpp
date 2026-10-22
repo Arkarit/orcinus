@@ -6,6 +6,7 @@
 
 #include "whalemenubaraction.h"
 
+#include <KAcceleratorManager>
 #include <KHamburgerMenu>
 #include <KLocalizedString>
 
@@ -63,6 +64,10 @@ WhaleToolBarMenu::WhaleToolBarMenu(QMenuBar *source, QWidget *parent)
     // In the window, never exported as Plasma's global menu: the window's menu bar may be.
     m_menuBar->setNativeMenuBar(false);
     m_menuBar->setObjectName(QStringLiteral("whaleToolBarMenuBar"));
+    // The titles are the window's menu actions. KMainWindow's KAcceleratorManager would give
+    // the same title in both menu bars different accelerators, changing the shared actions
+    // back and forth on every hover: both menu bars flickered.
+    KAcceleratorManager::setNoAccel(m_menuBar);
 
     m_burgerButton->setObjectName(QStringLiteral("whaleToolBarMenuButton"));
     m_burgerButton->setIcon(QIcon::fromTheme(QStringLiteral("application-menu")));
@@ -165,10 +170,15 @@ void WhaleToolBarMenu::sync()
         }
         m_menuBar->addActions(wanted);
     }
-    // The titles may have changed (ActionChanged), and with them the width.
-    m_menuBar->adjustSize();
-    updateGeometry();
-    scheduleUpdateMode();
+    // The titles may have changed (ActionChanged), and with them the width. Only then the
+    // toolbar has to lay out again.
+    const int fullWidth = m_menuBar->sizeHint().width();
+    if (fullWidth != m_fullWidth) {
+        m_fullWidth = fullWidth;
+        m_menuBar->adjustSize();
+        updateGeometry();
+        scheduleUpdateMode();
+    }
 }
 
 void WhaleToolBarMenu::scheduleUpdateMode()

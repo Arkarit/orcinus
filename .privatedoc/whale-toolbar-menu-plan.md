@@ -102,3 +102,10 @@ Reihenfolge: TM1 → TM2 → TM3, je ein Commit direkt auf `master`.
      erneut.
 - **Befund (nicht TM):** Nach „Werkzeugleisten einrichten → OK“ ist die klassische Menüleiste
   sichtbar, auch beim Einfügen von `go_home` (offscreen beobachtet). Noch nicht untersucht.
+- **Flackern** (2026-10-22, Befund des Benutzers): Mit beiden Menüleisten sichtbar flackerten
+  beide beim Überfahren der Titel. Ursache: Der `KAcceleratorManager` des Fensters gab demselben
+  Titel in beiden Leisten verschiedene Kürzel („&File“/„F&ile“) und schrieb sie abwechselnd in
+  die gemeinsamen Aktionen (90 `ActionChanged` bei 14 Titeln, 36 Layouts der Leiste). Jetzt
+  `KAcceleratorManager::setNoAccel()` auf der eingebetteten Leiste; Neu-Layout der Leiste nur
+  noch bei geänderter Breite. Tests `testNoChangesOnHover` (ohne Korrektur rot),
+  `testMnemonicsOnlyElement` (Alt+F über das Element allein).
