@@ -94,6 +94,14 @@ FilterBar::FilterBar(QWidget *parent)
     int filterModeComboBoxIndex = filterBarConfig.readEntry("filterMode", m_filterModeComboBox->findData(KFileItemModelFilter::FilterMode::Glob));
     m_caseSensitiveButton->setChecked(caseSensitiveEnabled);
     m_filterModeComboBox->setCurrentIndex(filterModeComboBoxIndex);
+
+    // Whale: FB1, the filter is kept when changing folders unless the user chose otherwise. Written
+    // at once, so the filter bars of views opened later start with it.
+    m_lockButton->setChecked(filterBarConfig.readEntry("keepFilter", true));
+    connect(m_lockButton, &QToolButton::toggled, this, [](bool checked) {
+        KConfigGroup config(KSharedConfig::openStateConfig(), QStringLiteral("FilterBar"));
+        config.writeEntry("keepFilter", checked);
+    });
 }
 
 FilterBar::~FilterBar()
@@ -107,9 +115,7 @@ void FilterBar::closeFilterBar()
 {
     setVisible(false, WithAnimation);
     clear();
-    if (m_lockButton) {
-        m_lockButton->setChecked(false);
-    }
+    // Whale: FB1, closing keeps the lock as it is.
 }
 
 void FilterBar::selectAll()

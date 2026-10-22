@@ -313,3 +313,9 @@ ecm_add_test(whalestylessettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOU
     TEST_NAME whalestylessettingspagetest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whalestylessettingspagetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# Whale's changes of the filter bar (FB).
+ecm_add_test(whalefilterbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalefilterbartest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalefilterbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
