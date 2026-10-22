@@ -211,3 +211,20 @@ werden entfernt, wie es `ServiceMenuShortcutManager::cleanupStaleShortcuts()` ma
     passieren; ggf. in ST3 bündeln.
   - Den Tab-Widget-Zugriff gibt es nicht öffentlich: `findChild<DolphinTabWidget *>("tabWidget")`,
     wie in den Tests.
+- **ST3** (2026-10-22): `WhaleStyles` (gemeinsamer Speicher des Prozesses, speichert sofort,
+  Signal `changed()`), `WhaleStyleManager` pro Fenster. Menü „Ansicht → Styles“ (`whale_styles`,
+  im `ui.rc` Version 54, Telefon-`rc` Version 11) mit den Styles und „Save as Style…“
+  (`whale_save_style`, Name per Dialog; gleicher Name ohne Groß/Klein: Rückfrage „Ersetzen“, dann
+  neu erfasst mit gleicher ID, Kürzel und Haken). Aktionen `whale_style_<id>` nach `setupGUI()`,
+  Kategorie „Styles“ in „Configure Shortcuts“; nach dem Dialog schreibt `takeShortcuts()` die
+  Kürzel zurück und entfernt `whale_style_*` aus den `ActionProperties`. „Styles“ auch im
+  Hamburger-Menü und im Kontextmenü des View-Hintergrunds, solange die File View Toolbars
+  versteckt sind (F5: der Weg zurück aus „Schlicht“, dazu Strg+M und die Kürzel).
+  „Save as Style“ erfasst alle im Fenster verfügbaren Elemente mit Haken.
+  Dev MCP: `styles` im Zustand (`list`, `menu`, `current` = erfasste Werte, `menuBarVisible`),
+  Werkzeuge `apply_style` (über die Aktion) und `save_style`; kein `get_styles` (steht im
+  Zustand). `McpClient.tool()` nimmt den Werkzeugnamen jetzt nur positionell (Argument `name`).
+  Tests: `whalestylemanagertest` (9), `test_st_acceptance.py` (A–G: Schlicht/Bilder hin und her,
+  Hintergrundmenü, neu speichern, „Zwei“ mit Split, Neustart). Nicht automatisch geprüft: der
+  echte Dialog „Configure Shortcuts“ (simuliert über `writeSettings()` + `takeShortcuts()`) und
+  ein Test auf dem echten Wayland-Desktop.

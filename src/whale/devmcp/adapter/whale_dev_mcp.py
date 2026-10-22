@@ -134,6 +134,19 @@ TOOLS = [
         "inputSchema": {"type": "object", "properties": {"locked": {"type": "boolean"}}, "required": ["locked"]},
     },
     {
+        "name": "apply_style",
+        "description": "ST3: applies a style (its id, see styles.list of get_ui_state) through its action, "
+        "as its entry in View > Styles or its shortcut does. The menu bar follows a moment later.",
+        "inputSchema": {"type": "object", "properties": {"id": {"type": "string"}}, "required": ["id"]},
+    },
+    {
+        "name": "save_style",
+        "description": "ST3: saves the current state of the window as a style, as View > Styles > Save as Style... "
+        "does without its dialog. A style of the same name (ignoring case) is captured again and keeps its id "
+        "and shortcut. Returns the id.",
+        "inputSchema": {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]},
+    },
+    {
         "name": "set_window_size",
         "description": "Resizes the Whale window as the user does (the compositor may adjust it); "
         "window.width/height in get_ui_state show the result.",
@@ -601,6 +614,10 @@ class Whale:
             return result(iface.SetSplitView(bool(args["enabled"])))
         if tool == "set_split_lock":
             return result(iface.SetSplitLock(bool(args["locked"])))
+        if tool == "apply_style":
+            return result(iface.ApplyStyle(args["id"]))
+        if tool == "save_style":
+            return result(iface.SaveStyle(args["name"]))
         if tool == "set_location":
             return result(iface.SetLocation(pane, args["url"]))
         if tool == "set_filter_text":

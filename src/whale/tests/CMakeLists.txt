@@ -301,3 +301,9 @@ ecm_add_test(whalestyleelementstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_D
     TEST_NAME whalestyleelementstest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whalestyleelementstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# Applying, capturing and the actions of styles in main windows (ST3).
+ecm_add_test(whalestylemanagertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalestylemanagertest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalestylemanagertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

@@ -392,6 +392,10 @@ void DolphinContextMenu::addViewportContextMenu()
     QAction *showFileViewToolBars = m_mainWindow->actionCollection()->action(QStringLiteral("whale_show_file_view_toolbars"));
     if (showFileViewToolBars && !showFileViewToolBars->isChecked()) {
         addAction(showFileViewToolBars);
+        // Whale: ST3, the way to another style from a style without bars (F5).
+        if (QAction *styles = m_mainWindow->actionCollection()->action(QStringLiteral("whale_styles"))) {
+            addAction(styles);
+        }
         addSeparator();
     }
 

@@ -42,6 +42,7 @@
 #include "whalecommandrouter.h"
 #include "whalefocusorder.h"
 #include "whalesplitviewstartup.h"
+#include "whalestylemanager.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaleviewactions.h"
@@ -257,8 +258,10 @@ DolphinMainWindow::DolphinMainWindow()
 
     const bool usePhoneUi{KRuntimePlatform::runtimePlatform().contains(QLatin1String("phone"))};
     WhaleToolbarManager::ensure(this)->setupActions(this); // Whale: Show File View Toolbars
+    WhaleStyleManager::ensure(this)->setupActions(); // Whale: ST3, the Styles menu
     setupGUI(Save | Create | ToolBar, usePhoneUi ? QStringLiteral("dolphinuiforphones.rc") : QStringLiteral("dolphinui.rc"));
     m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
+    WhaleStyleManager::ensure(this)->plugStyles(); // Whale: ST3, after setupGUI() (see there)
     WhaleToolbarConfigurator::install(this, [this]() {
         saveNewToolbarConfig();
     }); // Whale: Configure Toolbars with the File View Toolbar
@@ -1759,6 +1762,7 @@ void DolphinMainWindow::updateHamburgerMenu()
     }
     menu->addAction(ac->action(QStringLiteral("panels")));
     menu->addAction(ac->action(QStringLiteral("whale_show_file_view_toolbars"))); // Whale: TB5
+    menu->addAction(ac->action(WhaleStyleManager::menuActionName())); // Whale: ST3
 
     // The "Configure" menu is not added to the actionCollection() because there is hardly
     // a good reason for users to put it on their toolbar.
@@ -1911,6 +1915,7 @@ void DolphinMainWindow::slotKeyBindings()
         }
     }
     dialog.configure();
+    WhaleStyleManager::ensure(this)->takeShortcuts(); // Whale: ST3, the shortcuts of styles
 }
 
 void DolphinMainWindow::setViewsToHomeIfMountPathOpen(const QString &mountPath)
@@ -3329,6 +3334,7 @@ bool DolphinMainWindow::addHamburgerMenuToToolbar()
     reloadXML();
     createGUI();
     m_whaleViewActions->plugViewModes(this); // Whale: view modes in the View menu
+    WhaleStyleManager::ensure(this)->plugStyles(); // Whale: ST3, after setupGUI() (see there)
     return true;
     // Make sure to also remove the <KXMLGUIFactory> and <QDomDocument> include
     // whenever this method is removed (maybe in the year ~2026).

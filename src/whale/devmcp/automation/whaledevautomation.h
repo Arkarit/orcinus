@@ -68,6 +68,8 @@ public:
     QJsonObject uiState() const;
     /// LK6: the lock of the split view of the current tab.
     QJsonValue splitLockState() const;
+    /// ST3: the styles, their actions and what they set.
+    QJsonObject stylesState() const;
     QJsonObject focusState() const;
 
     /**
@@ -91,6 +93,10 @@ public:
     QJsonObject setSplitRatio(double leftShare);
     /// LK6: links or unlinks the views of the split view through the lock button, as the user does.
     QJsonObject setSplitLock(bool locked);
+    /// ST3: applies a style through its action, as its menu entry or shortcut does.
+    QJsonObject applyStyle(const QString &id);
+    /// ST3: saves the current state of the window as a style (as "Save as Style…" without the dialog).
+    QJsonObject saveStyle(const QString &name);
     /// Resizes the main window, as the user does by dragging its border.
     QJsonObject setWindowSize(int width, int height);
     QJsonObject setLocation(int pane, const QString &url);
