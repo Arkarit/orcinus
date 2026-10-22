@@ -11,6 +11,7 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
+#include "filterbar/filterbar.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "testdir.h"
 #include "testhelpers.h"
@@ -24,6 +25,7 @@
 #include <KLocalizedString>
 #include <KToolBar>
 
+#include <QApplication>
 #include <QDockWidget>
 #include <QMenuBar>
 #include <QStandardPaths>
@@ -55,6 +57,8 @@ private Q_SLOTS:
     void testViewStyleRightWithoutSplit();
     void testViewStyleRightWithSplit();
     void testViewStyleInFolderMode();
+    void testFilterBar();
+    void testFilterBarRight();
     void testZoom();
     void testMenuBar();
     void testToolBars();
@@ -142,6 +146,8 @@ void WhaleStyleElementsTest::testOrder()
              (QStringList{QStringLiteral("split"),
                           QStringLiteral("viewStyle.left"),
                           QStringLiteral("viewStyle.right"),
+                          QStringLiteral("filterBar.left"),
+                          QStringLiteral("filterBar.right"),
                           QStringLiteral("zoom"),
                           QStringLiteral("menuBar"),
                           QStringLiteral("toolBars"),
@@ -269,6 +275,63 @@ void WhaleStyleElementsTest::testViewStyleInFolderMode()
     container->view()->setViewMode(DolphinView::DetailsView);
     style->apply(m_mainWindow.data(), compact);
     QCOMPARE(container->view()->viewMode(), DolphinView::DetailsView);
+}
+
+void WhaleStyleElementsTest::testFilterBar()
+{
+    DolphinViewContainer *container = showMainWindow();
+    QVERIFY(container);
+    FilterBar *bar = container->findChild<FilterBar *>();
+    const WhaleStyleElement *filter = element("filterBar.left");
+    QVERIFY(filter->isAvailable(m_mainWindow.data()));
+
+    // Hidden: no text, whatever was typed before.
+    const QString hidden = filter->capture(m_mainWindow.data());
+    QVERIFY(hidden.startsWith(QLatin1String("visible=false,")));
+    QVERIFY(hidden.endsWith(QLatin1String(",text=")));
+
+    // A regular expression with commas and "=" in it, for files only.
+    const QString media = QStringLiteral("visible=true,lock=true,case=true,mode=Regex,scope=Files,text=\\.(jpg|txt){1,2}$=x,text=");
+    QWidget *focusBefore = QApplication::focusWidget();
+    filter->apply(m_mainWindow.data(), media);
+    QVERIFY(container->isFilterBarVisible());
+    QCOMPARE(bar->text(), QStringLiteral("\\.(jpg|txt){1,2}$=x,text="));
+    QCOMPARE(bar->filterMode(), KFileItemModelFilter::Regex);
+    QVERIFY(bar->isCaseSensitive());
+    QCOMPARE(bar->filterScope(), KFileItemModelFilter::Scope::Files);
+    QCOMPARE(container->view()->nameFilter(), bar->text());
+    // A style leaves the focus where it was.
+    QCOMPARE(QApplication::focusWidget(), focusBefore);
+    QCOMPARE(filter->capture(m_mainWindow.data()), media);
+    QVERIFY(filter->describe(media).contains(bar->text()));
+
+    // Back to hidden: the filter is gone, lock and scope as the style says.
+    filter->apply(m_mainWindow.data(), QStringLiteral("visible=false,lock=false,case=false,mode=Glob,scope=FilesAndFolders,text=ignored"));
+    QVERIFY(!container->isFilterBarVisible());
+    QVERIFY(container->view()->nameFilter().isEmpty());
+    QVERIFY(!bar->isLocked());
+    QCOMPARE(bar->filterScope(), KFileItemModelFilter::Scope::FilesAndFolders);
+    QCOMPARE(filter->capture(m_mainWindow.data()), QStringLiteral("visible=false,lock=false,case=false,mode=Glob,scope=FilesAndFolders,text="));
+
+    // Text it cannot read changes nothing.
+    filter->apply(m_mainWindow.data(), QStringLiteral("visible=maybe,text=x"));
+    filter->apply(m_mainWindow.data(), QStringLiteral("nonsense"));
+    QVERIFY(!container->isFilterBarVisible());
+}
+
+void WhaleStyleElementsTest::testFilterBarRight()
+{
+    QVERIFY(showMainWindow());
+    const WhaleStyleElement *right = element("filterBar.right");
+    // No right view, no filter bar to set.
+    QVERIFY(!right->isAvailable(m_mainWindow.data()));
+    QVERIFY(right->capture(m_mainWindow.data()).isEmpty());
+
+    tabPage()->setSplitViewEnabled(true, WithoutAnimation);
+    QVERIFY(right->isAvailable(m_mainWindow.data()));
+    right->apply(m_mainWindow.data(), QStringLiteral("visible=true,lock=true,case=false,mode=Glob,scope=Files,text=*.txt"));
+    QCOMPARE(tabPage()->secondaryViewContainer()->view()->nameFilter(), QStringLiteral("*.txt"));
+    QVERIFY(tabPage()->primaryViewContainer()->view()->nameFilter().isEmpty());
 }
 
 void WhaleStyleElementsTest::testZoom()

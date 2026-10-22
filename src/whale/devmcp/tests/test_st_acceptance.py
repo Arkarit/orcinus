@@ -13,6 +13,7 @@ styles, driven only through the dev MCP:
   E  saving a new style "Zwei" with two views
   F  restart after "Schlicht": the window starts as it was left (E3), the styles are there
   G  back to "Bilder" after the restart
+  H  the filter bars (FB3): media on the left, their texts on the right
 
 Whale runs on a private D-Bus session bus (the script starts one) and is restarted like O3.
 Arguments as test_o3_acceptance.py.
@@ -229,7 +230,7 @@ def run(args, work):
         check('"id":"zwei"' in reply[0]["text"].replace(" ", ""), "E: new id", reply)
         state = s.expect("E: three styles", {"styles.menu": {"$contains": "whale_style_zwei"}}, focus=False)
         zwei = state["styles"]["list"][2]
-        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 9, "E: all elements captured", zwei)
+        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 11, "E: all elements captured", zwei)
         check("[Style][zwei]" in styles_file.read_text(), "E: in the file")
         client.tool("apply_style", id="bilder")
         s.expect("E: Bilder closes the right view", BILDER, focus=False)
@@ -255,6 +256,29 @@ def run(args, work):
         client.tool("apply_style", id="bilder")
         s.expect("G: Bilder after the restart", BILDER, focus=False)
         print("ok    G: Bilder after the restart")
+
+        # H: a style with a filter on each side (FB3)
+        client.tool("set_split_view", enabled=True)
+        s.expect("H: two views", {"paneCount": 2, "splitAnimating": False}, focus=False)
+        client.tool("set_filter_text", pane=0, text="*.jpg")
+        client.tool("set_filter_text", pane=1, text="*.txt")
+        s.expect("H: filtered", {"panes.0.items": ["a.jpg"], "panes.1.items": ["b.txt"]}, focus=False)
+        reply = client.tool("save_style", name="Medien")
+        check('"id":"medien"' in reply[0]["text"].replace(" ", ""), "H: saved", reply)
+        client.tool("clear_filter", pane=0)
+        client.tool("clear_filter", pane=1)
+        client.tool("apply_style", id="bilder")
+        s.expect("H: Bilder, one view", {"paneCount": 1, "panes.0.filter.text": ""}, focus=False)
+        client.tool("apply_style", id="medien")
+        state = s.expect("H: media left, texts right", {
+            "paneCount": 2, "panes.0.items": ["a.jpg"], "panes.1.items": ["b.txt"],
+            "panes.0.filter.barVisible": True, "panes.0.filter.scope": "files"}, focus=False)
+        # The element keys contain a dot, which the state paths of expect() cannot.
+        check(state["styles"]["current"]["filterBar.right"].endswith("text=*.txt"), "H: captured right filter",
+              state["styles"]["current"])
+        medien = [style for style in state["styles"]["list"] if style["id"] == "medien"][0]
+        check("*.jpg" in medien["elements"]["filterBar.left"]["description"], "H: description", medien["elements"])
+        print("ok    H: filter bars")
         w.quit()
     finally:
         w.kill()

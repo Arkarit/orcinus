@@ -212,6 +212,39 @@ void FilterBar::setFilterScope(KFileItemModelFilter::Scope scope)
     Q_EMIT filterScopeChanged(scope);
 }
 
+void FilterBar::setFilterMode(KFileItemModelFilter::FilterMode mode)
+{
+    const int index = m_filterModeComboBox->findData(mode);
+    if (index >= 0) {
+        m_filterModeComboBox->setCurrentIndex(index);
+    }
+}
+
+void FilterBar::setCaseSensitive(bool caseSensitive)
+{
+    m_caseSensitiveButton->setChecked(caseSensitive);
+}
+
+bool FilterBar::isLocked() const
+{
+    return m_lockButton->isChecked();
+}
+
+void FilterBar::setLocked(bool locked)
+{
+    m_lockButton->setChecked(locked);
+}
+
+QString FilterBar::text() const
+{
+    return m_filterInput->text();
+}
+
+void FilterBar::setText(const QString &text)
+{
+    m_filterInput->setText(text);
+}
+
 void FilterBar::updateScopeButton()
 {
     for (const ScopeChoice &choice : scopeChoices) {

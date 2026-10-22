@@ -63,3 +63,23 @@ und auf der anderen Seite die Begleittexte dazu.“
 | F1 | Gehört der **Filtertext** zum Style? | Ja, optional: Ein Style „Bilder“ könnte gleich `*.jpg` filtern (mehrere Endungen nur per Regex, z. B. `\.(jpg|png)$`). Leerer Text = kein Filter. Die anderen Einstellungen (Lock, Groß/Klein, Modus, Bereich) gehören in jedem Fall dazu. |
 
 Reihenfolge: FB1 → FB2 → FB3, je ein Commit direkt auf `master` (kleine Usability-Fixes).
+
+## Stand
+
+- **FB1** (2026-10-22, `a1795ae34`): Lock standardmäßig an, `[FilterBar] keepFilter` im
+  State-Config, sofort geschrieben (neue Views und Tabs starten damit); Schließen lässt den Lock.
+  Test `whalefilterbartest`. Befund: Die Knöpfe einer versteckten Filterleiste sind deaktiviert
+  (`AnimatedHeightWidget`).
+- **FB2** (2026-10-22, `621dd39dd`): `KFileItemModelFilter::Scope` (Standard dort
+  `FilesAndFolders`, also KPart und andere unverändert), durchgereicht über `KFileItemModel`,
+  `DolphinView`, `DolphinViewContainer`. In der Filterleiste ein Knopf mit Menü nach dem Modus
+  (Icons `text-x-generic`, `folder`, `folder-documents`), `[FilterBar] filterScope`, Standard
+  `Files`. Dev MCP: `panes.N.filter.scope`; `test_m3_acceptance.py` und
+  `whaledevautomationtest` erwarten jetzt den Ordner `sub` beim Filter `b.` (gewollte Änderung).
+  Breite: Leiste mindestens 303 px, der neue Knopf 30 px davon.
+- **FB3** (2026-10-22): Elemente `filterBar.left`/`filterBar.right` (nach `viewStyle.*`). Wert
+  `visible=…,lock=…,case=…,mode=PlainText|Glob|Regex,scope=Files|Folders|FilesAndFolders,text=…`
+  (Text zuletzt, darf Kommas und `=` enthalten; versteckt = kein Text). Verfügbar, wenn es die View
+  im aktuellen Tab gibt (rechts nur mit Split). Anwenden lässt den Fokus, wo er war. Neue Setter in
+  `FilterBar` (Modus, Groß/Klein, Lock, Text). Tests in `whalestyleelementstest`, Abnahme H in
+  `test_st_acceptance.py` (links `*.jpg`, rechts `*.txt`, gespeichert und wieder angewendet).

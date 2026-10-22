@@ -12,12 +12,14 @@ class WhaleStyleElements;
 /**
  * @brief The element types of styles that come with Whale (ST2).
  *
- * In the order of applying: the split view, the styles of the left and the right view, the zoom
- * of the view modes, then the menu bar, the toolbars of the window, the File View Toolbars, the
+ * In the order of applying: the split view, the styles of the left and the right view, their
+ * filter bars, the zoom of the view modes, then the menu bar, the toolbars of the window, the File View Toolbars, the
  * status bar and the panels. Values are plain text:
  *
  * - "split", "menuBar", "fileViewToolBars": "true" or "false"
  * - "viewStyle.left", "viewStyle.right": ViewProperties::toData() of the position
+ * - "filterBar.left", "filterBar.right": "visible=true,lock=true,case=false,mode=Glob,scope=Files,text=…"
+ *   (the text last; a hidden filter bar has none)
  * - "zoom": "Icons=48,128;Compact=16,32;Details=22,32" (icon size, preview size)
  * - "statusBar": "Small", "FullWidth" or "Disabled"
  * - "toolBars", "panels": "name=true,name=false"; names not listed are left as they are

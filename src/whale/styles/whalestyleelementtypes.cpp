@@ -12,6 +12,7 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
+#include "filterbar/filterbar.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "views/dolphinview.h"
 #include "views/viewproperties.h"
@@ -24,9 +25,11 @@
 #include <KStandardAction>
 #include <KToolBar>
 
+#include <QApplication>
 #include <QBuffer>
 #include <QDockWidget>
 #include <QMenuBar>
+#include <QPointer>
 
 #include <array>
 
@@ -242,6 +245,197 @@ private:
             : page->splitViewEnabled()                                           ? page->secondaryViewContainer()
                                                                                  : nullptr;
         return container ? container->view() : nullptr;
+    }
+
+    DolphinView::PanelRole m_role;
+};
+
+// ---- filterBar.left, filterBar.right ----
+
+struct FilterModeName {
+    KFileItemModelFilter::FilterMode mode;
+    QLatin1String name;
+};
+
+constexpr std::array<FilterModeName, 3> filterModeNames{{
+    {KFileItemModelFilter::PlainText, QLatin1String("PlainText")},
+    {KFileItemModelFilter::Glob, QLatin1String("Glob")},
+    {KFileItemModelFilter::Regex, QLatin1String("Regex")},
+}};
+
+struct FilterScopeName {
+    KFileItemModelFilter::Scope scope;
+    QLatin1String name;
+};
+
+constexpr std::array<FilterScopeName, 3> filterScopeNames{{
+    {KFileItemModelFilter::Scope::Files, QLatin1String("Files")},
+    {KFileItemModelFilter::Scope::Folders, QLatin1String("Folders")},
+    {KFileItemModelFilter::Scope::FilesAndFolders, QLatin1String("FilesAndFolders")},
+}};
+
+// The state of a filter bar. As text: "visible=true,lock=true,case=false,mode=Glob,scope=Files,text=…";
+// the text comes last and may contain anything.
+struct FilterState {
+    bool visible = false;
+    bool locked = true;
+    bool caseSensitive = false;
+    KFileItemModelFilter::FilterMode mode = KFileItemModelFilter::Glob;
+    KFileItemModelFilter::Scope scope = KFileItemModelFilter::Scope::Files;
+    QString text;
+
+    QString toText() const
+    {
+        QString modeName;
+        for (const FilterModeName &entry : filterModeNames) {
+            if (entry.mode == mode) {
+                modeName = entry.name;
+            }
+        }
+        QString scopeName;
+        for (const FilterScopeName &entry : filterScopeNames) {
+            if (entry.scope == scope) {
+                scopeName = entry.name;
+            }
+        }
+        return switchesText({{QStringLiteral("visible"), visible}, {QStringLiteral("lock"), locked}, {QStringLiteral("case"), caseSensitive}})
+            + QLatin1String(",mode=") + modeName + QLatin1String(",scope=") + scopeName + QLatin1String(",text=") + text;
+    }
+
+    static std::optional<FilterState> fromText(const QString &value)
+    {
+        const qsizetype textAt = value.indexOf(QLatin1String(",text="));
+        if (textAt < 0) {
+            return std::nullopt;
+        }
+        FilterState state;
+        state.text = value.mid(textAt + 6);
+        const QStringList parts = value.left(textAt).split(u',');
+        for (const QString &part : parts) {
+            const QString key = part.section(u'=', 0, 0);
+            const QString entry = part.section(u'=', 1);
+            if (key == QLatin1String("visible") || key == QLatin1String("lock") || key == QLatin1String("case")) {
+                const std::optional<bool> on = boolFrom(entry);
+                if (!on) {
+                    return std::nullopt;
+                }
+                (key == QLatin1String("visible") ? state.visible : key == QLatin1String("lock") ? state.locked : state.caseSensitive) = *on;
+            } else if (key == QLatin1String("mode")) {
+                for (const FilterModeName &name : filterModeNames) {
+                    if (entry == name.name) {
+                        state.mode = name.mode;
+                    }
+                }
+            } else if (key == QLatin1String("scope")) {
+                for (const FilterScopeName &name : filterScopeNames) {
+                    if (entry == name.name) {
+                        state.scope = name.scope;
+                    }
+                }
+            }
+        }
+        // A hidden filter bar filters nothing.
+        if (!state.visible) {
+            state.text.clear();
+        }
+        return state;
+    }
+};
+
+class FilterBarElement : public WhaleStyleElement
+{
+public:
+    explicit FilterBarElement(DolphinView::PanelRole role)
+        : m_role(role)
+    {
+    }
+    QString key() const override
+    {
+        return m_role == DolphinView::PanelRole::Left ? QStringLiteral("filterBar.left") : QStringLiteral("filterBar.right");
+    }
+    QString title() const override
+    {
+        return m_role == DolphinView::PanelRole::Left ? i18nc("@item:inlistbox style element", "Filter of the left view")
+                                                      : i18nc("@item:inlistbox style element", "Filter of the right view");
+    }
+    // The filter bar belongs to the view; there is none to set without a right view.
+    bool isAvailable(const DolphinMainWindow *window) const override
+    {
+        return container(window);
+    }
+    QString capture(const DolphinMainWindow *window) const override
+    {
+        DolphinViewContainer *shown = container(window);
+        const FilterBar *bar = shown ? shown->findChild<FilterBar *>() : nullptr;
+        if (!bar) {
+            return QString();
+        }
+        FilterState state;
+        state.visible = shown->isFilterBarVisible();
+        state.locked = bar->isLocked();
+        state.caseSensitive = bar->isCaseSensitive();
+        state.mode = bar->filterMode();
+        state.scope = bar->filterScope();
+        state.text = state.visible ? bar->text() : QString();
+        return state.toText();
+    }
+    void apply(DolphinMainWindow *window, const QString &value) const override
+    {
+        DolphinViewContainer *shown = container(window);
+        FilterBar *bar = shown ? shown->findChild<FilterBar *>() : nullptr;
+        const std::optional<FilterState> state = FilterState::fromText(value);
+        if (!bar || !state) {
+            return;
+        }
+        bar->setFilterScope(state->scope);
+        bar->setFilterMode(state->mode);
+        bar->setCaseSensitive(state->caseSensitive);
+        bar->setLocked(state->locked);
+        if (shown->isFilterBarVisible() != state->visible) {
+            // Showing the filter bar gives it the focus; a style leaves the focus where it was.
+            QPointer<QWidget> focus = QApplication::focusWidget();
+            shown->setFilterBarVisible(state->visible);
+            if (focus) {
+                focus->setFocus();
+            }
+        }
+        if (state->visible) {
+            bar->setText(state->text);
+        }
+    }
+    QString describe(const QString &value) const override
+    {
+        const std::optional<FilterState> state = FilterState::fromText(value);
+        if (!state) {
+            return QString();
+        }
+        if (!state->visible) {
+            return i18nc("@item:intext style element value", "Hidden");
+        }
+        QString scope;
+        switch (state->scope) {
+        case KFileItemModelFilter::Scope::Files:
+            scope = i18nc("@item:intext the filter applies to", "files");
+            break;
+        case KFileItemModelFilter::Scope::Folders:
+            scope = i18nc("@item:intext the filter applies to", "folders");
+            break;
+        case KFileItemModelFilter::Scope::FilesAndFolders:
+            scope = i18nc("@item:intext the filter applies to", "files and folders");
+            break;
+        }
+        return state->text.isEmpty() ? i18nc("@item:intext style element value, %1 what the filter applies to", "Shown, empty (%1)", scope)
+                                     : i18nc("@item:intext style element value, %1 the filter, %2 what it applies to", "\"%1\" (%2)", state->text, scope);
+    }
+
+private:
+    DolphinViewContainer *container(const DolphinMainWindow *window) const
+    {
+        const DolphinTabPage *page = currentTabPage(window);
+        if (!page) {
+            return nullptr;
+        }
+        return m_role == DolphinView::PanelRole::Left ? page->primaryViewContainer() : page->splitViewEnabled() ? page->secondaryViewContainer() : nullptr;
     }
 
     DolphinView::PanelRole m_role;
@@ -601,6 +795,8 @@ void WhaleStyleElementTypes::addTo(WhaleStyleElements &elements)
     elements.add(std::make_unique<SplitElement>());
     elements.add(std::make_unique<ViewStyleElement>(DolphinView::PanelRole::Left));
     elements.add(std::make_unique<ViewStyleElement>(DolphinView::PanelRole::Right));
+    elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Left));
+    elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Right));
     elements.add(std::make_unique<ZoomElement>());
     elements.add(std::make_unique<MenuBarElement>());
     elements.add(std::make_unique<ToolBarsElement>());

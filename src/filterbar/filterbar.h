@@ -48,6 +48,14 @@ public:
     KFileItemModelFilter::Scope filterScope() const;
     void setFilterScope(KFileItemModelFilter::Scope scope);
 
+    /** Whale: FB3, the rest of the state, set by styles (as the user would). */
+    void setFilterMode(KFileItemModelFilter::FilterMode mode);
+    void setCaseSensitive(bool caseSensitive);
+    bool isLocked() const;
+    void setLocked(bool locked);
+    QString text() const;
+    void setText(const QString &text);
+
 public Q_SLOTS:
     /** Clears the input field. */
     void clear();
