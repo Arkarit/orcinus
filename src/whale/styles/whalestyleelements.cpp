@@ -7,6 +7,7 @@
 #include "whalestyleelements.h"
 
 #include "whalestyleelement.h"
+#include "whalestyleelementtypes.h"
 
 WhaleStyleElement::~WhaleStyleElement() = default;
 
@@ -18,8 +19,12 @@ bool WhaleStyleElement::isAvailable(const DolphinMainWindow *window) const
 
 const WhaleStyleElements &WhaleStyleElements::self()
 {
-    // The element types follow in ST2.
-    static const WhaleStyleElements elements;
+    static WhaleStyleElements elements;
+    static const bool filled = [] {
+        WhaleStyleElementTypes::addTo(elements);
+        return true;
+    }();
+    Q_UNUSED(filled)
     return elements;
 }
 

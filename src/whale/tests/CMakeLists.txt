@@ -295,3 +295,9 @@ target_include_directories(whaleselectionlimittest PRIVATE ${CMAKE_SOURCE_DIR}/s
 ecm_add_test(whalestylestoretest.cpp
     TEST_NAME whalestylestoretest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
+
+# The element types of styles at a main window (ST2).
+ecm_add_test(whalestyleelementstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalestyleelementstest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalestyleelementstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

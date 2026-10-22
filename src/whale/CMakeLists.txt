@@ -136,6 +136,7 @@ target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tool
 # See .privatedoc/whale-styles-plan.md.
 target_sources(dolphinstatic PRIVATE
     styles/whalestyleelements.cpp
+    styles/whalestyleelementtypes.cpp
     styles/whalestylestore.cpp
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/styles)

@@ -187,3 +187,27 @@ werden entfernt, wie es `ServiceMenuShortcutManager::cleanupStaleShortcuts()` ma
   (Menü, Einstellungsdialog `addPage`, Erzeugen des Managers im Fenster).
 - **Versionen:** Das Format ist versioniert. Unbekannte Elemente bleiben erhalten, damit ältere
   und neuere Whale-Versionen dieselbe Datei teilen können.
+
+## Stand
+
+- **ST1** (2026-10-22, `6975e8901`): `WhaleStyle`, `WhaleStyleElement`, `WhaleStyleElements`,
+  `WhaleStyleStore`; `whalestylestoretest`.
+- **ST2** (2026-10-22): die neun Element-Typen in `whalestyleelementtypes.cpp`, registriert in der
+  Reihenfolge der Tabelle; `whalestyleelementstest` (pro Element und ein Gesamttest „Bilder“ →
+  alles verändern → anwenden → wie vorher). Keine Änderung an Dolphin-Dateien. Abweichungen und
+  Befunde:
+  - `viewStyle.*` schreibt beim Anwenden direkt den Satz der Rolle (`ViewProperties(QUrl(), role)`)
+    und gibt den Stil der View der Position im aktuellen Tab (`setOwnStyleData()`). So wirkt
+    `viewStyle.right` auch ohne Split: Der nächste Split startet damit. Erfasst wird ohne rechte
+    View der gespeicherte Satz der rechten Position. Der Wert lässt `Timestamp` weg, sonst wäre
+    jeder Wert anders.
+  - `zoom` speichert pro Modus zwei Größen: ohne und mit Vorschaubildern
+    (`ViewModeSettings::iconSize()`/`previewSize()`).
+  - `menuBar`: Dolphin verbindet die Aktion mit `Qt::QueuedConnection` (Bug 286822). Erfasst wird
+    der Haken der Aktion, die Menüleiste folgt im nächsten Durchlauf der Ereignisschleife.
+  - `toolBars`: nicht `KMainWindow::toolBar(name)`, das eine fehlende Leiste anlegen würde.
+  - `zoom` und `statusBar` rufen je `DolphinMainWindow::refreshViews()` (private Slot, per
+    `invokeMethod`) wie der Einstellungsdialog. Beim Anwenden eines ganzen Styles kann das zweimal
+    passieren; ggf. in ST3 bündeln.
+  - Den Tab-Widget-Zugriff gibt es nicht öffentlich: `findChild<DolphinTabWidget *>("tabWidget")`,
+    wie in den Tests.
