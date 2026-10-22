@@ -231,7 +231,10 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `selectedMenu` (the entries of the context menu its selection would get, without showing
   it), `openMenus` (visible context menus), `operationScans` and `lastOperation`.
 
-- Toolbars (TB6): `toolbars.global` is the main toolbar (`visible`, `layout`, `actions`),
+- Toolbars (TB6): `toolbars.global` is the main toolbar (`visible`, `layout`, `actions`,
+  and `menuBar`, the menu bar element of TM: `present`, `mode` `menus` or `burger`, `shown`,
+  `width`, `fullWidth`, `menus` (titles), `hamburgerWidth` (room the hamburger menu's button
+  takes, 0 while the element is in the toolbar)),
   `toolbars.fileViewsVisible` the setting "Show File View Toolbars", `toolbars.instances`
   the file views of all tabs (`instanceId`, `tab`, `pane`, `visible`, `initialized`).
   `panes.N.toolbar` is the pane's File View Toolbar: `instanceId` (`view-N`, unique in the

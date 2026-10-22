@@ -88,3 +88,17 @@ Reihenfolge: TM1 → TM2 → TM3, je ein Commit direkt auf `master`.
   zurück, wenn das Element die Leiste verlässt. Abgetastet (offscreen, 2-px-Schritte): im
   Menü-Modus nie ein Element im Überlauf „»“; Grenze bei 394/396 px Fensterbreite mit der
   Standardleiste.
+- **TM3** (2026-10-22): Dev MCP `toolbars.global.menuBar` (`present`, `mode`, `shown`, `width`,
+  `fullWidth`, `menus` ohne die Separatoren von KXmlGui, `hamburgerWidth`), kein neues Werkzeug.
+  Abnahme `test_tm_acceptance.py` (A–F: Standard, Hinzufügen über den Dialog, schmal/breit,
+  unabhängig von „Show Menubar“ über zwei Styles, Neustart, Entfernen). Dabei zwei Fehler
+  gefunden und behoben (je mit Unit-Test, der ohne die Korrektur fehlschlägt):
+  1. Element am Ende der Leiste: Qt schiebt es beim Verkleinern zuerst in den Überlauf
+     (versteckt); `updateGeometry()` erreicht die Leiste dann nicht, es blieb dort. Jetzt
+     invalidiert der Moduswechsel das Layout der Leiste.
+  2. F2 nach Neuaufbau: Während KXmlGui die Leiste baut, gibt es kurz zwei Widgets des Elements;
+     das ältere gab die Breite des Burger-Knopfs zurück, nachdem das neue sie genommen hatte.
+     Jetzt liegen die Originalwerte als Property am Knopf, und jede Neuberechnung setzt Breite 0
+     erneut.
+- **Befund (nicht TM):** Nach „Werkzeugleisten einrichten → OK“ ist die klassische Menüleiste
+  sichtbar, auch beim Einfügen von `go_home` (offscreen beobachtet). Noch nicht untersucht.

@@ -23,6 +23,8 @@ namespace
 {
 /** Room the menu bar needs beyond its width before it replaces the button again. */
 constexpr int switchBackMargin = 4;
+/** The maximum width and focus policy of a suppressed hamburger menu button (F2). */
+constexpr const char *originalHamburgerProperty = "_whale_original_hamburger";
 }
 
 WhaleMenuBarAction::WhaleMenuBarAction(QMenuBar *source, QObject *parent)
@@ -91,7 +93,9 @@ WhaleToolBarMenu::WhaleToolBarMenu(QMenuBar *source, QWidget *parent)
 
 WhaleToolBarMenu::~WhaleToolBarMenu()
 {
-    suppressHamburger(false);
+    if (m_hamburger) {
+        restoreHamburger(m_hamburger);
+    }
 }
 
 QMenuBar *WhaleToolBarMenu::menuBar() const
@@ -205,7 +209,13 @@ void WhaleToolBarMenu::setBurger(bool burger)
     }
     m_menuBar->setVisible(!burger);
     m_burgerButton->setVisible(burger);
+    layout()->invalidate();
     updateGeometry();
+    // In the toolbar's overflow menu, the widget is hidden and updateGeometry() does not reach
+    // the toolbar: it would stay there although it fits now.
+    if (m_toolBar && m_toolBar->layout()) {
+        m_toolBar->layout()->invalidate();
+    }
 }
 
 int WhaleToolBarMenu::availableWidth() const
@@ -261,22 +271,36 @@ void WhaleToolBarMenu::suppressHamburger(bool suppress)
             }
         }
     }
-    if (hamburger == m_hamburger) {
-        return;
-    }
-    if (m_hamburger) {
-        m_hamburger->setMaximumWidth(m_hamburgerMaximumWidth);
-        m_hamburger->setFocusPolicy(m_hamburgerFocusPolicy);
+    if (m_hamburger && m_hamburger != hamburger) {
+        restoreHamburger(m_hamburger);
     }
     m_hamburger = hamburger;
-    if (m_hamburger) {
-        // KHamburgerMenu shows and hides its buttons itself (by the window's menu bar), and the
-        // toolbar shows them by the action; without width, the button takes no room.
-        m_hamburgerMaximumWidth = m_hamburger->maximumWidth();
-        m_hamburgerFocusPolicy = m_hamburger->focusPolicy();
-        m_hamburger->setMaximumWidth(0);
-        m_hamburger->setFocusPolicy(Qt::NoFocus);
+    if (!hamburger) {
+        return;
     }
+    // KHamburgerMenu shows and hides its buttons itself (by the window's menu bar), and the
+    // toolbar shows them by the action; without width, the button takes no room. The values
+    // before are kept with the button: while KXmlGui builds the toolbar, an older widget of
+    // the element may still be there and give them back after this one took them.
+    if (!hamburger->property(originalHamburgerProperty).isValid()) {
+        hamburger->setProperty(originalHamburgerProperty, QVariantList{hamburger->maximumWidth(), int(hamburger->focusPolicy())});
+    }
+    if (hamburger->maximumWidth() != 0) {
+        hamburger->setMaximumWidth(0);
+    }
+    hamburger->setFocusPolicy(Qt::NoFocus);
+}
+
+void WhaleToolBarMenu::restoreHamburger(QWidget *hamburger)
+{
+    const QVariantList original = hamburger->property(originalHamburgerProperty).toList();
+    if (original.size() != 2) {
+        return;
+    }
+    hamburger->setProperty(originalHamburgerProperty, QVariant());
+    hamburger->setMaximumWidth(original.at(0).toInt());
+    hamburger->setFocusPolicy(static_cast<Qt::FocusPolicy>(original.at(1).toInt()));
+    // Another widget of the element in the same toolbar takes it again with the layout request.
 }
 
 #include "moc_whalemenubaraction.cpp"

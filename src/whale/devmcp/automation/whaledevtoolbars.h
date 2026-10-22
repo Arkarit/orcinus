@@ -16,6 +16,7 @@ class DolphinMainWindow;
 class DolphinViewContainer;
 class KToolBar;
 class QAction;
+class QToolBar;
 
 /**
  * @brief The toolbars of a main window for the development automation (multi-toolbar
@@ -48,9 +49,16 @@ struct Instance {
 QList<Instance> instances(DolphinMainWindow *window);
 
 /**
- * @return The main toolbar: {visible, layout, actions}.
+ * @return The main toolbar: {visible, layout, actions, menuBar}.
  */
 QJsonObject globalState(DolphinMainWindow *window);
+
+/**
+ * @return The menu bar element of @p toolBar (TM): {present, mode ("menus" or "burger"), shown,
+ *         width, fullWidth (of all menus), menus (titles), hamburgerWidth (of the hamburger
+ *         menu's button in the same toolbar, null without one)}.
+ */
+QJsonObject menuBarElementState(QToolBar *toolBar);
 
 /**
  * @return The File View Toolbar of @p container: {instanceId, ownerView, visible, shown,

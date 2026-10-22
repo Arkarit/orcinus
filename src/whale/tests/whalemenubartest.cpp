@@ -46,14 +46,16 @@ private Q_SLOTS:
     void testFixedWidth();
     void testMnemonicsWithBothShown();
 
+    void testBurgerWhenNarrow_data();
     void testBurgerWhenNarrow();
     void testBurgerMenu();
     void testBurgerWhenVertical();
     void testHamburgerLeftOut();
+    void testHamburgerLeftOutAfterShowMenubar();
 
 private:
     /** Shows the window with the element in the main toolbar; @return its widget. */
-    WhaleToolBarMenu *showWithElement();
+    WhaleToolBarMenu *showWithElement(bool atEnd = false);
     static QStringList titles(const QMenuBar *menuBar);
     /** @return The button of the KHamburgerMenu in the main toolbar. */
     QWidget *hamburgerButton() const;
@@ -72,7 +74,7 @@ QString localMainFile()
 }
 
 /** The installed dolphinui.rc with the menu bar element at the start of the main toolbar, as the user would save it. */
-bool writeUserMainFile()
+bool writeUserMainFile(bool atEnd)
 {
     QFile installed(QStringLiteral(":/kxmlgui5/whale/dolphinui.rc"));
     if (!installed.open(QIODevice::ReadOnly)) {
@@ -83,7 +85,11 @@ bool writeUserMainFile()
     if (!content.contains(toolBarText)) {
         return false;
     }
-    content.replace(toolBarText, QByteArray(toolBarText + "<Action name=\"whale_menu_bar\" />"));
+    if (atEnd) {
+        content.replace("<Action name=\"hamburger_menu\" />", "<Action name=\"hamburger_menu\" /><Action name=\"whale_menu_bar\" />");
+    } else {
+        content.replace(toolBarText, QByteArray(toolBarText + "<Action name=\"whale_menu_bar\" />"));
+    }
     QDir().mkpath(QFileInfo(localMainFile()).absolutePath());
     QFile local(localMainFile());
     return local.open(QIODevice::WriteOnly) && local.write(content) == content.size();
@@ -119,9 +125,9 @@ void WhaleMenuBarTest::cleanup()
     QFile::remove(localMainFile());
 }
 
-WhaleToolBarMenu *WhaleMenuBarTest::showWithElement()
+WhaleToolBarMenu *WhaleMenuBarTest::showWithElement(bool atEnd)
 {
-    if (!writeUserMainFile()) {
+    if (!writeUserMainFile(atEnd)) {
         return nullptr;
     }
     m_mainWindow.reset(new DolphinMainWindow());
@@ -246,10 +252,20 @@ QWidget *WhaleMenuBarTest::hamburgerButton() const
     return hamburger ? m_mainWindow->toolBar()->widgetForAction(hamburger) : nullptr;
 }
 
+void WhaleMenuBarTest::testBurgerWhenNarrow_data()
+{
+    QTest::addColumn<bool>("atEnd");
+    QTest::newRow("first") << false;
+    // The toolbar moves the last elements to its overflow menu first, hiding them.
+    QTest::newRow("at the end") << true;
+}
+
 void WhaleMenuBarTest::testBurgerWhenNarrow()
 {
-    WhaleToolBarMenu *element = showWithElement();
+    QFETCH(bool, atEnd);
+    WhaleToolBarMenu *element = showWithElement(atEnd);
     QVERIFY(element);
+    QCOMPARE(m_mainWindow->toolBar()->actions().constLast()->objectName() == WhaleMenuBarAction::actionName(), atEnd);
     const int fullWidth = element->menuBar()->sizeHint().width();
     QTRY_VERIFY(!element->isBurger());
     QVERIFY(element->menuBar()->isVisible());
@@ -338,6 +354,22 @@ void WhaleMenuBarTest::testHamburgerLeftOut()
     QTRY_VERIFY(!element || !m_mainWindow->toolBar()->findChild<WhaleToolBarMenu *>());
     m_mainWindow->resize(1200, 700);
     QTRY_VERIFY(hamburger->width() > 0);
+}
+
+void WhaleMenuBarTest::testHamburgerLeftOutAfterShowMenubar()
+{
+    // KHamburgerMenu hides its button while the classic menu bar is shown, and shows it again.
+    WhaleToolBarMenu *element = showWithElement(true);
+    QVERIFY(element);
+    QAction *showMenuBar = m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::ShowMenubar));
+    showMenuBar->trigger();
+    QTRY_VERIFY(m_mainWindow->menuBar()->isVisible());
+    showMenuBar->trigger();
+    QTRY_VERIFY(!m_mainWindow->menuBar()->isVisible());
+    QWidget *hamburger = hamburgerButton();
+    QVERIFY(hamburger);
+    QTest::qWait(50);
+    QCOMPARE(hamburger->width(), 0);
 }
 
 QTEST_MAIN(WhaleMenuBarTest)

@@ -13,6 +13,7 @@
 #include "dolphinviewcontainer.h"
 #include "whalefileviewtoolbar.h"
 #include "whalelocationbar.h"
+#include "whalemenubaraction.h"
 #include "whaletoolbarconfigurator.h"
 #include "whaletoolbarmanager.h"
 #include "whaletoolbarsettings.h"
@@ -34,6 +35,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QMenuBar>
 #include <QMimeData>
 #include <QPushButton>
 #include <QStyleOptionToolButton>
@@ -592,6 +594,41 @@ QJsonObject WhaleDevToolbars::globalState(DolphinMainWindow *window)
         {QStringLiteral("visible"), !toolBar->isHidden()},
         {QStringLiteral("layout"), layoutOf(toolBar)},
         {QStringLiteral("actions"), actionsState(toolBar, nullptr)},
+        {QStringLiteral("menuBar"), menuBarElementState(toolBar)},
+    };
+}
+
+QJsonObject WhaleDevToolbars::menuBarElementState(QToolBar *toolBar)
+{
+    auto element = toolBar->findChild<WhaleToolBarMenu *>();
+    if (!element) {
+        return {{QStringLiteral("present"), false}};
+    }
+    QJsonArray menus;
+    const auto actions = element->menuBar()->actions();
+    for (const QAction *action : actions) {
+        if (action->isVisible() && !action->isSeparator()) {
+            menus.append(KLocalizedString::removeAcceleratorMarker(action->text()));
+        }
+    }
+    // The button of the hamburger menu in the same toolbar (F2: no width while the element is there).
+    QJsonValue hamburgerWidth = QJsonValue::Null;
+    const auto toolBarActions = toolBar->actions();
+    for (QAction *action : toolBarActions) {
+        if (action->objectName() == QLatin1String("hamburger_menu")) {
+            if (const QWidget *widget = toolBar->widgetForAction(action)) {
+                hamburgerWidth = widget->isVisible() ? widget->width() : 0;
+            }
+        }
+    }
+    return {
+        {QStringLiteral("present"), true},
+        {QStringLiteral("mode"), element->isBurger() ? QStringLiteral("burger") : QStringLiteral("menus")},
+        {QStringLiteral("shown"), element->isVisible()},
+        {QStringLiteral("width"), element->width()},
+        {QStringLiteral("fullWidth"), element->menuBar()->sizeHint().width()},
+        {QStringLiteral("menus"), menus},
+        {QStringLiteral("hamburgerWidth"), hamburgerWidth},
     };
 }
 

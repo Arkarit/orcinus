@@ -90,6 +90,7 @@ private:
 
     /** Leaves out (or brings back) the KHamburgerMenu button of the toolbar (F2). */
     void suppressHamburger(bool suppress);
+    static void restoreHamburger(QWidget *hamburger);
 
     QPointer<QMenuBar> m_source;
     QPointer<QToolBar> m_toolBar;
@@ -101,8 +102,6 @@ private:
     bool m_updateScheduled = false;
 
     QPointer<QWidget> m_hamburger; // the suppressed button
-    int m_hamburgerMaximumWidth = 0;
-    Qt::FocusPolicy m_hamburgerFocusPolicy = Qt::NoFocus;
 };
 
 #endif
