@@ -112,6 +112,8 @@ void WhaleSplitLock::setLocked(bool locked)
         return;
     }
     if (locked) {
+        // The views as they are now, e.g. right after the split view opened (a style).
+        update();
         if (!m_page || !m_page->splitViewEnabled() || !lockability(m_left).lockable || !lockability(m_right).lockable) {
             return;
         }

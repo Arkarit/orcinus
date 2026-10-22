@@ -217,12 +217,14 @@ void WhaleStyleManagerTest::testSaveAddsActionInAllWindows()
                  (QStringList{actionName, QStringLiteral("--"), WhaleStyleManager::saveLastActionName(), WhaleStyleManager::saveActionName()}));
     }
 
-    // Saved at once, with all elements available in the window: all but the filter of a right view.
+    // Saved at once, with all elements available in the window: all but the filter and the view
+    // of a right view.
     WhaleStyleStore reread(WhaleStyleStore::defaultConfig());
     const WhaleStyle *style = reread.style(QStringLiteral("bilder-mehr"));
     QVERIFY(style);
-    QCOMPARE(style->elements.size(), 10);
+    QCOMPARE(style->elements.size(), 12);
     QVERIFY(!style->elements.contains(QStringLiteral("filterBar.right")));
+    QVERIFY(!style->elements.contains(QStringLiteral("view.right")));
     for (const WhaleStyleElementState &state : style->elements) {
         QVERIFY(state.enabled);
     }

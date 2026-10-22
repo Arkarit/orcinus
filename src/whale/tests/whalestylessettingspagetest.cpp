@@ -162,9 +162,10 @@ void WhaleStylesSettingsPageTest::testListsStyles()
     QCOMPARE(child<QListWidget>("styleList")->currentRow(), 0);
     QCOMPARE(child<QLineEdit>("styleName")->text(), QStringLiteral("Schlicht"));
     auto tree = child<QTreeWidget>("styleElements");
-    QCOMPARE(tree->topLevelItemCount(), 11);
-    // Captured with a single view: no filter of a right view.
+    QCOMPARE(tree->topLevelItemCount(), 14);
+    // Captured with a single view: no filter and no view of a right view.
     QVERIFY(!(elementItem(QStringLiteral("filterBar.right"))->flags() & Qt::ItemIsEnabled));
+    QVERIFY(!(elementItem(QStringLiteral("view.right"))->flags() & Qt::ItemIsEnabled));
     QCOMPARE(elementItem(QStringLiteral("split"))->checkState(0), Qt::Checked);
     QVERIFY(!elementItem(QStringLiteral("split"))->text(1).isEmpty());
 

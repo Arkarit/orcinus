@@ -18,9 +18,12 @@
 #include "views/dolphinview.h"
 #include "views/viewproperties.h"
 #include "views/zoomlevelinfo.h"
+#include "whalesplitlock.h"
 #include "whalesplitviewstartup.h"
 #include "whalestyleelement.h"
 #include "whaletoolbarsettings.h"
+#include "whaleviewhost.h"
+#include "whaleviewpreferences.h"
 
 #include <KLocalizedString>
 #include <KToolBar>
@@ -33,6 +36,8 @@
 
 namespace
 {
+const QString treemapId = QStringLiteral("whale_treemap");
+
 const WhaleStyleElement *element(const char *key)
 {
     return WhaleStyleElements::self().element(QLatin1String(key));
@@ -57,6 +62,8 @@ private Q_SLOTS:
     void testViewStyleRightWithoutSplit();
     void testViewStyleRightWithSplit();
     void testViewStyleInFolderMode();
+    void testShownView();
+    void testSplitLock();
     void testFilterBar();
     void testFilterBarRight();
     void testZoom();
@@ -87,6 +94,7 @@ void WhaleStyleElementsTest::initTestCase()
     TestHelpers::disableAnimations();
     TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain({"whale"});
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->setGlobalViewProps(true);
     GeneralSettings::self()->save();
@@ -146,6 +154,9 @@ void WhaleStyleElementsTest::testOrder()
              (QStringList{QStringLiteral("split"),
                           QStringLiteral("viewStyle.left"),
                           QStringLiteral("viewStyle.right"),
+                          QStringLiteral("view.left"),
+                          QStringLiteral("view.right"),
+                          QStringLiteral("splitLock"),
                           QStringLiteral("filterBar.left"),
                           QStringLiteral("filterBar.right"),
                           QStringLiteral("zoom"),
@@ -275,6 +286,62 @@ void WhaleStyleElementsTest::testViewStyleInFolderMode()
     container->view()->setViewMode(DolphinView::DetailsView);
     style->apply(m_mainWindow.data(), compact);
     QCOMPARE(container->view()->viewMode(), DolphinView::DetailsView);
+}
+
+void WhaleStyleElementsTest::testShownView()
+{
+    // LK7 (E9): the view shown on a side, without a preferred view for the folder.
+    QVERIFY(showMainWindow());
+    const WhaleStyleElement *left = element("view.left");
+    const WhaleStyleElement *right = element("view.right");
+    QVERIFY(left->isAvailable(m_mainWindow.data()));
+    QVERIFY(!right->isAvailable(m_mainWindow.data()));
+    QCOMPARE(left->capture(m_mainWindow.data()), WhaleViewHost::dolphinViewId());
+    QVERIFY(!left->describe(WhaleViewHost::dolphinViewId()).isEmpty());
+
+    tabPage()->setSplitViewEnabled(true, WithoutAnimation);
+    QVERIFY(right->isAvailable(m_mainWindow.data()));
+    WhaleViewHost *host = tabPage()->secondaryViewContainer()->viewHost();
+    right->apply(m_mainWindow.data(), treemapId);
+    QCOMPARE(host->currentViewId(), treemapId);
+    QCOMPARE(right->capture(m_mainWindow.data()), treemapId);
+    QCOMPARE(tabPage()->primaryViewContainer()->viewHost()->currentViewId(), WhaleViewHost::dolphinViewId());
+    QVERIFY(WhaleViewPreferences::instance()->preferredView(m_dir->url()).isEmpty());
+    QCOMPARE(right->describe(treemapId), QStringLiteral("Cushion Treemap"));
+
+    right->apply(m_mainWindow.data(), WhaleViewHost::dolphinViewId());
+    QCOMPARE(host->currentViewId(), WhaleViewHost::dolphinViewId());
+
+    // A missing plugin: the file list.
+    right->apply(m_mainWindow.data(), treemapId);
+    right->apply(m_mainWindow.data(), QStringLiteral("whale_missing"));
+    QCOMPARE(host->currentViewId(), WhaleViewHost::dolphinViewId());
+    QVERIFY(WhaleViewPreferences::instance()->preferredView(m_dir->url()).isEmpty());
+}
+
+void WhaleStyleElementsTest::testSplitLock()
+{
+    // LK7 (E8): the views linked, applied after the split view and the views of a style.
+    QVERIFY(showMainWindow());
+    const WhaleStyleElement *lock = element("splitLock");
+    QCOMPARE(lock->capture(m_mainWindow.data()), QStringLiteral("false"));
+    // Without a split view there is nothing to link.
+    lock->apply(m_mainWindow.data(), QStringLiteral("true"));
+    QCOMPARE(lock->capture(m_mainWindow.data()), QStringLiteral("false"));
+
+    // As a style applies them: the split view, the treemap on the right, then the lock.
+    element("split")->apply(m_mainWindow.data(), QStringLiteral("true"));
+    element("view.right")->apply(m_mainWindow.data(), treemapId);
+    lock->apply(m_mainWindow.data(), QStringLiteral("true"));
+    QVERIFY(WhaleSplitLock::of(tabPage())->isLocked());
+    QCOMPARE(lock->capture(m_mainWindow.data()), QStringLiteral("true"));
+    QCOMPARE(tabPage()->secondaryViewContainer()->viewHost()->currentViewId(), treemapId);
+
+    lock->apply(m_mainWindow.data(), QStringLiteral("false"));
+    QVERIFY(!WhaleSplitLock::of(tabPage())->isLocked());
+    lock->apply(m_mainWindow.data(), QStringLiteral("maybe"));
+    QVERIFY(!WhaleSplitLock::of(tabPage())->isLocked());
+    QVERIFY(!lock->describe(QStringLiteral("true")).isEmpty());
 }
 
 void WhaleStyleElementsTest::testFilterBar()

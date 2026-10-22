@@ -341,7 +341,20 @@ es.
   `test_lk_acceptance.py` Schritt E), neue Fälle: Icons folgt in den Unterordner und zurück, Treemap
   bleibt an Ort und Stelle, aufgeklappter Zweig rechts bleibt, aktive View bleibt stehen,
   Verlauf der anderen View unverändert.
-- **LK7b:** E8 (`WhaleStyleElementTypes`, `whalestyleelementstest`, Dev-MCP-Abnahme).
+- **LK7b:** E8 + E9 (`WhaleStyleElementTypes`, `whalestyleelementstest`, Dev-MCP-Abnahme).
+
+### Nachtrag 2026-10-22: E9, der gezeigte View im Style
+
+Befund: Ein Style mit Treemap rechts lud rechts die Dateiliste. Keine Regression: Styles kannten
+den gezeigten View nie (`viewStyle.*` sind nur Dolphins View-Properties; im Styles-Plan unter
+„Danach“).
+
+- **E9:** Elemente `view.left` / `view.right`: Dateiliste oder Plugin-ID. Anwenden zeigt den View
+  direkt im Host (`showPluginView()` / `showDolphinView()`), **ohne** eine Ordner-Vorliebe zu
+  schreiben (`selectView()` täte das). Fehlt das Plugin oder kann es den Ort nicht zeigen: still
+  die Dateiliste. Beim Navigieren gilt wie bisher die Vorliebe des Ordners, sonst bleibt der View.
+  Nur der aktuelle Tab. Der eigene Zustand des Plugins (Färbung, Namen) vorerst nicht.
+- Reihenfolge: `split` → `viewStyle.*` → `view.*` → `splitLock`.
 
 ## LK7a: umgesetzt (2026-10-22)
 
@@ -364,3 +377,16 @@ es.
 - Tests: `testMirrorIntoFolder` (Details, Verlauf), `testMirrorIntoIconsView` (neu: wechselt),
   `testMirrorInPlace`, Treemap-Tests um Ort ergänzt, `test_lk_acceptance.py` Schritt E. Offscreen
   88/88 grün.
+
+## LK7b: umgesetzt (2026-10-22)
+
+- `whalestyleelementtypes.cpp`: `ShownViewElement` (`view.left` / `view.right`, Wert = View-ID,
+  Beschreibung „File list“ bzw. Plugin-Name aus den Metadaten) und `SplitLockElement`
+  (`splitLock`, „Linked“/„Not linked“). Reihenfolge `split`, `viewStyle.*`, `view.*`,
+  `splitLock`, dann der Rest.
+- `WhaleSplitLock::setLocked(true)` liest die Views zuerst neu ein (`update()`); direkt nach
+  dem Öffnen des Splits durch einen Style kannte es die rechte View sonst noch nicht.
+- Kein Hinweis, wenn der Lock beim Anwenden nicht möglich ist (bleibt still aus).
+- Tests: `whalestyleelementstest` (`testShownView`, `testSplitLock`; jetzt mit Treemap-Plugin),
+  Elementanzahlen in `whalestylemanagertest` / `whalestylessettingspagetest` (14),
+  `test_st_acceptance.py` Schritt I „Kissen“. Offscreen 88/88 grün.

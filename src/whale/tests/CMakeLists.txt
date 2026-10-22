@@ -299,8 +299,10 @@ ecm_add_test(whalestylestoretest.cpp
 # The element types of styles at a main window (ST2).
 ecm_add_test(whalestyleelementstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whalestyleelementstest
-    LINK_LIBRARIES dolphinstatic Qt6::Test)
+    LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalestyleelementstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(whalestyleelementstest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
+add_dependencies(whalestyleelementstest whale_treemap)
 
 # Applying, capturing and the actions of styles in main windows (ST3).
 ecm_add_test(whalestylemanagertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc

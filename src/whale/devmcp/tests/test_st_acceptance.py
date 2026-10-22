@@ -14,6 +14,7 @@ styles, driven only through the dev MCP:
   F  restart after "Schlicht": the window starts as it was left (E3), the styles are there
   G  back to "Bilder" after the restart
   H  the filter bars (FB3): media on the left, their texts on the right
+  I  "Kissen" (LK7): the treemap on the right and the linked views
 
 Whale runs on a private D-Bus session bus (the script starts one) and is restarted like O3.
 Arguments as test_o3_acceptance.py.
@@ -233,7 +234,7 @@ def run(args, work):
         check('"id":"zwei"' in reply[0]["text"].replace(" ", ""), "E: new id", reply)
         state = s.expect("E: three styles", {"styles.menu": {"$contains": "whale_style_zwei"}}, focus=False)
         zwei = state["styles"]["list"][2]
-        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 11, "E: all elements captured", zwei)
+        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 14, "E: all elements captured", zwei)
         check("[Style][zwei]" in styles_file.read_text(), "E: in the file")
         client.tool("apply_style", id="bilder")
         s.expect("E: Bilder closes the right view", BILDER, focus=False)
@@ -282,6 +283,29 @@ def run(args, work):
         medien = [style for style in state["styles"]["list"] if style["id"] == "medien"][0]
         check("*.jpg" in medien["elements"]["filterBar.left"]["description"], "H: description", medien["elements"])
         print("ok    H: filter bars")
+
+        # I: the shown view and the lock (LK7, E8/E9)
+        client.tool("clear_filter", pane=0)
+        client.tool("clear_filter", pane=1)
+        client.tool("set_view", pane=1, view="whale_treemap")
+        s.expect("I: treemap on the right", {"panes.1.viewId": "whale_treemap", "panes.1.treemap.status": "ready"}, focus=False)
+        client.tool("activate_pane", pane="left")
+        client.tool("set_split_lock", locked=True)
+        s.expect("I: linked", {"splitLock.locked": True}, focus=False)
+        reply = client.tool("save_style", name="Kissen")
+        check('"id":"kissen"' in reply[0]["text"].replace(" ", ""), "I: saved", reply)
+        client.tool("set_split_lock", locked=False)
+        client.tool("set_view", pane=1, view="dolphin")
+        client.tool("apply_style", id="bilder")
+        s.expect("I: Bilder, one view", {"paneCount": 1, "splitLock.locked": False}, focus=False)
+        client.tool("apply_style", id="kissen")
+        state = s.expect("I: Kissen again: treemap on the right, linked", {
+            "paneCount": 2, "panes.1.viewId": "whale_treemap", "splitLock.locked": True,
+            "panes.0.viewId": "dolphin"}, focus=False)
+        kissen = [style for style in state["styles"]["list"] if style["id"] == "kissen"][0]
+        check(kissen["elements"]["view.right"]["description"] == "Cushion Treemap", "I: description", kissen["elements"])
+        check(kissen["elements"]["splitLock"]["description"] == "Linked", "I: lock description", kissen["elements"])
+        print("ok    I: treemap and lock")
         w.quit()
     finally:
         w.kill()

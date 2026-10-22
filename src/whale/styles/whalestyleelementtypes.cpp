@@ -16,12 +16,17 @@
 #include "settings/viewmodes/viewmodesettings.h"
 #include "views/dolphinview.h"
 #include "views/viewproperties.h"
+#include "whalesplitlock.h"
 #include "whalestyleelement.h"
 #include "whalestyleelements.h"
 #include "whaletoolbarsettings.h"
+#include "whaleviewhost.h"
+#include "whaleviewregistry.h"
+#include "whaleviewservices.h"
 
 #include <KActionCollection>
 #include <KLocalizedString>
+#include <KPluginMetaData>
 #include <KStandardAction>
 #include <KToolBar>
 
@@ -248,6 +253,120 @@ private:
     }
 
     DolphinView::PanelRole m_role;
+};
+
+// ---- view.left, view.right ----
+
+// LK7 (E9): the view shown on a side, the file list or a view plugin (e.g. the treemap). For the
+// current tab only.
+class ShownViewElement : public WhaleStyleElement
+{
+public:
+    explicit ShownViewElement(DolphinView::PanelRole role)
+        : m_role(role)
+    {
+    }
+    QString key() const override
+    {
+        return m_role == DolphinView::PanelRole::Left ? QStringLiteral("view.left") : QStringLiteral("view.right");
+    }
+    QString title() const override
+    {
+        return m_role == DolphinView::PanelRole::Left ? i18nc("@item:inlistbox style element", "View on the left")
+                                                      : i18nc("@item:inlistbox style element", "View on the right");
+    }
+    bool isAvailable(const DolphinMainWindow *window) const override
+    {
+        return host(window);
+    }
+    QString capture(const DolphinMainWindow *window) const override
+    {
+        const WhaleViewHost *shown = host(window);
+        return shown ? shown->currentViewId() : QString();
+    }
+    void apply(DolphinMainWindow *window, const QString &value) const override
+    {
+        WhaleViewHost *shown = host(window);
+        if (!shown || value.isEmpty() || shown->currentViewId() == value) {
+            return;
+        }
+        // Not as the user's choice (selectView()): applying a style leaves the preferred views of
+        // the folders alone.
+        if (value != WhaleViewHost::dolphinViewId()) {
+            const WhaleViewServices *services = WhaleViewServices::of(window);
+            WhaleViewRegistry *registry = services ? services->registry() : nullptr;
+            WhaleViewPlugin *plugin = registry && registry->pluginMetaData(value).isValid() ? registry->plugin(value) : nullptr;
+            if (plugin && shown->showPluginView(value, plugin)) {
+                return;
+            }
+        }
+        // A missing plugin, or one that cannot show the location: the file list, quietly.
+        shown->showDolphinView();
+    }
+    QString describe(const QString &value) const override
+    {
+        if (value.isEmpty()) {
+            return QString();
+        }
+        if (value == WhaleViewHost::dolphinViewId()) {
+            return i18nc("@item:intext style element value", "File list");
+        }
+        const KPluginMetaData metaData = KPluginMetaData::findPluginById(WhaleViewRegistry::pluginNamespace(), value);
+        return metaData.isValid() ? metaData.name() : value;
+    }
+
+private:
+    WhaleViewHost *host(const DolphinMainWindow *window) const
+    {
+        const DolphinTabPage *page = currentTabPage(window);
+        if (!page) {
+            return nullptr;
+        }
+        DolphinViewContainer *container = m_role == DolphinView::PanelRole::Left ? page->primaryViewContainer()
+            : page->splitViewEnabled()                                           ? page->secondaryViewContainer()
+                                                                                 : nullptr;
+        return container ? container->viewHost() : nullptr;
+    }
+
+    DolphinView::PanelRole m_role;
+};
+
+// ---- splitLock ----
+
+// LK7 (E8): the linked views of the split view, for the current tab only. Where they cannot be
+// linked, they stay unlinked.
+class SplitLockElement : public WhaleStyleElement
+{
+public:
+    QString key() const override
+    {
+        return QStringLiteral("splitLock");
+    }
+    QString title() const override
+    {
+        return i18nc("@item:inlistbox style element", "Linked views");
+    }
+    QString capture(const DolphinMainWindow *window) const override
+    {
+        const WhaleSplitLock *lock = WhaleSplitLock::of(currentTabPage(window));
+        return boolText(lock && lock->isLocked());
+    }
+    void apply(DolphinMainWindow *window, const QString &value) const override
+    {
+        WhaleSplitLock *lock = WhaleSplitLock::of(currentTabPage(window));
+        const std::optional<bool> locked = boolFrom(value);
+        if (lock && locked) {
+            lock->setLocked(*locked);
+        }
+    }
+    QString describe(const QString &value) const override
+    {
+        const std::optional<bool> locked = boolFrom(value);
+        if (!locked) {
+            return QString();
+        }
+        return *locked ? i18nc("@item:intext style element value", "Linked") : i18nc("@item:intext style element value", "Not linked");
+    }
 };
 
 // ---- filterBar.left, filterBar.right ----
@@ -795,6 +914,9 @@ void WhaleStyleElementTypes::addTo(WhaleStyleElements &elements)
     elements.add(std::make_unique<SplitElement>());
     elements.add(std::make_unique<ViewStyleElement>(DolphinView::PanelRole::Left));
     elements.add(std::make_unique<ViewStyleElement>(DolphinView::PanelRole::Right));
+    elements.add(std::make_unique<ShownViewElement>(DolphinView::PanelRole::Left));
+    elements.add(std::make_unique<ShownViewElement>(DolphinView::PanelRole::Right));
+    elements.add(std::make_unique<SplitLockElement>()); // after the views it depends on
     elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Left));
     elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Right));
     elements.add(std::make_unique<ZoomElement>());
