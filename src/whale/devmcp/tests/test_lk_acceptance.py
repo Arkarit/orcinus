@@ -111,10 +111,16 @@ def run(args, work):
         s.expect("E: the left view shows the treemap's selection", {
             "activePane": 1, "panes.0.selectedNames": ["b.txt"], "panes.0.currentName": "b.txt"})
         client.tool("treemap_select", pane=1, url=url("sub", "deeper", "deep.txt"))
-        # The left view shows icons, which cannot expand: the top-level folder becomes current.
-        s.expect("E: a deep treemap entry: its top-level folder is current on the left", {
-            "panes.0.selectedNames": [], "panes.0.currentName": "sub",
+        # LK7 (E6): the left view (icons) goes into the folder of the deep entry and selects it;
+        # the treemap stays where it is.
+        s.expect("E: a deep treemap entry: the left view goes into its folder", {
+            "panes.0.url": url("sub", "deeper"), "panes.0.loading": False,
+            "panes.0.selectedNames": ["deep.txt"], "panes.0.currentName": "deep.txt",
+            "panes.1.url": folder.as_uri() + "/", "activePane": 1,
             "panes.1.treemap.selected": url("sub", "deeper", "deep.txt")})
+        client.tool("treemap_select", pane=1, url=url("b.txt"))
+        s.expect("E: back to an entry of the location: the left view goes back", {
+            "panes.0.url": folder.as_uri() + "/", "panes.0.selectedNames": ["b.txt"], "activePane": 1})
 
         # F: a view without LinkedSelection releases the lock, with a message
         client.tool("set_view", pane=1, view=TESTLIST)

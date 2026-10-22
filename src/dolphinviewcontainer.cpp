@@ -678,13 +678,22 @@ void DolphinViewContainer::setUrl(const QUrl &newUrl)
     }
 }
 
-void DolphinViewContainer::setUrlWithoutActivation(const QUrl &url)
+void DolphinViewContainer::setUrlWithoutActivation(const QUrl &url, bool replaceHistoryEntry)
 {
     const bool blockActivation = m_urlNavigatorConnected && !isActive();
     if (blockActivation) {
         disconnect(m_urlNavigatorConnected, &DolphinUrlNavigator::activated, this, &DolphinViewContainer::activate);
     }
-    setUrl(url);
+    if (replaceHistoryEntry && m_urlNavigator->historyIndex() == 0 && m_urlNavigator->historySize() > 1) {
+        if (m_urlNavigator->locationUrl(1).adjusted(QUrl::StripTrailingSlash) == url.adjusted(QUrl::StripTrailingSlash)) {
+            // Back where it was: the entry it leaves stays as the next one.
+            m_urlNavigator->goBack();
+        } else {
+            replaceLocationUrl(m_urlNavigator->locationUrl(), url);
+        }
+    } else {
+        setUrl(url);
+    }
     if (blockActivation) {
         connect(m_urlNavigatorConnected, &DolphinUrlNavigator::activated, this, &DolphinViewContainer::activate);
         m_urlNavigatorConnected->setActive(false);

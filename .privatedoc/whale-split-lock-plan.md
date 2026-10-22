@@ -342,3 +342,25 @@ es.
   bleibt an Ort und Stelle, aufgeklappter Zweig rechts bleibt, aktive View bleibt stehen,
   Verlauf der anderen View unverändert.
 - **LK7b:** E8 (`WhaleStyleElementTypes`, `whalestyleelementstest`, Dev-MCP-Abnahme).
+
+## LK7a: umgesetzt (2026-10-22)
+
+- `WhaleSplitLock::mirror()`: Ordner des aktuellen (sonst ersten ausgewählten) Elements der aktiven
+  View. Kann die andere View es nicht an Ort und Stelle zeigen (`showsInPlace()`: Dolphin-View
+  über neues `DolphinView::showsItem()`, also Ort, flache Ansicht, selbst aufgeklappte Zweige;
+  Plugin-View mit `RecursiveContent` alles unter ihrem Ort, sonst nur ihr Ort), wechselt sie per
+  `setUrlWithoutActivation()` in diesen Ordner. Nur für Elemente am Ort der aktiven View oder
+  darunter und nur, solange sie lockbar ist (sonst landete die andere View kurz vor dem Lösen im
+  Papierkorb: `testNoFollowToUnlockableLocation`). `m_following` hält die aktive View fest.
+- `DolphinView::applyLinkedSelection()`: Aufklappen (`m_linkedExpansions`,
+  `expandParentDirectories()`) und Icons-Rückfall entfernt; es wählt nur noch aus, was die View
+  listet, und wartet nur noch auf den eigenen Ort.
+- **E7, Abweichung:** `KUrlNavigator` kann Einträge weder ersetzen noch löschen. Daher: Der erste
+  Wechsel in einen Ordner der Auswahl legt **einen** Eintrag über dem eigenen an; weitere Wechsel
+  ersetzen ihn (`setUrlWithoutActivation(url, true)`, `goBack()` mit blockierten Signalen), die
+  Rückkehr zum Ort ist `goBack()`. Dann bleibt der Ordner als „Vorwärts“-Eintrag stehen, bis die
+  nächste Navigation ihn abschneidet. Folgt die View danach der aktiven (E1), ersetzt sie den
+  Eintrag ebenfalls. Navigiert sie selbst, ist der Eintrag ihr eigener (`m_movedView`).
+- Tests: `testMirrorIntoFolder` (Details, Verlauf), `testMirrorIntoIconsView` (neu: wechselt),
+  `testMirrorInPlace`, Treemap-Tests um Ort ergänzt, `test_lk_acceptance.py` Schritt E. Offscreen
+  88/88 grün.

@@ -34,7 +34,10 @@ class QToolButton;
  * WhaleViewHost::linkedSelection() and showLinkedSelection(); a plugin view takes part with
  * WhaleViewCapability::LinkedSelection, LK5). The user selects in the active view, so this goes both
  * ways, while changes of the inactive view (e.g. while it lists its new location) never reach
- * the active one. A selection is limited to the items of one folder (A1,
+ * the active one. Where the inactive view cannot show the items where it is (an item of a
+ * subfolder it has not expanded, e.g. in icons), it goes into their folder, with one history
+ * entry for such folders, and back when the selection returns (LK7, E6/E7); it never expands
+ * folders for them. The active view stays where it is. A selection is limited to the items of one folder (A1,
  * DolphinView::setSelectionLimitedToOneFolder()); a view says so when it refuses or leaves out
  * items.
  *
@@ -105,6 +108,8 @@ private:
     bool m_updateScheduled = false;
     bool m_following = false;
     bool m_mirroring = false;
+    // The view that went into the folder of a selection (E6), so its history entry is not its own.
+    QPointer<DolphinViewContainer> m_movedView;
 };
 
 #endif

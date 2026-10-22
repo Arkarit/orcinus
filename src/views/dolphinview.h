@@ -499,13 +499,18 @@ public Q_SLOTS:
     QUrl currentItemUrl() const;
 
     /**
+     * Whale: @return Whether @p url is one of the items the view lists: of its location, or of
+     *         the flat view or an expanded folder. Not an item the view leaves out (filter,
+     *         hidden files) or that it is still listing.
+     */
+    bool showsItem(const QUrl &url) const;
+
+    /**
      * Whale: shows the selection of the other view of a locked split view (LK4): @p selected
-     * (items of one folder) and @p current. Items of the location, or listed by the view anyway
-     * (flat view, expanded folders), are selected. Items of a subfolder are selected in a view
-     * that can expand folders, which expands its branch for them; another view (icons) makes their
-     * top-level folder the current item without selecting anything. Items the view does not show
-     * (filter, hidden files) are left out. Items that are still being listed (the location is
-     * loading, a branch expanding) are selected when they come. What this changes does not emit
+     * (items of one folder) and @p current. The items the view lists (showsItem()) are selected;
+     * the view never expands a folder for them (LK7, E6: the lock moves it into their folder
+     * instead). Items of the location that are still being listed are selected when they come.
+     * Items the view does not show are left out. What this changes does not emit
      * linkedSelectionChanged().
      */
     void showLinkedSelection(const QList<QUrl> &selected, const QUrl &current);
@@ -1201,7 +1206,7 @@ private:
     QList<QUrl> m_selectedUrls; // Used for making the view to remember selections after F5 and file operations
 
     // Whale: showLinkedSelection()
-    void applyLinkedSelection(bool listingCompleted);
+    void applyLinkedSelection();
     QList<QUrl> m_linkedSelected;
     QUrl m_linkedCurrent;
     bool m_linkedPending = false;
@@ -1209,7 +1214,6 @@ private:
     bool m_viewModeKept = false; // Whale: setViewModeKept()
     PanelRole m_panelRole = PanelRole::Left; // Whale: setPanelRole()
     std::unique_ptr<ViewProperties> m_ownStyle; // Whale (VS): ownStyle()
-    QSet<QUrl> m_linkedExpansions; // the items whose branch was asked to expand
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;
     /// Decides whether items created by jobs should automatically be selected.

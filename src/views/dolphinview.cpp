@@ -281,7 +281,7 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
         &KFileItemModel::itemsInserted,
         this,
         [this]() {
-            applyLinkedSelection(false);
+            applyLinkedSelection();
         },
         Qt::QueuedConnection);
     connect(
@@ -289,7 +289,7 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
         &KFileItemModel::directoryLoadingCompleted,
         this,
         [this]() {
-            applyLinkedSelection(true);
+            applyLinkedSelection();
         },
         Qt::QueuedConnection);
 
@@ -1026,71 +1026,35 @@ QUrl DolphinView::currentItemUrl() const
     return index >= 0 ? m_model->fileItem(index).url() : QUrl();
 }
 
+bool DolphinView::showsItem(const QUrl &url) const
+{
+    return m_model->index(url) >= 0;
+}
+
 void DolphinView::showLinkedSelection(const QList<QUrl> &selected, const QUrl &current)
 {
     m_linkedSelected = selected;
     m_linkedCurrent = current;
-    m_linkedExpansions.clear();
     m_linkedPending = true;
-    applyLinkedSelection(false);
+    applyLinkedSelection();
 }
 
-void DolphinView::applyLinkedSelection(bool listingCompleted)
+void DolphinView::applyLinkedSelection()
 {
     if (!m_linkedPending) {
         return;
     }
     const QUrl location = url().adjusted(QUrl::StripTrailingSlash);
-    const bool expandable = itemsExpandable();
     bool waiting = false;
-    bool deep = false; // an item of a subfolder that this view cannot show
 
     // @return The index of @p url to select, or -1.
     const auto resolve = [&](const QUrl &url) {
         const int index = m_model->index(url);
-        if (index >= 0) {
-            return index;
-        }
-        if (!location.isParentOf(url)) {
-            return -1; // elsewhere
-        }
-        const QUrl folder = url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
-        if (folder == location) {
+        if (index < 0 && url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash) == location) {
             // Still being listed, or not shown (filter, hidden files).
             waiting = waiting || m_loadingState == LoadingState::Loading;
-            return -1;
         }
-        if (!expandable) {
-            deep = true;
-            return -1;
-        }
-        if (!m_linkedExpansions.contains(url)) {
-            m_linkedExpansions.insert(url);
-            m_model->expandParentDirectories(url);
-        }
-        // Not shown when its folder has been listed. An expanded folder without children may
-        // still be listed: the model reports the completion of a branch before the last folder
-        // that expandParentDirectories() expanded on its own.
-        const int folderIndex = m_model->index(folder);
-        const bool folderShowsChildren = folderIndex >= 0 && folderIndex + 1 < m_model->count()
-            && m_model->expandedParentsCount(folderIndex + 1) > m_model->expandedParentsCount(folderIndex);
-        if (!listingCompleted || folderIndex < 0 || !m_model->isExpanded(folderIndex) || !folderShowsChildren) {
-            waiting = true;
-        }
-        return -1;
-    };
-    // @return The index of the item of the location that contains @p url, or -1.
-    const auto topLevelIndex = [&](const QUrl &url) {
-        if (!location.isParentOf(url)) {
-            return -1;
-        }
-        QString path = location.path();
-        if (!path.endsWith(QLatin1Char('/'))) {
-            path.append(QLatin1Char('/'));
-        }
-        QUrl topLevel = location;
-        topLevel.setPath(path + url.path().mid(path.length()).section(QLatin1Char('/'), 0, 0));
-        return m_model->index(topLevel);
+        return index;
     };
 
     KItemSet items;
@@ -1099,12 +1063,7 @@ void DolphinView::applyLinkedSelection(bool listingCompleted)
             items.insert(index);
         }
     }
-    int currentIndex = m_linkedCurrent.isValid() ? resolve(m_linkedCurrent) : -1;
-    if (deep) {
-        // E.g. icons: only the top-level folder that contains the items, as the current item.
-        items.clear();
-        currentIndex = topLevelIndex(m_linkedCurrent.isValid() ? m_linkedCurrent : m_linkedSelected.constFirst());
-    }
+    const int currentIndex = m_linkedCurrent.isValid() ? resolve(m_linkedCurrent) : -1;
 
     KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
     m_applyingLinkedSelection = true;

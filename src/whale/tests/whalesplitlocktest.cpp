@@ -129,8 +129,9 @@ private Q_SLOTS:
     void testMirrorSelection();
     void testMirrorOnLocking();
     void testNoMirrorFromInactiveView();
-    void testMirrorIntoExpandableView();
+    void testMirrorIntoFolder();
     void testMirrorIntoIconsView();
+    void testMirrorInPlace();
     void testMirrorAfterFollowing();
     void testMirrorShowsWhatIsSelected();
     void testMirrorLeavesOutFilteredItems();
@@ -899,58 +900,114 @@ void WhaleSplitLockTest::testNoMirrorFromInactiveView()
     QCOMPARE(selected(m_left), QStringList{QStringLiteral("a.txt")});
 }
 
-void WhaleSplitLockTest::testMirrorIntoExpandableView()
+void WhaleSplitLockTest::testMirrorIntoFolder()
 {
-    // An item of a subfolder: the details view expands its branch and selects it.
+    // E6 (LK7): an item of a subfolder the other view does not show: it goes into that folder and
+    // selects the item there, and expands nothing. The active view stays. E7: one entry for the
+    // folders of the selection, above the view's own one; going back returns to that.
     showSplit();
     if (QTest::currentTestFailed()) {
         return;
     }
     m_left->view()->setViewMode(DolphinView::DetailsView);
     m_right->view()->setViewMode(DolphinView::DetailsView);
-    QVERIFY(m_left->view()->itemsExpandable());
-    QVERIFY(m_right->view()->itemsExpandable());
     m_left->setActive(true);
     lock()->setLocked(true);
     QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub"))), true));
     QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/deeper"))) >= 0);
     QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub/deeper"))), true));
     QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/deeper/c.txt"))) >= 0);
+    const KUrlNavigator *history = m_right->urlNavigatorInternalWithHistory();
+    const int historySize = history->historySize();
+
+    select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/b.txt")});
+    QCOMPARE(history->historySize(), historySize + 1);
 
     select(m_left, {QStringLiteral("sub/deeper/c.txt")}, QStringLiteral("sub/deeper/c.txt"));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
     QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/deeper/c.txt")});
-    QTRY_COMPARE(current(m_right), QStringLiteral("sub/deeper/c.txt"));
+    QCOMPARE(current(m_right), QStringLiteral("sub/deeper/c.txt"));
+    QCOMPARE(history->historySize(), historySize + 1);
+    QCOMPARE(history->historyIndex(), 0);
+    QCOMPARE(normalized(history->locationUrl(1)), normalized(m_dir->url()));
     QVERIFY(m_left->isActive());
+    QCOMPARE(normalized(m_left->url()), normalized(m_dir->url()));
     QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub/deeper/c.txt")});
+
+    // Back to an item of the location: the other view goes back too.
+    select(m_left, {QStringLiteral("a.txt")}, QStringLiteral("a.txt"));
+    QTRY_COMPARE(normalized(m_right->url()), normalized(m_dir->url()));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("a.txt")});
+    QCOMPARE(history->historyIndex(), 1);
+    QCOMPARE(history->historySize(), historySize + 1);
+    // It never expanded anything.
+    QCOMPARE(model(m_right)->expandedDirectories().count(), 0);
+    QVERIFY(m_left->isActive());
+
+    // Once more, then the active view goes elsewhere: the other one follows in place of the
+    // entry for the selection.
+    select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    QCOMPARE(history->historySize(), historySize + 1);
+    m_left->setUrl(url(QStringLiteral("sub/deeper")));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
+    QCOMPARE(history->historySize(), historySize + 1);
+    QCOMPARE(normalized(history->locationUrl(1)), normalized(m_dir->url()));
 }
 
 void WhaleSplitLockTest::testMirrorIntoIconsView()
 {
-    // An item of a subfolder in a view that cannot expand: its top-level folder becomes the
-    // current item, nothing is selected (so nothing acts on it by surprise).
+    // A view that cannot expand goes into the folder too (LK7; it used to show only the top-level
+    // folder as the current item, hardly visible).
     showSplit();
     if (QTest::currentTestFailed()) {
         return;
     }
     m_left->view()->setViewMode(DolphinView::DetailsView);
     m_right->view()->setViewMode(DolphinView::IconsView);
-    QVERIFY(!m_right->view()->itemsExpandable());
     m_left->setActive(true);
     lock()->setLocked(true);
     QVERIFY(model(m_left)->setExpanded(model(m_left)->index(url(QStringLiteral("sub"))), true));
     QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/b.txt"))) >= 0);
 
     select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
-    QTRY_COMPARE(current(m_right), QStringLiteral("sub"));
-    QVERIFY(selected(m_right).isEmpty());
-    // The left view keeps its selection.
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub")));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/b.txt")});
+    QCOMPARE(current(m_right), QStringLiteral("sub/b.txt"));
+    // The left view keeps its location and selection.
+    QCOMPARE(normalized(m_left->url()), normalized(m_dir->url()));
     QCOMPARE(selected(m_left), QStringList{QStringLiteral("sub/b.txt")});
+}
+
+void WhaleSplitLockTest::testMirrorInPlace()
+{
+    // E6: a branch the user expanded in the other view shows the item where it is.
+    showSplit();
+    if (QTest::currentTestFailed()) {
+        return;
+    }
+    m_left->view()->setViewMode(DolphinView::DetailsView);
+    m_right->view()->setViewMode(DolphinView::DetailsView);
+    m_left->setActive(true);
+    lock()->setLocked(true);
+    for (DolphinViewContainer *container : {m_left, m_right}) {
+        QVERIFY(model(container)->setExpanded(model(container)->index(url(QStringLiteral("sub"))), true));
+        QTRY_VERIFY(model(container)->index(url(QStringLiteral("sub/b.txt"))) >= 0);
+    }
+
+    select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
+    QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/b.txt")});
+    QCOMPARE(current(m_right), QStringLiteral("sub/b.txt"));
+    QTest::qWait(100);
+    QCOMPARE(normalized(m_right->url()), normalized(m_dir->url()));
 }
 
 void WhaleSplitLockTest::testMirrorShowsWhatIsSelected()
 {
     // The other view draws what its selection manager reports: an anchored range of before
-    // (here from the top-level folder of a deep item) must not extend to the next current item.
+    // (here from a current item without selection) must not extend to the next current item.
     showSplit();
     if (QTest::currentTestFailed()) {
         return;
@@ -958,7 +1015,7 @@ void WhaleSplitLockTest::testMirrorShowsWhatIsSelected()
     m_right->view()->setViewMode(DolphinView::IconsView);
     m_left->setActive(true);
     DolphinView *view = m_right->view();
-    view->showLinkedSelection({url(QStringLiteral("sub/b.txt"))}, url(QStringLiteral("sub/b.txt")));
+    view->showLinkedSelection({}, url(QStringLiteral("sub")));
     QTRY_COMPARE(current(m_right), QStringLiteral("sub"));
     QVERIFY(selected(m_right).isEmpty());
 
@@ -1085,9 +1142,13 @@ void WhaleSplitLockTest::testMirrorFromTreemap()
     QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("a.txt")});
     QCOMPARE(current(m_right), QStringLiteral("a.txt"));
 
+    // A deep entry (a click in the treemap hits the deepest one): the other view goes into its
+    // folder (LK7); the treemap stays where it is.
     QVERIFY(selectInTreemap(view, url(QStringLiteral("sub/deeper/c.txt"))));
+    QTRY_COMPARE(normalized(m_right->url()), url(QStringLiteral("sub/deeper")));
     QTRY_COMPARE(selected(m_right), QStringList{QStringLiteral("sub/deeper/c.txt")});
     QCOMPARE(current(m_right), QStringLiteral("sub/deeper/c.txt"));
+    QCOMPARE(normalized(m_left->url()), normalized(m_dir->url()));
     // The deep entry stays the treemap's own.
     QCOMPARE(treemapSelection(view), url(QStringLiteral("sub/deeper/c.txt")));
     QVERIFY(m_left->isActive());
@@ -1117,6 +1178,8 @@ void WhaleSplitLockTest::testMirrorIntoTreemap()
     QTRY_VERIFY(model(m_left)->index(url(QStringLiteral("sub/b.txt"))) >= 0);
     select(m_left, {QStringLiteral("sub/b.txt")}, QStringLiteral("sub/b.txt"));
     QTRY_COMPARE(treemapSelection(view), url(QStringLiteral("sub/b.txt")));
+    // The treemap shows it where it is (E6), with the whole location.
+    QCOMPARE(normalized(m_right->url()), normalized(m_dir->url()));
 
     select(m_left, {}, QStringLiteral("a.txt"));
     QTRY_VERIFY(treemapSelection(view).isEmpty());

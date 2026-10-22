@@ -48,6 +48,29 @@ WhaleSplitLock::WhaleSplitLock(DolphinTabPage *page)
     update();
 }
 
+namespace
+{
+QUrl folderOf(const QUrl &url)
+{
+    return url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
+}
+
+// E6 (LK7): whether @p container shows @p item where it is, without going into its folder.
+bool showsInPlace(const DolphinViewContainer *container, const QUrl &item)
+{
+    const WhaleViewHost *host = container->viewHost();
+    if (host && !host->isDolphinViewShown()) {
+        // A view that shows more than the folder listing (the treemap) shows what is below it.
+        if (host->currentView()->capabilities() & WhaleViewCapability::RecursiveContent) {
+            return container->url().isParentOf(item);
+        }
+        return folderOf(item) == container->url().adjusted(QUrl::StripTrailingSlash);
+    }
+    // The location, the flat view, and the folders the user has expanded.
+    return container->view()->showsItem(item);
+}
+}
+
 WhaleSplitLock::~WhaleSplitLock()
 {
     delete m_button;
@@ -94,6 +117,7 @@ void WhaleSplitLock::setLocked(bool locked)
         }
     }
     m_locked = locked;
+    m_movedView = nullptr;
     update();
     Q_EMIT lockedChanged(m_locked);
     if (m_locked) {
@@ -181,6 +205,9 @@ DolphinViewContainer *WhaleSplitLock::otherView(const DolphinViewContainer *cont
 
 void WhaleSplitLock::follow(DolphinViewContainer *leader)
 {
+    if (!m_following && leader == m_movedView) {
+        m_movedView = nullptr; // it went somewhere itself
+    }
     DolphinViewContainer *other = otherView(leader);
     if (!m_locked || m_following || !other) {
         return;
@@ -194,8 +221,10 @@ void WhaleSplitLock::follow(DolphinViewContainer *leader)
         return; // also the way back of the other view's own change
     }
     m_following = true;
-    other->setUrlWithoutActivation(url);
+    // A view in the folder of a selection (E6) leaves it without an entry for it (E7).
+    other->setUrlWithoutActivation(url, other == m_movedView);
     m_following = false;
+    m_movedView = nullptr;
 }
 
 void WhaleSplitLock::mirror(DolphinViewContainer *source)
@@ -208,6 +237,20 @@ void WhaleSplitLock::mirror(DolphinViewContainer *source)
     const WhaleViewHost *sourceHost = source->viewHost();
     const WhaleSelection selection =
         sourceHost ? sourceHost->linkedSelection() : WhaleSelection(source->view()->selectedItems().urlList(), source->view()->currentItemUrl());
+    // E6: where the other view cannot show the items, it goes into their folder (one folder, A1),
+    // without an entry in its history (E7) and without taking the active view along. Only for
+    // items of the active view's location: while it changes, its selection is of the old one.
+    // Not where the views cannot be linked: the lock is released instead (E3, update()).
+    const QUrl item = selection.current().isValid() ? selection.current() : selection.selected().value(0);
+    const QUrl folder = folderOf(item);
+    const QUrl location = source->url().adjusted(QUrl::StripTrailingSlash);
+    if (item.isValid() && lockability(source).lockable && (folder == location || location.isParentOf(folder)) && !showsInPlace(other, item)
+        && folder != other->url().adjusted(QUrl::StripTrailingSlash)) {
+        m_following = true;
+        other->setUrlWithoutActivation(folder, other == m_movedView);
+        m_following = false;
+        m_movedView = folder == location ? nullptr : other;
+    }
     if (WhaleViewHost *otherHost = other->viewHost()) {
         otherHost->showLinkedSelection(selection);
     } else {
@@ -219,6 +262,7 @@ void WhaleSplitLock::mirror(DolphinViewContainer *source)
 void WhaleSplitLock::release(DolphinViewContainer *container, const QString &reason)
 {
     m_locked = false;
+    m_movedView = nullptr;
     if (container) {
         WhaleTransientMessage::showIn(container, i18nc("@info %1 is why", "The views are no longer linked. %1", reason));
     }

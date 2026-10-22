@@ -259,9 +259,11 @@ public Q_SLOTS:
 
     /**
      * Whale: as setUrl(), but an inactive view stays inactive (as in redirect()), e.g. a view
-     * that follows the other view of a locked split view.
+     * that follows the other view of a locked split view. With @p replaceHistoryEntry, @p url
+     * replaces the newest entry of the history instead of adding one (replaceLocationUrl()), or
+     * goes back to the entry before when that is @p url.
      */
-    void setUrlWithoutActivation(const QUrl &url);
+    void setUrlWithoutActivation(const QUrl &url, bool replaceHistoryEntry = false);
 
     /**
      * Popups the filter bar above the status bar if \a visible is true.
