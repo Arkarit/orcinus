@@ -13,6 +13,7 @@
 #include "whaleviewcommandscope.h"
 
 #include <KActionCollection>
+#include <KHamburgerMenu>
 #include <KLocalizedString>
 #include <KStandardAction>
 #include <KToolBar>
@@ -24,6 +25,7 @@
 #include <QMenuBar>
 #include <QStandardPaths>
 #include <QTest>
+#include <QToolButton>
 
 /**
  * The menu bar as an element of the window's toolbars (TM, .privatedoc/whale-toolbar-menu-plan.md).
@@ -44,10 +46,17 @@ private Q_SLOTS:
     void testFixedWidth();
     void testMnemonicsWithBothShown();
 
+    void testBurgerWhenNarrow();
+    void testBurgerMenu();
+    void testBurgerWhenVertical();
+    void testHamburgerLeftOut();
+
 private:
     /** Shows the window with the element in the main toolbar; @return its widget. */
     WhaleToolBarMenu *showWithElement();
     static QStringList titles(const QMenuBar *menuBar);
+    /** @return The button of the KHamburgerMenu in the main toolbar. */
+    QWidget *hamburgerButton() const;
 
     QTemporaryDir m_tmpHome;
     QScopedPointer<TestDir> m_dir;
@@ -229,6 +238,106 @@ void WhaleMenuBarTest::testMnemonicsWithBothShown()
     QTest::keyClick(m_mainWindow.data(), Qt::Key_F, Qt::AltModifier);
     QTRY_VERIFY(fileMenu->isVisible());
     fileMenu->close();
+}
+
+QWidget *WhaleMenuBarTest::hamburgerButton() const
+{
+    QAction *hamburger = m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::HamburgerMenu));
+    return hamburger ? m_mainWindow->toolBar()->widgetForAction(hamburger) : nullptr;
+}
+
+void WhaleMenuBarTest::testBurgerWhenNarrow()
+{
+    WhaleToolBarMenu *element = showWithElement();
+    QVERIFY(element);
+    const int fullWidth = element->menuBar()->sizeHint().width();
+    QTRY_VERIFY(!element->isBurger());
+    QVERIFY(element->menuBar()->isVisible());
+    QVERIFY(!element->burgerButton()->isVisible());
+
+    m_mainWindow->resize(fullWidth + 60, 700);
+    QTRY_VERIFY(element->isBurger());
+    QVERIFY(!element->menuBar()->isVisible());
+    QVERIFY(element->burgerButton()->isVisible());
+    QTRY_VERIFY(element->width() < fullWidth / 2);
+    // In the toolbar itself, not in its overflow menu.
+    QVERIFY(element->isVisible());
+    QVERIFY(m_mainWindow->toolBar()->rect().contains(element->geometry()));
+
+    m_mainWindow->resize(1200, 700);
+    QTRY_VERIFY(!element->isBurger());
+    QVERIFY(element->menuBar()->isVisible());
+    QTRY_COMPARE(element->width(), fullWidth);
+    QVERIFY(m_mainWindow->toolBar()->rect().contains(element->geometry()));
+}
+
+void WhaleMenuBarTest::testBurgerMenu()
+{
+    WhaleToolBarMenu *element = showWithElement();
+    QVERIFY(element);
+    m_mainWindow->resize(element->menuBar()->sizeHint().width() + 60, 700);
+    QTRY_VERIFY(element->isBurger());
+
+    // The menus of the menu bar as submenus (F1).
+    QMenu *menu = element->burgerButton()->menu();
+    QVERIFY(menu);
+    Q_EMIT menu->aboutToShow();
+    QList<QAction *> visibleMenus;
+    const auto menus = m_mainWindow->menuBar()->actions();
+    for (QAction *action : menus) {
+        if (action->isVisible()) {
+            visibleMenus.append(action);
+        }
+    }
+    QCOMPARE(menu->actions(), visibleMenus);
+    QVERIFY(menu->actions().constFirst()->menu());
+    // Again: not twice.
+    Q_EMIT menu->aboutToShow();
+    QCOMPARE(menu->actions(), visibleMenus);
+}
+
+void WhaleMenuBarTest::testBurgerWhenVertical()
+{
+    WhaleToolBarMenu *element = showWithElement();
+    QVERIFY(element);
+    QTRY_VERIFY(!element->isBurger());
+    m_mainWindow->addToolBar(Qt::LeftToolBarArea, m_mainWindow->toolBar());
+    QTRY_VERIFY(element->isBurger());
+    m_mainWindow->addToolBar(Qt::TopToolBarArea, m_mainWindow->toolBar());
+    QTRY_VERIFY(!element->isBurger());
+}
+
+void WhaleMenuBarTest::testHamburgerLeftOut()
+{
+    // Without the element: the button of the hamburger menu as before.
+    m_mainWindow.reset(new DolphinMainWindow());
+    m_mainWindow->openDirectories({m_dir->url()}, false);
+    m_mainWindow->resize(1200, 700);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    QVERIFY(!m_mainWindow->menuBar()->isVisible());
+    QPointer<QWidget> hamburger = hamburgerButton();
+    QVERIFY(hamburger);
+    QTRY_VERIFY(hamburger->isVisible() && hamburger->width() > 0);
+    m_mainWindow.reset();
+
+    // F2: with the element in the same toolbar, it takes no room, in both modes.
+    WhaleToolBarMenu *element = showWithElement();
+    QVERIFY(element);
+    hamburger = hamburgerButton();
+    QVERIFY(hamburger);
+    QTRY_COMPARE(hamburger->width(), 0);
+    QCOMPARE(hamburger->focusPolicy(), Qt::NoFocus);
+    m_mainWindow->resize(element->menuBar()->sizeHint().width() + 60, 700);
+    QTRY_VERIFY(element->isBurger());
+    QCOMPARE(hamburger->width(), 0);
+
+    // Taken out of the toolbar: the button comes back.
+    QAction *action = m_mainWindow->actionCollection()->action(WhaleMenuBarAction::actionName());
+    m_mainWindow->toolBar()->removeAction(action);
+    QTRY_VERIFY(!element || !m_mainWindow->toolBar()->findChild<WhaleToolBarMenu *>());
+    m_mainWindow->resize(1200, 700);
+    QTRY_VERIFY(hamburger->width() > 0);
 }
 
 QTEST_MAIN(WhaleMenuBarTest)

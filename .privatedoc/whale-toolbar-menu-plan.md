@@ -79,3 +79,12 @@ Reihenfolge: TM1 → TM2 → TM3, je ein Commit direkt auf `master`.
   `QMenuBar` (nicht nativ), dieselben Menü-Aktionen, nachgeführt über Event-Filter
   (gebündelt). Breite fest (`QSizePolicy::Fixed`). Alt+Buchstabe öffnet das Menü auch, wenn beide
   Leisten sichtbar sind (offscreen geprüft). Test `whalemenubartest`.
+- **TM2** (2026-10-22): Umschalten im Widget: verfügbare Breite = Leiste − Ränder − Griff −
+  übrige Elemente (dehnbare mit `minimumSizeHint`) − Abstände; deterministisch, also kein
+  Flackern; zurück zur Menüleiste erst mit 4 px Puffer. Senkrecht immer Burger. Burger-Knopf
+  (`application-menu`, `InstantPopup`) mit den sichtbaren Menüs als Untermenüs (F1), beim Öffnen
+  gefüllt. F2: Der `KHamburgerMenu`-Knopf derselben Leiste bekommt Breite 0 und keinen Fokus
+  (KHamburgerMenu und `QToolBar` schalten seine Sichtbarkeit selbst, `hide()` hielte nicht);
+  zurück, wenn das Element die Leiste verlässt. Abgetastet (offscreen, 2-px-Schritte): im
+  Menü-Modus nie ein Element im Überlauf „»“; Grenze bei 394/396 px Fensterbreite mit der
+  Standardleiste.
