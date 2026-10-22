@@ -131,6 +131,15 @@ target_sources(dolphinstatic PRIVATE
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/toolbars ${CMAKE_CURRENT_SOURCE_DIR}/splitview)
 
+########### Styles, part of the application ###############
+
+# See .privatedoc/whale-styles-plan.md.
+target_sources(dolphinstatic PRIVATE
+    styles/whalestyleelements.cpp
+    styles/whalestylestore.cpp
+)
+target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/styles)
+
 ########### plugins ###############
 
 # The test views (Hello, Test List) are test fixtures: they are built with the tests into a

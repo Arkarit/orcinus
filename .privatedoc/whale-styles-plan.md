@@ -151,6 +151,32 @@ viel ändert; der Plan ist ein Startpunkt.
 | F5 | Zurück aus „Schlicht“ ohne sichtbare Bedienelemente | Kürzel. Dazu bleibt der Weg zurück zu versteckten Toolbars ohne Menüleiste (Multi-Toolbar-Feature). Prüfen, dass er auch erreichbar ist, wenn Menüleiste **und** alle Toolbars aus sind. |
 | F6 | Zoom ist global pro Modus | v1 setzt den globalen Zoom des Modus. Das wirkt auf alle Views dieses Modus; für Schlicht/Bilder passt das. Zoom pro View kommt später. |
 
+## F2-Versuch (2026-10-22)
+
+Kleines Testprogramm gegen KXmlGui 6.24 (offscreen, eigene XDG-Verzeichnisse), drei Aktionen in
+der `actionCollection()` des Fensters: eine vor `setupGUI()` erzeugt, zwei danach (eine davon mit
+`KActionCollection::setDefaultShortcut()`).
+
+- **Anzeige:** Alle drei stehen in „Configure Shortcuts“ (`KShortcutsEditor` liest die Sammlung
+  beim Öffnen).
+- **Speichern:** `KShortcutsEditor::save()` schreibt alle drei als `<ActionProperties>` in die
+  lokale `ui.rc` des Fensters.
+- **Neustart:** KXmlGui wendet die gespeicherten Kürzel nur auf Aktionen an, die es bei
+  `setupGUI()` schon gibt. Die später erzeugten Aktionen bekommen nichts.
+- **„Standard“:** `allDefault()` setzt Aktionen ohne Standardkürzel auf leer, die anderen auf ihr
+  Standardkürzel.
+- **Signale:** `QAction::changed` kommt bei jeder Änderung. Dolphin öffnet den Dialog selbst
+  (`DolphinMainWindow::slotKeyBindings()`), deshalb kommt `KXMLGUIFactory::shortcutsSaved` nicht;
+  der Haken ist `KShortcutsDialog::saved`.
+- **Vorbild upstream:** `ServiceMenuShortcutManager` (Kürzel für Service-Menüs) lässt KXmlGui
+  speichern und räumt veraltete `ActionProperties` selbst auf.
+
+Folgerung für ST3: **`whalestylesrc` ist die einzige Quelle.** Die Aktionen `whale_style_<id>`
+entstehen nach `setupGUI()` und bekommen das Kürzel des Styles (ohne Standardkürzel). In
+`slotKeyBindings()` hängt ein Haken an `KShortcutsDialog::saved`, der die Kürzel der
+Style-Aktionen in die Styles zurückschreibt. Einträge `whale_style_*` in den `ActionProperties`
+werden entfernt, wie es `ServiceMenuShortcutManager::cleanupStaleShortcuts()` macht.
+
 ## Risiken
 
 - **Fensterzustand:** Toolbars und Docks gehören teils KXmlGui (`saveState`/`restoreState`,

@@ -290,3 +290,8 @@ ecm_add_test(whaleselectionlimittest.cpp ../../tests/testdir.cpp
     TEST_NAME whaleselectionlimittest
     LINK_LIBRARIES dolphinprivate Qt6::Test)
 target_include_directories(whaleselectionlimittest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# The model, registry and file of styles (ST1).
+ecm_add_test(whalestylestoretest.cpp
+    TEST_NAME whalestylestoretest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
