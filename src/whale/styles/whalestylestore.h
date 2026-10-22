@@ -93,6 +93,13 @@ public:
     /** Moves the style with @p id to @p index (clamped). */
     bool moveStyle(const QString &id, int index);
 
+    /**
+     * Replaces all styles with @p styles in their order, e.g. as edited on the settings page.
+     * IDs must be unique and not empty, names not empty.
+     * @return Whether @p styles were taken; else nothing changed.
+     */
+    bool replaceStyles(const QList<WhaleStyle> &styles);
+
 private:
     int indexOf(const QString &id) const;
 

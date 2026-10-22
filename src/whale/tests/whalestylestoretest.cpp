@@ -72,6 +72,7 @@ private Q_SLOTS:
     void testNewerVersionKept();
     void testAddRenameRemoveMove();
     void testSaveRemovesDeletedStyle();
+    void testReplaceStyles();
     void testRegistry();
 
 private:
@@ -282,6 +283,36 @@ void WhaleStyleStoreTest::testSaveRemovesDeletedStyle()
     QCOMPARE(config->group(QStringLiteral("Style")).groupList(), QStringList{QStringLiteral("b")});
     QVERIFY(!config->group(QStringLiteral("Style")).group(QStringLiteral("a")).group(QStringLiteral("Element")).exists());
     QCOMPARE(WhaleStyleStore(config).ids(), QStringList{QStringLiteral("b")});
+}
+
+void WhaleStyleStoreTest::testReplaceStyles()
+{
+    WhaleStyleStore store(freshConfig("[General]\nOrder=a\n\n[Style][a]\nName=A\n"));
+    WhaleStyle b;
+    b.id = QStringLiteral("b");
+    b.name = QStringLiteral(" B ");
+    WhaleStyle c;
+    c.id = QStringLiteral("c");
+    c.name = QStringLiteral("C");
+
+    QVERIFY(store.replaceStyles({c, b}));
+    QCOMPARE(store.ids(), (QStringList{QStringLiteral("c"), QStringLiteral("b")}));
+    QCOMPARE(store.style(QStringLiteral("b"))->name, QStringLiteral("B"));
+
+    // Refused as a whole: a second "b", an empty ID, an empty name.
+    WhaleStyle noId = c;
+    noId.id.clear();
+    WhaleStyle noName = c;
+    noName.id = QStringLiteral("d");
+    noName.name = QStringLiteral(" ");
+    QVERIFY(!store.replaceStyles({b, b}));
+    QVERIFY(!store.replaceStyles({noId}));
+    QVERIFY(!store.replaceStyles({noName}));
+    QCOMPARE(store.ids(), (QStringList{QStringLiteral("c"), QStringLiteral("b")}));
+
+    QVERIFY(store.replaceStyles({}));
+    store.save();
+    QVERIFY(WhaleStyleStore(freshConfig()).styles().isEmpty());
 }
 
 void WhaleStyleStoreTest::testRegistry()

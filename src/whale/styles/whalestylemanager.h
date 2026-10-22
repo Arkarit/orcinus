@@ -62,6 +62,9 @@ public:
      */
     bool applyStyle(const QString &id);
 
+    /** Applies @p style, which need not be saved (e.g. as edited on the settings page). */
+    void applyStyle(const WhaleStyle &style);
+
     /** @return The current state of the window: all elements available in it, enabled. */
     WhaleStyle captureStyle() const;
 

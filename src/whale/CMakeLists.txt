@@ -139,6 +139,7 @@ target_sources(dolphinstatic PRIVATE
     styles/whalestyleelementtypes.cpp
     styles/whalestylemanager.cpp
     styles/whalestyles.cpp
+    styles/whalestylessettingspage.cpp
     styles/whalestylestore.cpp
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/styles)

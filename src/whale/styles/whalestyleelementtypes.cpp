@@ -418,7 +418,8 @@ public:
         const auto switches = switchesFrom(value);
         for (const auto &[name, on] : switches) {
             if (on) {
-                shown.append(name);
+                // The other toolbars by their object names, as Configure Toolbars lists them.
+                shown.append(name == QLatin1String("mainToolBar") ? i18nc("@item:intext toolbar", "Main Toolbar") : name);
             }
         }
         return shown.isEmpty() ? i18nc("@item:intext style element value", "None shown")

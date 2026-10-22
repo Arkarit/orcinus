@@ -115,15 +115,19 @@ bool WhaleStyleManager::applyStyle(const QString &id)
         return false;
     }
     // A copy: applying may let the window reload the styles.
-    const WhaleStyle applied = *style;
+    applyStyle(WhaleStyle(*style));
+    return true;
+}
+
+void WhaleStyleManager::applyStyle(const WhaleStyle &style)
+{
     const QList<const WhaleStyleElement *> elements = WhaleStyleElements::self().elements();
     for (const WhaleStyleElement *element : elements) {
-        const WhaleStyleElementState state = applied.elements.value(element->key());
+        const WhaleStyleElementState state = style.elements.value(element->key());
         if (state.enabled && element->isAvailable(m_window)) {
             element->apply(m_window, state.value);
         }
     }
-    return true;
 }
 
 WhaleStyle WhaleStyleManager::captureStyle() const

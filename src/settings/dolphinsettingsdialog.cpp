@@ -13,6 +13,7 @@
 #include "interface/interfacesettingspage.h"
 #include "trash/trashsettingspage.h"
 #include "viewmodes/viewsettingspage.h"
+#include "whalestylessettingspage.h"
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #include "userfeedback/userfeedbacksettingspage.h"
@@ -52,6 +53,12 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     KPageWidgetItem *viewSettingsFrame = addPage(viewSettingsPage, i18nc("@title:group", "View"));
     viewSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("preferences-desktop-icons")));
     connect(viewSettingsPage, &ViewSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
+
+    // Whale: ST4, Styles; they capture from and apply to the window the dialog belongs to.
+    auto stylesSettingsPage = new WhaleStylesSettingsPage(qobject_cast<DolphinMainWindow *>(parent), this);
+    KPageWidgetItem *stylesSettingsFrame = addPage(stylesSettingsPage, i18nc("@title:group", "Styles"));
+    stylesSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("preferences-desktop-theme-global")));
+    connect(stylesSettingsPage, &WhaleStylesSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
 
     // Context Menu
     auto contextMenuSettingsPage = new ContextMenuSettingsPage(this,
@@ -95,6 +102,7 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
 
     m_pages.append(interfaceSettingsPage);
     m_pages.append(viewSettingsPage);
+    m_pages.append(stylesSettingsPage); // Whale: ST4
     m_pages.append(contextMenuSettingsPage);
     if (trashSettingsPage) {
         m_pages.append(trashSettingsPage);

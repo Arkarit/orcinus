@@ -307,3 +307,9 @@ ecm_add_test(whalestylemanagertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DI
     TEST_NAME whalestylemanagertest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whalestylemanagertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# The page "Styles" of the settings dialog (ST4).
+ecm_add_test(whalestylessettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whalestylessettingspagetest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalestylessettingspagetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

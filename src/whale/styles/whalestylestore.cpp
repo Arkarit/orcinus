@@ -235,6 +235,22 @@ bool WhaleStyleStore::moveStyle(const QString &id, int index)
     return true;
 }
 
+bool WhaleStyleStore::replaceStyles(const QList<WhaleStyle> &styles)
+{
+    QStringList seen;
+    for (const WhaleStyle &style : styles) {
+        if (style.id.isEmpty() || seen.contains(style.id) || style.name.trimmed().isEmpty()) {
+            return false;
+        }
+        seen.append(style.id);
+    }
+    m_styles = styles;
+    for (WhaleStyle &style : m_styles) {
+        style.name = style.name.trimmed();
+    }
+    return true;
+}
+
 int WhaleStyleStore::indexOf(const QString &id) const
 {
     for (int i = 0; i < m_styles.size(); ++i) {

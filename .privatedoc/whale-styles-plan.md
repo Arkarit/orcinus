@@ -228,3 +228,18 @@ werden entfernt, wie es `ServiceMenuShortcutManager::cleanupStaleShortcuts()` ma
   Hintergrundmenü, neu speichern, „Zwei“ mit Split, Neustart). Nicht automatisch geprüft: der
   echte Dialog „Configure Shortcuts“ (simuliert über `writeSettings()` + `takeShortcuts()`) und
   ein Test auf dem echten Wayland-Desktop.
+- **ST4** (2026-10-22): `WhaleStylesSettingsPage`, Seite „Styles“ zwischen „View“ und „Context
+  Menu“. Links die Liste (Ziehen oder Knöpfe zum Umordnen, „New from Window“ mit Namen
+  „New Style“/„New Style 2“ zum sofortigen Umbenennen, „Delete“), rechts Name, Kürzel
+  (`KKeySequenceWidget`; belegt durch einen anderen Style oder eine Aktion des Fensters →
+  Meldung, abgelehnt), Elemente mit Haken und Beschreibung (nicht erfasst: ausgegraut; im
+  Ordnermodus nicht verfügbar: ausgegraut mit Hinweis, F1; aus neuerer Version: am Ende,
+  ausgegraut), „Capture Again“ (Haken bleiben), „Apply to Window“ (sofort, auch ungespeichert).
+  Bearbeitet wird eine Kopie, gespeichert mit Anwenden/OK (`WhaleStyleStore::replaceStyles()`).
+  „Restore Defaults“ lässt die Styles in Ruhe. Haken in Dolphin-Dateien:
+  `DolphinSettingsDialog` (Seite) und `StatusAndLocationBarsSettingsPage`: folgt
+  `showStatusBarChanged`, sonst setzte OK nach „Apply to Window“ die alte Statusleiste wieder
+  (Test schlägt ohne den Haken fehl). Zoom ist davon nicht betroffen (die View-Seite schreibt
+  keine Icongrößen). Bekannt: Speichert ein anderes Fenster einen Style, während der Dialog offen
+  ist, überschreibt OK diese Änderung. Test `whalestylessettingspagetest` (11) am echten Dialog;
+  Aussehen offscreen per Screenshot geprüft.
