@@ -101,7 +101,8 @@ Reihenfolge: TM1 → TM2 → TM3, je ein Commit direkt auf `master`.
      Jetzt liegen die Originalwerte als Property am Knopf, und jede Neuberechnung setzt Breite 0
      erneut.
 - **Befund (nicht TM):** Nach „Werkzeugleisten einrichten → OK“ ist die klassische Menüleiste
-  sichtbar, auch beim Einfügen von `go_home` (offscreen beobachtet). Noch nicht untersucht.
+  sichtbar, auch beim Einfügen von `go_home` (offscreen beobachtet). Auf dem echten Desktop
+  tritt es beim Benutzer nicht auf (2026-10-22): vermutlich eine Eigenheit von offscreen.
 - **Flackern** (2026-10-22, Befund des Benutzers): Mit beiden Menüleisten sichtbar flackerten
   beide beim Überfahren der Titel. Ursache: Der `KAcceleratorManager` des Fensters gab demselben
   Titel in beiden Leisten verschiedene Kürzel („&File“/„F&ile“) und schrieb sie abwechselnd in
