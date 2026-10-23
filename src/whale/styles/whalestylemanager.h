@@ -32,7 +32,8 @@ class QAction;
  *   of these shortcuts; takeShortcuts() writes changes made in Configure Shortcuts back to it.
  *
  * Applying sets the enabled elements in the order of the registry (WhaleStyleElements); an
- * element not available in the window is skipped. Afterwards everything can be changed as usual.
+ * element not available in the window is skipped. An element the style does not have gets its
+ * WhaleStyleElement::valueIfMissing(), if any. Afterwards everything can be changed as usual.
  * The window remembers the style it applied or saved last (lastStyleId()), so "Save Style" can
  * capture it again; it does not tell whether the window still looks like it. New windows start
  * with the style remembered last in any window, as they start with its look (E3).

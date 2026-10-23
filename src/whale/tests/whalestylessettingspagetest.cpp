@@ -166,6 +166,8 @@ void WhaleStylesSettingsPageTest::testListsStyles()
     // Captured with a single view: no filter and no view of a right view.
     QVERIFY(!(elementItem(QStringLiteral("filterBar.right"))->flags() & Qt::ItemIsEnabled));
     QVERIFY(!(elementItem(QStringLiteral("view.right"))->flags() & Qt::ItemIsEnabled));
+    // Not captured, so applied as the file list.
+    QCOMPARE(elementItem(QStringLiteral("view.right"))->text(1), QStringLiteral("File list"));
     QCOMPARE(elementItem(QStringLiteral("split"))->checkState(0), Qt::Checked);
     QVERIFY(!elementItem(QStringLiteral("split"))->text(1).isEmpty());
 

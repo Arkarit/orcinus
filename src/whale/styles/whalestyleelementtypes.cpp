@@ -314,6 +314,12 @@ public:
         const KPluginMetaData metaData = KPluginMetaData::findPluginById(WhaleViewRegistry::pluginNamespace(), value);
         return metaData.isValid() ? metaData.name() : value;
     }
+    QString valueIfMissing() const override
+    {
+        // A style saved before the element existed: the file list, not whichever view the
+        // folder happens to show (e.g. its preferred treemap).
+        return WhaleViewHost::dolphinViewId();
+    }
 
 private:
     WhaleViewHost *host(const DolphinMainWindow *window) const

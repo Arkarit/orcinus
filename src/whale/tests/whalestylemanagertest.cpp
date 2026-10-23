@@ -14,8 +14,12 @@
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
+#include "whalestyleelement.h"
+#include "whalestyleelements.h"
 #include "whalestyles.h"
 #include "whaletoolbarsettings.h"
+#include "whaleviewhost.h"
+#include "whaleviewpreferences.h"
 
 #include <KActionCollection>
 #include <KActionMenu>
@@ -51,6 +55,7 @@ private Q_SLOTS:
     void testStylesAfterRestart();
     void testAppliedStyleIsStartOfNextWindow();
     void testSaveLastStyle();
+    void testStyleWithoutShownViews();
 
 private:
     DolphinMainWindow *openWindow();
@@ -76,6 +81,7 @@ void WhaleStyleManagerTest::initTestCase()
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
     KLocalizedString::setApplicationDomain({"whale"});
+    QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->setGlobalViewProps(true);
     GeneralSettings::self()->save();
@@ -94,6 +100,7 @@ void WhaleStyleManagerTest::cleanup()
 {
     qDeleteAll(m_windows);
     m_windows.clear();
+    WhaleViewPreferences::instance()->setPreferredView(m_dir->url(), QString());
     m_dir.reset();
     WhaleStyleStore &store = WhaleStyles::self()->editableStore();
     const QStringList ids = store.ids();
@@ -461,6 +468,51 @@ void WhaleStyleManagerTest::testSaveLastStyle()
     QVERIFY(!saveLast->isEnabled());
     QVERIFY(!manager->saveLastStyle());
     QCOMPARE(WhaleStyles::self()->store().ids(), QStringList{schlicht});
+}
+
+void WhaleStyleManagerTest::testStyleWithoutShownViews()
+{
+    // A style saved before view.left and view.right existed shows the file list, not the view
+    // the folder prefers: Whale started with the treemap and such styles could not leave it.
+    const QString treemap = QStringLiteral("whale_treemap");
+    WhaleViewPreferences::instance()->setPreferredView(m_dir->url(), treemap);
+    DolphinMainWindow *window = openWindow();
+    QVERIFY(window);
+    WhaleViewHost *left = tabPage(window)->primaryViewContainer()->viewHost();
+    QTRY_COMPARE(left->currentViewId(), treemap);
+
+    WhaleStyle old;
+    old.name = QStringLiteral("Old");
+    old.elements.insert(QStringLiteral("split"), {true, QStringLiteral("false")});
+    const QString oldId = WhaleStyles::self()->editableStore().addStyle(old);
+    WhaleStyles::self()->save();
+    WhaleStyleManager *manager = WhaleStyleManager::ensure(window);
+    QVERIFY(manager->applyStyle(oldId));
+    QCOMPARE(left->currentViewId(), WhaleViewHost::dolphinViewId());
+    // Applying a style still writes no preferred view.
+    QCOMPARE(WhaleViewPreferences::instance()->preferredView(m_dir->url()), treemap);
+
+    // With two views: the new right view first shows the preferred treemap, then the file list.
+    WhaleStyle oldSplit;
+    oldSplit.name = QStringLiteral("Old Split");
+    oldSplit.elements.insert(QStringLiteral("split"), {true, QStringLiteral("true")});
+    const QString oldSplitId = WhaleStyles::self()->editableStore().addStyle(oldSplit);
+    WhaleStyles::self()->save();
+    QVERIFY(manager->applyStyle(oldSplitId));
+    QVERIFY(tabPage(window)->splitViewEnabled());
+    QCOMPARE(tabPage(window)->secondaryViewContainer()->viewHost()->currentViewId(), WhaleViewHost::dolphinViewId());
+    QCOMPARE(left->currentViewId(), WhaleViewHost::dolphinViewId());
+
+    // A view the user unchecked on the settings page stays as it is.
+    WhaleStyleElements::self().element(QStringLiteral("view.left"))->apply(window, treemap);
+    QCOMPARE(left->currentViewId(), treemap);
+    old.id = oldId;
+    old.elements.insert(QStringLiteral("view.left"), {false, WhaleViewHost::dolphinViewId()});
+    WhaleStyles::self()->editableStore().updateStyle(old);
+    WhaleStyles::self()->save();
+    QVERIFY(manager->applyStyle(oldId));
+    QVERIFY(!tabPage(window)->splitViewEnabled());
+    QCOMPARE(left->currentViewId(), treemap);
 }
 
 QTEST_MAIN(WhaleStyleManagerTest)

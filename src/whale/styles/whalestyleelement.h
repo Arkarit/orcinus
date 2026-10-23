@@ -43,6 +43,12 @@ public:
 
     /** @return A short translated description of @p value, e.g. "Compact, hidden files". */
     virtual QString describe(const QString &value) const = 0;
+
+    /**
+     * @return The value applied for a style without this element, e.g. one saved before the
+     *         element existed. Empty (the default): such a style leaves the element as it is.
+     */
+    virtual QString valueIfMissing() const;
 };
 
 #endif

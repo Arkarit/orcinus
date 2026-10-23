@@ -139,7 +139,14 @@ void WhaleStyleManager::applyStyle(const WhaleStyle &style)
 {
     const QList<const WhaleStyleElement *> elements = WhaleStyleElements::self().elements();
     for (const WhaleStyleElement *element : elements) {
-        const WhaleStyleElementState state = style.elements.value(element->key());
+        const auto it = style.elements.constFind(element->key());
+        WhaleStyleElementState state;
+        if (it != style.elements.cend()) {
+            state = *it;
+        } else {
+            state.value = element->valueIfMissing();
+            state.enabled = !state.value.isEmpty();
+        }
         if (state.enabled && element->isAvailable(m_window)) {
             element->apply(m_window, state.value);
         }

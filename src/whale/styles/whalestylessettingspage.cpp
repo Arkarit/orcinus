@@ -193,9 +193,12 @@ void WhaleStylesSettingsPage::showCurrentStyle()
             item->setText(0, element->title());
             const auto it = style->elements.constFind(element->key());
             if (it == style->elements.cend()) {
-                item->setText(1, i18nc("@item:intext style element", "Not captured"));
+                const QString missing = element->valueIfMissing();
+                item->setText(1, missing.isEmpty() ? i18nc("@item:intext style element", "Not captured") : element->describe(missing));
                 item->setFlags(Qt::ItemIsSelectable);
-                item->setToolTip(0, i18nc("@info:tooltip", "Not part of this style. Capture it again to add it."));
+                item->setToolTip(0,
+                                 missing.isEmpty() ? i18nc("@info:tooltip", "Not part of this style. Capture it again to add it.")
+                                                   : i18nc("@info:tooltip", "Not part of this style, so applied like this. Capture it again to change it."));
                 continue;
             }
             item->setText(1, element->describe(it->value));

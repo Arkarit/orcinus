@@ -17,6 +17,11 @@ bool WhaleStyleElement::isAvailable(const DolphinMainWindow *window) const
     return true;
 }
 
+QString WhaleStyleElement::valueIfMissing() const
+{
+    return QString();
+}
+
 const WhaleStyleElements &WhaleStyleElements::self()
 {
     static WhaleStyleElements elements;
