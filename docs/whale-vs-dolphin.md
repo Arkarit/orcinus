@@ -77,12 +77,22 @@ matches Dolphin's behavior.
 <!-- TODO: expansion arrows in Compact view (setting, default), no tree lines;
      Alt+click / "*" expands or collapses a whole branch (also in Details). -->
 
+### 3.5 Colored backgrounds for expanded folders
+<!-- TODO: in the Compact view, the contents of expanded folders get a
+     background color by depth, so a subtree reads as one block even where it
+     wraps into the next column; colors repeat for deeper levels. Settings >
+     View > Highlighting > Expanded Folders: Off, Printer paper, Grey, Pastel
+     (default), Custom (2 to 10 colors, add/remove, preview). Presets adapt to
+     the color scheme, custom colors are used as chosen. Not in the Details
+     view. -->
+
 ## 4. File name highlighting
 
 <!-- TODO: Highlighting tab in the view settings; rules by type and file flags
      (e.g. executable) and by name patterns (case sensitivity); rules apply to
      files, folders or both; colors and font styles; the default rules;
-     why an empty-pattern rule cannot be saved; performance note. -->
+     why an empty-pattern rule cannot be saved; performance note. The tab
+     also holds the colors for expanded folders (see 3.5). -->
 
 ## 5. Behavior options
 

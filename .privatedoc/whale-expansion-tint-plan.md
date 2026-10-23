@@ -8,6 +8,16 @@ zyklischen Farben. Mit ChatGPT und Gemini abgestimmt, Mockups von Codex (Pillow,
 einem echten Screenshot): Mint/Rosé wirkte deutlich besser als Pfirsich/Lavendel, Grau
 funktioniert, wird bei mehr Ebenen aber zu dunkel.
 
+## Stand (2026-10-24)
+
+ET1 381b965ec, ET2 83e31e5cc, ET3 ff62f7a17, ET4 mit diesem Commit. Offen: Pastellwerte im
+dunklen Theme (Gelb wirkt oliv), Blick auf die Aufklapp-Animation im echten Fenster (die Flächen
+stehen sofort an der Endposition, während die Einträge noch gleiten).
+
+Erkenntnis aus ET2: Die Item-Widgets haben `ItemStacksBehindParent`, was die View in `paint()`
+malt, liegt über ihnen. Die Flächen malt deshalb `KItemListExpansionTintItem` (z = −1, ebenfalls
+hinter der View).
+
 ## Befund im Quelltext
 
 - Compact (horizontales Scrollen): Jedes Item-Widget ist nur so breit wie seine eigene
