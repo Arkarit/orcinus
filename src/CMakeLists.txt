@@ -353,6 +353,7 @@ target_sources(dolphinstatic PRIVATE
     settings/viewmodes/viewmodesettings.cpp
     settings/viewmodes/viewsettingstab.cpp
     settings/viewmodes/contentdisplaytab.cpp
+    settings/viewmodes/expansiontintwidget.cpp
     settings/viewmodes/filenamehighlightingruledialog.cpp
     settings/viewmodes/filenamehighlightingtab.cpp
     settings/viewmodes/generalviewsettingspage.cpp
@@ -425,6 +426,7 @@ target_sources(dolphinstatic PRIVATE
     settings/viewmodes/viewmodesettings.h
     settings/viewmodes/viewsettingstab.h
     settings/viewmodes/contentdisplaytab.h
+    settings/viewmodes/expansiontintwidget.h
     settings/viewmodes/filenamehighlightingruledialog.h
     settings/viewmodes/filenamehighlightingtab.h
     settings/viewmodes/generalviewsettingspage.h

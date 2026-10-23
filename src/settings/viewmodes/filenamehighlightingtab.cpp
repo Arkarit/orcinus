@@ -6,6 +6,7 @@
 
 #include "filenamehighlightingtab.h"
 
+#include "expansiontintwidget.h"
 #include "filenamehighlightingruledialog.h"
 #include "views/filenamehighlightingsettings.h"
 
@@ -13,6 +14,7 @@
 
 #include <QCheckBox>
 #include <QEvent>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
@@ -170,8 +172,13 @@ FileNameHighlightingTab::FileNameHighlightingTab(QWidget *parent)
     , m_removeButton(nullptr)
     , m_moveUpButton(nullptr)
     , m_moveDownButton(nullptr)
+    , m_expansionTint(nullptr)
 {
-    auto topLayout = new QVBoxLayout(this);
+    auto pageLayout = new QVBoxLayout(this);
+
+    auto fileNamesGroup = new QGroupBox(i18nc("@title:group", "File Names"), this);
+    pageLayout->addWidget(fileNamesGroup, 1);
+    auto topLayout = new QVBoxLayout(fileNamesGroup);
 
     m_enabled = new QCheckBox(i18nc("@option:check", "Highlight file names"), this);
     topLayout->addWidget(m_enabled);
@@ -209,6 +216,13 @@ FileNameHighlightingTab::FileNameHighlightingTab(QWidget *parent)
     hint->setWordWrap(true);
     topLayout->addWidget(hint);
 
+    auto expansionTintGroup = new QGroupBox(i18nc("@title:group", "Expanded Folders"), this);
+    pageLayout->addWidget(expansionTintGroup);
+    auto expansionTintLayout = new QVBoxLayout(expansionTintGroup);
+    m_expansionTint = new ExpansionTintWidget(expansionTintGroup);
+    expansionTintLayout->addWidget(m_expansionTint);
+    connect(m_expansionTint, &ExpansionTintWidget::changed, this, &FileNameHighlightingTab::changed);
+
     m_ruleModel->setPreviewAppearance(palette(), font());
 
     const FileNameHighlightingSettings settings = FileNameHighlightingSettings::load();
@@ -243,18 +257,26 @@ void FileNameHighlightingTab::applySettings()
     settings.enabled = m_enabled->isChecked();
     settings.rules = m_ruleModel->rules();
     settings.save();
+
+    m_expansionTint->settings().save();
 }
 
 void FileNameHighlightingTab::restoreDefaults()
 {
     const FileNameHighlightingSettings defaults = FileNameHighlightingSettings::defaults();
     loadSettings(defaults.enabled, defaults.rules);
+    m_expansionTint->setSettings(ExpansionTintSettings::defaults());
     Q_EMIT changed();
 }
 
 FileNameHighlightingRuleModel *FileNameHighlightingTab::ruleModel() const
 {
     return m_ruleModel;
+}
+
+ExpansionTintWidget *FileNameHighlightingTab::expansionTintWidget() const
+{
+    return m_expansionTint;
 }
 
 void FileNameHighlightingTab::changeEvent(QEvent *event)

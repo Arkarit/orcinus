@@ -47,7 +47,8 @@ QList<QColor> mixedColors(const Tint (&tints)[N], const QColor &base, const QCol
 {
     QList<QColor> colors;
     for (const Tint &tint : tints) {
-        colors.append(KColorUtils::mix(base, tint.hue.isValid() ? tint.hue : text, tint.amount));
+        // Rounded to 8 bits per channel, as the colors are stored, so that they compare equal after saving.
+        colors.append(QColor(KColorUtils::mix(base, tint.hue.isValid() ? tint.hue : text, tint.amount).rgb()));
     }
     return colors;
 }

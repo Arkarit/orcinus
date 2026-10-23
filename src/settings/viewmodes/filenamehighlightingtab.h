@@ -14,6 +14,7 @@
 #include <QFont>
 #include <QPalette>
 
+class ExpansionTintWidget;
 class QCheckBox;
 class QPushButton;
 class QTreeView;
@@ -65,7 +66,8 @@ private:
 };
 
 /**
- * @brief Tab of the view settings to configure file name highlighting.
+ * @brief Tab of the view settings to configure file name highlighting
+ *        and the tinting of expanded folders.
  */
 class FileNameHighlightingTab : public SettingsPageBase
 {
@@ -78,6 +80,7 @@ public:
     void restoreDefaults() override;
 
     FileNameHighlightingRuleModel *ruleModel() const;
+    ExpansionTintWidget *expansionTintWidget() const;
 
 protected:
     void changeEvent(QEvent *event) override;
@@ -101,6 +104,7 @@ private:
     QPushButton *m_removeButton;
     QPushButton *m_moveUpButton;
     QPushButton *m_moveDownButton;
+    ExpansionTintWidget *m_expansionTint;
 };
 
 #endif

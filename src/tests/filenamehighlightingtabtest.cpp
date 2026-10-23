@@ -5,6 +5,7 @@
  */
 
 #include "settings/viewmodes/filenamehighlightingtab.h"
+#include "settings/viewmodes/expansiontintwidget.h"
 #include "settings/viewmodes/filenamehighlightingruledialog.h"
 #include "views/filenamehighlightingsettings.h"
 
@@ -21,8 +22,10 @@
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
+#include <QToolButton>
 
 using Condition = FileNameHighlightRule::Condition;
+using Preset = ExpansionTintSettings::Preset;
 
 namespace
 {
@@ -66,6 +69,13 @@ private Q_SLOTS:
     void testParsePatterns();
     void testUnknownMimeTypePatterns();
     void testDisplayName();
+
+    void testExpansionTintLoadsSettings();
+    void testExpansionTintPresets();
+    void testExpansionTintEditSwitchesToCustom();
+    void testExpansionTintAddAndRemove();
+    void testExpansionTintApplyAndDefaults();
+    void testScreenshot();
 };
 
 void FileNameHighlightingTabTest::initTestCase()
@@ -76,6 +86,7 @@ void FileNameHighlightingTabTest::initTestCase()
 void FileNameHighlightingTabTest::init()
 {
     KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("FileNameHighlighting")).deleteGroup();
+    KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("ExpansionTint")).deleteGroup();
     KSharedConfig::openConfig()->sync();
 }
 
@@ -328,6 +339,148 @@ void FileNameHighlightingTabTest::testDisplayName()
     QCOMPARE(FileNameHighlightingRuleDialog::exampleFileName(namePattern), QStringLiteral("filex.txt"));
     namePattern.patterns = {QStringLiteral("[ab].txt")};
     QCOMPARE(FileNameHighlightingRuleDialog::exampleFileName(namePattern), QStringLiteral("example"));
+}
+
+namespace
+{
+void selectPreset(ExpansionTintWidget *widget, Preset preset)
+{
+    QComboBox *comboBox = widget->presetComboBox();
+    comboBox->setCurrentIndex(comboBox->findData(int(preset)));
+}
+
+QList<QColor> buttonColors(const ExpansionTintWidget *widget)
+{
+    QList<QColor> colors;
+    const QList<KColorButton *> buttons = widget->colorButtons();
+    for (const KColorButton *button : buttons) {
+        colors.append(button->color());
+    }
+    return colors;
+}
+}
+
+void FileNameHighlightingTabTest::testExpansionTintLoadsSettings()
+{
+    {
+        FileNameHighlightingTab tab;
+        ExpansionTintWidget *widget = tab.expansionTintWidget();
+        QCOMPARE(widget->settings(), ExpansionTintSettings::defaults());
+        QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::Pastel));
+        QCOMPARE(buttonColors(widget), ExpansionTintSettings::presetColors(Preset::Pastel, widget->palette()));
+    }
+
+    ExpansionTintSettings settings;
+    settings.preset = Preset::Custom;
+    settings.customColors = {QColor(Qt::red), QColor(Qt::green), QColor(Qt::blue)};
+    settings.save();
+
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    QCOMPARE(widget->settings(), settings);
+    QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::Custom));
+    QCOMPARE(buttonColors(widget), settings.customColors);
+}
+
+void FileNameHighlightingTabTest::testExpansionTintPresets()
+{
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    const QList<QColor> customColors = widget->settings().customColors;
+    QSignalSpy changed(&tab, &SettingsPageBase::changed);
+
+    selectPreset(widget, Preset::Grey);
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(widget->settings().preset, Preset::Grey);
+    QCOMPARE(buttonColors(widget), ExpansionTintSettings::presetColors(Preset::Grey, widget->palette()));
+
+    selectPreset(widget, Preset::Off);
+    QCOMPARE(changed.count(), 2);
+    QVERIFY(widget->colorButtons().isEmpty());
+
+    // The custom colors stay while a preset is selected.
+    selectPreset(widget, Preset::Custom);
+    QCOMPARE(widget->settings().customColors, customColors);
+    QCOMPARE(buttonColors(widget), customColors);
+}
+
+void FileNameHighlightingTabTest::testExpansionTintEditSwitchesToCustom()
+{
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    selectPreset(widget, Preset::PrinterPaper);
+    QList<QColor> expected = ExpansionTintSettings::presetColors(Preset::PrinterPaper, widget->palette());
+    QSignalSpy changed(&tab, &SettingsPageBase::changed);
+
+    // As if the user picked a color in the dialog of the button.
+    Q_EMIT widget->colorButtons().at(1)->changed(QColor(Qt::magenta));
+    expected[1] = QColor(Qt::magenta);
+
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(widget->settings().preset, Preset::Custom);
+    QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::Custom));
+    QCOMPARE(widget->settings().customColors, expected);
+    QCOMPARE(buttonColors(widget), expected);
+}
+
+void FileNameHighlightingTabTest::testExpansionTintAddAndRemove()
+{
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    selectPreset(widget, Preset::Grey);
+    QVERIFY(widget->addColorButton()->isEnabled());
+    QVERIFY(!widget->removeColorButton()->isEnabled());
+
+    // Adding a color to a preset continues with its colors as custom colors.
+    const QList<QColor> grey = ExpansionTintSettings::presetColors(Preset::Grey, widget->palette());
+    widget->addColorButton()->click();
+    QCOMPARE(widget->settings().preset, Preset::Custom);
+    QCOMPARE(widget->settings().customColors.count(), 3);
+    QCOMPARE(widget->settings().customColors.mid(0, 2), grey);
+    QVERIFY(widget->removeColorButton()->isEnabled());
+
+    while (widget->addColorButton()->isEnabled()) {
+        widget->addColorButton()->click();
+    }
+    QCOMPARE(widget->colorButtons().count(), ExpansionTintSettings::MaximumColorCount);
+
+    while (widget->removeColorButton()->isEnabled()) {
+        widget->removeColorButton()->click();
+    }
+    QCOMPARE(widget->colorButtons().count(), ExpansionTintSettings::MinimumColorCount);
+    QCOMPARE(widget->settings().customColors, grey);
+}
+
+void FileNameHighlightingTabTest::testExpansionTintApplyAndDefaults()
+{
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    selectPreset(widget, Preset::Grey);
+    tab.applySettings();
+    QCOMPARE(ExpansionTintSettings::load().preset, Preset::Grey);
+
+    tab.restoreDefaults();
+    QCOMPARE(widget->settings(), ExpansionTintSettings::defaults());
+    tab.applySettings();
+    QCOMPARE(ExpansionTintSettings::load(), ExpansionTintSettings::defaults());
+}
+
+void FileNameHighlightingTabTest::testScreenshot()
+{
+    // WHALE_TEST_SCREENSHOT_DIR=<dir> saves screenshots of the tab there.
+    const QString dir = qEnvironmentVariable("WHALE_TEST_SCREENSHOT_DIR");
+    if (dir.isEmpty()) {
+        QSKIP("WHALE_TEST_SCREENSHOT_DIR is not set");
+    }
+
+    FileNameHighlightingTab tab;
+    tab.resize(760, 640);
+    tab.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&tab));
+    QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-pastel.png")));
+
+    selectPreset(tab.expansionTintWidget(), Preset::Off);
+    QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-off.png")));
 }
 
 QTEST_MAIN(FileNameHighlightingTabTest)
