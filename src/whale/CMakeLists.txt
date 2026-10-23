@@ -152,6 +152,13 @@ target_sources(dolphinstatic PRIVATE
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/menubar)
 
+########### Executable scripts in a terminal, part of the application ###############
+
+target_sources(dolphinstatic PRIVATE
+    scripts/whalescriptlauncher.cpp
+)
+target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
+
 ########### plugins ###############
 
 # The test views (Hello, Test List) are test fixtures: they are built with the tests into a

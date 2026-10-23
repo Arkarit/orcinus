@@ -9,6 +9,7 @@
 #include "admin/workerintegration.h"
 #include "dolphin_generalsettings.h"
 #include "global.h"
+#include "whalescriptlauncher.h"
 
 #include <KLocalizedString>
 #include <KMessageBox>
@@ -24,7 +25,10 @@ namespace
 enum ScriptExecution {
     AlwaysAsk = 0,
     Open = 1,
-    Execute = 2
+    Execute = 2,
+    // Whale: in whalerc, see WhaleScriptLauncher
+    ExecuteInTerminal = 3,
+    ExecuteInTerminalAndClose = 4,
 };
 
 const bool ConfirmEmptyTrash = true;
@@ -79,7 +83,17 @@ ConfirmationsSettingsPage::ConfirmationsSettingsPage(QWidget *parent)
     executableScriptLabel->setWordWrap(true);
 
     m_confirmScriptExecution = new QComboBox(this);
-    m_confirmScriptExecution->addItems({i18n("Always ask"), i18n("Open in application"), i18n("Run script")});
+    m_confirmScriptExecution->addItems({i18n("Always ask"),
+                                        i18n("Open in application"),
+                                        i18n("Run script"),
+                                        i18nc("@item:inlistbox When opening an executable file:", "Run script in terminal"),
+                                        i18nc("@item:inlistbox When opening an executable file:", "Run script in terminal and close")});
+    m_confirmScriptExecution->setItemData(ScriptExecution::ExecuteInTerminal,
+                                          i18nc("@info:tooltip", "The terminal stays open until you press Enter."),
+                                          Qt::ToolTipRole);
+    m_confirmScriptExecution->setItemData(ScriptExecution::ExecuteInTerminalAndClose,
+                                          i18nc("@info:tooltip", "The terminal closes when the script ends, unless it failed."),
+                                          Qt::ToolTipRole);
 
     topLayout->addRow(confirmLabelKde, m_confirmDelete);
     topLayout->addRow(nullptr, m_confirmMoveToTrash);
@@ -162,6 +176,18 @@ void ConfirmationsSettingsPage::applySettings()
         break;
     }
     kioConfig->sync();
+    // Whale: the terminal is Whale's own; KIO's choice stays for other applications.
+    switch (index) {
+    case ScriptExecution::ExecuteInTerminal:
+        WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::Terminal);
+        break;
+    case ScriptExecution::ExecuteInTerminalAndClose:
+        WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::TerminalClose);
+        break;
+    default:
+        WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::Off);
+        break;
+    }
 
     GeneralSettings *settings = GeneralSettings::self();
     settings->setConfirmClosingMultipleTabs(m_confirmClosingMultipleTabs->isChecked());
@@ -221,6 +247,17 @@ void ConfirmationsSettingsPage::loadSettings()
         m_confirmScriptExecution->setCurrentIndex(ScriptExecution::Execute);
     } else /* if (value == QLatin1String("open"))*/ {
         m_confirmScriptExecution->setCurrentIndex(ScriptExecution::Open);
+    }
+    // Whale: a terminal wins over KIO's choice.
+    switch (WhaleScriptLauncher::mode()) {
+    case WhaleScriptLauncher::Mode::Terminal:
+        m_confirmScriptExecution->setCurrentIndex(ScriptExecution::ExecuteInTerminal);
+        break;
+    case WhaleScriptLauncher::Mode::TerminalClose:
+        m_confirmScriptExecution->setCurrentIndex(ScriptExecution::ExecuteInTerminalAndClose);
+        break;
+    case WhaleScriptLauncher::Mode::Off:
+        break;
     }
 
     m_confirmClosingMultipleTabs->setChecked(GeneralSettings::confirmClosingMultipleTabs());

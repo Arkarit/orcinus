@@ -603,6 +603,7 @@ if(NOT WIN32)
         settings/interface/statusandlocationbarssettingspage.cpp
         settings/interface/previewssettingspage.cpp
         settings/interface/confirmationssettingspage.cpp
+        whale/scripts/whalescriptlauncher.cpp # Whale: scripts in a terminal on the confirmations page
         settings/settingspagebase.cpp
         settings/servicemodel.cpp
         dolphin_generalsettings.cpp
@@ -628,6 +629,7 @@ if(NOT WIN32)
 
     target_link_libraries(kcm_dolphinviewmodes dolphinprivate)
     target_link_libraries(kcm_dolphingeneral dolphinprivate)
+    target_include_directories(kcm_dolphingeneral PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/whale/scripts)
 
     if(WHALE_INSTALL_DOLPHIN_EXTRAS)
         install(FILES org.kde.dolphin.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})

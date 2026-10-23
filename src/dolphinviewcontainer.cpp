@@ -22,6 +22,7 @@
 #include "selectionmode/topbar.h"
 #include "statusbar/dolphinstatusbar.h"
 #include "whalefileviewtoolbar.h" // Whale: multi-toolbar TB2
+#include "whalescriptlauncher.h"
 #include "whaleviewhost.h"
 
 #include <KActionCollection>
@@ -843,6 +844,10 @@ void DolphinViewContainer::slotItemActivated(const KFileItem &item)
         return;
     }
 
+    if (WhaleScriptLauncher::launch(item, this)) { // Whale: scripts in a terminal
+        return;
+    }
+
     KIO::OpenUrlJob *job = new KIO::OpenUrlJob(item.targetUrl(), item.mimetype());
     // Auto*Warning*Handling, errors are put in a KMessageWidget by us in slotOpenUrlFinished.
     job->setUiDelegate(KIO::createDefaultJobUiDelegate(KJobUiDelegate::AutoWarningHandlingEnabled, this));
@@ -901,8 +906,19 @@ void DolphinViewContainer::slotItemsActivated(const KFileItemList &items)
 {
     Q_ASSERT(items.count() >= 2);
 
+    // Whale: scripts in a terminal, each in its own.
+    KFileItemList others;
+    for (const KFileItem &item : items) {
+        if (!WhaleScriptLauncher::launch(item, this)) {
+            others.append(item);
+        }
+    }
+    if (others.isEmpty()) {
+        return;
+    }
+
     KFileItemActions fileItemActions(this);
-    fileItemActions.runPreferredApplications(items);
+    fileItemActions.runPreferredApplications(others);
 }
 
 static bool hasStatusBarInfoCached(const KFileItem &item)

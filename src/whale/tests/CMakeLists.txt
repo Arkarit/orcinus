@@ -328,3 +328,9 @@ ecm_add_test(whalemenubartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/sr
     TEST_NAME whalemenubartest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalemenubartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
+
+# Executable scripts in a terminal (whalescriptlauncher.h).
+ecm_add_test(whalescriptlaunchertest.cpp ../../tests/testdir.cpp
+    TEST_NAME whalescriptlaunchertest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whalescriptlaunchertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
