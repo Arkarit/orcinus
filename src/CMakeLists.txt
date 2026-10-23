@@ -117,6 +117,7 @@ target_sources(dolphinprivate PRIVATE
     views/dolphinview.cpp
     views/dolphinviewactionhandler.cpp
     views/draganddrophelper.cpp
+    views/expansiontintsettings.cpp
     views/filenamehighlighter.cpp
     views/filenamehighlightingsettings.cpp
     views/versioncontrol/updateitemstatesthread.cpp
@@ -173,6 +174,7 @@ target_sources(dolphinprivate PRIVATE
     views/dolphinview.h
     views/dolphinviewactionhandler.h
     views/draganddrophelper.h
+    views/expansiontintsettings.h
     views/filenamehighlighter.h
     views/filenamehighlightingsettings.h
     views/versioncontrol/updateitemstatesthread.h

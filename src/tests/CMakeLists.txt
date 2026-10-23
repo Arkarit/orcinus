@@ -124,6 +124,9 @@ endif()
 # DragAndDropHelperTest
 ecm_add_test(draganddrophelpertest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 
+# ExpansionTintSettingsTest
+ecm_add_test(expansiontintsettingstest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
+
 # FileNameHighlighterTest
 ecm_add_test(filenamehighlightertest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 
