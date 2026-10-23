@@ -123,6 +123,17 @@ public:
     qreal itemScrollPosition(int index) const;
 
     /**
+     * @return Rectangle of the slot the item with the index \a index occupies
+     *         in the grid: as wide as the widest item of its column (vertical
+     *         scrolling: as high as the highest item of its row) and including
+     *         the margin to the next item across the lines, so that the slots
+     *         of the items of a line touch each other. Related to the top/left
+     *         of the KItemListView like itemRect(). An empty rectangle is
+     *         returned if an invalid index is given.
+     */
+    QRectF itemSlotRect(int index) const;
+
+    /**
      * @return Rectangle of the group header for the item with the
      *         index \a index. Note that the layouter does not check
      *         whether the item really has a header: Usually only
@@ -227,6 +238,7 @@ private:
     int m_columnCount;
 
     QVector<qreal> m_rowOffsets;
+    QVector<qreal> m_rowHeights;
     QVector<qreal> m_columnOffsets;
 
     // Stores all item indexes that are the first item of a group.

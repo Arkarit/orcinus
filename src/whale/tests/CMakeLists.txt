@@ -271,6 +271,12 @@ ecm_add_test(whalecompactexpansiontest.cpp ../../tests/testdir.cpp
     LINK_LIBRARIES dolphinprivate Qt6::Test)
 target_include_directories(whalecompactexpansiontest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 
+# Tinting expanded folders in the compact view by depth (ET2).
+ecm_add_test(whaleexpansiontinttest.cpp ../../tests/testdir.cpp
+    TEST_NAME whaleexpansiontinttest
+    LINK_LIBRARIES dolphinprivate Qt6::Test)
+target_include_directories(whaleexpansiontinttest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
 # Always following symbolic links to their target (Folders & Tabs setting).
 ecm_add_test(whalesymlinktargettest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whalesymlinktargettest

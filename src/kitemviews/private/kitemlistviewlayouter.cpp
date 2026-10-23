@@ -35,6 +35,7 @@ KItemListViewLayouter::KItemListViewLayouter(KItemListSizeHintResolver *sizeHint
     , m_xPosInc(0)
     , m_columnCount(0)
     , m_rowOffsets()
+    , m_rowHeights()
     , m_columnOffsets()
     , m_groupItemIndexes()
     , m_groupHeaderHeight(0)
@@ -251,6 +252,31 @@ QRectF KItemListViewLayouter::itemRect(int index) const
 
     const QPointF pos(x - m_itemOffset, y - m_scrollOffset);
     return QRectF(pos, sizeHint);
+}
+
+QRectF KItemListViewLayouter::itemSlotRect(int index) const
+{
+    const QRectF rect = itemRect(index);
+    if (rect.isEmpty()) {
+        return QRectF();
+    }
+
+    // In logical coordinates, which are always those of vertical scrolling,
+    // the slot spans the column width and the height of the row.
+    const ItemInfo &itemInfo = m_itemInfos.at(index);
+    const qreal logicalWidth = m_columnWidth;
+    const qreal logicalHeight = m_rowHeights.at(itemInfo.row);
+
+    if (m_scrollOrientation == Qt::Horizontal) {
+        // The column of the item starts at the logical row offset, like the item itself.
+        const qreal y = m_columnOffsets.at(itemInfo.column);
+        if (QGuiApplication::isRightToLeft()) {
+            return QRectF(rect.right() - logicalHeight, y, logicalHeight, logicalWidth);
+        }
+        return QRectF(rect.left(), y, logicalHeight, logicalWidth);
+    }
+
+    return QRectF(m_columnOffsets.at(itemInfo.column) - m_itemOffset, rect.top(), logicalWidth, logicalHeight);
 }
 
 qreal KItemListViewLayouter::itemScrollPosition(int index) const
@@ -494,6 +520,7 @@ void KItemListViewLayouter::doLayout()
         numberOfRows += m_groupItemIndexes.count();
     }
     m_rowOffsets.resize(numberOfRows);
+    m_rowHeights.resize(numberOfRows);
 
     qreal y = m_headerHeight + itemMargin.height();
     int row = 0;
@@ -537,6 +564,7 @@ void KItemListViewLayouter::doLayout()
                             break;
                         }
                     }
+                    m_rowHeights[row] = horizontalScrolling ? colWidth : 0;
                     if (horizontalScrolling) {
                         y += colWidth;
                     }
@@ -591,6 +619,7 @@ void KItemListViewLayouter::doLayout()
             }
         }
 
+        m_rowHeights[row] = maxItemHeight;
         y += maxItemHeight + itemMargin.height();
         ++row;
     }

@@ -25,6 +25,7 @@
 class KItemListContainer;
 class KItemListContainerAccessible;
 class KItemListController;
+class KItemListExpansionTintItem;
 class KItemListGroupHeaderCreatorBase;
 class KItemListHeader;
 class KItemListHeaderWidget;
@@ -250,10 +251,28 @@ public:
     bool alternateBackgrounds() const;
 
     /**
+     * Sets the background colors of items inside expanded items in layouts
+     * with horizontal scrolling. An item at depth d gets a background for each
+     * level k = 1 ... d, from the indentation of that level to the end of its
+     * column, in colors[(k - 1) % colors.count()]. An empty list disables the
+     * tinting, which is the default.
+     */
+    void setExpansionTintColors(const QList<QColor> &colors);
+    QList<QColor> expansionTintColors() const;
+
+    /**
      * @return The rectangle of the item relative to the top/left of
      *         the currently visible area (see KItemListView::offset()).
      */
     QRectF itemRect(int index) const;
+
+    /**
+     * @return The rectangle of the slot the item occupies in the grid, relative
+     *         to the top/left of the currently visible area like itemRect().
+     *         In the compact layout it spans the whole width of the column of
+     *         the item and touches the slots of the items above and below.
+     */
+    QRectF itemSlotRect(int index) const;
 
     /**
      * @return The context rectangle of the item relative to the top/left of
@@ -746,6 +765,11 @@ private:
     void updateSiblingsInformation(int firstIndex = -1, int lastIndex = -1);
 
     /**
+     * Paints the backgrounds set by setExpansionTintColors() below the item widgets.
+     */
+    void paintExpansionTints(QPainter *painter) const;
+
+    /**
      * Helper method for updateExpansionIndicators().
      * @return True if the item with the index \a index has a sibling successor
      *         (= the item is not the last item of the current hierarchy).
@@ -784,6 +808,8 @@ private:
     bool m_highlightEntireRow;
     bool m_dragFromAnywhereOnRow;
     bool m_alternateBackgrounds;
+    QList<QColor> m_expansionTintColors;
+    KItemListExpansionTintItem *m_expansionTintItem;
     bool m_supportsItemExpanding;
     bool m_supportsGroupCollapsing;
     bool m_editingRole;
@@ -879,6 +905,7 @@ private:
     friend class KItemListContainer; // Accesses scrollBarRequired()
     friend class KItemListHeader; // Accesses m_headerWidget
     friend class KItemListController;
+    friend class KItemListExpansionTintItem; // Calls paintExpansionTints()
     friend class KItemListControllerTest;
     friend class KItemListViewAccessible;
     friend class KItemListDelegateAccessible;

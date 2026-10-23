@@ -9,6 +9,7 @@
 
 #include "dolphin_export.h"
 #include "kitemviews/kfileitemlistview.h"
+#include "views/expansiontintsettings.h"
 
 #include <memory>
 
@@ -72,6 +73,7 @@ protected:
 
 private:
     void updateGridSize();
+    void updateExpansionTintColors();
 
     using KItemListView::setEnabledSelectionToggles; // Makes sure that the setEnabledSelectionToggles() declaration above doesn't hide
                                                      // the one from the base class so we can still use it privately.
@@ -82,6 +84,7 @@ private:
     int m_previewSize = 0;
     int m_iconSize = 0;
     std::shared_ptr<const FileNameHighlighter> m_fileNameHighlighter;
+    ExpansionTintSettings m_expansionTint;
 };
 
 #endif

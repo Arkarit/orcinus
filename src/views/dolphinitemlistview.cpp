@@ -27,9 +27,11 @@ DolphinItemListView::DolphinItemListView(QGraphicsWidget *parent)
 {
     const FileNameHighlightingSettings highlighting = FileNameHighlightingSettings::load();
     m_fileNameHighlighter = std::make_shared<const FileNameHighlighter>(highlighting.enabled, highlighting.rules);
+    m_expansionTint = ExpansionTintSettings::load();
 
     DolphinItemListView::updateFont();
     updateGridSize();
+    updateExpansionTintColors();
 }
 
 DolphinItemListView::~DolphinItemListView()
@@ -130,6 +132,9 @@ void DolphinItemListView::readSettings()
     if (!m_fileNameHighlighter || m_fileNameHighlighter->isEnabled() != highlighting.enabled || m_fileNameHighlighter->rules() != highlighting.rules) {
         setFileNameHighlighter(std::make_shared<const FileNameHighlighter>(highlighting.enabled, highlighting.rules));
     }
+
+    m_expansionTint = ExpansionTintSettings::load();
+    updateExpansionTintColors();
     endTransaction();
 }
 
@@ -230,6 +235,13 @@ void DolphinItemListView::updatePalette()
         m_fileNameHighlighter->clearColorCache();
     }
     KFileItemListView::updatePalette();
+    // The presets are mixed into the base color of the palette.
+    updateExpansionTintColors();
+}
+
+void DolphinItemListView::updateExpansionTintColors()
+{
+    setExpansionTintColors(m_expansionTint.colors(palette()));
 }
 
 void DolphinItemListView::updateFont()

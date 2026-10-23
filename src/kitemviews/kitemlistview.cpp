@@ -69,6 +69,48 @@ QAccessibleInterface *accessibleInterfaceFactory(const QString &key, QObject *ob
 #endif
 }
 
+/**
+ * Paints the backgrounds of KItemListView::setExpansionTintColors(). The item widgets
+ * stack behind the view, so that e.g. the rubber band is painted above them; this item
+ * stacks behind them.
+ */
+class KItemListExpansionTintItem : public QGraphicsItem
+{
+public:
+    explicit KItemListExpansionTintItem(KItemListView *view)
+        : QGraphicsItem(view)
+        , m_view(view)
+    {
+        setFlag(QGraphicsItem::ItemStacksBehindParent);
+        setZValue(-1);
+        setVisible(false);
+    }
+
+    void setRect(const QRectF &rect)
+    {
+        if (m_rect != rect) {
+            prepareGeometryChange();
+            m_rect = rect;
+        }
+    }
+
+    QRectF boundingRect() const override
+    {
+        return m_rect;
+    }
+
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override
+    {
+        Q_UNUSED(option)
+        Q_UNUSED(widget)
+        m_view->paintExpansionTints(painter);
+    }
+
+private:
+    KItemListView *m_view;
+    QRectF m_rect;
+};
+
 KItemListView::KItemListView(QGraphicsWidget *parent)
     : QGraphicsWidget(parent)
     , m_enabledSelectionToggles(false)
@@ -76,6 +118,7 @@ KItemListView::KItemListView(QGraphicsWidget *parent)
     , m_highlightEntireRow(false)
     , m_dragFromAnywhereOnRow(false)
     , m_alternateBackgrounds(false)
+    , m_expansionTintItem(nullptr)
     , m_supportsItemExpanding(false)
     , m_supportsGroupCollapsing(false)
     , m_editingRole(false)
@@ -121,6 +164,8 @@ KItemListView::KItemListView(QGraphicsWidget *parent)
     m_animation = new KItemListViewAnimation(this);
     connect(m_animation, &KItemListViewAnimation::finished, this, &KItemListView::slotAnimationFinished);
     connect(m_animation, &KItemListViewAnimation::started, this, &KItemListView::slotAnimationStarted);
+
+    m_expansionTintItem = new KItemListExpansionTintItem(this);
 
     m_rubberBand = new KItemListRubberBand(this);
     connect(m_rubberBand, &KItemListRubberBand::activationChanged, this, &KItemListView::slotRubberBandActivationChanged);
@@ -379,6 +424,7 @@ const KItemListStyleOption &KItemListView::styleOption() const
 void KItemListView::setGeometry(const QRectF &rect)
 {
     QGraphicsWidget::setGeometry(rect);
+    m_expansionTintItem->setRect(QRectF(QPointF(0, 0), rect.size()));
 
     if (!m_model) {
         return;
@@ -679,9 +725,28 @@ bool KItemListView::alternateBackgrounds() const
     return m_alternateBackgrounds;
 }
 
+void KItemListView::setExpansionTintColors(const QList<QColor> &colors)
+{
+    if (m_expansionTintColors != colors) {
+        m_expansionTintColors = colors;
+        m_expansionTintItem->setVisible(!colors.isEmpty());
+        m_expansionTintItem->update();
+    }
+}
+
+QList<QColor> KItemListView::expansionTintColors() const
+{
+    return m_expansionTintColors;
+}
+
 QRectF KItemListView::itemRect(int index) const
 {
     return m_layouter->itemRect(index);
+}
+
+QRectF KItemListView::itemSlotRect(int index) const
+{
+    return m_layouter->itemSlotRect(index);
 }
 
 QRectF KItemListView::itemContextRect(int index) const
@@ -2303,6 +2368,10 @@ void KItemListView::doLayout(LayoutAnimationHint hint, int changedIndex, int cha
         }
     }
 
+    if (!m_expansionTintColors.isEmpty()) {
+        // The tints reach beyond the item widgets up to the end of their columns.
+        m_expansionTintItem->update();
+    }
     emitOffsetChanges();
 }
 
@@ -2985,6 +3054,39 @@ void KItemListView::updateGroupHeaderHeight()
     m_layouter->setGroupHeaderMargin(groupHeaderMargin);
 
     updateVisibleGroupHeaders();
+}
+
+void KItemListView::paintExpansionTints(QPainter *painter) const
+{
+    if (m_expansionTintColors.isEmpty() || !m_supportsItemExpanding || !m_model || scrollOrientation() != Qt::Horizontal) {
+        return;
+    }
+
+    const bool rightToLeft = QGuiApplication::isRightToLeft();
+    const int colorCount = m_expansionTintColors.count();
+
+    for (auto it = m_visibleItems.cbegin(); it != m_visibleItems.cend(); ++it) {
+        const int index = it.key();
+        if (!it.value()->isVisible() || index >= m_model->count()) {
+            continue;
+        }
+        const int depth = m_model->expandedParentsCount(index);
+        if (depth <= 0) {
+            continue;
+        }
+
+        const QRectF slot = itemSlotRect(index);
+        // The widget indents each level by its own height (see KStandardItemListWidget::updateExpansionArea()).
+        const qreal indentation = m_layouter->itemRect(index).height();
+        for (int level = 1; level <= depth; ++level) {
+            const qreal inset = level * indentation;
+            if (inset >= slot.width()) {
+                break;
+            }
+            const QRectF rect = rightToLeft ? slot.adjusted(0, 0, -inset, 0) : slot.adjusted(inset, 0, 0, 0);
+            painter->fillRect(rect, m_expansionTintColors.at((level - 1) % colorCount));
+        }
+    }
 }
 
 void KItemListView::updateSiblingsInformation(int firstIndex, int lastIndex)
