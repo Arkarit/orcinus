@@ -29,6 +29,8 @@ enum ScriptExecution {
     // Whale: in whalerc, see WhaleScriptLauncher
     ExecuteInTerminal = 3,
     ExecuteInTerminalAndClose = 4,
+    ExecuteInTerminalMinimized = 5,
+    ExecuteInTerminalMinimizedAndClose = 6,
 };
 
 const bool ConfirmEmptyTrash = true;
@@ -87,12 +89,24 @@ ConfirmationsSettingsPage::ConfirmationsSettingsPage(QWidget *parent)
                                         i18n("Open in application"),
                                         i18n("Run script"),
                                         i18nc("@item:inlistbox When opening an executable file:", "Run script in terminal"),
-                                        i18nc("@item:inlistbox When opening an executable file:", "Run script in terminal and close")});
+                                        i18nc("@item:inlistbox When opening an executable file:", "Run script in terminal and close"),
+                                        i18nc("@item:inlistbox When opening an executable file:", "Run script in minimized terminal"),
+                                        i18nc("@item:inlistbox When opening an executable file:", "Run script in minimized terminal and close")});
     m_confirmScriptExecution->setItemData(ScriptExecution::ExecuteInTerminal,
                                           i18nc("@info:tooltip", "The terminal stays open until you press Enter."),
                                           Qt::ToolTipRole);
     m_confirmScriptExecution->setItemData(ScriptExecution::ExecuteInTerminalAndClose,
                                           i18nc("@info:tooltip", "The terminal closes when the script ends, unless it failed."),
+                                          Qt::ToolTipRole);
+    m_confirmScriptExecution->setItemData(ScriptExecution::ExecuteInTerminalMinimized,
+                                          i18nc("@info:tooltip",
+                                                "The terminal starts in the taskbar and stays open until you press Enter. "
+                                                "If the script fails, it comes to the front."),
+                                          Qt::ToolTipRole);
+    m_confirmScriptExecution->setItemData(ScriptExecution::ExecuteInTerminalMinimizedAndClose,
+                                          i18nc("@info:tooltip",
+                                                "The terminal starts in the taskbar and closes when the script ends. "
+                                                "If the script fails, it comes to the front instead."),
                                           Qt::ToolTipRole);
 
     topLayout->addRow(confirmLabelKde, m_confirmDelete);
@@ -184,6 +198,12 @@ void ConfirmationsSettingsPage::applySettings()
     case ScriptExecution::ExecuteInTerminalAndClose:
         WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::TerminalClose);
         break;
+    case ScriptExecution::ExecuteInTerminalMinimized:
+        WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::Minimized);
+        break;
+    case ScriptExecution::ExecuteInTerminalMinimizedAndClose:
+        WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::MinimizedClose);
+        break;
     default:
         WhaleScriptLauncher::setMode(WhaleScriptLauncher::Mode::Off);
         break;
@@ -255,6 +275,12 @@ void ConfirmationsSettingsPage::loadSettings()
         break;
     case WhaleScriptLauncher::Mode::TerminalClose:
         m_confirmScriptExecution->setCurrentIndex(ScriptExecution::ExecuteInTerminalAndClose);
+        break;
+    case WhaleScriptLauncher::Mode::Minimized:
+        m_confirmScriptExecution->setCurrentIndex(ScriptExecution::ExecuteInTerminalMinimized);
+        break;
+    case WhaleScriptLauncher::Mode::MinimizedClose:
+        m_confirmScriptExecution->setCurrentIndex(ScriptExecution::ExecuteInTerminalMinimizedAndClose);
         break;
     case WhaleScriptLauncher::Mode::Off:
         break;

@@ -16,6 +16,7 @@
 #include <KSharedConfig>
 
 #include <QComboBox>
+#include <QDir>
 #include <QFile>
 #include <QStandardPaths>
 #include <QTest>
@@ -53,23 +54,30 @@ private:
     QScopedPointer<TestDir> m_dir;
     QString m_terminal;
     QString m_log;
+    // What would have gone to KWin.
+    QList<std::pair<WhaleScriptLauncher::WindowRequest, qint64>> m_windowRequests;
 };
 
 void WhaleScriptLauncherTest::initTestCase()
 {
     QStandardPaths::setTestModeEnabled(true);
     KLocalizedString::setApplicationDomain({"whale"});
+    // Never KWin: no window of the user's desktop is touched.
+    WhaleScriptLauncher::setWindowRequestHandler([this](WhaleScriptLauncher::WindowRequest request, qint64 pid) {
+        m_windowRequests.append({request, pid});
+    });
 }
 
 void WhaleScriptLauncherTest::init()
 {
+    m_windowRequests.clear();
     m_dir.reset(new TestDir());
     m_log = m_dir->path() + QStringLiteral("/terminal.log");
     // The stand-in terminal: "-e" and the command, as KDE's terminals take it.
     m_terminal = createScript(QStringLiteral("fake-terminal"),
                               QByteArrayLiteral("#!/bin/sh\n"
                                                 "log=\"$(dirname \"$0\")/terminal.log\"\n"
-                                                "{ echo \"pwd=$PWD\"; echo \"first=$1\"; } > \"$log.tmp\"\n"
+                                                "{ echo \"pid=$$\"; echo \"pwd=$PWD\"; echo \"first=$1\"; } > \"$log.tmp\"\n"
                                                 "shift\n"
                                                 "\"$@\" < /dev/null >> \"$log.tmp\" 2>&1\n"
                                                 "echo \"status=$?\" >> \"$log.tmp\"\n"
@@ -148,6 +156,12 @@ void WhaleScriptLauncherTest::testMode()
     WhaleScriptLauncher::setMode(Mode::TerminalClose);
     QCOMPARE(WhaleScriptLauncher::mode(), Mode::TerminalClose);
     QCOMPARE(group.readEntry("RunInTerminal"), QStringLiteral("closeOnSuccess"));
+    WhaleScriptLauncher::setMode(Mode::Minimized);
+    QCOMPARE(WhaleScriptLauncher::mode(), Mode::Minimized);
+    QCOMPARE(group.readEntry("RunInTerminal"), QStringLiteral("minimizedKeepOpen"));
+    WhaleScriptLauncher::setMode(Mode::MinimizedClose);
+    QCOMPARE(WhaleScriptLauncher::mode(), Mode::MinimizedClose);
+    QCOMPARE(group.readEntry("RunInTerminal"), QStringLiteral("minimizedCloseOnSuccess"));
     WhaleScriptLauncher::setMode(Mode::Off);
     QCOMPARE(WhaleScriptLauncher::mode(), Mode::Off);
     QVERIFY(!group.hasKey("RunInTerminal"));
@@ -190,6 +204,13 @@ void WhaleScriptLauncherTest::testTerminalCommand()
         WhaleScriptLauncher::terminalCommand(QStringLiteral("xterm -fa 'DejaVu Sans Mono'"), QStringLiteral("/a.sh"), Mode::TerminalClose);
     QCOMPARE(xterm.mid(0, 4), (QStringList{QStringLiteral("xterm"), QStringLiteral("-fa"), QStringLiteral("DejaVu Sans Mono"), QStringLiteral("-e")}));
     QVERIFY(xterm.at(6) != command.at(4)); // another shell script around it
+
+    // The exit code for Whale, only where asked for.
+    QVERIFY(!command.at(4).contains(QStringLiteral("$4")));
+    const QStringList reporting =
+        WhaleScriptLauncher::terminalCommand(QStringLiteral("konsole"), QStringLiteral("/a.sh"), Mode::MinimizedClose, QStringLiteral("/run/x.status"));
+    QCOMPARE(reporting.last(), QStringLiteral("/run/x.status"));
+    QVERIFY(reporting.at(4).contains(QStringLiteral("$4")));
 }
 
 void WhaleScriptLauncherTest::testDefaultTerminal()
@@ -216,6 +237,10 @@ void WhaleScriptLauncherTest::testRunInTerminal_data()
     QTest::newRow("open, failure") << WhaleScriptLauncher::Mode::Terminal << 3 << true;
     QTest::newRow("close, success") << WhaleScriptLauncher::Mode::TerminalClose << 0 << false;
     QTest::newRow("close, failure") << WhaleScriptLauncher::Mode::TerminalClose << 3 << true;
+    QTest::newRow("minimized, success") << WhaleScriptLauncher::Mode::Minimized << 0 << true;
+    QTest::newRow("minimized, failure") << WhaleScriptLauncher::Mode::Minimized << 3 << true;
+    QTest::newRow("minimized and close, success") << WhaleScriptLauncher::Mode::MinimizedClose << 0 << false;
+    QTest::newRow("minimized and close, failure") << WhaleScriptLauncher::Mode::MinimizedClose << 3 << true;
 }
 
 void WhaleScriptLauncherTest::testRunInTerminal()
@@ -239,6 +264,25 @@ void WhaleScriptLauncherTest::testRunInTerminal()
     QVERIFY2(log.contains(QStringLiteral("status=%1").arg(exitCode)), qPrintable(log));
     QCOMPARE(log.contains(QStringLiteral("The script ended with exit code %1.").arg(exitCode)), waits);
     QCOMPARE(log.contains(QStringLiteral("Press Enter to close this window.")), waits);
+
+    // Minimized: the terminal's window to the taskbar, and to the front if the script failed.
+    using WhaleScriptLauncher::WindowRequest;
+    const bool minimized = mode == WhaleScriptLauncher::Mode::Minimized || mode == WhaleScriptLauncher::Mode::MinimizedClose;
+    const qint64 pid = QStringView(log).mid(4, log.indexOf(QLatin1Char('\n')) - 4).toLongLong();
+    QVERIFY(pid > 0);
+    QList<std::pair<WindowRequest, qint64>> expected;
+    if (minimized) {
+        expected.append({WindowRequest::Minimize, pid});
+        if (exitCode != 0) {
+            expected.append({WindowRequest::Raise, pid});
+        }
+    }
+    QTRY_COMPARE(m_windowRequests, expected);
+    QTest::qWait(100); // nothing more comes
+    QCOMPARE(m_windowRequests, expected);
+    // The file for the exit code is gone.
+    const QString runtime = QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + QStringLiteral("/whale-scripts");
+    QTRY_VERIFY(QDir(runtime).entryList({QStringLiteral("*.status*")}, QDir::Files).isEmpty());
 }
 
 void WhaleScriptLauncherTest::testOffLeavesItToKio()
@@ -260,11 +304,14 @@ void WhaleScriptLauncherTest::testSettingsPage()
     kio.sync();
 
     // The terminal choices are written to whalerc only; KIO's choice stays as it was.
-    for (const auto &[index, mode] : {std::pair{3, WhaleScriptLauncher::Mode::Terminal}, std::pair{4, WhaleScriptLauncher::Mode::TerminalClose}}) {
+    for (const auto &[index, mode] : {std::pair{3, WhaleScriptLauncher::Mode::Terminal},
+                                      std::pair{4, WhaleScriptLauncher::Mode::TerminalClose},
+                                      std::pair{5, WhaleScriptLauncher::Mode::Minimized},
+                                      std::pair{6, WhaleScriptLauncher::Mode::MinimizedClose}}) {
         ConfirmationsSettingsPage page(nullptr);
         auto combo = page.findChild<QComboBox *>();
         QVERIFY(combo);
-        QCOMPARE(combo->count(), 5);
+        QCOMPARE(combo->count(), 7);
         combo->setCurrentIndex(index);
         page.applySettings();
         QCOMPARE(WhaleScriptLauncher::mode(), mode);
