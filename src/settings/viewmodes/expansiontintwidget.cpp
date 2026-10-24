@@ -59,6 +59,15 @@ public:
     }
 
     /**
+     * Shows the lines of the tree next to the items instead of only the expansion arrows.
+     */
+    void setTreeLines(bool treeLines)
+    {
+        m_treeLines = treeLines;
+        update();
+    }
+
+    /**
      * Sets the opacity of the folder names; 0 hides them.
      */
     void setNameOpacity(qreal opacity)
@@ -126,7 +135,9 @@ protected:
                 }
             }
 
-            if (row.folder) {
+            if (m_treeLines) {
+                paintTreeLines(&painter, allRows, i, slot, height);
+            } else if (row.folder) {
                 QStyleOption arrow;
                 arrow.initFrom(this);
                 arrow.rect =
@@ -265,6 +276,40 @@ private:
         painter->restore();
     }
 
+    /**
+     * As KStandardItemListWidget::drawSiblingsInformation() does with the siblings information of
+     * KItemListView::updateSiblingsInformation(): for each level from the item to the top, whether
+     * the item or its parent on that level has a sibling after it.
+     */
+    void paintTreeLines(QPainter *painter, const QList<Row> &allRows, int index, const QRect &slot, int height) const
+    {
+        const Row &row = allRows.at(index);
+        const bool expanded = index + 1 < allRows.count() && allRows.at(index + 1).depth > row.depth;
+        QStyleOption option;
+        option.initFrom(this);
+        for (int level = row.depth; level >= 0; --level) {
+            bool sibling = false;
+            for (int next = index + 1; next < allRows.count(); ++next) {
+                if (allRows.at(next).depth <= level) {
+                    sibling = allRows.at(next).depth == level;
+                    break;
+                }
+            }
+            option.rect = QStyle::visualRect(layoutDirection(), slot, QRect(slot.left() + level * height, slot.top(), height, height));
+            option.state = sibling ? QStyle::State_Sibling : QStyle::State_None;
+            if (level == row.depth) {
+                option.state |= QStyle::State_Item;
+                if (row.folder) {
+                    option.state |= QStyle::State_Children;
+                }
+                if (expanded) {
+                    option.state |= QStyle::State_Open;
+                }
+            }
+            style()->drawPrimitive(QStyle::PE_IndicatorBranch, &option, painter, this);
+        }
+    }
+
     int sizeColumnWidth() const
     {
         return rowHeight() * 3;
@@ -294,6 +339,7 @@ private:
     QList<QColor> m_colors;
     qreal m_nameOpacity = 0;
     bool m_details = false;
+    bool m_treeLines = false;
 };
 
 ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
@@ -478,7 +524,17 @@ void ExpansionTintWidget::setCurrentView(ExpansionTintSettings::View view)
     // Shows the settings of the view in the controls without changing them.
     const ExpansionTintSettings &settings = current();
     const QSignalBlocker presetBlocker(m_presetComboBox);
-    m_presetComboBox->setCurrentIndex(m_presetComboBox->findData(int(settings.preset)));
+    // The classic look with the lines of the tree only exists in the details view.
+    const int classicIndex = m_presetComboBox->findData(int(ExpansionTintSettings::Preset::Classic));
+    if (view == ExpansionTintSettings::View::Details && classicIndex < 0) {
+        m_presetComboBox->insertItem(1,
+                                     i18nc("@item:inlistbox expanded folder colors: none, but the lines of the tree as before", "Classic (tree lines)"),
+                                     int(ExpansionTintSettings::Preset::Classic));
+    } else if (view != ExpansionTintSettings::View::Details && classicIndex >= 0) {
+        m_presetComboBox->removeItem(classicIndex);
+    }
+    const int presetIndex = m_presetComboBox->findData(int(settings.preset));
+    m_presetComboBox->setCurrentIndex(presetIndex >= 0 ? presetIndex : m_presetComboBox->findData(int(ExpansionTintSettings::Preset::Off)));
     const QSignalBlocker showNamesBlocker(m_showNamesCheckBox);
     m_showNamesCheckBox->setChecked(settings.showNames);
     const QSignalBlocker opacityBlocker(m_nameOpacitySlider);
@@ -571,10 +627,14 @@ void ExpansionTintWidget::updateWidgets()
     m_removeColorButton->setEnabled(colors.count() > ExpansionTintSettings::MinimumColorCount);
     m_preview->setColors(colors);
 
-    m_nameOpacitySlider->setEnabled(current().showNames);
-    m_nameOpacityLabel->setEnabled(current().showNames);
+    // The classic look has no names; their settings stay for the other presets.
+    const bool classic = current().preset == ExpansionTintSettings::Preset::Classic;
+    m_showNamesCheckBox->setEnabled(!classic);
+    m_nameOpacitySlider->setEnabled(current().namesShown());
+    m_nameOpacityLabel->setEnabled(current().namesShown());
     m_nameOpacityLabel->setText(i18nc("@label opacity in percent", "%1 %", current().nameOpacity));
-    m_preview->setNameOpacity(current().showNames ? current().nameOpacity / 100.0 : 0);
+    m_preview->setNameOpacity(current().namesShown() ? current().nameOpacity / 100.0 : 0);
+    m_preview->setTreeLines(classic);
 }
 
 #include "moc_expansiontintwidget.cpp"

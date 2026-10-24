@@ -41,6 +41,11 @@ struct DOLPHIN_EXPORT ExpansionTintSettings {
 
     enum class Preset {
         Off,
+        /**
+         * Only for the details view: no colors and no names, but the lines of the tree,
+         * as the details view showed expanded folders before.
+         */
+        Classic,
         PrinterPaper,
         Grey,
         PastelSubtle,
@@ -88,6 +93,12 @@ struct DOLPHIN_EXPORT ExpansionTintSettings {
      *         the default custom colors.
      */
     static QList<QColor> presetColors(Preset preset, const QPalette &palette);
+
+    /**
+     * @return True if the names of the expanded folders are shown: they are switched on and
+     *         the preset is not Classic.
+     */
+    bool namesShown() const;
 
     /**
      * @return The effective color cycle for @p palette. Empty if tinting is off.

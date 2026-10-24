@@ -45,6 +45,7 @@ private Q_SLOTS:
     void testNoTintInDetailsView();
     void testSettingsAreApplied();
     void testSettingsPerView();
+    void testTreeLinesOnlyInTheClassicLook();
     void testNamesInTheIndentation();
     void testNamesThatDoNotFitAreLeftOut();
     void testNameOpacity();
@@ -476,6 +477,49 @@ void WhaleExpansionTintTest::testSettingsPerView()
 
     m_view->setItemLayout(KFileItemListView::CompactLayout);
     QCOMPARE(m_view->expansionTintColors(), compact.customColors);
+}
+
+void WhaleExpansionTintTest::testTreeLinesOnlyInTheClassicLook()
+{
+    using Preset = ExpansionTintSettings::Preset;
+    const auto widgetsShowTreeLines = [this](bool shown) {
+        const auto items = m_view->childItems();
+        int widgets = 0;
+        for (QGraphicsItem *item : items) {
+            if (auto widget = qobject_cast<KItemListWidget *>(item->toGraphicsObject()); widget && widget->isVisible()) {
+                ++widgets;
+                if (widget->treeLinesShown() != shown) {
+                    return false;
+                }
+            }
+        }
+        return widgets > 0;
+    };
+
+    m_view->setItemLayout(KFileItemListView::DetailsLayout);
+    for (const Preset preset : {Preset::Off, Preset::PastelVivid}) {
+        ExpansionTintSettings settings = ExpansionTintSettings::defaults();
+        settings.preset = preset;
+        settings.save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
+        m_view->readSettings();
+        QVERIFY(!m_view->treeLinesShown());
+        QTRY_VERIFY(widgetsShowTreeLines(false));
+    }
+
+    // Classic: no colors and no names, but the lines of the tree.
+    ExpansionTintSettings classic = ExpansionTintSettings::defaults();
+    classic.preset = Preset::Classic;
+    classic.save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
+    m_view->readSettings();
+    QVERIFY(m_view->treeLinesShown());
+    QTRY_VERIFY(widgetsShowTreeLines(true));
+    QVERIFY(m_view->expansionTintColors().isEmpty());
+    QCOMPARE(m_view->expansionNameOpacity(), 0.0);
+
+    // The compact view has its own settings.
+    m_view->setItemLayout(KFileItemListView::CompactLayout);
+    QVERIFY(!m_view->treeLinesShown());
+    QVERIFY(!m_view->expansionTintColors().isEmpty());
 }
 
 void WhaleExpansionTintTest::testScreenshots()

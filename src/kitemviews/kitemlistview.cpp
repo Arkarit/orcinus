@@ -123,6 +123,7 @@ KItemListView::KItemListView(QGraphicsWidget *parent)
     , m_dragFromAnywhereOnRow(false)
     , m_alternateBackgrounds(false)
     , m_expansionNameOpacity(0)
+    , m_treeLinesShown(true)
     , m_expansionTintItem(nullptr)
     , m_supportsItemExpanding(false)
     , m_supportsGroupCollapsing(false)
@@ -757,6 +758,21 @@ void KItemListView::setExpansionNameOpacity(qreal opacity)
 qreal KItemListView::expansionNameOpacity() const
 {
     return m_expansionNameOpacity;
+}
+
+void KItemListView::setTreeLinesShown(bool shown)
+{
+    if (m_treeLinesShown != shown) {
+        m_treeLinesShown = shown;
+        for (KItemListWidget *widget : std::as_const(m_visibleItems)) {
+            widget->setTreeLinesShown(shown);
+        }
+    }
+}
+
+bool KItemListView::treeLinesShown() const
+{
+    return m_treeLinesShown;
 }
 
 QRectF KItemListView::itemRect(int index) const
@@ -2585,6 +2601,7 @@ void KItemListView::updateWidgetProperties(KItemListWidget *widget, int index)
     widget->setIndex(index);
     widget->setData(m_model->data(index));
     widget->setSiblingsInformation(QBitArray());
+    widget->setTreeLinesShown(m_treeLinesShown);
     updateAlternateBackgroundForWidget(widget);
 
     if (m_grouped) {

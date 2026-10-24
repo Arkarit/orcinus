@@ -261,10 +261,13 @@ void DolphinItemListView::updateExpansionTintColors()
     if (!m_expansionTint) {
         setExpansionTintColors({});
         setExpansionNameOpacity(0);
+        setTreeLinesShown(true);
         return;
     }
     setExpansionTintColors(m_expansionTint->colors(palette()));
-    setExpansionNameOpacity(m_expansionTint->showNames ? m_expansionTint->nameOpacity / 100.0 : 0);
+    setExpansionNameOpacity(m_expansionTint->namesShown() ? m_expansionTint->nameOpacity / 100.0 : 0);
+    // The lines of the tree would cross the colors and names; only the classic look has them.
+    setTreeLinesShown(m_expansionTint->preset == ExpansionTintSettings::Preset::Classic);
 }
 
 void DolphinItemListView::updateFont()

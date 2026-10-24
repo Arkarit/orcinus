@@ -32,6 +32,7 @@ KItemListWidget::KItemListWidget(KItemListWidgetInformant *informant, QGraphicsI
     , m_hovered(false)
     , m_expansionAreaHovered(false)
     , m_alternateBackground(false)
+    , m_treeLinesShown(true)
     , m_enabledSelectionToggle(false)
     , m_clickHighlighted(false)
     , m_data()
@@ -310,6 +311,19 @@ void KItemListWidget::setHoverPosition(const QPointF &pos)
     if (m_selectionToggle) {
         m_selectionToggle->setHovered(selectionToggleRect().contains(pos));
     }
+}
+
+void KItemListWidget::setTreeLinesShown(bool shown)
+{
+    if (m_treeLinesShown != shown) {
+        m_treeLinesShown = shown;
+        update();
+    }
+}
+
+bool KItemListWidget::treeLinesShown() const
+{
+    return m_treeLinesShown;
 }
 
 void KItemListWidget::setAlternateBackground(bool enable)

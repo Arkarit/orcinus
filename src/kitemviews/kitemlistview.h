@@ -274,6 +274,13 @@ public:
     qreal expansionNameOpacity() const;
 
     /**
+     * Sets whether the lines of the tree are drawn next to expandable items, or only their
+     * expansion arrows (see KItemListWidget::setTreeLinesShown()). Per default they are drawn.
+     */
+    void setTreeLinesShown(bool shown);
+    bool treeLinesShown() const;
+
+    /**
      * @return The rectangle of the item relative to the top/left of
      *         the currently visible area (see KItemListView::offset()).
      */
@@ -857,6 +864,7 @@ private:
     bool m_alternateBackgrounds;
     QList<QColor> m_expansionTintColors;
     qreal m_expansionNameOpacity;
+    bool m_treeLinesShown;
     KItemListExpansionTintItem *m_expansionTintItem;
     bool m_supportsItemExpanding;
     bool m_supportsGroupCollapsing;

@@ -1754,9 +1754,10 @@ void KStandardItemListWidget::drawSiblingsInformation(QPainter *painter)
     const int x = (m_expansionArea.left() + m_expansionArea.right() - siblingSize) / 2;
     QRect siblingRect(x, 0, siblingSize, siblingSize);
 
-    if (m_layout == CompactLayout) {
+    if (m_layout == CompactLayout || !treeLinesShown()) {
         // Whale: the compact view shows the expansion toggle only, without the lines of the
-        // tree, which make little sense in its columns (CX1). Styles draw parts of these lines
+        // tree, which make little sense in its columns (CX1); so does the details view while
+        // it shows expanded folders by colors and names instead. Styles draw parts of these lines
         // with every PE_IndicatorBranch (Breeze: above and below the arrow), so this is an arrow.
         if (m_isExpandable) {
             QStyleOption option;

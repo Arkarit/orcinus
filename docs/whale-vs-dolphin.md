@@ -87,7 +87,9 @@ matches Dolphin's behavior.
      an opacity slider, on by default). The Details view does the same in
      the Name column, with the row stripes running through the colors and
      the names sticking to the top of the view; Compact and Details have
-     settings of their own (switch in the dialog). Settings >
+     settings of their own (switch in the dialog). The tree lines of the
+     Details view are gone; the preset "Classic (tree lines)" brings back
+     Dolphin's look without colors and names. Settings >
      View > Highlighting > Expanded Folders: Off, Printer paper, Grey,
      Pastel (Subtle), Pastel (Vivid) (default), Custom (2 to 10 colors,
      add/remove, preview). Presets adapt to

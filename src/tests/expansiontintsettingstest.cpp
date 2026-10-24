@@ -38,6 +38,7 @@ private Q_SLOTS:
     void testOldPastelNameIsVivid();
     void testNames();
     void testViewsHaveTheirOwnSettings();
+    void testClassic();
 
 private:
     KSharedConfigPtr freshConfig() const;
@@ -303,6 +304,21 @@ void ExpansionTintSettingsTest::testViewsHaveTheirOwnSettings()
     QCOMPARE(ExpansionTintSettings::load(reopenedConfig()), compact);
     QVERIFY(reopenedConfig()->hasGroup(QStringLiteral("ExpansionTint")));
     QVERIFY(reopenedConfig()->hasGroup(QStringLiteral("ExpansionTintDetails")));
+}
+
+void ExpansionTintSettingsTest::testClassic()
+{
+    ExpansionTintSettings settings = ExpansionTintSettings::defaults();
+    QVERIFY(settings.namesShown());
+    settings.preset = Preset::Classic;
+    QVERIFY(settings.colors(palette(Qt::white, Qt::black)).isEmpty());
+    // The names keep their setting, but are not shown.
+    QVERIFY(settings.showNames);
+    QVERIFY(!settings.namesShown());
+
+    settings.save(freshConfig(), ExpansionTintSettings::View::Details);
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig(), ExpansionTintSettings::View::Details), settings);
+    QCOMPARE(ExpansionTintSettings::presetFromName(QStringLiteral("Classic")), std::optional<Preset>(Preset::Classic));
 }
 
 QTEST_GUILESS_MAIN(ExpansionTintSettingsTest)

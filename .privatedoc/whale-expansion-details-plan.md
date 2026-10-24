@@ -22,7 +22,14 @@ ED1 6c049dce7, ED2 f04e9d643, ED3 8dc95db8e, ED4 mit dem folgenden Commit. Unter
 Ordner „Kopfzeile“ seines Blocks ist, wird am folgenden Eintrag erkannt statt an
 `isExpanded()`; diese Rolle fehlt nach einem Wechsel der Ansicht, bis die Rollen neu gefüllt sind.
 `whalesplitlocktest` (`testButtonPlacement`) fiel in jeder vollen Suite unter `-j8` aus,
-einzeln grün.
+einzeln grün: Der Test zählte Toolbar-Knöpfe, bevor alle angezeigt waren (behoben e85c5bd29).
+
+Danach (Benutzer, Screenshot): Farben und vor allem Namen kollidieren mit den Baumlinien von
+Details. Entscheidung: neues Preset **„Classic (tree lines)“**, nur in Details: keine Farben,
+Namen ausgegraut (Einstellung bleibt), Baumlinien an. Alle anderen Presets in Details (auch
+„Off“) ohne Baumlinien, nur Pfeile (wie Compact). `KItemListView/KItemListWidget::
+setTreeLinesShown()`; Vorschau zeichnet die Linien mit `PE_IndicatorBranch` wie die View
+(offscreen mit Fusion nur Pfeile, unter Breeze Linien).
 
 ## Befund im Quelltext
 

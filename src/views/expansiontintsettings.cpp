@@ -72,6 +72,7 @@ QList<QColor> presetColorsFor(ExpansionTintSettings::Preset preset, const QColor
 {
     switch (preset) {
     case ExpansionTintSettings::Preset::Off:
+    case ExpansionTintSettings::Preset::Classic:
         return {};
     case ExpansionTintSettings::Preset::PrinterPaper:
         return mixedColors(printerPaperTints, base, text);
@@ -105,6 +106,11 @@ QList<QColor> ExpansionTintSettings::defaultCustomColors()
 QList<QColor> ExpansionTintSettings::presetColors(Preset preset, const QPalette &palette)
 {
     return presetColorsFor(preset, palette.color(QPalette::Base), palette.color(QPalette::Text));
+}
+
+bool ExpansionTintSettings::namesShown() const
+{
+    return showNames && preset != Preset::Classic;
 }
 
 QList<QColor> ExpansionTintSettings::colors(const QPalette &palette) const
@@ -169,6 +175,8 @@ QString ExpansionTintSettings::presetName(Preset preset)
     switch (preset) {
     case Preset::Off:
         return QStringLiteral("Off");
+    case Preset::Classic:
+        return QStringLiteral("Classic");
     case Preset::PrinterPaper:
         return QStringLiteral("PrinterPaper");
     case Preset::Grey:
@@ -186,7 +194,7 @@ QString ExpansionTintSettings::presetName(Preset preset)
 
 std::optional<ExpansionTintSettings::Preset> ExpansionTintSettings::presetFromName(const QString &name)
 {
-    for (const auto preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid, Preset::Custom}) {
+    for (const auto preset : {Preset::Off, Preset::Classic, Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid, Preset::Custom}) {
         if (presetName(preset) == name) {
             return preset;
         }

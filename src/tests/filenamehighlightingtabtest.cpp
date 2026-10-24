@@ -78,6 +78,7 @@ private Q_SLOTS:
     void testExpansionTintApplyAndDefaults();
     void testExpansionTintNames();
     void testExpansionTintViews();
+    void testExpansionTintClassic();
     void testScreenshot();
 };
 
@@ -550,6 +551,39 @@ void FileNameHighlightingTabTest::testExpansionTintViews()
     QVERIFY(widget->showNamesCheckBox()->isChecked());
 }
 
+void FileNameHighlightingTabTest::testExpansionTintClassic()
+{
+    using View = ExpansionTintSettings::View;
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    QComboBox *presets = widget->presetComboBox();
+
+    // Only the details view has the classic look with the lines of the tree.
+    QCOMPARE(presets->findData(int(Preset::Classic)), -1);
+    widget->viewButton(View::Details)->click();
+    QCOMPARE(presets->findData(int(Preset::Classic)), 1);
+
+    QSignalSpy changed(&tab, &SettingsPageBase::changed);
+    selectPreset(widget, Preset::Classic);
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(widget->settings(View::Details).preset, Preset::Classic);
+    QVERIFY(widget->colorButtons().isEmpty());
+    // The names are greyed out, but keep their setting.
+    QVERIFY(!widget->showNamesCheckBox()->isEnabled());
+    QVERIFY(widget->showNamesCheckBox()->isChecked());
+    QVERIFY(!widget->nameOpacitySlider()->isEnabled());
+
+    widget->viewButton(View::Compact)->click();
+    QCOMPARE(presets->findData(int(Preset::Classic)), -1);
+    QVERIFY(widget->showNamesCheckBox()->isEnabled());
+    widget->viewButton(View::Details)->click();
+    QCOMPARE(presets->currentData().toInt(), int(Preset::Classic));
+
+    selectPreset(widget, Preset::Grey);
+    QVERIFY(widget->showNamesCheckBox()->isEnabled());
+    QVERIFY(widget->nameOpacitySlider()->isEnabled());
+}
+
 void FileNameHighlightingTabTest::testScreenshot()
 {
     // WHALE_TEST_SCREENSHOT_DIR=<dir> saves screenshots of the tab there.
@@ -568,7 +602,10 @@ void FileNameHighlightingTabTest::testScreenshot()
     QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-off.png")));
 
     tab.expansionTintWidget()->viewButton(ExpansionTintSettings::View::Details)->click();
+    selectPreset(tab.expansionTintWidget(), Preset::PastelVivid);
     QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-details.png")));
+    selectPreset(tab.expansionTintWidget(), Preset::Classic);
+    QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-classic.png")));
 }
 
 QTEST_MAIN(FileNameHighlightingTabTest)

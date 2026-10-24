@@ -117,6 +117,13 @@ public:
      */
     static QColor alternateBackgroundColor(const QPalette &palette, bool focused);
 
+    /**
+     * Sets whether the lines of the tree are drawn next to an expandable item, or only its
+     * expansion arrow. Per default the lines are drawn.
+     */
+    void setTreeLinesShown(bool shown);
+    bool treeLinesShown() const;
+
     void setEnabledSelectionToggle(bool enabled);
     bool enabledSelectionToggle() const;
 
@@ -278,6 +285,7 @@ private:
     bool m_hovered;
     bool m_expansionAreaHovered;
     bool m_alternateBackground;
+    bool m_treeLinesShown;
     bool m_enabledSelectionToggle;
     bool m_clickHighlighted;
     SmallHash m_data;
