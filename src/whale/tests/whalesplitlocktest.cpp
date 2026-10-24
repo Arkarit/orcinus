@@ -339,7 +339,18 @@ void WhaleSplitLockTest::testButtonPlacement()
     QWidget *goBack = nullptr;
     QTRY_VERIFY((goBack = bar->widgetForAction(bar->scope()->action(QStringLiteral("go_back")))) && goBack->isVisible());
     QVERIFY(button->geometry().left() >= 0);
-    int shown = 0;
+    // The tool bar lays out its buttons one after another; under load Back may be shown before the others.
+    const auto shownButtons = [bar]() {
+        QList<QAction *> shown;
+        for (QAction *action : bar->actions()) {
+            QWidget *widget = bar->widgetForAction(action);
+            if (widget && widget->isVisible() && !WhaleFileViewToolBar::isLeadingPlaceholder(action)) {
+                shown.append(action);
+            }
+        }
+        return shown;
+    };
+    QTRY_VERIFY(shownButtons().count() >= 4);
     for (QAction *action : bar->actions()) {
         QWidget *widget = bar->widgetForAction(action);
         if (!widget || !widget->isVisible()) {
@@ -349,10 +360,8 @@ void WhaleSplitLockTest::testButtonPlacement()
             QCOMPARE(widget->geometry().x(), button->geometry().x());
             continue;
         }
-        ++shown;
         QVERIFY2(button->geometry().right() < widget->geometry().left(), qPrintable(action->objectName()));
     }
-    QVERIFY(shown >= 4);
     // A middle click on Back is still Back's (open in a new tab), not the lock's.
     QCOMPARE(bar->actionAt(goBack->geometry().center()), bar->scope()->action(QStringLiteral("go_back")));
     QCOMPARE(bar->childAt(goBack->geometry().center()), goBack);
