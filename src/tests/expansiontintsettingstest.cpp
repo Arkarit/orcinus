@@ -264,7 +264,7 @@ void ExpansionTintSettingsTest::testNames()
 {
     const ExpansionTintSettings defaults = ExpansionTintSettings::load(freshConfig());
     QVERIFY(defaults.showNames);
-    QCOMPARE(defaults.nameOpacity, 35);
+    QCOMPARE(defaults.nameOpacity, 40);
 
     ExpansionTintSettings settings = defaults;
     settings.showNames = false;

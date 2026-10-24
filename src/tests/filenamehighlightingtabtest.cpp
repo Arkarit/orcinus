@@ -474,7 +474,7 @@ void FileNameHighlightingTabTest::testExpansionTintNames()
     QCheckBox *showNames = widget->showNamesCheckBox();
     QSlider *opacity = widget->nameOpacitySlider();
     QVERIFY(showNames->isChecked());
-    QCOMPARE(opacity->value(), 35);
+    QCOMPARE(opacity->value(), 40);
     QCOMPARE(opacity->minimum(), ExpansionTintSettings::MinimumNameOpacity);
     QCOMPARE(opacity->maximum(), ExpansionTintSettings::MaximumNameOpacity);
     QVERIFY(opacity->isEnabled());
@@ -499,7 +499,7 @@ void FileNameHighlightingTabTest::testExpansionTintNames()
 
     tab.restoreDefaults();
     QVERIFY(showNames->isChecked());
-    QCOMPARE(opacity->value(), 35);
+    QCOMPARE(opacity->value(), 40);
     QVERIFY(opacity->isEnabled());
 }
 

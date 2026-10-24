@@ -3134,9 +3134,9 @@ void KItemListView::paintExpansionNames(QPainter *painter) const
 
     QFont font = styleOption().font;
     if (font.pointSizeF() > 0) {
-        font.setPointSizeF(font.pointSizeF() * 0.85);
+        font.setPointSizeF(font.pointSizeF() * 0.92);
     } else {
-        font.setPixelSize(qMax(1, qRound(font.pixelSize() * 0.85)));
+        font.setPixelSize(qMax(1, qRound(font.pixelSize() * 0.92)));
     }
     const QFontMetricsF metrics(font);
     QColor color = styleOption().palette.color(QPalette::Text);

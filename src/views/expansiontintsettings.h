@@ -65,7 +65,7 @@ struct DOLPHIN_EXPORT ExpansionTintSettings {
     /**
      * Opacity of these names in percent, between MinimumNameOpacity and MaximumNameOpacity.
      */
-    int nameOpacity = 35;
+    int nameOpacity = 40;
 
     /**
      * @return The settings used if no configuration exists: the pastel preset.

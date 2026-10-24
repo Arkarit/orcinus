@@ -140,7 +140,7 @@ private:
     void paintNames(QPainter *painter, const QRect &frame, int height) const
     {
         QFont font = this->font();
-        font.setPointSizeF(font.pointSizeF() * 0.85);
+        font.setPointSizeF(font.pointSizeF() * 0.92);
         const QFontMetricsF metrics(font);
         QColor color = palette().color(QPalette::Text);
         color.setAlphaF(m_nameOpacity);
