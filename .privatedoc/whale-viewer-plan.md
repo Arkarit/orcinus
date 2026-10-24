@@ -82,6 +82,19 @@ Auswahl immer mit.
 - Varianten A/B der Auswahl bei Mehrfachauswahl, versteckt umschaltbar (siehe oben).
 - Einstellungsseite mit MIME-Liste; Tests (Liste, Kopplung, Einstellungen) und Dev-MCP-Tools.
 
+Schritte (2026-10-25):
+- V1a: `src/whale/viewer/`: Einstellungen in whalerc `[Viewer]` (`MimeTypes`, Vorgabe `image/*`;
+  `WrapAround`; versteckt `MultiSelection` = `KeepSelection` (A) / `MoveSelection` (B)),
+  `WhaleViewerList` (anzeigbar = lokale Datei, MIME passt zur Liste und Qt kann es dekodieren;
+  Liste aus dem Ordner bzw. der Auswahl in View-Reihenfolge; Blättern mit/ohne Wrap-around),
+  `DolphinView::showViewerItem()` (aktuelles Item, ggf. Auswahl, Scrollen). Tests.
+- V1b: Viewer-Fenster und Aktivierungs-Haken; die Rückfrage „%1 Elemente öffnen?“ ab 6 Items
+  (`DolphinView::slotItemsActivated()`) zählt Items, die der Viewer zeigt, nicht mit. Mausrad,
+  Tasten, Rand-Klick, Dateiname, Ladefehler, Mauszeiger. Offscreen-Tests.
+- V1c: Einstellungsseite „Viewer“ (MIME-Liste, Wrap-around), Tests.
+- V1d: Dev-MCP-Tools, e2e, beide Builds, volle Suite.
+- Nicht lokale URLs (smb, sftp …) öffnen in V1 wie bisher mit ihrem Programm.
+
 ### V2 – Qualität und Tempo
 
 - Vorladen, Farbprofile, HiDPI, hochwertige Skalierung; Zoom/Pan (V-E5); animierte GIF/WebP.

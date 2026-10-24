@@ -1083,6 +1083,25 @@ void DolphinView::applyLinkedSelection()
     m_linkedPending = waiting;
 }
 
+bool DolphinView::showViewerItem(const QUrl &url, bool select)
+{
+    const int index = m_model->index(url);
+    if (index < 0) {
+        return false;
+    }
+    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    selectionManager->endAnchoredSelection();
+    selectionManager->setCurrentItem(index);
+    if (select) {
+        KItemSet selected;
+        selected.insert(index);
+        selectionManager->setSelectedItems(selected);
+    }
+    selectionManager->beginAnchoredSelection(index);
+    m_container->controller()->view()->scrollToItem(index);
+    return true;
+}
+
 void DolphinView::clearSelection()
 {
     m_selectJobCreatedItems = false;

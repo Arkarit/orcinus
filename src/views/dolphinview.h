@@ -515,6 +515,13 @@ public Q_SLOTS:
      */
     void showLinkedSelection(const QList<QUrl> &selected, const QUrl &current);
 
+    /**
+     * Whale: the built-in viewer shows @p url (V-E8): it becomes the current item, and with
+     * @p select also the only selected one; the view scrolls to it.
+     * @return False if the view does not list @p url.
+     */
+    bool showViewerItem(const QUrl &url, bool select);
+
     void clearSelection();
 
     /**

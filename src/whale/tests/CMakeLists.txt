@@ -340,3 +340,9 @@ ecm_add_test(whalescriptlaunchertest.cpp ../../tests/testdir.cpp
     TEST_NAME whalescriptlaunchertest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whalescriptlaunchertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# The built-in viewer: displayable files, its list, settings, the view following it (V1a).
+ecm_add_test(whaleviewerlisttest.cpp ../../tests/testdir.cpp
+    TEST_NAME whaleviewerlisttest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whaleviewerlisttest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

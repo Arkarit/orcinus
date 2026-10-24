@@ -159,6 +159,15 @@ target_sources(dolphinstatic PRIVATE
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 
+########### Built-in viewer, part of the application ###############
+
+# See .privatedoc/whale-viewer-plan.md.
+target_sources(dolphinstatic PRIVATE
+    viewer/whaleviewerlist.cpp
+    viewer/whaleviewersettings.cpp
+)
+target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/viewer)
+
 ########### plugins ###############
 
 # The test views (Hello, Test List) are test fixtures: they are built with the tests into a
