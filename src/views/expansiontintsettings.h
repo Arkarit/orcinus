@@ -30,9 +30,15 @@ class QPalette;
  * Independently of the colors, the names of the expanded folders can be shown
  * in the indentation of their contents.
  *
- * The settings are stored in the group [ExpansionTint] of the application configuration.
+ * The compact and the details view have settings of their own, stored in the groups
+ * [ExpansionTint] and [ExpansionTintDetails] of the application configuration.
  */
 struct DOLPHIN_EXPORT ExpansionTintSettings {
+    enum class View {
+        Compact,
+        Details,
+    };
+
     enum class Preset {
         Off,
         PrinterPaper,
@@ -88,8 +94,8 @@ struct DOLPHIN_EXPORT ExpansionTintSettings {
      */
     QList<QColor> colors(const QPalette &palette) const;
 
-    static ExpansionTintSettings load(const KSharedConfigPtr &config = KSharedConfig::openConfig());
-    void save(const KSharedConfigPtr &config = KSharedConfig::openConfig()) const;
+    static ExpansionTintSettings load(const KSharedConfigPtr &config = KSharedConfig::openConfig(), View view = View::Compact);
+    void save(const KSharedConfigPtr &config = KSharedConfig::openConfig(), View view = View::Compact) const;
 
     static QString presetName(Preset preset);
     static std::optional<Preset> presetFromName(const QString &name);

@@ -27,7 +27,7 @@ DolphinItemListView::DolphinItemListView(QGraphicsWidget *parent)
 {
     const FileNameHighlightingSettings highlighting = FileNameHighlightingSettings::load();
     m_fileNameHighlighter = std::make_shared<const FileNameHighlighter>(highlighting.enabled, highlighting.rules);
-    m_expansionTint = ExpansionTintSettings::load();
+    loadExpansionTint();
 
     DolphinItemListView::updateFont();
     updateGridSize();
@@ -133,7 +133,7 @@ void DolphinItemListView::readSettings()
         setFileNameHighlighter(std::make_shared<const FileNameHighlighter>(highlighting.enabled, highlighting.rules));
     }
 
-    m_expansionTint = ExpansionTintSettings::load();
+    loadExpansionTint();
     updateExpansionTintColors();
     endTransaction();
 }
@@ -179,6 +179,8 @@ void DolphinItemListView::onItemLayoutChanged(ItemLayout current, ItemLayout pre
 
     updateFont();
     updateGridSize();
+    loadExpansionTint();
+    updateExpansionTintColors();
 
     KFileItemListView::onItemLayoutChanged(current, previous);
 }
@@ -239,10 +241,30 @@ void DolphinItemListView::updatePalette()
     updateExpansionTintColors();
 }
 
+void DolphinItemListView::loadExpansionTint()
+{
+    switch (itemLayout()) {
+    case CompactLayout:
+        m_expansionTint = ExpansionTintSettings::load(KSharedConfig::openConfig(), ExpansionTintSettings::View::Compact);
+        break;
+    case DetailsLayout:
+        m_expansionTint = ExpansionTintSettings::load(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
+        break;
+    default:
+        m_expansionTint.reset();
+        break;
+    }
+}
+
 void DolphinItemListView::updateExpansionTintColors()
 {
-    setExpansionTintColors(m_expansionTint.colors(palette()));
-    setExpansionNameOpacity(m_expansionTint.showNames ? m_expansionTint.nameOpacity / 100.0 : 0);
+    if (!m_expansionTint) {
+        setExpansionTintColors({});
+        setExpansionNameOpacity(0);
+        return;
+    }
+    setExpansionTintColors(m_expansionTint->colors(palette()));
+    setExpansionNameOpacity(m_expansionTint->showNames ? m_expansionTint->nameOpacity / 100.0 : 0);
 }
 
 void DolphinItemListView::updateFont()

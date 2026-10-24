@@ -15,7 +15,11 @@
 
 namespace
 {
-const QString groupName = QStringLiteral("ExpansionTint");
+QString groupName(ExpansionTintSettings::View view)
+{
+    // The group of the compact view is the one from before the details view had settings of its own.
+    return view == ExpansionTintSettings::View::Details ? QStringLiteral("ExpansionTintDetails") : QStringLiteral("ExpansionTint");
+}
 
 // A preset color: a hue mixed into the base color by the given amount.
 // An invalid hue stands for the text color of the palette, which gives grey tones.
@@ -111,14 +115,14 @@ QList<QColor> ExpansionTintSettings::colors(const QPalette &palette) const
     return presetColors(preset, palette);
 }
 
-ExpansionTintSettings ExpansionTintSettings::load(const KSharedConfigPtr &config)
+ExpansionTintSettings ExpansionTintSettings::load(const KSharedConfigPtr &config, View view)
 {
     ExpansionTintSettings settings = defaults();
-    if (!config->hasGroup(groupName)) {
+    if (!config->hasGroup(groupName(view))) {
         return settings;
     }
 
-    const KConfigGroup group(config, groupName);
+    const KConfigGroup group(config, groupName(view));
 
     // An unknown preset, e.g. written by a newer version, keeps the default.
     const std::optional<Preset> preset = presetFromName(group.readEntry("Preset", QString()));
@@ -144,9 +148,9 @@ ExpansionTintSettings ExpansionTintSettings::load(const KSharedConfigPtr &config
     return settings;
 }
 
-void ExpansionTintSettings::save(const KSharedConfigPtr &config) const
+void ExpansionTintSettings::save(const KSharedConfigPtr &config, View view) const
 {
-    KConfigGroup group(config, groupName);
+    KConfigGroup group(config, groupName(view));
     group.writeEntry("Preset", presetName(preset));
 
     QStringList colorNames;

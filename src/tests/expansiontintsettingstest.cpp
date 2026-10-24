@@ -37,6 +37,7 @@ private Q_SLOTS:
     void testSubtlePastelOnWhite();
     void testOldPastelNameIsVivid();
     void testNames();
+    void testViewsHaveTheirOwnSettings();
 
 private:
     KSharedConfigPtr freshConfig() const;
@@ -280,6 +281,28 @@ void ExpansionTintSettingsTest::testNames()
     group.writeEntry("NameOpacity", 0);
     group.sync();
     QCOMPARE(ExpansionTintSettings::load(reopenedConfig()).nameOpacity, ExpansionTintSettings::MinimumNameOpacity);
+}
+
+void ExpansionTintSettingsTest::testViewsHaveTheirOwnSettings()
+{
+    using View = ExpansionTintSettings::View;
+    QCOMPARE(ExpansionTintSettings::load(freshConfig(), View::Details), ExpansionTintSettings::defaults());
+
+    ExpansionTintSettings compact = ExpansionTintSettings::defaults();
+    compact.preset = Preset::Grey;
+    compact.nameOpacity = 20;
+    compact.save(freshConfig(), View::Compact);
+    ExpansionTintSettings details = ExpansionTintSettings::defaults();
+    details.preset = Preset::Off;
+    details.showNames = false;
+    details.save(freshConfig(), View::Details);
+
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig(), View::Compact), compact);
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig(), View::Details), details);
+    // The compact view keeps the group from before the details view had settings.
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig()), compact);
+    QVERIFY(reopenedConfig()->hasGroup(QStringLiteral("ExpansionTint")));
+    QVERIFY(reopenedConfig()->hasGroup(QStringLiteral("ExpansionTintDetails")));
 }
 
 QTEST_GUILESS_MAIN(ExpansionTintSettingsTest)

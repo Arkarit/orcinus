@@ -12,6 +12,7 @@
 #include "views/expansiontintsettings.h"
 
 #include <memory>
+#include <optional>
 
 class FileNameHighlighter;
 class KFileItemListView;
@@ -73,6 +74,11 @@ protected:
 
 private:
     void updateGridSize();
+    /**
+     * Loads the settings of the expanded folders for the current item layout:
+     * the compact and the details view have their own, the icons view has none.
+     */
+    void loadExpansionTint();
     void updateExpansionTintColors();
 
     using KItemListView::setEnabledSelectionToggles; // Makes sure that the setEnabledSelectionToggles() declaration above doesn't hide
@@ -84,7 +90,7 @@ private:
     int m_previewSize = 0;
     int m_iconSize = 0;
     std::shared_ptr<const FileNameHighlighter> m_fileNameHighlighter;
-    ExpansionTintSettings m_expansionTint;
+    std::optional<ExpansionTintSettings> m_expansionTint;
 };
 
 #endif

@@ -42,6 +42,7 @@ private Q_SLOTS:
     void testNoTintWithoutColors();
     void testNoTintInDetailsView();
     void testSettingsAreApplied();
+    void testSettingsPerView();
     void testNamesInTheIndentation();
     void testNamesThatDoNotFitAreLeftOut();
     void testNameOpacity();
@@ -103,7 +104,8 @@ void WhaleExpansionTintTest::init()
     // The tests of the tints check the backgrounds without the names in them.
     ExpansionTintSettings settings = ExpansionTintSettings::defaults();
     settings.showNames = false;
-    settings.save();
+    settings.save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Compact);
+    settings.save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
 
     setUpView(
         {
@@ -170,7 +172,8 @@ void WhaleExpansionTintTest::tearDownView()
 void WhaleExpansionTintTest::cleanup()
 {
     tearDownView();
-    ExpansionTintSettings::defaults().save();
+    ExpansionTintSettings::defaults().save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Compact);
+    ExpansionTintSettings::defaults().save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
     QApplication::setPalette(m_originalPalette);
 }
 
@@ -419,6 +422,38 @@ void WhaleExpansionTintTest::testSettingsAreApplied()
     QCOMPARE(m_view->expansionTintColors(), ExpansionTintSettings::presetColors(settings.preset, lightPalette()));
     QApplication::setPalette(darkPalette());
     QTRY_COMPARE(m_view->expansionTintColors(), ExpansionTintSettings::presetColors(settings.preset, darkPalette()));
+}
+
+void WhaleExpansionTintTest::testSettingsPerView()
+{
+    using View = ExpansionTintSettings::View;
+    ExpansionTintSettings compact = ExpansionTintSettings::defaults();
+    compact.preset = ExpansionTintSettings::Preset::Custom;
+    compact.customColors = {QColor(0x11, 0x22, 0x33), QColor(0x44, 0x55, 0x66)};
+    compact.nameOpacity = 50;
+    compact.save(KSharedConfig::openConfig(), View::Compact);
+    ExpansionTintSettings details = ExpansionTintSettings::defaults();
+    details.preset = ExpansionTintSettings::Preset::Custom;
+    details.customColors = {QColor(0x77, 0x88, 0x99), QColor(0xaa, 0xbb, 0xcc), QColor(0xdd, 0xee, 0xff)};
+    details.showNames = false;
+    details.save(KSharedConfig::openConfig(), View::Details);
+
+    m_view->readSettings();
+    QCOMPARE(m_view->expansionTintColors(), compact.customColors);
+    QCOMPARE(m_view->expansionNameOpacity(), 0.5);
+
+    // Switching the view mode takes the settings of the new one.
+    m_view->setItemLayout(KFileItemListView::DetailsLayout);
+    QCOMPARE(m_view->expansionTintColors(), details.customColors);
+    QCOMPARE(m_view->expansionNameOpacity(), 0.0);
+
+    // The icons view has none.
+    m_view->setItemLayout(KFileItemListView::IconsLayout);
+    QVERIFY(m_view->expansionTintColors().isEmpty());
+    QCOMPARE(m_view->expansionNameOpacity(), 0.0);
+
+    m_view->setItemLayout(KFileItemListView::CompactLayout);
+    QCOMPARE(m_view->expansionTintColors(), compact.customColors);
 }
 
 void WhaleExpansionTintTest::testScreenshots()
