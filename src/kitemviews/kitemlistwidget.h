@@ -111,6 +111,12 @@ public:
     void setAlternateBackground(bool enable);
     bool alternateBackground() const;
 
+    /**
+     * @return The color of the alternate background for @p palette, a little lighter
+     *         or darker while the view has no focus.
+     */
+    static QColor alternateBackgroundColor(const QPalette &palette, bool focused);
+
     void setEnabledSelectionToggle(bool enabled);
     bool enabledSelectionToggle() const;
 

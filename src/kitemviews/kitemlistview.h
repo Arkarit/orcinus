@@ -251,12 +251,13 @@ public:
     bool alternateBackgrounds() const;
 
     /**
-     * Sets the background colors of items inside expanded items in layouts
-     * with horizontal scrolling. An item at depth d gets a background for each
-     * level k = 1 ... d, from the indentation of that level to the end of its
-     * column, in colors[(k - 1) % colors.count()]. An expanded item followed by
-     * its children gets the color of its children too, from the end of its
-     * expansion arrow on. An empty list disables the tinting, which is the default.
+     * Sets the background colors of items inside expanded items. An item at depth d
+     * gets a background for each level k = 1 ... d, from the indentation of that level
+     * to the end of its column (with horizontal scrolling) or of the first column (in
+     * the details view), in colors[(k - 1) % colors.count()]. An expanded item followed
+     * by its children gets the color of its children too, from the end of its expansion
+     * arrow on. In the details view the alternate backgrounds run through the colors.
+     * An empty list disables the tinting, which is the default.
      */
     void setExpansionTintColors(const QList<QColor> &colors);
     QList<QColor> expansionTintColors() const;
@@ -671,6 +672,18 @@ private:
     bool useAlternateBackgrounds() const;
 
     /**
+     * @return True if the item with the index @p index gets an alternate background,
+     *         counted within its group.
+     */
+    bool isAlternateItem(int index) const;
+
+    /**
+     * @return True if the alternate backgrounds are painted with the tints of expanded
+     *         items (see setExpansionTintColors()) instead of by the item widgets.
+     */
+    bool expansionTintPaintsAlternateBackgrounds() const;
+
+    /**
      * @param itemRanges Items that must be checked for getting the widths of columns.
      * @return           The preferred width of the column of each visible role. The width will
      *                   be respected if the width of the item size is <= 0 (see
@@ -778,7 +791,12 @@ private:
     /**
      * Paints the backgrounds set by setExpansionTintColors() below the item widgets.
      */
-    void paintExpansionTints(QPainter *painter) const;
+    void paintExpansionTints(QPainter *painter, const QWidget *widget) const;
+
+    /**
+     * Paints the tints of paintExpansionTints() in the details view, with the alternate backgrounds.
+     */
+    void paintDetailsExpansionTints(QPainter *painter, const QWidget *widget) const;
 
     /**
      * Paints the names set visible by setExpansionNameOpacity() below the item widgets.

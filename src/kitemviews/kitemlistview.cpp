@@ -106,8 +106,7 @@ public:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override
     {
         Q_UNUSED(option)
-        Q_UNUSED(widget)
-        m_view->paintExpansionTints(painter);
+        m_view->paintExpansionTints(painter, widget);
         m_view->paintExpansionNames(painter);
     }
 
@@ -664,6 +663,7 @@ void KItemListView::setSupportsItemExpanding(bool supportsExpanding)
     if (m_supportsItemExpanding != supportsExpanding) {
         m_supportsItemExpanding = supportsExpanding;
         updateSiblingsInformation();
+        updateAlternateBackgrounds();
         onSupportsItemExpandingChanged(supportsExpanding);
     }
 }
@@ -735,6 +735,7 @@ void KItemListView::setExpansionTintColors(const QList<QColor> &colors)
 {
     if (m_expansionTintColors != colors) {
         m_expansionTintColors = colors;
+        updateAlternateBackgrounds();
         updateExpansionTintItem();
     }
 }
@@ -2723,21 +2724,28 @@ void KItemListView::updateAlternateBackgrounds()
 
 void KItemListView::updateAlternateBackgroundForWidget(KItemListWidget *widget)
 {
-    bool enabled = useAlternateBackgrounds();
-    if (enabled) {
-        const int index = widget->index();
-        enabled = (index & 0x1) > 0;
-        if (m_grouped) {
-            const int groupIndex = groupIndexForItem(index);
-            if (groupIndex >= 0) {
-                const QList<QPair<int, QVariant>> groups = model()->groups();
-                const int indexOfFirstGroupItem = groups[groupIndex].first;
-                const int relativeIndex = index - indexOfFirstGroupItem;
-                enabled = (relativeIndex & 0x1) > 0;
-            }
+    widget->setAlternateBackground(isAlternateItem(widget->index()) && !expansionTintPaintsAlternateBackgrounds());
+}
+
+bool KItemListView::isAlternateItem(int index) const
+{
+    if (!useAlternateBackgrounds()) {
+        return false;
+    }
+    if (m_grouped) {
+        const int groupIndex = groupIndexForItem(index);
+        if (groupIndex >= 0) {
+            const QList<QPair<int, QVariant>> groups = model()->groups();
+            const int indexOfFirstGroupItem = groups[groupIndex].first;
+            return ((index - indexOfFirstGroupItem) & 0x1) > 0;
         }
     }
-    widget->setAlternateBackground(enabled);
+    return (index & 0x1) > 0;
+}
+
+bool KItemListView::expansionTintPaintsAlternateBackgrounds() const
+{
+    return !m_expansionTintColors.isEmpty() && m_supportsItemExpanding && scrollOrientation() == Qt::Vertical && useAlternateBackgrounds();
 }
 
 bool KItemListView::useAlternateBackgrounds() const
@@ -3075,9 +3083,15 @@ void KItemListView::updateGroupHeaderHeight()
     updateVisibleGroupHeaders();
 }
 
-void KItemListView::paintExpansionTints(QPainter *painter) const
+void KItemListView::paintExpansionTints(QPainter *painter, const QWidget *widget) const
 {
-    if (m_expansionTintColors.isEmpty() || !m_supportsItemExpanding || !m_model || scrollOrientation() != Qt::Horizontal) {
+    if (m_expansionTintColors.isEmpty() || !m_supportsItemExpanding || !m_model) {
+        return;
+    }
+    if (scrollOrientation() == Qt::Vertical) {
+        if (m_itemSize.isEmpty()) {
+            paintDetailsExpansionTints(painter, widget);
+        }
         return;
     }
 
@@ -3090,8 +3104,9 @@ void KItemListView::paintExpansionTints(QPainter *painter) const
             continue;
         }
         const int depth = m_model->expandedParentsCount(index);
-        // An expanded folder whose children follow it heads their block.
-        const bool heading = m_model->isExpanded(index) && index + 1 < m_model->count() && m_model->expandedParentsCount(index + 1) > depth;
+        // An expanded folder whose children follow it heads their block. Told by the following
+        // item, as the expanded state of an item is a role that is only there with all roles.
+        const bool heading = index + 1 < m_model->count() && m_model->expandedParentsCount(index + 1) > depth;
         if (depth <= 0 && !heading) {
             continue;
         }
@@ -3114,6 +3129,64 @@ void KItemListView::paintExpansionTints(QPainter *painter) const
             // color of the parent: a few pixels before the tint of the children starts.
             const qreal arrowEnd = (depth + 1) * indentation - (indentation - styleOption().iconSize) / 2;
             fill(arrowEnd, depth + 1);
+        }
+    }
+}
+
+void KItemListView::paintDetailsExpansionTints(QPainter *painter, const QWidget *widget) const
+{
+    // The alternate backgrounds, which the item widgets leave out, run through the tints:
+    // on an alternate row a tint is shifted by what the alternate background differs from the base.
+    const bool stripes = expansionTintPaintsAlternateBackgrounds();
+    const QColor base = styleOption().palette.color(QPalette::Base);
+    const QColor alternate = KItemListWidget::alternateBackgroundColor(styleOption().palette, widget && widget->hasFocus());
+    const auto shifted = [&base, &alternate](const QColor &color) {
+        return QColor(std::clamp(color.red() + alternate.red() - base.red(), 0, 255),
+                      std::clamp(color.green() + alternate.green() - base.green(), 0, 255),
+                      std::clamp(color.blue() + alternate.blue() - base.blue(), 0, 255));
+    };
+
+    // Only the first column, the name, is tinted (see KStandardItemListWidget::updateTextsCache()).
+    const QByteArray nameRole = m_visibleRoles.isEmpty() ? QByteArrayLiteral("text") : m_visibleRoles.first();
+    const qreal nameEnd = m_headerWidget->leftPadding() + m_headerWidget->columnWidth(nameRole);
+    // The indentation starts after the padding only when the entire row is highlighted
+    // (see KStandardItemListWidget::updateExpansionArea()).
+    const qreal indentationStart = m_highlightEntireRow ? m_headerWidget->leftPadding() : 0;
+    const bool rightToLeft = QGuiApplication::isRightToLeft();
+    const int colorCount = m_expansionTintColors.count();
+
+    for (auto it = m_visibleItems.cbegin(); it != m_visibleItems.cend(); ++it) {
+        const int index = it.key();
+        if (!it.value()->isVisible() || index >= m_model->count()) {
+            continue;
+        }
+        const QRectF row = m_layouter->itemRect(index);
+        const bool alternateRow = stripes && isAlternateItem(index);
+        if (alternateRow) {
+            painter->fillRect(row, alternate);
+        }
+
+        const int depth = m_model->expandedParentsCount(index);
+        const bool heading = index + 1 < m_model->count() && m_model->expandedParentsCount(index + 1) > depth;
+        if (depth <= 0 && !heading) {
+            continue;
+        }
+
+        const qreal indentation = row.height();
+        const auto fill = [&](qreal start, int level) {
+            if (start >= nameEnd) {
+                return;
+            }
+            const qreal left = rightToLeft ? row.right() - nameEnd : row.left() + start;
+            const QRectF area(left, row.top(), nameEnd - start, row.height());
+            const QColor color = m_expansionTintColors.at((level - 1) % colorCount);
+            painter->fillRect(area, alternateRow ? shifted(color) : color);
+        };
+        for (int level = 1; level <= depth; ++level) {
+            fill(indentationStart + level * indentation, level);
+        }
+        if (heading) {
+            fill(indentationStart + (depth + 1) * indentation - (indentation - styleOption().iconSize) / 2, depth + 1);
         }
     }
 }

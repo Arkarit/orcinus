@@ -9,6 +9,8 @@
 #include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
+#include "kitemviews/kitemlistheader.h"
+#include "kitemviews/kitemlistwidget.h"
 #include "testdir.h"
 #include "views/dolphinitemlistview.h"
 #include "views/expansiontintsettings.h"
@@ -48,6 +50,9 @@ private Q_SLOTS:
     void testNameOpacity();
     void testNameSettingsAreApplied();
     void testNameScreenshots();
+    void testDetailsTintsTheNameColumn();
+    void testDetailsStripesRunThroughTheTints();
+    void testDetailsScreenshots();
     void testScreenshots();
 
 private:
@@ -69,6 +74,21 @@ private:
      *         run of items from @p first to @p last.
      */
     QRectF stripAroundRun(const QString &first, const QString &last, int level) const;
+
+    /**
+     * Shows the view of setUpNamesView() as details view with name, size and date columns.
+     */
+    void setUpDetailsView();
+
+    /**
+     * @return The right end of the name column in the details view.
+     */
+    qreal nameColumnEnd() const;
+
+    /**
+     * @return The colors an alternate row can have in the light palette, with and without focus.
+     */
+    QList<QColor> alternateColors() const;
     void tearDownView();
     int indexOf(const QString &relativePath) const;
     void expand(const QString &relativePath);
@@ -609,6 +629,84 @@ void WhaleExpansionTintTest::testNameSettingsAreApplied()
     QCOMPARE(m_view->expansionNameOpacity(), 0.0);
 }
 
+void WhaleExpansionTintTest::setUpDetailsView()
+{
+    setUpNamesView();
+    m_view->setItemLayout(KFileItemListView::DetailsLayout);
+    m_view->setVisibleRoles({"text", "size", "modificationtime"});
+    m_container->resize(720, 460);
+    QTest::qWait(300);
+}
+
+qreal WhaleExpansionTintTest::nameColumnEnd() const
+{
+    return m_view->header()->leftPadding() + m_view->header()->columnWidth("text");
+}
+
+QList<QColor> WhaleExpansionTintTest::alternateColors() const
+{
+    const QPalette palette = m_view->palette();
+    return {KItemListWidget::alternateBackgroundColor(palette, true), KItemListWidget::alternateBackgroundColor(palette, false)};
+}
+
+void WhaleExpansionTintTest::testDetailsTintsTheNameColumn()
+{
+    setUpDetailsView();
+    const QColor depth1(0xff, 0xe0, 0xe0);
+    const QColor depth2(0xe0, 0xff, 0xe0);
+    const QColor depth3(0xe0, 0xe0, 0xff);
+    m_view->setExpansionTintColors({depth1, depth2, depth3});
+    QTest::qWait(50);
+    const QImage image = grabView();
+
+    // An even row (no stripe): the tint of its depth up to the end of the name column, not beyond.
+    const int index = indexOf(QStringLiteral("projects/settings/interface/settingspage01.cpp"));
+    QCOMPARE(index % 2, 0);
+    QCOMPARE(m_model->expandedParentsCount(index), 3);
+    const QRectF row = m_view->itemRect(index);
+    QCOMPARE(pixel(image, QPointF(row.left() + nameColumnEnd() - 3, row.top() + 1)), depth3);
+    QCOMPARE(pixel(image, QPointF(row.left() + nameColumnEnd() + 3, row.top() + 1)), base());
+
+    // The outer levels show in the indentation, the expanded folder carries the color of its children.
+    const qreal indentation = row.height();
+    const qreal start = m_view->highlightEntireRow() ? m_view->header()->leftPadding() : 0;
+    QCOMPARE(pixel(image, QPointF(row.left() + start + 1.5 * indentation, row.top() + 1)), depth1);
+    QCOMPARE(pixel(image, QPointF(row.left() + start + 2.5 * indentation, row.top() + 1)), depth2);
+    const int interface = indexOf(QStringLiteral("projects/settings/interface"));
+    const QRectF heading = m_view->itemRect(interface);
+    QCOMPARE(pixel(image, QPointF(heading.left() + nameColumnEnd() - 3, heading.top() + 1)), depth3);
+}
+
+void WhaleExpansionTintTest::testDetailsStripesRunThroughTheTints()
+{
+    setUpDetailsView();
+    const QList<QColor> alternates = alternateColors();
+
+    const int odd = indexOf(QStringLiteral("projects/settings/interface/settingspage02.cpp"));
+    QCOMPARE(odd % 2, 1);
+    const QRectF row = m_view->itemRect(odd);
+    const QPointF inName(row.left() + nameColumnEnd() - 3, row.top() + 1);
+    const QPointF inSize(row.left() + nameColumnEnd() + 3, row.top() + 1);
+
+    // Without tints the widgets paint the stripes.
+    m_view->setExpansionTintColors({});
+    QTest::qWait(50);
+    QImage image = grabView();
+    QVERIFY(alternates.contains(pixel(image, inSize)));
+    const QColor stripe = pixel(image, inSize);
+    QCOMPARE(pixel(image, inName), stripe);
+
+    // With tints the stripe goes on beyond the name column, and within it the tint is shifted by
+    // what the stripe differs from the base color.
+    const QColor tint(0xe0, 0xe0, 0xff);
+    m_view->setExpansionTintColors({QColor(0xff, 0xe0, 0xe0), QColor(0xe0, 0xff, 0xe0), tint});
+    QTest::qWait(50);
+    image = grabView();
+    QCOMPARE(pixel(image, inSize), stripe);
+    const QColor shifted(tint.red() + stripe.red() - 255, tint.green() + stripe.green() - 255, tint.blue() + stripe.blue() - 255);
+    QCOMPARE(pixel(image, inName), shifted);
+}
+
 void WhaleExpansionTintTest::testNameScreenshots()
 {
     const QString dir = qEnvironmentVariable("WHALE_TEST_SCREENSHOT_DIR");
@@ -628,6 +726,33 @@ void WhaleExpansionTintTest::testNameScreenshots()
             m_view->readSettings();
             QTest::qWait(100);
             const QString name = QStringLiteral("names-%1-%2.png").arg(theme, ExpansionTintSettings::presetName(preset).toLower());
+            QVERIFY(m_container->grab().save(dir + QLatin1Char('/') + name));
+        }
+    }
+}
+
+void WhaleExpansionTintTest::testDetailsScreenshots()
+{
+    const QString dir = qEnvironmentVariable("WHALE_TEST_SCREENSHOT_DIR");
+    if (dir.isEmpty()) {
+        QSKIP("WHALE_TEST_SCREENSHOT_DIR is not set");
+    }
+
+    setUpNamesView();
+    m_view->setItemLayout(KFileItemListView::DetailsLayout);
+    m_view->setVisibleRoles({"text", "size", "modificationtime"});
+    m_container->resize(720, 460);
+    using Preset = ExpansionTintSettings::Preset;
+    const std::pair<QString, QPalette> themes[] = {{QStringLiteral("light"), lightPalette()}, {QStringLiteral("dark"), darkPalette()}};
+    for (const auto &[theme, palette] : themes) {
+        QApplication::setPalette(palette);
+        for (const Preset preset : {Preset::PastelVivid, Preset::PastelSubtle, Preset::Off}) {
+            ExpansionTintSettings settings = ExpansionTintSettings::defaults();
+            settings.preset = preset;
+            settings.save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
+            m_view->readSettings();
+            QTest::qWait(150);
+            const QString name = QStringLiteral("details-%1-%2.png").arg(theme, ExpansionTintSettings::presetName(preset).toLower());
             QVERIFY(m_container->grab().save(dir + QLatin1Char('/') + name));
         }
     }

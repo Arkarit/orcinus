@@ -105,20 +105,8 @@ void KItemListWidget::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
     Q_UNUSED(option)
 
     if (m_alternateBackground) {
-        QColor backgroundColor = m_styleOption.palette.color(QPalette::AlternateBase);
-        if (!widget->hasFocus()) {
-            QColor baseColor = m_styleOption.palette.color(QPalette::Base);
-            if (baseColor.lightnessF() > 0.5) {
-                // theme seems light
-                backgroundColor = backgroundColor.lighter(101);
-            } else {
-                // theme seems dark
-                backgroundColor = backgroundColor.darker(101);
-            }
-        }
-
         const QRectF backgroundRect(0, 0, size().width(), size().height());
-        painter->fillRect(backgroundRect, backgroundColor);
+        painter->fillRect(backgroundRect, alternateBackgroundColor(m_styleOption.palette, widget->hasFocus()));
     }
 
     const QStyle::State selectedState(m_selected ? QStyle::State_Selected : QStyle::State(0));
@@ -331,6 +319,22 @@ void KItemListWidget::setAlternateBackground(bool enable)
         alternateBackgroundChanged(enable);
         update();
     }
+}
+
+QColor KItemListWidget::alternateBackgroundColor(const QPalette &palette, bool focused)
+{
+    QColor backgroundColor = palette.color(QPalette::AlternateBase);
+    if (!focused) {
+        QColor baseColor = palette.color(QPalette::Base);
+        if (baseColor.lightnessF() > 0.5) {
+            // theme seems light
+            backgroundColor = backgroundColor.lighter(101);
+        } else {
+            // theme seems dark
+            backgroundColor = backgroundColor.darker(101);
+        }
+    }
+    return backgroundColor;
 }
 
 bool KItemListWidget::alternateBackground() const
