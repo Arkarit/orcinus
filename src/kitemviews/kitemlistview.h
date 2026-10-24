@@ -262,6 +262,16 @@ public:
     QList<QColor> expansionTintColors() const;
 
     /**
+     * Sets the opacity of the names of expanded items, shown in layouts with horizontal
+     * scrolling in the indentation of their children: every run of items of the same depth
+     * in a column gets the names of all its expanded parents side by side, vertically
+     * centered on the run, each below the expansion arrow of its item, if it fits into the
+     * height of the run. 0 hides the names, which is the default.
+     */
+    void setExpansionNameOpacity(qreal opacity);
+    qreal expansionNameOpacity() const;
+
+    /**
      * @return The rectangle of the item relative to the top/left of
      *         the currently visible area (see KItemListView::offset()).
      */
@@ -771,6 +781,16 @@ private:
     void paintExpansionTints(QPainter *painter) const;
 
     /**
+     * Paints the names set visible by setExpansionNameOpacity() below the item widgets.
+     */
+    void paintExpansionNames(QPainter *painter) const;
+
+    /**
+     * Shows the item painting the tints and names only while there is something to paint.
+     */
+    void updateExpansionTintItem();
+
+    /**
      * Helper method for updateExpansionIndicators().
      * @return True if the item with the index \a index has a sibling successor
      *         (= the item is not the last item of the current hierarchy).
@@ -810,6 +830,7 @@ private:
     bool m_dragFromAnywhereOnRow;
     bool m_alternateBackgrounds;
     QList<QColor> m_expansionTintColors;
+    qreal m_expansionNameOpacity;
     KItemListExpansionTintItem *m_expansionTintItem;
     bool m_supportsItemExpanding;
     bool m_supportsGroupCollapsing;
@@ -906,7 +927,7 @@ private:
     friend class KItemListContainer; // Accesses scrollBarRequired()
     friend class KItemListHeader; // Accesses m_headerWidget
     friend class KItemListController;
-    friend class KItemListExpansionTintItem; // Calls paintExpansionTints()
+    friend class KItemListExpansionTintItem; // Calls paintExpansionTints() and paintExpansionNames()
     friend class KItemListControllerTest;
     friend class KItemListViewAccessible;
     friend class KItemListDelegateAccessible;

@@ -1198,6 +1198,15 @@ int KFileItemModel::expandedParentsCount(int index) const
     return 0;
 }
 
+int KFileItemModel::expandedParentIndex(int index) const
+{
+    if (index < 0 || index >= count()) {
+        return -1;
+    }
+    const ItemData *parent = m_itemData.at(index)->parent;
+    return parent ? KFileItemModel::index(parent->item) : -1;
+}
+
 QSet<QUrl> KFileItemModel::expandedDirectories() const
 {
     QSet<QUrl> result;

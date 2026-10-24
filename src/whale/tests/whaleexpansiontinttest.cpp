@@ -42,9 +42,33 @@ private Q_SLOTS:
     void testNoTintWithoutColors();
     void testNoTintInDetailsView();
     void testSettingsAreApplied();
+    void testNamesInTheIndentation();
+    void testNamesThatDoNotFitAreLeftOut();
+    void testNameOpacity();
+    void testNameSettingsAreApplied();
+    void testNameScreenshots();
     void testScreenshots();
 
 private:
+    void setUpView(const QStringList &files, const QStringList &expanded);
+
+    /**
+     * Shows projects/settings/interface with twelve files, two more files in settings and
+     * projects/tiny with one file, all expanded, for the tests of the names.
+     */
+    void setUpNamesView();
+
+    /**
+     * @return The number of dark pixels in @p rect, as text on the white base color gives.
+     */
+    int inkPixels(const QImage &image, const QRectF &rect) const;
+
+    /**
+     * @return The area of the indentation strip of @p level around the vertical center of the
+     *         run of items from @p first to @p last.
+     */
+    QRectF stripAroundRun(const QString &first, const QString &last, int level) const;
+    void tearDownView();
     int indexOf(const QString &relativePath) const;
     void expand(const QString &relativePath);
     QImage grabView() const;
@@ -76,24 +100,35 @@ void WhaleExpansionTintTest::initTestCase()
 void WhaleExpansionTintTest::init()
 {
     QApplication::setPalette(lightPalette());
-    ExpansionTintSettings::defaults().save();
+    // The tests of the tints check the backgrounds without the names in them.
+    ExpansionTintSettings settings = ExpansionTintSettings::defaults();
+    settings.showNames = false;
+    settings.save();
 
+    setUpView(
+        {
+            QStringLiteral("a/b/b1"),
+            QStringLiteral("a/b/b2"),
+            QStringLiteral("a/b/b3"),
+            QStringLiteral("a/b/b4"),
+            QStringLiteral("a/b/b5"),
+            QStringLiteral("a/b/b6"),
+            QStringLiteral("a/b/c/c1"),
+            QStringLiteral("a/b/c/c2"),
+            QStringLiteral("a/a1"),
+            QStringLiteral("a/a2"),
+            QStringLiteral("a/a-file-with-a-rather-long-name"),
+            QStringLiteral("file0"),
+            QStringLiteral("file-with-a-rather-long-name-at-the-root"),
+        },
+        {QStringLiteral("a"), QStringLiteral("a/b"), QStringLiteral("a/b/c")});
+    QCOMPARE(m_model->count(), 16);
+}
+
+void WhaleExpansionTintTest::setUpView(const QStringList &files, const QStringList &expanded)
+{
     m_testDir = new TestDir();
-    m_testDir->createFiles({
-        QStringLiteral("a/b/b1"),
-        QStringLiteral("a/b/b2"),
-        QStringLiteral("a/b/b3"),
-        QStringLiteral("a/b/b4"),
-        QStringLiteral("a/b/b5"),
-        QStringLiteral("a/b/b6"),
-        QStringLiteral("a/b/c/c1"),
-        QStringLiteral("a/b/c/c2"),
-        QStringLiteral("a/a1"),
-        QStringLiteral("a/a2"),
-        QStringLiteral("a/a-file-with-a-rather-long-name"),
-        QStringLiteral("file0"),
-        QStringLiteral("file-with-a-rather-long-name-at-the-root"),
-    });
+    m_testDir->createFiles(files);
 
     CompactModeSettings::setExpandableFolders(true);
     CompactModeSettings::self()->save();
@@ -116,14 +151,13 @@ void WhaleExpansionTintTest::init()
     m_container->show();
     QVERIFY(QTest::qWaitForWindowExposed(m_container));
 
-    expand(QStringLiteral("a"));
-    expand(QStringLiteral("a/b"));
-    expand(QStringLiteral("a/b/c"));
-    QCOMPARE(m_model->count(), 16);
+    for (const QString &path : expanded) {
+        expand(path);
+    }
     QTest::qWait(300); // the animations of inserted items
 }
 
-void WhaleExpansionTintTest::cleanup()
+void WhaleExpansionTintTest::tearDownView()
 {
     delete m_container; // with the controller, its model and view
     m_container = nullptr;
@@ -131,6 +165,11 @@ void WhaleExpansionTintTest::cleanup()
     m_model = nullptr;
     delete m_testDir;
     m_testDir = nullptr;
+}
+
+void WhaleExpansionTintTest::cleanup()
+{
+    tearDownView();
     ExpansionTintSettings::defaults().save();
     QApplication::setPalette(m_originalPalette);
 }
@@ -400,6 +439,160 @@ void WhaleExpansionTintTest::testScreenshots()
             m_view->readSettings();
             QTest::qWait(100);
             const QString name = QStringLiteral("tint-%1-%2.png").arg(theme, ExpansionTintSettings::presetName(preset).toLower());
+            QVERIFY(m_container->grab().save(dir + QLatin1Char('/') + name));
+        }
+    }
+}
+
+void WhaleExpansionTintTest::setUpNamesView()
+{
+    tearDownView();
+    QStringList files;
+    for (int i = 0; i < 12; ++i) {
+        files.append(QStringLiteral("projects/settings/interface/settingspage%1.cpp").arg(i, 2, 10, QLatin1Char('0')));
+    }
+    files.append({QStringLiteral("projects/settings/general.cpp"), QStringLiteral("projects/settings/viewmodes.cpp"), QStringLiteral("projects/tiny/t.txt")});
+    setUpView(
+        files,
+        {QStringLiteral("projects"), QStringLiteral("projects/settings"), QStringLiteral("projects/settings/interface"), QStringLiteral("projects/tiny")});
+    QCOMPARE(m_model->count(), 19);
+    m_view->setExpansionTintColors({});
+    m_container->resize(720, 420);
+    QTest::qWait(300);
+}
+
+int WhaleExpansionTintTest::inkPixels(const QImage &image, const QRectF &rect) const
+{
+    int count = 0;
+    for (qreal y = rect.top(); y < rect.bottom(); ++y) {
+        for (qreal x = rect.left(); x < rect.right(); ++x) {
+            if (pixel(image, QPointF(x, y)).lightness() < 200) {
+                ++count;
+            }
+        }
+    }
+    return count;
+}
+
+QRectF WhaleExpansionTintTest::stripAroundRun(const QString &first, const QString &last, int level) const
+{
+    const QRectF firstSlot = m_view->itemSlotRect(indexOf(first));
+    const QRectF lastSlot = m_view->itemSlotRect(indexOf(last));
+    const qreal indentation = m_view->itemRect(indexOf(first)).height();
+    const qreal centerY = (firstSlot.top() + lastSlot.bottom()) / 2;
+    const qreal reach = qMin(qreal(30), (lastSlot.bottom() - firstSlot.top()) / 2);
+    return QRectF(firstSlot.left() + level * indentation + 1, centerY - reach, indentation - 2, 2 * reach);
+}
+
+void WhaleExpansionTintTest::testNamesInTheIndentation()
+{
+    setUpNamesView();
+    m_view->setExpansionNameOpacity(1.0);
+    QTest::qWait(50);
+    const QImage image = grabView();
+
+    // The contents of interface run down one column; next to them, below the arrows of
+    // projects, settings and interface, their names.
+    const QString first = QStringLiteral("projects/settings/interface/settingspage00.cpp");
+    const QString last = QStringLiteral("projects/settings/interface/settingspage11.cpp");
+    QCOMPARE(m_view->itemSlotRect(indexOf(first)).left(), m_view->itemSlotRect(indexOf(last)).left());
+    for (int level = 0; level < 3; ++level) {
+        QVERIFY2(inkPixels(image, stripAroundRun(first, last, level)) > 10, qPrintable(QString::number(level)));
+    }
+
+    // The files of settings after the contents of interface are a run of their own: their
+    // parents are projects and settings, so the strip below the arrow of interface stays empty.
+    const QString general = QStringLiteral("projects/settings/general.cpp");
+    const QString viewmodes = QStringLiteral("projects/settings/viewmodes.cpp");
+    QCOMPARE(m_view->itemSlotRect(indexOf(general)).left(), m_view->itemSlotRect(indexOf(viewmodes)).left());
+    QCOMPARE(inkPixels(image, stripAroundRun(general, viewmodes, 2)), 0);
+}
+
+void WhaleExpansionTintTest::testNamesThatDoNotFitAreLeftOut()
+{
+    setUpNamesView();
+    m_view->setExpansionNameOpacity(1.0);
+    QTest::qWait(50);
+    const QImage image = grabView();
+
+    // The only file of tiny is a run of one row: neither "projects" nor "tiny" fits next to it.
+    const QString file = QStringLiteral("projects/tiny/t.txt");
+    QCOMPARE(m_model->expandedParentsCount(indexOf(file)), 2);
+    for (int level = 0; level < 2; ++level) {
+        QCOMPARE(inkPixels(image, stripAroundRun(file, file, level)), 0);
+    }
+
+    // Hidden altogether.
+    m_view->setExpansionNameOpacity(0);
+    QTest::qWait(50);
+    const QImage hidden = grabView();
+    const QString first = QStringLiteral("projects/settings/interface/settingspage00.cpp");
+    const QString last = QStringLiteral("projects/settings/interface/settingspage11.cpp");
+    for (int level = 0; level < 3; ++level) {
+        QCOMPARE(inkPixels(hidden, stripAroundRun(first, last, level)), 0);
+    }
+}
+
+void WhaleExpansionTintTest::testNameOpacity()
+{
+    setUpNamesView();
+    const QString first = QStringLiteral("projects/settings/interface/settingspage00.cpp");
+    const QString last = QStringLiteral("projects/settings/interface/settingspage11.cpp");
+    const auto darkest = [&]() {
+        QTest::qWait(50);
+        const QImage image = grabView();
+        const QRectF strip = stripAroundRun(first, last, 1);
+        int lightness = 255;
+        for (qreal y = strip.top(); y < strip.bottom(); ++y) {
+            for (qreal x = strip.left(); x < strip.right(); ++x) {
+                lightness = qMin(lightness, pixel(image, QPointF(x, y)).lightness());
+            }
+        }
+        return lightness;
+    };
+
+    m_view->setExpansionNameOpacity(1.0);
+    const int opaque = darkest();
+    m_view->setExpansionNameOpacity(0.3);
+    const int faint = darkest();
+    QVERIFY2(faint > opaque + 50, qPrintable(QStringLiteral("%1 %2").arg(faint).arg(opaque)));
+    QVERIFY(faint < 255);
+}
+
+void WhaleExpansionTintTest::testNameSettingsAreApplied()
+{
+    ExpansionTintSettings settings = ExpansionTintSettings::defaults();
+    QVERIFY(settings.showNames);
+    settings.nameOpacity = 60;
+    settings.save();
+    m_view->readSettings();
+    QCOMPARE(m_view->expansionNameOpacity(), 0.6);
+
+    settings.showNames = false;
+    settings.save();
+    m_view->readSettings();
+    QCOMPARE(m_view->expansionNameOpacity(), 0.0);
+}
+
+void WhaleExpansionTintTest::testNameScreenshots()
+{
+    const QString dir = qEnvironmentVariable("WHALE_TEST_SCREENSHOT_DIR");
+    if (dir.isEmpty()) {
+        QSKIP("WHALE_TEST_SCREENSHOT_DIR is not set");
+    }
+
+    setUpNamesView();
+    using Preset = ExpansionTintSettings::Preset;
+    const std::pair<QString, QPalette> themes[] = {{QStringLiteral("light"), lightPalette()}, {QStringLiteral("dark"), darkPalette()}};
+    for (const auto &[theme, palette] : themes) {
+        QApplication::setPalette(palette);
+        for (const Preset preset : {Preset::PastelVivid, Preset::Off}) {
+            ExpansionTintSettings settings = ExpansionTintSettings::defaults();
+            settings.preset = preset;
+            settings.save();
+            m_view->readSettings();
+            QTest::qWait(100);
+            const QString name = QStringLiteral("names-%1-%2.png").arg(theme, ExpansionTintSettings::presetName(preset).toLower());
             QVERIFY(m_container->grab().save(dir + QLatin1Char('/') + name));
         }
     }

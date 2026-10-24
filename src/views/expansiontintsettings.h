@@ -27,6 +27,9 @@ class QPalette;
  * The presets are mixed into the base color of the palette, so that they suit
  * light and dark color schemes. Custom colors are used exactly as chosen.
  *
+ * Independently of the colors, the names of the expanded folders can be shown
+ * in the indentation of their contents.
+ *
  * The settings are stored in the group [ExpansionTint] of the application configuration.
  */
 struct DOLPHIN_EXPORT ExpansionTintSettings {
@@ -50,6 +53,19 @@ struct DOLPHIN_EXPORT ExpansionTintSettings {
      * valid colors after loading.
      */
     QList<QColor> customColors;
+
+    static constexpr int MinimumNameOpacity = 10;
+    static constexpr int MaximumNameOpacity = 100;
+
+    /**
+     * Whether the names of the expanded folders are shown in the indentation of their contents.
+     */
+    bool showNames = true;
+
+    /**
+     * Opacity of these names in percent, between MinimumNameOpacity and MaximumNameOpacity.
+     */
+    int nameOpacity = 35;
 
     /**
      * @return The settings used if no configuration exists: the pastel preset.

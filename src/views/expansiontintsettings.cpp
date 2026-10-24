@@ -11,6 +11,8 @@
 
 #include <QPalette>
 
+#include <algorithm>
+
 namespace
 {
 const QString groupName = QStringLiteral("ExpansionTint");
@@ -136,6 +138,9 @@ ExpansionTintSettings ExpansionTintSettings::load(const KSharedConfigPtr &config
         settings.customColors = customColors;
     }
 
+    settings.showNames = group.readEntry("ShowNames", settings.showNames);
+    settings.nameOpacity = std::clamp(group.readEntry("NameOpacity", settings.nameOpacity), MinimumNameOpacity, MaximumNameOpacity);
+
     return settings;
 }
 
@@ -149,6 +154,8 @@ void ExpansionTintSettings::save(const KSharedConfigPtr &config) const
         colorNames.append(color.name(QColor::HexRgb));
     }
     group.writeEntry("CustomColors", colorNames);
+    group.writeEntry("ShowNames", showNames);
+    group.writeEntry("NameOpacity", nameOpacity);
 
     config->sync();
 }
@@ -185,5 +192,5 @@ std::optional<ExpansionTintSettings::Preset> ExpansionTintSettings::presetFromNa
 
 bool ExpansionTintSettings::operator==(const ExpansionTintSettings &other) const
 {
-    return preset == other.preset && customColors == other.customColors;
+    return preset == other.preset && customColors == other.customColors && showNames == other.showNames && nameOpacity == other.nameOpacity;
 }

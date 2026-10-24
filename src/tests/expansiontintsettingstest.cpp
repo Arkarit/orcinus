@@ -36,6 +36,7 @@ private Q_SLOTS:
     void testPresetNames();
     void testSubtlePastelOnWhite();
     void testOldPastelNameIsVivid();
+    void testNames();
 
 private:
     KSharedConfigPtr freshConfig() const;
@@ -257,6 +258,28 @@ void ExpansionTintSettingsTest::testOldPastelNameIsVivid()
     group.writeEntry("Preset", QStringLiteral("Pastel"));
     group.sync();
     QCOMPARE(ExpansionTintSettings::load(reopenedConfig()).preset, Preset::PastelVivid);
+}
+
+void ExpansionTintSettingsTest::testNames()
+{
+    const ExpansionTintSettings defaults = ExpansionTintSettings::load(freshConfig());
+    QVERIFY(defaults.showNames);
+    QCOMPARE(defaults.nameOpacity, 35);
+
+    ExpansionTintSettings settings = defaults;
+    settings.showNames = false;
+    settings.nameOpacity = 80;
+    settings.save(freshConfig());
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig()), settings);
+
+    // The opacity stays between 10 and 100 percent.
+    KConfigGroup group(freshConfig(), QStringLiteral("ExpansionTint"));
+    group.writeEntry("NameOpacity", 500);
+    group.sync();
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig()).nameOpacity, ExpansionTintSettings::MaximumNameOpacity);
+    group.writeEntry("NameOpacity", 0);
+    group.sync();
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig()).nameOpacity, ExpansionTintSettings::MinimumNameOpacity);
 }
 
 QTEST_GUILESS_MAIN(ExpansionTintSettingsTest)

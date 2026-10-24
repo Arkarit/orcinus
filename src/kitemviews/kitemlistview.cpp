@@ -26,6 +26,7 @@
 #include "private/kitemlistviewlayouter.h"
 
 #include <QElapsedTimer>
+#include <QFontMetricsF>
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsView>
 #include <QGuiApplication>
@@ -33,6 +34,8 @@
 #include <QStyleOptionRubberBand>
 #include <QTimer>
 #include <QVariantAnimation>
+
+#include <algorithm>
 
 namespace
 {
@@ -70,7 +73,8 @@ QAccessibleInterface *accessibleInterfaceFactory(const QString &key, QObject *ob
 }
 
 /**
- * Paints the backgrounds of KItemListView::setExpansionTintColors(). The item widgets
+ * Paints the backgrounds of KItemListView::setExpansionTintColors() and the names of
+ * KItemListView::setExpansionNameOpacity(). The item widgets
  * stack behind the view, so that e.g. the rubber band is painted above them; this item
  * stacks behind them.
  */
@@ -104,6 +108,7 @@ public:
         Q_UNUSED(option)
         Q_UNUSED(widget)
         m_view->paintExpansionTints(painter);
+        m_view->paintExpansionNames(painter);
     }
 
 private:
@@ -118,6 +123,7 @@ KItemListView::KItemListView(QGraphicsWidget *parent)
     , m_highlightEntireRow(false)
     , m_dragFromAnywhereOnRow(false)
     , m_alternateBackgrounds(false)
+    , m_expansionNameOpacity(0)
     , m_expansionTintItem(nullptr)
     , m_supportsItemExpanding(false)
     , m_supportsGroupCollapsing(false)
@@ -729,14 +735,27 @@ void KItemListView::setExpansionTintColors(const QList<QColor> &colors)
 {
     if (m_expansionTintColors != colors) {
         m_expansionTintColors = colors;
-        m_expansionTintItem->setVisible(!colors.isEmpty());
-        m_expansionTintItem->update();
+        updateExpansionTintItem();
     }
 }
 
 QList<QColor> KItemListView::expansionTintColors() const
 {
     return m_expansionTintColors;
+}
+
+void KItemListView::setExpansionNameOpacity(qreal opacity)
+{
+    opacity = std::clamp(opacity, qreal(0), qreal(1));
+    if (m_expansionNameOpacity != opacity) {
+        m_expansionNameOpacity = opacity;
+        updateExpansionTintItem();
+    }
+}
+
+qreal KItemListView::expansionNameOpacity() const
+{
+    return m_expansionNameOpacity;
 }
 
 QRectF KItemListView::itemRect(int index) const
@@ -2368,8 +2387,8 @@ void KItemListView::doLayout(LayoutAnimationHint hint, int changedIndex, int cha
         }
     }
 
-    if (!m_expansionTintColors.isEmpty()) {
-        // The tints reach beyond the item widgets up to the end of their columns.
+    if (m_expansionTintItem->isVisible()) {
+        // The tints and names reach beyond the item widgets up to the end of their columns.
         m_expansionTintItem->update();
     }
     emitOffsetChanges();
@@ -3097,6 +3116,87 @@ void KItemListView::paintExpansionTints(QPainter *painter) const
             fill(arrowEnd, depth + 1);
         }
     }
+}
+
+void KItemListView::paintExpansionNames(QPainter *painter) const
+{
+    if (m_expansionNameOpacity <= 0 || !m_supportsItemExpanding || !m_model || scrollOrientation() != Qt::Horizontal) {
+        return;
+    }
+
+    QList<int> indexes;
+    for (auto it = m_visibleItems.cbegin(); it != m_visibleItems.cend(); ++it) {
+        if (it.value()->isVisible() && it.key() < m_model->count()) {
+            indexes.append(it.key());
+        }
+    }
+    std::sort(indexes.begin(), indexes.end());
+
+    QFont font = styleOption().font;
+    if (font.pointSizeF() > 0) {
+        font.setPointSizeF(font.pointSizeF() * 0.85);
+    } else {
+        font.setPixelSize(qMax(1, qRound(font.pixelSize() * 0.85)));
+    }
+    const QFontMetricsF metrics(font);
+    QColor color = styleOption().palette.color(QPalette::Text);
+    color.setAlphaF(m_expansionNameOpacity);
+
+    painter->save();
+    painter->setFont(font);
+    painter->setPen(color);
+    const bool rightToLeft = QGuiApplication::isRightToLeft();
+
+    int i = 0;
+    while (i < indexes.count()) {
+        // A run: consecutive items of the same depth in the same column.
+        const int first = indexes.at(i);
+        const int depth = m_model->expandedParentsCount(first);
+        const QRectF firstSlot = itemSlotRect(first);
+        QRectF lastSlot = firstSlot;
+        int next = i + 1;
+        while (next < indexes.count() && indexes.at(next) == indexes.at(next - 1) + 1 && m_model->expandedParentsCount(indexes.at(next)) == depth) {
+            const QRectF slot = itemSlotRect(indexes.at(next));
+            if (slot.left() != firstSlot.left()) {
+                break;
+            }
+            lastSlot = slot;
+            ++next;
+        }
+        i = next;
+        if (depth <= 0) {
+            continue;
+        }
+
+        // The names of all parents side by side on the center of the run, each below the
+        // expansion arrow of its item (see KStandardItemListWidget::updateExpansionArea()),
+        // turned to read from bottom to top. A name that does not fit is left out.
+        const qreal indentation = m_layouter->itemRect(first).height();
+        const qreal height = lastSlot.bottom() - firstSlot.top();
+        const qreal centerY = (firstSlot.top() + lastSlot.bottom()) / 2;
+        int parent = m_model->expandedParentIndex(first);
+        for (int level = depth - 1; level >= 0 && parent >= 0; --level) {
+            const QString name = m_model->data(parent).value("text").toString();
+            const qreal width = metrics.horizontalAdvance(name);
+            if (width + indentation / 2 <= height) {
+                const qreal centerX = rightToLeft ? firstSlot.right() - (level + 0.5) * indentation : firstSlot.left() + (level + 0.5) * indentation;
+                painter->save();
+                painter->translate(centerX, centerY);
+                painter->rotate(-90);
+                painter->drawText(QRectF(-width / 2, -indentation / 2, width, indentation), Qt::AlignCenter, name);
+                painter->restore();
+            }
+            parent = m_model->expandedParentIndex(parent);
+        }
+    }
+
+    painter->restore();
+}
+
+void KItemListView::updateExpansionTintItem()
+{
+    m_expansionTintItem->setVisible(!m_expansionTintColors.isEmpty() || m_expansionNameOpacity > 0);
+    m_expansionTintItem->update();
 }
 
 void KItemListView::updateSiblingsInformation(int firstIndex, int lastIndex)

@@ -144,6 +144,13 @@ public:
     virtual int expandedParentsCount(int index) const;
 
     /**
+     * @return Index of the expanded item whose child the item with the given index is,
+     *         or -1 for a top-level item. Per default the nearest item before it with one
+     *         expanded parent less is returned.
+     */
+    virtual int expandedParentIndex(int index) const;
+
+    /**
      * @return MIME-data for the items given by \a indexes. The default implementation
      *         returns 0. The ownership of the returned instance is in the hand of the
      *         caller of this method. The method must be implemented if dragging of

@@ -199,6 +199,7 @@ public:
     bool isExpanded(int index) const override;
     bool isExpandable(int index) const override;
     int expandedParentsCount(int index) const override;
+    int expandedParentIndex(int index) const override;
 
     QSet<QUrl> expandedDirectories() const;
 

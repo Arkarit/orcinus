@@ -242,6 +242,7 @@ void DolphinItemListView::updatePalette()
 void DolphinItemListView::updateExpansionTintColors()
 {
     setExpansionTintColors(m_expansionTint.colors(palette()));
+    setExpansionNameOpacity(m_expansionTint.showNames ? m_expansionTint.nameOpacity / 100.0 : 0);
 }
 
 void DolphinItemListView::updateFont()

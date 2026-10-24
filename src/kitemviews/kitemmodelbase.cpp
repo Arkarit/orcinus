@@ -140,6 +140,23 @@ int KItemModelBase::expandedParentsCount(int index) const
     return 0;
 }
 
+int KItemModelBase::expandedParentIndex(int index) const
+{
+    if (index < 0 || index >= count()) {
+        return -1;
+    }
+    const int parentsCount = expandedParentsCount(index) - 1;
+    if (parentsCount < 0) {
+        return -1;
+    }
+    for (int i = index - 1; i >= 0; --i) {
+        if (expandedParentsCount(i) == parentsCount) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 QMimeData *KItemModelBase::createMimeData(const KItemSet &indexes) const
 {
     Q_UNUSED(indexes)
