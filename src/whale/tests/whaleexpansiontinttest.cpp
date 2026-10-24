@@ -58,6 +58,7 @@ private Q_SLOTS:
     void testDetailsStripesRunThroughTheTints();
     void testDetailsNamesBelowTheirFolders();
     void testDetailsNamesStickToTheTop();
+    void testDetailsNamesWithoutColorsAreNotCoveredByStripes();
     void testDetailsScreenshots();
     void testScreenshots();
 
@@ -816,6 +817,44 @@ void WhaleExpansionTintTest::testDetailsNamesStickToTheTop()
         const QRectF strip(top.left() + start + level * indentation + 1, top.top(), indentation - 2, 2 * indentation);
         QVERIFY2(inkPixels(image, strip) > 10, qPrintable(QString::number(level)));
     }
+}
+
+void WhaleExpansionTintTest::testDetailsNamesWithoutColorsAreNotCoveredByStripes()
+{
+    // The item widgets lie above the names; their alternate backgrounds would cover them.
+    setUpDetailsView();
+    m_view->setExpansionTintColors({});
+    m_view->setExpansionNameOpacity(1.0);
+    QTest::qWait(50);
+
+    const int odd = indexOf(QStringLiteral("projects/settings/interface/settingspage00.cpp"));
+    QCOMPARE(odd % 2, 1);
+    const QRectF row = m_view->itemRect(odd);
+    const auto items = m_view->childItems();
+    for (QGraphicsItem *item : items) {
+        if (auto widget = qobject_cast<KItemListWidget *>(item->toGraphicsObject()); widget && widget->isVisible()) {
+            QVERIFY2(!widget->alternateBackground(), qPrintable(QString::number(widget->index())));
+        }
+    }
+
+    // The stripes are still there, painted below the names.
+    const QImage image = grabView();
+    QVERIFY(alternateColors().contains(pixel(image, QPointF(row.left() + nameColumnEnd() + 3, row.top() + 1))));
+    // The name of interface starts right below it, on this row, and is not covered.
+    const qreal indentation = row.height();
+    const qreal start = m_view->highlightEntireRow() ? m_view->header()->leftPadding() : 0;
+    QVERIFY(inkPixels(image, QRectF(row.left() + start + 2 * indentation + 1, row.top(), indentation - 2, row.height())) > 3);
+
+    // Without names the item widgets paint the stripes again.
+    m_view->setExpansionNameOpacity(0);
+    QTRY_VERIFY(m_view->itemRect(odd).isValid());
+    bool alternate = false;
+    for (QGraphicsItem *item : m_view->childItems()) {
+        if (auto widget = qobject_cast<KItemListWidget *>(item->toGraphicsObject()); widget && widget->isVisible() && widget->index() == odd) {
+            alternate = widget->alternateBackground();
+        }
+    }
+    QVERIFY(alternate);
 }
 
 void WhaleExpansionTintTest::testNameScreenshots()

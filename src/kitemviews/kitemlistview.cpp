@@ -751,6 +751,7 @@ void KItemListView::setExpansionNameOpacity(qreal opacity)
     opacity = std::clamp(opacity, qreal(0), qreal(1));
     if (m_expansionNameOpacity != opacity) {
         m_expansionNameOpacity = opacity;
+        updateAlternateBackgrounds();
         updateExpansionTintItem();
     }
 }
@@ -2762,7 +2763,9 @@ bool KItemListView::isAlternateItem(int index) const
 
 bool KItemListView::expansionTintPaintsAlternateBackgrounds() const
 {
-    return !m_expansionTintColors.isEmpty() && m_supportsItemExpanding && scrollOrientation() == Qt::Vertical && useAlternateBackgrounds();
+    // The names lie below the item widgets too, so their alternate backgrounds would cover them.
+    return (!m_expansionTintColors.isEmpty() || m_expansionNameOpacity > 0) && m_supportsItemExpanding && scrollOrientation() == Qt::Vertical
+        && useAlternateBackgrounds();
 }
 
 bool KItemListView::useAlternateBackgrounds() const
@@ -3102,13 +3105,17 @@ void KItemListView::updateGroupHeaderHeight()
 
 void KItemListView::paintExpansionTints(QPainter *painter, const QWidget *widget) const
 {
-    if (m_expansionTintColors.isEmpty() || !m_supportsItemExpanding || !m_model) {
+    if (!m_supportsItemExpanding || !m_model) {
         return;
     }
     if (scrollOrientation() == Qt::Vertical) {
+        // Also without colors, for the alternate backgrounds below the names.
         if (m_itemSize.isEmpty()) {
             paintDetailsExpansionTints(painter, widget);
         }
+        return;
+    }
+    if (m_expansionTintColors.isEmpty()) {
         return;
     }
 
@@ -3181,6 +3188,9 @@ void KItemListView::paintDetailsExpansionTints(QPainter *painter, const QWidget 
         const bool alternateRow = stripes && isAlternateItem(index);
         if (alternateRow) {
             painter->fillRect(row, alternate);
+        }
+        if (colorCount == 0) {
+            continue;
         }
 
         const int depth = m_model->expandedParentsCount(index);
