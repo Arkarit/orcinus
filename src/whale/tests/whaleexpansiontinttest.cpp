@@ -16,9 +16,12 @@
 #include "views/expansiontintsettings.h"
 
 #include <QApplication>
+#include <QDir>
+#include <QFile>
 #include <QGraphicsView>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTest>
 
 /**
@@ -113,11 +116,21 @@ private:
     DolphinItemListView *m_view = nullptr;
     KItemListContainer *m_container = nullptr;
     QPalette m_originalPalette;
+    QTemporaryDir m_configDir;
 };
 
 void WhaleExpansionTintTest::initTestCase()
 {
-    QStandardPaths::setTestModeEnabled(true);
+    // A configuration of its own: other tests running at the same time change settings in the
+    // shared configuration of the test mode, like whether the compact view expands folders.
+    // Data, cache and state go there too, instead of the user's directories.
+    QVERIFY(m_configDir.isValid());
+    for (const char *variable : {"XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME"}) {
+        const QString path = m_configDir.filePath(QString::fromLatin1(variable).toLower());
+        QVERIFY(QDir().mkpath(path));
+        qputenv(variable, QFile::encodeName(path));
+    }
+    QCOMPARE(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation), m_configDir.filePath(QStringLiteral("xdg_config_home")));
     m_originalPalette = QApplication::palette();
 }
 
