@@ -45,9 +45,13 @@ voller Qualität finden; nach dem Schließen (ESC) ist es in Whale ausgewählt.
 | V-E10 | Klick ins Bild | tut nichts (nur Rand-Klick blättert); ESC schließt |
 | V-E11 | Ladefehler | kurz Dateiname + „kann nicht angezeigt werden“, im Bild stehenbleiben |
 
-Vorschlag, noch nicht ausdrücklich bestätigt: Bei Mehrfachauswahl (V-E3) bleibt die Auswahl
-beim Blättern bestehen, nur das aktuelle Item (Fokusrahmen) wandert mit; ohne Mehrfachauswahl
-wandert die Auswahl selbst mit. Vor V1 mit dem Benutzer klären.
+Offen, wird ausprobiert (Benutzer, 2026-10-24: „müssen wir ausprobieren“): Verhalten der
+Auswahl beim Blättern durch eine Mehrfachauswahl (V-E3).
+- A (Vorschlag): Die Auswahl bleibt, nur das aktuelle Item (Fokusrahmen) wandert mit.
+- B: Die Auswahl wandert auf das angezeigte Bild (wie ohne Mehrfachauswahl).
+V1 baut beide, umschaltbar über eine versteckte Einstellung in whalerc; nach dem Ausprobieren
+entscheidet der Benutzer, die andere Variante wird entfernt. Ohne Mehrfachauswahl wandert die
+Auswahl immer mit.
 
 ## Gestaltung
 
@@ -75,6 +79,7 @@ wandert die Auswahl selbst mit. Vor V1 mit dem Benutzer klären.
   der View (Sortierung, Filter, versteckte Dateien).
 - Mausrad (akkumulierend), Tasten, Rand-Klick, Dateiname einblenden, ESC, Ladefehler (V-E11).
 - Kopplung (V-E8) inkl. Scrollen der View zum Item; Wrap-around-Einstellung (V-E9).
+- Varianten A/B der Auswahl bei Mehrfachauswahl, versteckt umschaltbar (siehe oben).
 - Einstellungsseite mit MIME-Liste; Tests (Liste, Kopplung, Einstellungen) und Dev-MCP-Tools.
 
 ### V2 – Qualität und Tempo
