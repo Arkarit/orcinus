@@ -14,6 +14,11 @@ ET1 381b965ec, ET2 83e31e5cc, ET3 ff62f7a17, ET4 mit diesem Commit. Offen: Paste
 dunklen Theme (Gelb wirkt oliv), Blick auf die Aufklapp-Animation im echten Fenster (die Flächen
 stehen sofort an der Endposition, während die Einträge noch gleiten).
 
+2026-10-25: „Pastel“ heißt jetzt „Pastel (Vivid)“ (Config-Name bleibt `Pastel`, Standard), neu
+„Pastel (Subtle)“ (`PastelSubtle`) nach den Custom-Farben des Benutzers. Die Töne sind so gewählt,
+dass sie mit 1/16 Anteil auf Weiß exakt #fffcf0, #fff5f8, #f5fffb, #fff8f3, #f9f5ff ergeben;
+hellere Töne mit 10 % hätten im dunklen Theme stärker gewirkt als Vivid.
+
 Erkenntnis aus ET2: Die Item-Widgets haben `ItemStacksBehindParent`, was die View in `paint()`
 malt, liegt über ihnen. Die Flächen malt deshalb `KItemListExpansionTintItem` (z = −1, ebenfalls
 hinter der View).

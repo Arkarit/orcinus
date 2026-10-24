@@ -360,7 +360,7 @@ void WhaleExpansionTintTest::testSettingsAreApplied()
     QVERIFY(m_view->expansionTintColors().isEmpty());
 
     // Presets follow the palette.
-    settings.preset = ExpansionTintSettings::Preset::Pastel;
+    settings.preset = ExpansionTintSettings::Preset::PastelVivid;
     settings.save();
     m_view->readSettings();
     QCOMPARE(m_view->expansionTintColors(), ExpansionTintSettings::presetColors(settings.preset, lightPalette()));
@@ -379,7 +379,7 @@ void WhaleExpansionTintTest::testScreenshots()
     const std::pair<QString, QPalette> themes[] = {{QStringLiteral("light"), lightPalette()}, {QStringLiteral("dark"), darkPalette()}};
     for (const auto &[theme, palette] : themes) {
         QApplication::setPalette(palette);
-        for (const Preset preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::Pastel}) {
+        for (const Preset preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid}) {
             ExpansionTintSettings settings = ExpansionTintSettings::defaults();
             settings.preset = preset;
             settings.save();

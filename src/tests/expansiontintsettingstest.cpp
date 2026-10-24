@@ -34,6 +34,8 @@ private Q_SLOTS:
     void testColorCountLimits();
     void testInvalidEntries();
     void testPresetNames();
+    void testSubtlePastelOnWhite();
+    void testOldPastelNameIsVivid();
 
 private:
     KSharedConfigPtr freshConfig() const;
@@ -84,7 +86,7 @@ QPalette ExpansionTintSettingsTest::palette(const QColor &base, const QColor &te
 void ExpansionTintSettingsTest::testMissingGroupGivesDefaults()
 {
     const ExpansionTintSettings settings = ExpansionTintSettings::load(freshConfig());
-    QCOMPARE(settings.preset, Preset::Pastel);
+    QCOMPARE(settings.preset, Preset::PastelVivid);
     QCOMPARE(settings.customColors, ExpansionTintSettings::defaultCustomColors());
     QCOMPARE(settings, ExpansionTintSettings::defaults());
 }
@@ -95,7 +97,8 @@ void ExpansionTintSettingsTest::testPresetColorCounts()
     QVERIFY(ExpansionTintSettings::presetColors(Preset::Off, light).isEmpty());
     QCOMPARE(ExpansionTintSettings::presetColors(Preset::PrinterPaper, light).count(), 2);
     QCOMPARE(ExpansionTintSettings::presetColors(Preset::Grey, light).count(), 2);
-    QCOMPARE(ExpansionTintSettings::presetColors(Preset::Pastel, light).count(), 5);
+    QCOMPARE(ExpansionTintSettings::presetColors(Preset::PastelSubtle, light).count(), 5);
+    QCOMPARE(ExpansionTintSettings::presetColors(Preset::PastelVivid, light).count(), 5);
     QCOMPARE(ExpansionTintSettings::presetColors(Preset::Custom, light), ExpansionTintSettings::defaultCustomColors());
 
     ExpansionTintSettings off;
@@ -108,7 +111,7 @@ void ExpansionTintSettingsTest::testPresetsFollowPalette()
     const QPalette light = palette(Qt::white, Qt::black);
     const QPalette dark = palette(QColor(0x23, 0x26, 0x29), QColor(0xfc, 0xfc, 0xfc));
 
-    for (const Preset preset : {Preset::PrinterPaper, Preset::Grey, Preset::Pastel}) {
+    for (const Preset preset : {Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid}) {
         const QList<QColor> lightColors = ExpansionTintSettings::presetColors(preset, light);
         const QList<QColor> darkColors = ExpansionTintSettings::presetColors(preset, dark);
         QCOMPARE(lightColors.count(), darkColors.count());
@@ -151,7 +154,7 @@ void ExpansionTintSettingsTest::testRoundTrip()
 
     QCOMPARE(ExpansionTintSettings::load(reopenedConfig()), settings);
 
-    for (const Preset preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::Pastel}) {
+    for (const Preset preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid}) {
         settings.preset = preset;
         settings.save(freshConfig());
         QCOMPARE(ExpansionTintSettings::load(reopenedConfig()).preset, preset);
@@ -209,18 +212,51 @@ void ExpansionTintSettingsTest::testInvalidEntries()
 
     const ExpansionTintSettings loaded = ExpansionTintSettings::load(reopenedConfig());
     // An unknown preset keeps the default, invalid colors are skipped.
-    QCOMPARE(loaded.preset, Preset::Pastel);
+    QCOMPARE(loaded.preset, Preset::PastelVivid);
     QCOMPARE(loaded.customColors, (QList<QColor>{QColor(Qt::red), QColor(Qt::blue)}));
 }
 
 void ExpansionTintSettingsTest::testPresetNames()
 {
-    for (const Preset preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::Pastel, Preset::Custom}) {
+    for (const Preset preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid, Preset::Custom}) {
         const QString name = ExpansionTintSettings::presetName(preset);
         QVERIFY(!name.isEmpty());
         QCOMPARE(ExpansionTintSettings::presetFromName(name), std::optional<Preset>(preset));
     }
     QCOMPARE(ExpansionTintSettings::presetFromName(QString()), std::nullopt);
+}
+
+void ExpansionTintSettingsTest::testSubtlePastelOnWhite()
+{
+    // The colors the subtle preset was made from.
+    const QList<QColor> expected = {QColor(0xff, 0xfc, 0xf0),
+                                    QColor(0xff, 0xf5, 0xf8),
+                                    QColor(0xf5, 0xff, 0xfb),
+                                    QColor(0xff, 0xf8, 0xf3),
+                                    QColor(0xf9, 0xf5, 0xff)};
+    QCOMPARE(ExpansionTintSettings::presetColors(Preset::PastelSubtle, palette(Qt::white, Qt::black)), expected);
+
+    // Subtler than the vivid preset on light and dark color schemes.
+    for (const QPalette &palette : {palette(Qt::white, Qt::black), palette(QColor(0x14, 0x16, 0x18), QColor(0xfc, 0xfc, 0xfc))}) {
+        const QColor base = palette.color(QPalette::Base);
+        const QList<QColor> subtle = ExpansionTintSettings::presetColors(Preset::PastelSubtle, palette);
+        const QList<QColor> vivid = ExpansionTintSettings::presetColors(Preset::PastelVivid, palette);
+        for (int i = 0; i < subtle.count(); ++i) {
+            const auto distance = [&base](const QColor &color) {
+                return qAbs(color.red() - base.red()) + qAbs(color.green() - base.green()) + qAbs(color.blue() - base.blue());
+            };
+            QVERIFY(distance(subtle.at(i)) < distance(vivid.at(i)));
+        }
+    }
+}
+
+void ExpansionTintSettingsTest::testOldPastelNameIsVivid()
+{
+    // Configurations from before there were two pastel presets.
+    KConfigGroup group(freshConfig(), QStringLiteral("ExpansionTint"));
+    group.writeEntry("Preset", QStringLiteral("Pastel"));
+    group.sync();
+    QCOMPARE(ExpansionTintSettings::load(reopenedConfig()).preset, Preset::PastelVivid);
 }
 
 QTEST_GUILESS_MAIN(ExpansionTintSettingsTest)

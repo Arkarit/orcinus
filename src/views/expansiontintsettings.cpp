@@ -22,14 +22,23 @@ struct Tint {
     qreal amount;
 };
 
-// Provisional values, to be decided after a visual review with real light and dark color schemes.
-// No blue: it would be mistaken for the selection or hover color.
-const Tint pastelTints[] = {
+// No blue in the pastel colors: it would be mistaken for the selection or hover color.
+const Tint pastelVividTints[] = {
     {QColor(0xf5, 0xc4, 0x00), 0.10}, // yellow
     {QColor(0xe8, 0x50, 0x8a), 0.10}, // rose
     {QColor(0x2e, 0xcc, 0x8f), 0.10}, // mint
     {QColor(0xff, 0x8c, 0x42), 0.10}, // peach
     {QColor(0x9b, 0x6b, 0xdf), 0.10}, // lavender
+};
+
+// Hues like the vivid ones, mixed in by a smaller amount, so that the preset is subtler on
+// dark color schemes too. On white they give exactly #fffcf0, #fff5f8, #f5fffb, #fff8f3 and #f9f5ff.
+const Tint pastelSubtleTints[] = {
+    {QColor(0xff, 0xcf, 0x0f), 0.0625}, // yellow
+    {QColor(0xff, 0x5f, 0x8f), 0.0625}, // rose
+    {QColor(0x5f, 0xff, 0xbf), 0.0625}, // mint
+    {QColor(0xff, 0x8f, 0x3f), 0.0625}, // peach
+    {QColor(0x9f, 0x5f, 0xff), 0.0625}, // lavender
 };
 
 const Tint printerPaperTints[] = {
@@ -62,8 +71,10 @@ QList<QColor> presetColorsFor(ExpansionTintSettings::Preset preset, const QColor
         return mixedColors(printerPaperTints, base, text);
     case ExpansionTintSettings::Preset::Grey:
         return mixedColors(greyTints, base, text);
-    case ExpansionTintSettings::Preset::Pastel:
-        return mixedColors(pastelTints, base, text);
+    case ExpansionTintSettings::Preset::PastelSubtle:
+        return mixedColors(pastelSubtleTints, base, text);
+    case ExpansionTintSettings::Preset::PastelVivid:
+        return mixedColors(pastelVividTints, base, text);
     case ExpansionTintSettings::Preset::Custom:
         return ExpansionTintSettings::defaultCustomColors();
     }
@@ -74,15 +85,15 @@ QList<QColor> presetColorsFor(ExpansionTintSettings::Preset preset, const QColor
 ExpansionTintSettings ExpansionTintSettings::defaults()
 {
     ExpansionTintSettings settings;
-    settings.preset = Preset::Pastel;
+    settings.preset = Preset::PastelVivid;
     settings.customColors = defaultCustomColors();
     return settings;
 }
 
 QList<QColor> ExpansionTintSettings::defaultCustomColors()
 {
-    // The pastel preset as it looks on white.
-    return mixedColors(pastelTints, Qt::white, Qt::black);
+    // The vivid pastel preset as it looks on white.
+    return mixedColors(pastelVividTints, Qt::white, Qt::black);
 }
 
 QList<QColor> ExpansionTintSettings::presetColors(Preset preset, const QPalette &palette)
@@ -151,7 +162,10 @@ QString ExpansionTintSettings::presetName(Preset preset)
         return QStringLiteral("PrinterPaper");
     case Preset::Grey:
         return QStringLiteral("Grey");
-    case Preset::Pastel:
+    case Preset::PastelSubtle:
+        return QStringLiteral("PastelSubtle");
+    case Preset::PastelVivid:
+        // The name from before there were two pastel presets.
         return QStringLiteral("Pastel");
     case Preset::Custom:
         return QStringLiteral("Custom");
@@ -161,7 +175,7 @@ QString ExpansionTintSettings::presetName(Preset preset)
 
 std::optional<ExpansionTintSettings::Preset> ExpansionTintSettings::presetFromName(const QString &name)
 {
-    for (const auto preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::Pastel, Preset::Custom}) {
+    for (const auto preset : {Preset::Off, Preset::PrinterPaper, Preset::Grey, Preset::PastelSubtle, Preset::PastelVivid, Preset::Custom}) {
         if (presetName(preset) == name) {
             return preset;
         }

@@ -81,8 +81,9 @@ matches Dolphin's behavior.
 <!-- TODO: in the Compact view, the contents of expanded folders get a
      background color by depth, so a subtree reads as one block even where it
      wraps into the next column; colors repeat for deeper levels. Settings >
-     View > Highlighting > Expanded Folders: Off, Printer paper, Grey, Pastel
-     (default), Custom (2 to 10 colors, add/remove, preview). Presets adapt to
+     View > Highlighting > Expanded Folders: Off, Printer paper, Grey,
+     Pastel (Subtle), Pastel (Vivid) (default), Custom (2 to 10 colors,
+     add/remove, preview). Presets adapt to
      the color scheme, custom colors are used as chosen. Not in the Details
      view. -->
 

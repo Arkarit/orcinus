@@ -136,7 +136,8 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
     m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors, alternating like old printer paper", "Printer paper"),
                               int(ExpansionTintSettings::Preset::PrinterPaper));
     m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors", "Grey"), int(ExpansionTintSettings::Preset::Grey));
-    m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors", "Pastel"), int(ExpansionTintSettings::Preset::Pastel));
+    m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors", "Pastel (Subtle)"), int(ExpansionTintSettings::Preset::PastelSubtle));
+    m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors", "Pastel (Vivid)"), int(ExpansionTintSettings::Preset::PastelVivid));
     m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors", "Custom"), int(ExpansionTintSettings::Preset::Custom));
     formLayout->addRow(i18nc("@label:listbox", "Background colors:"), m_presetComboBox);
 

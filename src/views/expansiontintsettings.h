@@ -34,14 +34,15 @@ struct DOLPHIN_EXPORT ExpansionTintSettings {
         Off,
         PrinterPaper,
         Grey,
-        Pastel,
+        PastelSubtle,
+        PastelVivid,
         Custom,
     };
 
     static constexpr int MinimumColorCount = 2;
     static constexpr int MaximumColorCount = 10;
 
-    Preset preset = Preset::Pastel;
+    Preset preset = Preset::PastelVivid;
 
     /**
      * The colors of the preset Custom. They are kept while another preset is

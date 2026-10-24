@@ -366,8 +366,8 @@ void FileNameHighlightingTabTest::testExpansionTintLoadsSettings()
         FileNameHighlightingTab tab;
         ExpansionTintWidget *widget = tab.expansionTintWidget();
         QCOMPARE(widget->settings(), ExpansionTintSettings::defaults());
-        QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::Pastel));
-        QCOMPARE(buttonColors(widget), ExpansionTintSettings::presetColors(Preset::Pastel, widget->palette()));
+        QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::PastelVivid));
+        QCOMPARE(buttonColors(widget), ExpansionTintSettings::presetColors(Preset::PastelVivid, widget->palette()));
     }
 
     ExpansionTintSettings settings;
