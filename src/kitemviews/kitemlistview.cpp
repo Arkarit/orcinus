@@ -3191,9 +3191,29 @@ void KItemListView::paintDetailsExpansionTints(QPainter *painter, const QWidget 
     }
 }
 
+namespace
+{
+/**
+ * Draws @p name of the width @p width turned to read from bottom to top, centered on @p center
+ * in a strip of the width @p stripWidth.
+ */
+void drawTurnedName(QPainter *painter, const QPointF &center, qreal width, qreal stripWidth, const QString &name)
+{
+    painter->save();
+    painter->translate(center);
+    painter->rotate(-90);
+    painter->drawText(QRectF(-width / 2, -stripWidth / 2, width, stripWidth), Qt::AlignCenter, name);
+    painter->restore();
+}
+}
+
 void KItemListView::paintExpansionNames(QPainter *painter) const
 {
-    if (m_expansionNameOpacity <= 0 || !m_supportsItemExpanding || !m_model || scrollOrientation() != Qt::Horizontal) {
+    if (m_expansionNameOpacity <= 0 || !m_supportsItemExpanding || !m_model) {
+        return;
+    }
+    const bool details = scrollOrientation() == Qt::Vertical && m_itemSize.isEmpty();
+    if (scrollOrientation() != Qt::Horizontal && !details) {
         return;
     }
 
@@ -3218,6 +3238,11 @@ void KItemListView::paintExpansionNames(QPainter *painter) const
     painter->save();
     painter->setFont(font);
     painter->setPen(color);
+    if (details) {
+        paintDetailsExpansionNames(painter, indexes, metrics);
+        painter->restore();
+        return;
+    }
     const bool rightToLeft = QGuiApplication::isRightToLeft();
 
     int i = 0;
@@ -3253,17 +3278,77 @@ void KItemListView::paintExpansionNames(QPainter *painter) const
             const qreal width = metrics.horizontalAdvance(name);
             if (width + indentation / 2 <= height) {
                 const qreal centerX = rightToLeft ? firstSlot.right() - (level + 0.5) * indentation : firstSlot.left() + (level + 0.5) * indentation;
-                painter->save();
-                painter->translate(centerX, centerY);
-                painter->rotate(-90);
-                painter->drawText(QRectF(-width / 2, -indentation / 2, width, indentation), Qt::AlignCenter, name);
-                painter->restore();
+                drawTurnedName(painter, QPointF(centerX, centerY), width, indentation, name);
             }
             parent = m_model->expandedParentIndex(parent);
         }
     }
 
     painter->restore();
+}
+
+void KItemListView::paintDetailsExpansionNames(QPainter *painter, const QList<int> &indexes, const QFontMetricsF &metrics) const
+{
+    if (indexes.isEmpty()) {
+        return;
+    }
+
+    const qreal viewTop = m_headerWidget->isVisible() ? m_headerWidget->size().height() : 0;
+    const qreal viewBottom = size().height();
+    const QRectF firstRow = m_layouter->itemRect(indexes.first());
+    const qreal indentation = firstRow.height();
+    // As in paintDetailsExpansionTints().
+    const qreal indentationStart = m_highlightEntireRow ? m_headerWidget->leftPadding() : 0;
+    const qreal padding = indentation / 4;
+    const bool rightToLeft = QGuiApplication::isRightToLeft();
+
+    // The expanded items whose contents are visible: the parents of the first visible item,
+    // and the visible items that their children follow.
+    QList<int> folders;
+    for (int parent = m_model->expandedParentIndex(indexes.first()); parent >= 0; parent = m_model->expandedParentIndex(parent)) {
+        folders.append(parent);
+    }
+    for (int i = 0; i + 1 < indexes.count(); ++i) {
+        if (indexes.at(i + 1) == indexes.at(i) + 1 && m_model->expandedParentsCount(indexes.at(i + 1)) > m_model->expandedParentsCount(indexes.at(i))) {
+            folders.append(indexes.at(i));
+        }
+    }
+
+    for (const int folder : std::as_const(folders)) {
+        // The visible part of its contents: from the first visible item after it as long as
+        // the items are deeper.
+        const int depth = m_model->expandedParentsCount(folder);
+        int first = -1;
+        int last = -1;
+        for (const int index : indexes) {
+            if (index <= folder) {
+                continue;
+            }
+            if (m_model->expandedParentsCount(index) <= depth) {
+                break;
+            }
+            if (first < 0) {
+                first = index;
+            }
+            last = index;
+        }
+        if (first < 0) {
+            continue;
+        }
+
+        // The name sticks to the top of the visible part, the end of the turned text up; it is
+        // left out if it does not fit.
+        const qreal top = qMax(m_layouter->itemRect(first).top(), viewTop);
+        const qreal bottom = qMin(m_layouter->itemRect(last).bottom(), viewBottom);
+        const QString name = m_model->data(folder).value("text").toString();
+        const qreal width = metrics.horizontalAdvance(name);
+        if (width + 2 * padding > bottom - top) {
+            continue;
+        }
+        const qreal offset = indentationStart + (depth + 0.5) * indentation;
+        const qreal centerX = rightToLeft ? firstRow.right() - offset : firstRow.left() + offset;
+        drawTurnedName(painter, QPointF(centerX, top + padding + width / 2), width, indentation, name);
+    }
 }
 
 void KItemListView::updateExpansionTintItem()

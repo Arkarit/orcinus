@@ -52,6 +52,8 @@ private Q_SLOTS:
     void testNameScreenshots();
     void testDetailsTintsTheNameColumn();
     void testDetailsStripesRunThroughTheTints();
+    void testDetailsNamesBelowTheirFolders();
+    void testDetailsNamesStickToTheTop();
     void testDetailsScreenshots();
     void testScreenshots();
 
@@ -707,6 +709,58 @@ void WhaleExpansionTintTest::testDetailsStripesRunThroughTheTints()
     QCOMPARE(pixel(image, inName), shifted);
 }
 
+void WhaleExpansionTintTest::testDetailsNamesBelowTheirFolders()
+{
+    setUpDetailsView();
+    m_view->setExpansionTintColors({});
+    m_view->setExpansionNameOpacity(1.0);
+    QTest::qWait(50);
+    const QImage image = grabView();
+
+    const QRectF heading = m_view->itemRect(indexOf(QStringLiteral("projects/settings/interface")));
+    const qreal indentation = heading.height();
+    const qreal start = m_view->highlightEntireRow() ? m_view->header()->leftPadding() : 0;
+    const auto strip = [&](int level, qreal top, qreal height) {
+        return QRectF(heading.left() + start + level * indentation + 1, top, indentation - 2, height);
+    };
+
+    // The name of interface starts right below its row, in the strip below its arrow.
+    QVERIFY(inkPixels(image, strip(2, heading.bottom() + 1, 2 * indentation)) > 10);
+
+    // The only file of tiny leaves no room for its name.
+    const QRectF file = m_view->itemRect(indexOf(QStringLiteral("projects/tiny/t.txt")));
+    QCOMPARE(inkPixels(image, strip(1, file.top(), file.height())), 0);
+
+    // Hidden altogether.
+    m_view->setExpansionNameOpacity(0);
+    QTest::qWait(50);
+    QCOMPARE(inkPixels(grabView(), strip(2, heading.bottom() + 1, 2 * indentation)), 0);
+}
+
+void WhaleExpansionTintTest::testDetailsNamesStickToTheTop()
+{
+    setUpDetailsView();
+    m_view->setExpansionTintColors({});
+    m_view->setExpansionNameOpacity(1.0);
+    m_container->resize(720, 240);
+    QTest::qWait(100);
+
+    // Scrolled so far that projects, settings and interface are above the view.
+    const QString firstShown = QStringLiteral("projects/settings/interface/settingspage03.cpp");
+    m_view->setScrollOffset(m_view->itemRect(indexOf(firstShown)).top() - m_view->itemRect(0).top());
+    QTest::qWait(100);
+    QVERIFY(m_view->itemRect(indexOf(QStringLiteral("projects/settings/interface"))).bottom() <= m_view->itemRect(indexOf(firstShown)).top());
+    const QImage image = grabView();
+
+    const QRectF top = m_view->itemRect(indexOf(firstShown));
+    const qreal indentation = top.height();
+    const qreal start = m_view->highlightEntireRow() ? m_view->header()->leftPadding() : 0;
+    for (int level = 0; level < 3; ++level) {
+        const QRectF strip(top.left() + start + level * indentation + 1, top.top(), indentation - 2, 2 * indentation);
+        QVERIFY2(inkPixels(image, strip) > 10, qPrintable(QString::number(level)));
+    }
+}
+
 void WhaleExpansionTintTest::testNameScreenshots()
 {
     const QString dir = qEnvironmentVariable("WHALE_TEST_SCREENSHOT_DIR");
@@ -756,6 +810,16 @@ void WhaleExpansionTintTest::testDetailsScreenshots()
             QVERIFY(m_container->grab().save(dir + QLatin1Char('/') + name));
         }
     }
+
+    // Scrolled so that the expanded folders are above the view: their names stick to the top.
+    QApplication::setPalette(lightPalette());
+    ExpansionTintSettings::defaults().save(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
+    m_view->readSettings();
+    m_container->resize(720, 240);
+    QTest::qWait(100);
+    m_view->setScrollOffset(m_view->itemRect(indexOf(QStringLiteral("projects/settings/interface/settingspage03.cpp"))).top() - m_view->itemRect(0).top());
+    QTest::qWait(150);
+    QVERIFY(m_container->grab().save(dir + QStringLiteral("/details-light-scrolled.png")));
 }
 
 QTEST_MAIN(WhaleExpansionTintTest)

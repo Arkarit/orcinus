@@ -37,6 +37,7 @@ class KItemListWidget;
 class KItemListWidgetInformant;
 class KItemListWidgetCreatorBase;
 class QTimer;
+class QFontMetricsF;
 class QPropertyAnimation;
 class QVariantAnimation;
 
@@ -802,6 +803,13 @@ private:
      * Paints the names set visible by setExpansionNameOpacity() below the item widgets.
      */
     void paintExpansionNames(QPainter *painter) const;
+
+    /**
+     * Paints the names of paintExpansionNames() in the details view: each expanded item whose
+     * contents are visible gets its name below its expansion arrow, sticking to the top of the
+     * visible part of its contents, if it fits.
+     */
+    void paintDetailsExpansionNames(QPainter *painter, const QList<int> &indexes, const QFontMetricsF &metrics) const;
 
     /**
      * Shows the item painting the tints and names only while there is something to paint.
