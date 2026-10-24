@@ -16,6 +16,29 @@ class Failure(Exception):
     pass
 
 
+def portal_hint():
+    """Returns a hint if the document portal of the session restarted lately, else "".
+
+    Whale exports dragged and copied URLs to the document portal with a blocking D-Bus
+    call (KUrlMimeData::exportUrlsToPortal()). When the portal keeps exiting, systemd
+    stops starting it for a while, the call waits for its activation and Whale does not
+    answer the automation in time ("NoReply")."""
+    try:
+        journal = subprocess.run(["journalctl", "--user", "--since", "-5min", "--no-pager", "-o", "cat",
+                                  "-u", "xdg-document-portal.service"],
+                                 capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    exits = journal.count("Main process exited")
+    limited = "Start request repeated too quickly" in journal
+    if not exits and not limited:
+        return ""
+    return (f" [hint: xdg-document-portal exited {exits} times in the last 5 minutes"
+            + (" and systemd stopped restarting it" if limited else "")
+            + "; Whale blocks while exporting URLs to it, so this is likely not a Whale bug."
+            " See journalctl --user -u xdg-document-portal.service]")
+
+
 class McpClient:
     def __init__(self, adapter, env):
         self.process = subprocess.Popen([sys.executable, adapter], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -41,7 +64,8 @@ class McpClient:
     def tool(self, name, /, **arguments):  # a tool may have an argument "name"
         result = self.request("tools/call", {"name": name, "arguments": arguments})
         if result["isError"]:
-            raise Failure(f"{name}{arguments}: {result['content'][0]['text']}")
+            text = result["content"][0]["text"]
+            raise Failure(f"{name}{arguments}: {text}" + (portal_hint() if "NoReply" in text else ""))
         return result["content"]
 
     def tool_error(self, name, /, **arguments):

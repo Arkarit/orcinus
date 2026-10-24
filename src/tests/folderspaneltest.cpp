@@ -21,6 +21,9 @@
 #include <QStandardPaths>
 #include <QTest>
 
+// Loading the folders from / down to a deep test folder takes long while many tests run in parallel.
+constexpr int LoadTimeout = 30000;
+
 class FoldersPanelTest : public QObject
 {
     Q_OBJECT
@@ -95,7 +98,7 @@ void FoldersPanelTest::testCurrentFolderIsSelected()
     QVERIFY(container);
     auto *model = static_cast<KFileItemModel *>(container->controller()->model());
 
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, LoadTimeout);
     QTRY_COMPARE(container->controller()->selectionManager()->currentItem(), model->index(deepUrl));
 }
 
@@ -113,7 +116,7 @@ void FoldersPanelTest::testCurrentFolderNameIsShown()
     KItemListView *view = container->controller()->view();
     auto *model = static_cast<KFileItemModel *>(container->controller()->model());
 
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, LoadTimeout);
     const int index = model->index(deepUrl);
 
     // There is something to scroll: the name ends beyond the right edge of the
@@ -150,7 +153,7 @@ void FoldersPanelTest::testNameWiderThanThePanelIsShownFromItsStart()
     KItemListView *view = container->controller()->view();
     auto *model = static_cast<KFileItemModel *>(container->controller()->model());
 
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, LoadTimeout);
     const int index = model->index(deepUrl);
 
     QVERIFY(nameEnd(view, index) - nameStart(view, model, index) > view->size().width());
@@ -175,20 +178,20 @@ void FoldersPanelTest::testLimitToHomeFollowsTheSettings()
     KItemListContainer *container = showPanelAt(panel, deepUrl);
     QVERIFY(container);
     auto *model = static_cast<KFileItemModel *>(container->controller()->model());
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, LoadTimeout);
     QCOMPARE(model->directory(), testDir.url());
 
     FoldersPanelSettings::setLimitFoldersPanelToHome(false);
     panel.readSettings();
     QTRY_COMPARE(model->directory(), rootUrl);
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(testDir.url()) >= 0, 10000);
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(testDir.url()) >= 0, LoadTimeout);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, LoadTimeout);
     QTRY_COMPARE(container->controller()->selectionManager()->currentItem(), model->index(deepUrl));
 
     FoldersPanelSettings::setLimitFoldersPanelToHome(true);
     panel.readSettings();
     QTRY_COMPARE(model->directory(), testDir.url());
-    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(model->index(deepUrl) >= 0, LoadTimeout);
 
     // Outside the home folder the tree starts at the root folder, and the view stays where it is.
     const QUrl outsideHomeUrl = QUrl::fromLocalFile(QDir::tempPath());
