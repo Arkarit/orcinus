@@ -20,6 +20,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSignalSpy>
+#include <QSlider>
 #include <QStandardPaths>
 #include <QTest>
 #include <QToolButton>
@@ -75,6 +76,7 @@ private Q_SLOTS:
     void testExpansionTintEditSwitchesToCustom();
     void testExpansionTintAddAndRemove();
     void testExpansionTintApplyAndDefaults();
+    void testExpansionTintNames();
     void testScreenshot();
 };
 
@@ -463,6 +465,42 @@ void FileNameHighlightingTabTest::testExpansionTintApplyAndDefaults()
     QCOMPARE(widget->settings(), ExpansionTintSettings::defaults());
     tab.applySettings();
     QCOMPARE(ExpansionTintSettings::load(), ExpansionTintSettings::defaults());
+}
+
+void FileNameHighlightingTabTest::testExpansionTintNames()
+{
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    QCheckBox *showNames = widget->showNamesCheckBox();
+    QSlider *opacity = widget->nameOpacitySlider();
+    QVERIFY(showNames->isChecked());
+    QCOMPARE(opacity->value(), 35);
+    QCOMPARE(opacity->minimum(), ExpansionTintSettings::MinimumNameOpacity);
+    QCOMPARE(opacity->maximum(), ExpansionTintSettings::MaximumNameOpacity);
+    QVERIFY(opacity->isEnabled());
+
+    QSignalSpy changed(&tab, &SettingsPageBase::changed);
+    opacity->setValue(70);
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(widget->settings().nameOpacity, 70);
+
+    // The opacity only applies to shown names.
+    showNames->setChecked(false);
+    QCOMPARE(changed.count(), 2);
+    QVERIFY(!widget->settings().showNames);
+    QVERIFY(!opacity->isEnabled());
+    // The colors do not depend on the names.
+    QCOMPARE(widget->settings().preset, ExpansionTintSettings::defaults().preset);
+
+    tab.applySettings();
+    const ExpansionTintSettings saved = ExpansionTintSettings::load();
+    QVERIFY(!saved.showNames);
+    QCOMPARE(saved.nameOpacity, 70);
+
+    tab.restoreDefaults();
+    QVERIFY(showNames->isChecked());
+    QCOMPARE(opacity->value(), 35);
+    QVERIFY(opacity->isEnabled());
 }
 
 void FileNameHighlightingTabTest::testScreenshot()

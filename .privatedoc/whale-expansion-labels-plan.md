@@ -14,6 +14,11 @@ zurückhaltend in die Einrückungsstreifen schreiben, wenn Platz ist.
 | EL-E4 | Deckkraft | Häkchen plus Slider für die Deckkraft der Schrift (10–100 %, Standard 35 %), weil Vorlieben verschieden sind |
 | EL-E5 | Klick auf Streifen | (Einklappen/zur Zeile springen) später ausprobieren |
 
+## Stand (2026-10-24)
+
+EL1 25b41def8 (Einstellungen, `expandedParentIndex()`, Malen, Tests), EL2 mit dem folgenden
+Commit (Häkchen + Slider, Vorschau mit Namen, Tab-Tests, Doku-Gliederung).
+
 ## Gestaltung
 
 - Der Name des Vorfahren der Tiefe j steht im Streifen `j·h … (j+1)·h` (unter dessen eigenem

@@ -13,11 +13,15 @@
 
 class ExpansionTintPreview;
 class KColorButton;
+class QCheckBox;
 class QComboBox;
+class QLabel;
+class QSlider;
 class QToolButton;
 
 /**
- * @brief Configures the tinting of expanded folders: a preset or custom colors, with a preview.
+ * @brief Configures the tinting of expanded folders: a preset or custom colors, and the
+ *        names of the folders in the indentation, with a preview.
  *
  * The color buttons show the colors of the selected preset. Changing a color, adding
  * or removing one switches to the custom colors.
@@ -40,6 +44,8 @@ public:
     QList<KColorButton *> colorButtons() const;
     QToolButton *addColorButton() const;
     QToolButton *removeColorButton() const;
+    QCheckBox *showNamesCheckBox() const;
+    QSlider *nameOpacitySlider() const;
 
 Q_SIGNALS:
     void changed();
@@ -66,6 +72,9 @@ private:
     QList<KColorButton *> m_colorButtons;
     QToolButton *m_addColorButton;
     QToolButton *m_removeColorButton;
+    QCheckBox *m_showNamesCheckBox;
+    QSlider *m_nameOpacitySlider;
+    QLabel *m_nameOpacityLabel;
     ExpansionTintPreview *m_preview;
 };
 

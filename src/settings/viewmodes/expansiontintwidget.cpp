@@ -9,21 +9,24 @@
 #include <KColorButton>
 #include <KLocalizedString>
 
+#include <QCheckBox>
 #include <QComboBox>
 #include <QEvent>
+#include <QFontMetricsF>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QPainter>
 #include <QSignalBlocker>
+#include <QSlider>
 #include <QStyle>
 #include <QStyleOption>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 /**
- * Shows a small expanded folder tree in the compact view style with the tints.
+ * Shows a small expanded folder tree in the compact view style with the tints and names.
  */
 class ExpansionTintPreview : public QWidget
 {
@@ -37,6 +40,15 @@ public:
     void setColors(const QList<QColor> &colors)
     {
         m_colors = colors;
+        update();
+    }
+
+    /**
+     * Sets the opacity of the folder names; 0 hides them.
+     */
+    void setNameOpacity(qreal opacity)
+    {
+        m_nameOpacity = opacity;
         update();
     }
 
@@ -105,6 +117,10 @@ protected:
             y += height;
         }
 
+        if (m_nameOpacity > 0) {
+            paintNames(&painter, frame, height);
+        }
+
         painter.setPen(palette().color(QPalette::Mid));
         painter.drawRect(frame.adjusted(0, 0, -1, -1));
     }
@@ -115,6 +131,55 @@ private:
         bool folder;
         QString name;
     };
+
+    /**
+     * As the view does (KItemListView::paintExpansionNames()): every run of rows of the same
+     * depth gets the names of all its parents, centered on the run, each below the arrow of
+     * its folder, if it fits.
+     */
+    void paintNames(QPainter *painter, const QRect &frame, int height) const
+    {
+        QFont font = this->font();
+        font.setPointSizeF(font.pointSizeF() * 0.85);
+        const QFontMetricsF metrics(font);
+        QColor color = palette().color(QPalette::Text);
+        color.setAlphaF(m_nameOpacity);
+        painter->save();
+        painter->setFont(font);
+        painter->setPen(color);
+
+        const QList<Row> allRows = rows();
+        int first = 0;
+        while (first < allRows.count()) {
+            const int depth = allRows.at(first).depth;
+            int last = first;
+            while (last + 1 < allRows.count() && allRows.at(last + 1).depth == depth) {
+                ++last;
+            }
+            const qreal runHeight = (last - first + 1) * height;
+            const qreal centerY = 1 + first * height + runHeight / 2;
+            int parentDepth = depth - 1;
+            for (int i = first - 1; i >= 0 && parentDepth >= 0; --i) {
+                if (allRows.at(i).depth != parentDepth) {
+                    continue;
+                }
+                const QString &name = allRows.at(i).name;
+                const qreal width = metrics.horizontalAdvance(name);
+                if (width + height / 2.0 <= runHeight) {
+                    const qreal centerX =
+                        layoutDirection() == Qt::RightToLeft ? frame.right() - (parentDepth + 0.5) * height : frame.left() + 1 + (parentDepth + 0.5) * height;
+                    painter->save();
+                    painter->translate(centerX, centerY);
+                    painter->rotate(-90);
+                    painter->drawText(QRectF(-width / 2, -height / 2.0, width, height), Qt::AlignCenter, name);
+                    painter->restore();
+                }
+                --parentDepth;
+            }
+            first = last + 1;
+        }
+        painter->restore();
+    }
 
     int rowHeight() const
     {
@@ -128,6 +193,8 @@ private:
             {1, true, QStringLiteral("whale")},
             {2, true, QStringLiteral("src")},
             {3, false, QStringLiteral("main.cpp")},
+            {3, false, QStringLiteral("model.cpp")},
+            {3, false, QStringLiteral("settings.cpp")},
             {3, false, QStringLiteral("view.cpp")},
             {2, false, QStringLiteral("README.md")},
             {1, false, i18nc("@item:intext example file in a preview", "notes.txt")},
@@ -136,6 +203,7 @@ private:
     }
 
     QList<QColor> m_colors;
+    qreal m_nameOpacity = 0;
 };
 
 ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
@@ -144,6 +212,9 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
     , m_colorRow(nullptr)
     , m_addColorButton(nullptr)
     , m_removeColorButton(nullptr)
+    , m_showNamesCheckBox(nullptr)
+    , m_nameOpacitySlider(nullptr)
+    , m_nameOpacityLabel(nullptr)
     , m_preview(nullptr)
 {
     auto topLayout = new QHBoxLayout(this);
@@ -197,6 +268,23 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
     hint->setWordWrap(true);
     formLayout->addRow(QString(), hint);
 
+    m_showNamesCheckBox = new QCheckBox(i18nc("@option:check", "Show folder names next to their contents"), this);
+    m_showNamesCheckBox->setToolTip(i18nc("@info:tooltip", "Where there is room, the names of the expanded folders are shown in the indentation."));
+    formLayout->addRow(QString(), m_showNamesCheckBox);
+
+    auto opacityRow = new QWidget(this);
+    auto opacityLayout = new QHBoxLayout(opacityRow);
+    opacityLayout->setContentsMargins(0, 0, 0, 0);
+    m_nameOpacitySlider = new QSlider(Qt::Horizontal, opacityRow);
+    m_nameOpacitySlider->setRange(ExpansionTintSettings::MinimumNameOpacity, ExpansionTintSettings::MaximumNameOpacity);
+    m_nameOpacitySlider->setPageStep(10);
+    m_nameOpacityLabel = new QLabel(opacityRow);
+    // Wide enough for "100 %", so that the slider does not move while it is dragged.
+    m_nameOpacityLabel->setMinimumWidth(m_nameOpacityLabel->fontMetrics().horizontalAdvance(i18nc("@label opacity in percent", "%1 %", 100)));
+    opacityLayout->addWidget(m_nameOpacitySlider, 1);
+    opacityLayout->addWidget(m_nameOpacityLabel);
+    formLayout->addRow(i18nc("@label:slider", "Name opacity:"), opacityRow);
+
     m_preview = new ExpansionTintPreview(this);
     topLayout->addWidget(m_preview, 0, Qt::AlignTop);
 
@@ -218,6 +306,16 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
         colors.removeLast();
         setCustomColors(colors);
     });
+    connect(m_showNamesCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
+        m_settings.showNames = checked;
+        updateWidgets();
+        Q_EMIT changed();
+    });
+    connect(m_nameOpacitySlider, &QSlider::valueChanged, this, [this](int value) {
+        m_settings.nameOpacity = value;
+        updateWidgets();
+        Q_EMIT changed();
+    });
 }
 
 ExpansionTintSettings ExpansionTintWidget::settings() const
@@ -228,8 +326,12 @@ ExpansionTintSettings ExpansionTintWidget::settings() const
 void ExpansionTintWidget::setSettings(const ExpansionTintSettings &settings)
 {
     m_settings = settings;
-    const QSignalBlocker blocker(m_presetComboBox);
+    const QSignalBlocker presetBlocker(m_presetComboBox);
     m_presetComboBox->setCurrentIndex(m_presetComboBox->findData(int(settings.preset)));
+    const QSignalBlocker showNamesBlocker(m_showNamesCheckBox);
+    m_showNamesCheckBox->setChecked(settings.showNames);
+    const QSignalBlocker opacityBlocker(m_nameOpacitySlider);
+    m_nameOpacitySlider->setValue(settings.nameOpacity);
     updateWidgets();
 }
 
@@ -251,6 +353,16 @@ QToolButton *ExpansionTintWidget::addColorButton() const
 QToolButton *ExpansionTintWidget::removeColorButton() const
 {
     return m_removeColorButton;
+}
+
+QCheckBox *ExpansionTintWidget::showNamesCheckBox() const
+{
+    return m_showNamesCheckBox;
+}
+
+QSlider *ExpansionTintWidget::nameOpacitySlider() const
+{
+    return m_nameOpacitySlider;
 }
 
 void ExpansionTintWidget::changeEvent(QEvent *event)
@@ -292,6 +404,11 @@ void ExpansionTintWidget::updateWidgets()
     m_addColorButton->setEnabled(colors.count() < ExpansionTintSettings::MaximumColorCount);
     m_removeColorButton->setEnabled(colors.count() > ExpansionTintSettings::MinimumColorCount);
     m_preview->setColors(colors);
+
+    m_nameOpacitySlider->setEnabled(m_settings.showNames);
+    m_nameOpacityLabel->setEnabled(m_settings.showNames);
+    m_nameOpacityLabel->setText(i18nc("@label opacity in percent", "%1 %", m_settings.nameOpacity));
+    m_preview->setNameOpacity(m_settings.showNames ? m_settings.nameOpacity / 100.0 : 0);
 }
 
 #include "moc_expansiontintwidget.cpp"
