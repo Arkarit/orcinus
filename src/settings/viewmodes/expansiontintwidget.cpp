@@ -6,6 +6,8 @@
 
 #include "expansiontintwidget.h"
 
+#include "kitemviews/kitemlistwidget.h"
+
 #include <KColorButton>
 #include <KLocalizedString>
 
@@ -25,8 +27,11 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 /**
- * Shows a small expanded folder tree in the compact view style with the tints and names.
+ * Shows a small expanded folder tree in the style of the compact or the details view with
+ * the tints and names, following the rules of that view.
  */
 class ExpansionTintPreview : public QWidget
 {
@@ -40,6 +45,16 @@ public:
     void setColors(const QList<QColor> &colors)
     {
         m_colors = colors;
+        update();
+    }
+
+    /**
+     * Shows the details view: a size column, alternate row backgrounds, tints only in the
+     * name column and the names of the folders right below them.
+     */
+    void setDetails(bool details)
+    {
+        m_details = details;
         update();
     }
 
@@ -71,18 +86,37 @@ protected:
         const QIcon fileIcon = QIcon::fromTheme(QStringLiteral("text-plain"));
         const bool rightToLeft = layoutDirection() == Qt::RightToLeft;
 
+        // In the details view the stripes run through the tints (see KItemListView::paintDetailsExpansionTints()).
+        const QColor base = palette().color(QPalette::Base);
+        const QColor alternate = KItemListWidget::alternateBackgroundColor(palette(), true);
+        const auto shifted = [&base, &alternate](const QColor &color) {
+            return QColor(std::clamp(color.red() + alternate.red() - base.red(), 0, 255),
+                          std::clamp(color.green() + alternate.green() - base.green(), 0, 255),
+                          std::clamp(color.blue() + alternate.blue() - base.blue(), 0, 255));
+        };
+
         const QList<Row> allRows = rows();
         int y = 1;
         for (int i = 0; i < allRows.count(); ++i) {
             const Row &row = allRows.at(i);
             const bool expanded = i + 1 < allRows.count() && allRows.at(i + 1).depth > row.depth;
             const QRect slot(frame.left() + 1, y, frame.width() - 2, height);
-            // As the view does: one area per level, from its indentation to the end of the column,
-            // and for an expanded folder the color of its children from the end of its arrow on.
+            // The compact view tints to the end of the column, the details view to the end of the name column.
+            const int nameEnd = m_details ? slot.width() - sizeColumnWidth() : slot.width();
+            const bool alternateRow = m_details && i % 2 == 1;
+            if (alternateRow) {
+                painter.fillRect(slot, alternate);
+            }
+            // As the view does: one area per level, from its indentation on, and for an expanded
+            // folder the color of its children from the end of its arrow on.
             if (!m_colors.isEmpty()) {
                 const auto fill = [&](int inset, int level) {
-                    const QRect area = rightToLeft ? slot.adjusted(0, 0, -inset, 0) : slot.adjusted(inset, 0, 0, 0);
-                    painter.fillRect(area, m_colors.at((level - 1) % m_colors.count()));
+                    if (inset >= nameEnd) {
+                        return;
+                    }
+                    const QRect area = QStyle::visualRect(layoutDirection(), slot, QRect(slot.left() + inset, y, nameEnd - inset, height));
+                    const QColor color = m_colors.at((level - 1) % m_colors.count());
+                    painter.fillRect(area, alternateRow ? shifted(color) : color);
                 };
                 for (int level = 1; level <= row.depth; ++level) {
                     fill(level * height, level);
@@ -110,15 +144,23 @@ protected:
             (row.folder ? folderIcon : fileIcon).paint(&painter, iconRect);
 
             const int textOffset = iconOffset + iconSize + height / 4;
-            const QRect textRect = QStyle::visualRect(layoutDirection(), slot, QRect(slot.left() + textOffset, y, slot.width() - textOffset, height));
+            const QRect textRect = QStyle::visualRect(layoutDirection(), slot, QRect(slot.left() + textOffset, y, nameEnd - textOffset, height));
             painter.setPen(palette().color(QPalette::Text));
             painter.drawText(textRect, Qt::AlignVCenter | Qt::AlignLeading, row.name);
+            if (m_details && !row.folder) {
+                const QRect sizeRect = QStyle::visualRect(layoutDirection(), slot, QRect(slot.left() + nameEnd, y, sizeColumnWidth() - height / 4, height));
+                painter.drawText(sizeRect, Qt::AlignVCenter | Qt::AlignTrailing, i18nc("@item:intext example file size in a preview", "%1 KiB", 4));
+            }
 
             y += height;
         }
 
         if (m_nameOpacity > 0) {
-            paintNames(&painter, frame, height);
+            if (m_details) {
+                paintDetailsNames(&painter, frame, height);
+            } else {
+                paintNames(&painter, frame, height);
+            }
         }
 
         painter.setPen(palette().color(QPalette::Mid));
@@ -181,6 +223,53 @@ private:
         painter->restore();
     }
 
+    /**
+     * As the details view does (KItemListView::paintDetailsExpansionNames()): every expanded
+     * folder gets its name right below it, if it fits next to its contents.
+     */
+    void paintDetailsNames(QPainter *painter, const QRect &frame, int height) const
+    {
+        QFont font = this->font();
+        font.setPointSizeF(font.pointSizeF() * 0.92);
+        const QFontMetricsF metrics(font);
+        QColor color = palette().color(QPalette::Text);
+        color.setAlphaF(m_nameOpacity);
+        painter->save();
+        painter->setFont(font);
+        painter->setPen(color);
+
+        const QList<Row> allRows = rows();
+        const qreal padding = height / 4.0;
+        for (int folder = 0; folder + 1 < allRows.count(); ++folder) {
+            const int depth = allRows.at(folder).depth;
+            int last = folder;
+            while (last + 1 < allRows.count() && allRows.at(last + 1).depth > depth) {
+                ++last;
+            }
+            if (last == folder) {
+                continue;
+            }
+            const QString &name = allRows.at(folder).name;
+            const qreal width = metrics.horizontalAdvance(name);
+            const qreal top = 1 + (folder + 1) * height;
+            if (width + 2 * padding > (last - folder) * height) {
+                continue;
+            }
+            const qreal centerX = layoutDirection() == Qt::RightToLeft ? frame.right() - (depth + 0.5) * height : frame.left() + 1 + (depth + 0.5) * height;
+            painter->save();
+            painter->translate(centerX, top + padding + width / 2);
+            painter->rotate(-90);
+            painter->drawText(QRectF(-width / 2, -height / 2.0, width, height), Qt::AlignCenter, name);
+            painter->restore();
+        }
+        painter->restore();
+    }
+
+    int sizeColumnWidth() const
+    {
+        return rowHeight() * 3;
+    }
+
     int rowHeight() const
     {
         return qMax(fontMetrics().height(), style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this)) + 4;
@@ -204,10 +293,14 @@ private:
 
     QList<QColor> m_colors;
     qreal m_nameOpacity = 0;
+    bool m_details = false;
 };
 
 ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
     : QWidget(parent)
+    , m_view(ExpansionTintSettings::View::Compact)
+    , m_compactButton(nullptr)
+    , m_detailsButton(nullptr)
     , m_presetComboBox(nullptr)
     , m_colorRow(nullptr)
     , m_addColorButton(nullptr)
@@ -222,6 +315,27 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
 
     auto formLayout = new QFormLayout();
     topLayout->addLayout(formLayout, 1);
+
+    // The view whose settings are shown, with the icons of the view mode actions.
+    auto viewRow = new QWidget(this);
+    auto viewLayout = new QHBoxLayout(viewRow);
+    viewLayout->setContentsMargins(0, 0, 0, 0);
+    viewLayout->setSpacing(0);
+    const auto addViewButton = [&](const QString &icon, const QString &text) {
+        auto button = new QToolButton(viewRow);
+        button->setIcon(QIcon::fromTheme(icon));
+        button->setText(text);
+        button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        button->setCheckable(true);
+        button->setAutoExclusive(true);
+        viewLayout->addWidget(button);
+        return button;
+    };
+    m_compactButton = addViewButton(QStringLiteral("view-list-details"), i18nc("@option:radio view mode", "Compact"));
+    m_detailsButton = addViewButton(QStringLiteral("view-list-tree"), i18nc("@option:radio view mode", "Details"));
+    m_compactButton->setChecked(true);
+    viewLayout->addStretch();
+    formLayout->addRow(i18nc("@label view mode whose settings are shown", "View mode:"), viewRow);
 
     m_presetComboBox = new QComboBox(this);
     m_presetComboBox->addItem(i18nc("@item:inlistbox expanded folder colors", "Off"), int(ExpansionTintSettings::Preset::Off));
@@ -260,11 +374,8 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
     colorLayout->addStretch();
     formLayout->addRow(QString(), m_colorRow);
 
-    auto hint = new QLabel(i18nc("@info",
-                                 "Colors the background of the contents of expanded folders in the Compact view mode by depth. "
-                                 "The colors repeat for deeper levels. The presets adapt to the color scheme, "
-                                 "custom colors are used as chosen."),
-                           this);
+    auto hint =
+        new QLabel(i18nc("@info", "Colors the contents of expanded folders by depth and shows the folder names next to them where there is room."), this);
     hint->setWordWrap(true);
     formLayout->addRow(QString(), hint);
 
@@ -288,10 +399,23 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
     m_preview = new ExpansionTintPreview(this);
     topLayout->addWidget(m_preview, 0, Qt::AlignTop);
 
-    setSettings(ExpansionTintSettings::load());
+    m_compactSettings = ExpansionTintSettings::load(KSharedConfig::openConfig(), ExpansionTintSettings::View::Compact);
+    m_detailsSettings = ExpansionTintSettings::load(KSharedConfig::openConfig(), ExpansionTintSettings::View::Details);
+    setCurrentView(ExpansionTintSettings::View::Compact);
+
+    connect(m_compactButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked) {
+            setCurrentView(ExpansionTintSettings::View::Compact);
+        }
+    });
+    connect(m_detailsButton, &QToolButton::toggled, this, [this](bool checked) {
+        if (checked) {
+            setCurrentView(ExpansionTintSettings::View::Details);
+        }
+    });
 
     connect(m_presetComboBox, &QComboBox::currentIndexChanged, this, [this]() {
-        m_settings.preset = ExpansionTintSettings::Preset(m_presetComboBox->currentData().toInt());
+        current().preset = ExpansionTintSettings::Preset(m_presetComboBox->currentData().toInt());
         updateWidgets();
         Q_EMIT changed();
     });
@@ -307,12 +431,12 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
         setCustomColors(colors);
     });
     connect(m_showNamesCheckBox, &QCheckBox::toggled, this, [this](bool checked) {
-        m_settings.showNames = checked;
+        current().showNames = checked;
         updateWidgets();
         Q_EMIT changed();
     });
     connect(m_nameOpacitySlider, &QSlider::valueChanged, this, [this](int value) {
-        m_settings.nameOpacity = value;
+        current().nameOpacity = value;
         updateWidgets();
         Q_EMIT changed();
     });
@@ -320,12 +444,39 @@ ExpansionTintWidget::ExpansionTintWidget(QWidget *parent)
 
 ExpansionTintSettings ExpansionTintWidget::settings() const
 {
-    return m_settings;
+    return current();
 }
 
-void ExpansionTintWidget::setSettings(const ExpansionTintSettings &settings)
+ExpansionTintSettings ExpansionTintWidget::settings(ExpansionTintSettings::View view) const
 {
-    m_settings = settings;
+    return view == ExpansionTintSettings::View::Details ? m_detailsSettings : m_compactSettings;
+}
+
+void ExpansionTintWidget::setSettings(ExpansionTintSettings::View view, const ExpansionTintSettings &settings)
+{
+    (view == ExpansionTintSettings::View::Details ? m_detailsSettings : m_compactSettings) = settings;
+    if (view == m_view) {
+        setCurrentView(view);
+    }
+}
+
+ExpansionTintSettings::View ExpansionTintWidget::currentView() const
+{
+    return m_view;
+}
+
+void ExpansionTintWidget::setCurrentView(ExpansionTintSettings::View view)
+{
+    m_view = view;
+    QToolButton *button = viewButton(view);
+    if (!button->isChecked()) {
+        const QSignalBlocker blocker(button);
+        button->setChecked(true);
+    }
+    m_preview->setDetails(view == ExpansionTintSettings::View::Details);
+
+    // Shows the settings of the view in the controls without changing them.
+    const ExpansionTintSettings &settings = current();
     const QSignalBlocker presetBlocker(m_presetComboBox);
     m_presetComboBox->setCurrentIndex(m_presetComboBox->findData(int(settings.preset)));
     const QSignalBlocker showNamesBlocker(m_showNamesCheckBox);
@@ -333,6 +484,21 @@ void ExpansionTintWidget::setSettings(const ExpansionTintSettings &settings)
     const QSignalBlocker opacityBlocker(m_nameOpacitySlider);
     m_nameOpacitySlider->setValue(settings.nameOpacity);
     updateWidgets();
+}
+
+QToolButton *ExpansionTintWidget::viewButton(ExpansionTintSettings::View view) const
+{
+    return view == ExpansionTintSettings::View::Details ? m_detailsButton : m_compactButton;
+}
+
+ExpansionTintSettings &ExpansionTintWidget::current()
+{
+    return m_view == ExpansionTintSettings::View::Details ? m_detailsSettings : m_compactSettings;
+}
+
+const ExpansionTintSettings &ExpansionTintWidget::current() const
+{
+    return m_view == ExpansionTintSettings::View::Details ? m_detailsSettings : m_compactSettings;
 }
 
 QComboBox *ExpansionTintWidget::presetComboBox() const
@@ -376,13 +542,13 @@ void ExpansionTintWidget::changeEvent(QEvent *event)
 
 QList<QColor> ExpansionTintWidget::shownColors() const
 {
-    return m_settings.colors(palette());
+    return current().colors(palette());
 }
 
 void ExpansionTintWidget::setCustomColors(const QList<QColor> &colors)
 {
-    m_settings.customColors = colors;
-    m_settings.preset = ExpansionTintSettings::Preset::Custom;
+    current().customColors = colors;
+    current().preset = ExpansionTintSettings::Preset::Custom;
     const QSignalBlocker blocker(m_presetComboBox);
     m_presetComboBox->setCurrentIndex(m_presetComboBox->findData(int(ExpansionTintSettings::Preset::Custom)));
     updateWidgets();
@@ -405,10 +571,10 @@ void ExpansionTintWidget::updateWidgets()
     m_removeColorButton->setEnabled(colors.count() > ExpansionTintSettings::MinimumColorCount);
     m_preview->setColors(colors);
 
-    m_nameOpacitySlider->setEnabled(m_settings.showNames);
-    m_nameOpacityLabel->setEnabled(m_settings.showNames);
-    m_nameOpacityLabel->setText(i18nc("@label opacity in percent", "%1 %", m_settings.nameOpacity));
-    m_preview->setNameOpacity(m_settings.showNames ? m_settings.nameOpacity / 100.0 : 0);
+    m_nameOpacitySlider->setEnabled(current().showNames);
+    m_nameOpacityLabel->setEnabled(current().showNames);
+    m_nameOpacityLabel->setText(i18nc("@label opacity in percent", "%1 %", current().nameOpacity));
+    m_preview->setNameOpacity(current().showNames ? current().nameOpacity / 100.0 : 0);
 }
 
 #include "moc_expansiontintwidget.cpp"

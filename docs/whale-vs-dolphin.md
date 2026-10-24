@@ -84,7 +84,10 @@ matches Dolphin's behavior.
      folder carries the color of its contents right of its arrow. Where there
      is room, the names of the expanded folders are written vertically in the
      indentation next to their contents, in every column again (option with
-     an opacity slider, on by default). Settings >
+     an opacity slider, on by default). The Details view does the same in
+     the Name column, with the row stripes running through the colors and
+     the names sticking to the top of the view; Compact and Details have
+     settings of their own (switch in the dialog). Settings >
      View > Highlighting > Expanded Folders: Off, Printer paper, Grey,
      Pastel (Subtle), Pastel (Vivid) (default), Custom (2 to 10 colors,
      add/remove, preview). Presets adapt to

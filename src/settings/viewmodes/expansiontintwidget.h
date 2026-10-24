@@ -23,6 +23,9 @@ class QToolButton;
  * @brief Configures the tinting of expanded folders: a preset or custom colors, and the
  *        names of the folders in the indentation, with a preview.
  *
+ * The compact and the details view have settings of their own; a switch selects the view
+ * whose settings the controls show and the preview follows.
+ *
  * The color buttons show the colors of the selected preset. Changing a color, adding
  * or removing one switches to the custom colors.
  */
@@ -33,8 +36,16 @@ class ExpansionTintWidget : public QWidget
 public:
     explicit ExpansionTintWidget(QWidget *parent = nullptr);
 
+    /**
+     * @return The settings of the view selected by the switch.
+     */
     ExpansionTintSettings settings() const;
-    void setSettings(const ExpansionTintSettings &settings);
+    ExpansionTintSettings settings(ExpansionTintSettings::View view) const;
+    void setSettings(ExpansionTintSettings::View view, const ExpansionTintSettings &settings);
+
+    ExpansionTintSettings::View currentView() const;
+    void setCurrentView(ExpansionTintSettings::View view);
+    QToolButton *viewButton(ExpansionTintSettings::View view) const;
 
     QComboBox *presetComboBox() const;
 
@@ -66,7 +77,17 @@ private:
 
     void updateWidgets();
 
-    ExpansionTintSettings m_settings;
+    /**
+     * @return The settings of the view selected by the switch.
+     */
+    ExpansionTintSettings &current();
+    const ExpansionTintSettings &current() const;
+
+    ExpansionTintSettings m_compactSettings;
+    ExpansionTintSettings m_detailsSettings;
+    ExpansionTintSettings::View m_view;
+    QToolButton *m_compactButton;
+    QToolButton *m_detailsButton;
     QComboBox *m_presetComboBox;
     QWidget *m_colorRow;
     QList<KColorButton *> m_colorButtons;

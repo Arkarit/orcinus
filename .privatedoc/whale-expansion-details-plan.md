@@ -16,6 +16,14 @@ Details-Ansicht dagegen „abstinkt“. Details hat nur eine Hauptspalte, daher 
 Annahme (nicht ausdrücklich besprochen): Details bekommt dieselben Standardwerte wie Compact
 (Pastel (Vivid), Namen an, 40 %).
 
+## Stand (2026-10-25)
+
+ED1 6c049dce7, ED2 f04e9d643, ED3 8dc95db8e, ED4 mit dem folgenden Commit. Unterwegs: Ob ein
+Ordner „Kopfzeile“ seines Blocks ist, wird am folgenden Eintrag erkannt statt an
+`isExpanded()`; diese Rolle fehlt nach einem Wechsel der Ansicht, bis die Rollen neu gefüllt sind.
+`whalesplitlocktest` (`testButtonPlacement`) fiel in jeder vollen Suite unter `-j8` aus,
+einzeln grün.
+
 ## Befund im Quelltext
 
 - Details: `KStandardItemListWidget` legt die Name-Spalte von `leftPadding()` bis

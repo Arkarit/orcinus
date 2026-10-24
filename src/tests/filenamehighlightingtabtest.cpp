@@ -77,6 +77,7 @@ private Q_SLOTS:
     void testExpansionTintAddAndRemove();
     void testExpansionTintApplyAndDefaults();
     void testExpansionTintNames();
+    void testExpansionTintViews();
     void testScreenshot();
 };
 
@@ -89,6 +90,7 @@ void FileNameHighlightingTabTest::init()
 {
     KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("FileNameHighlighting")).deleteGroup();
     KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("ExpansionTint")).deleteGroup();
+    KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("ExpansionTintDetails")).deleteGroup();
     KSharedConfig::openConfig()->sync();
 }
 
@@ -503,6 +505,51 @@ void FileNameHighlightingTabTest::testExpansionTintNames()
     QVERIFY(opacity->isEnabled());
 }
 
+void FileNameHighlightingTabTest::testExpansionTintViews()
+{
+    using View = ExpansionTintSettings::View;
+    ExpansionTintSettings details = ExpansionTintSettings::defaults();
+    details.preset = Preset::Grey;
+    details.nameOpacity = 60;
+    details.save(KSharedConfig::openConfig(), View::Details);
+
+    FileNameHighlightingTab tab;
+    ExpansionTintWidget *widget = tab.expansionTintWidget();
+    QCOMPARE(widget->currentView(), View::Compact);
+    QVERIFY(widget->viewButton(View::Compact)->isChecked());
+    QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::PastelVivid));
+
+    // Switching shows the settings of the details view; that alone changes nothing.
+    QSignalSpy changed(&tab, &SettingsPageBase::changed);
+    widget->viewButton(View::Details)->click();
+    QCOMPARE(widget->currentView(), View::Details);
+    QCOMPARE(changed.count(), 0);
+    QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::Grey));
+    QCOMPARE(widget->nameOpacitySlider()->value(), 60);
+    QCOMPARE(buttonColors(widget), ExpansionTintSettings::presetColors(Preset::Grey, widget->palette()));
+
+    // Changes apply to the shown view only.
+    selectPreset(widget, Preset::Off);
+    QCOMPARE(changed.count(), 1);
+    QCOMPARE(widget->settings(View::Details).preset, Preset::Off);
+    QCOMPARE(widget->settings(View::Compact).preset, Preset::PastelVivid);
+
+    widget->viewButton(View::Compact)->click();
+    QCOMPARE(widget->presetComboBox()->currentData().toInt(), int(Preset::PastelVivid));
+    widget->showNamesCheckBox()->setChecked(false);
+    QVERIFY(!widget->settings(View::Compact).showNames);
+    QVERIFY(widget->settings(View::Details).showNames);
+
+    // Both are saved, and Defaults restores both.
+    tab.applySettings();
+    QCOMPARE(ExpansionTintSettings::load(KSharedConfig::openConfig(), View::Details).preset, Preset::Off);
+    QVERIFY(!ExpansionTintSettings::load(KSharedConfig::openConfig(), View::Compact).showNames);
+    tab.restoreDefaults();
+    QCOMPARE(widget->settings(View::Compact), ExpansionTintSettings::defaults());
+    QCOMPARE(widget->settings(View::Details), ExpansionTintSettings::defaults());
+    QVERIFY(widget->showNamesCheckBox()->isChecked());
+}
+
 void FileNameHighlightingTabTest::testScreenshot()
 {
     // WHALE_TEST_SCREENSHOT_DIR=<dir> saves screenshots of the tab there.
@@ -519,6 +566,9 @@ void FileNameHighlightingTabTest::testScreenshot()
 
     selectPreset(tab.expansionTintWidget(), Preset::Off);
     QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-off.png")));
+
+    tab.expansionTintWidget()->viewButton(ExpansionTintSettings::View::Details)->click();
+    QVERIFY(tab.grab().save(dir + QStringLiteral("/highlighting-tab-details.png")));
 }
 
 QTEST_MAIN(FileNameHighlightingTabTest)

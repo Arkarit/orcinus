@@ -258,14 +258,18 @@ void FileNameHighlightingTab::applySettings()
     settings.rules = m_ruleModel->rules();
     settings.save();
 
-    m_expansionTint->settings().save();
+    for (const auto view : {ExpansionTintSettings::View::Compact, ExpansionTintSettings::View::Details}) {
+        m_expansionTint->settings(view).save(KSharedConfig::openConfig(), view);
+    }
 }
 
 void FileNameHighlightingTab::restoreDefaults()
 {
     const FileNameHighlightingSettings defaults = FileNameHighlightingSettings::defaults();
     loadSettings(defaults.enabled, defaults.rules);
-    m_expansionTint->setSettings(ExpansionTintSettings::defaults());
+    for (const auto view : {ExpansionTintSettings::View::Compact, ExpansionTintSettings::View::Details}) {
+        m_expansionTint->setSettings(view, ExpansionTintSettings::defaults());
+    }
     Q_EMIT changed();
 }
 
