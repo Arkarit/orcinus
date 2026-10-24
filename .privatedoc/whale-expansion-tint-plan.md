@@ -19,6 +19,10 @@ stehen sofort an der Endposition, während die Einträge noch gleiten).
 dass sie mit 1/16 Anteil auf Weiß exakt #fffcf0, #fff5f8, #f5fffb, #fff8f3, #f9f5ff ergeben;
 hellere Töne mit 10 % hätten im dunklen Theme stärker gewirkt als Vivid.
 
+2026-10-25: Ein aufgeklappter Ordner, dem seine Kinder folgen, bekommt ab dem Ende seines Pfeils
+die Farbe der Kinder (bei Compact-Standardgrößen 3 px vor deren Fläche); der Pfeil bleibt in der
+Farbe der Elternebene. Vorschau im Dialog zeigt jetzt auch Pfeile.
+
 Erkenntnis aus ET2: Die Item-Widgets haben `ItemStacksBehindParent`, was die View in `paint()`
 malt, liegt über ihnen. Die Flächen malt deshalb `KItemListExpansionTintItem` (z = −1, ebenfalls
 hinter der View).

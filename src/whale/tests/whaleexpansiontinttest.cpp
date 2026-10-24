@@ -227,8 +227,9 @@ void WhaleExpansionTintTest::testTintsByDepth()
         if (pos.x() < 0) {
             continue;
         }
-        const int depth = m_model->expandedParentsCount(index);
-        const QColor expected = depth == 0 ? base() : QList<QColor>{depth1, depth2, depth3}.at(depth - 1);
+        // An expanded folder (a, a/b, a/b/c) has the color of its children right of its arrow.
+        const int level = m_model->expandedParentsCount(index) + (m_model->isExpanded(index) ? 1 : 0);
+        const QColor expected = level == 0 ? base() : QList<QColor>{depth1, depth2, depth3}.at(level - 1);
         QCOMPARE(pixel(image, pos), expected);
         ++checked;
     }
@@ -251,6 +252,19 @@ void WhaleExpansionTintTest::testTintsByDepth()
     QCOMPARE(pixel(image, QPointF(slot.left() + indentation * 0.5, slot.center().y())), base());
     QCOMPARE(pixel(image, QPointF(slot.left() + indentation * 1.5, slot.top() + 1)), depth1);
     QCOMPARE(pixel(image, QPointF(slot.left() + indentation * 2.5, slot.top() + 1)), depth2);
+
+    // The expansion arrow of an expanded folder keeps the color of its parent level; the
+    // color of the children starts right after it, a few pixels before their own tint.
+    for (const QString &path : {QStringLiteral("a"), QStringLiteral("a/b"), QStringLiteral("a/b/c")}) {
+        const int index = indexOf(path);
+        const int depth = m_model->expandedParentsCount(index);
+        const QRectF folderSlot = m_view->itemSlotRect(index);
+        const qreal height = m_view->itemRect(index).height();
+        const QColor parentColor = depth == 0 ? base() : QList<QColor>{depth1, depth2, depth3}.at(depth - 1);
+        const QColor childColor = QList<QColor>{depth1, depth2, depth3}.at(depth);
+        QCOMPARE(pixel(image, QPointF(folderSlot.left() + depth * height + 1, folderSlot.top() + 1)), parentColor);
+        QCOMPARE(pixel(image, QPointF(folderSlot.left() + (depth + 1) * height - 1, folderSlot.top() + 1)), childColor);
+    }
 
     // The rows of a block touch each other: no gap between b1 and b2.
     const QRectF b1 = m_view->itemSlotRect(indexOf(QStringLiteral("a/b/b1")));

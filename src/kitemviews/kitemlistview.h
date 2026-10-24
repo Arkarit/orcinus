@@ -254,8 +254,9 @@ public:
      * Sets the background colors of items inside expanded items in layouts
      * with horizontal scrolling. An item at depth d gets a background for each
      * level k = 1 ... d, from the indentation of that level to the end of its
-     * column, in colors[(k - 1) % colors.count()]. An empty list disables the
-     * tinting, which is the default.
+     * column, in colors[(k - 1) % colors.count()]. An expanded item followed by
+     * its children gets the color of its children too, from the end of its
+     * expansion arrow on. An empty list disables the tinting, which is the default.
      */
     void setExpansionTintColors(const QList<QColor> &colors);
     QList<QColor> expansionTintColors() const;

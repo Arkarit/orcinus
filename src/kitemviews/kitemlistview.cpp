@@ -3071,20 +3071,30 @@ void KItemListView::paintExpansionTints(QPainter *painter) const
             continue;
         }
         const int depth = m_model->expandedParentsCount(index);
-        if (depth <= 0) {
+        // An expanded folder whose children follow it heads their block.
+        const bool heading = m_model->isExpanded(index) && index + 1 < m_model->count() && m_model->expandedParentsCount(index + 1) > depth;
+        if (depth <= 0 && !heading) {
             continue;
         }
 
         const QRectF slot = itemSlotRect(index);
+        const auto fill = [&](qreal inset, int level) {
+            if (inset < slot.width()) {
+                const QRectF rect = rightToLeft ? slot.adjusted(0, 0, -inset, 0) : slot.adjusted(inset, 0, 0, 0);
+                painter->fillRect(rect, m_expansionTintColors.at((level - 1) % colorCount));
+            }
+        };
+
         // The widget indents each level by its own height (see KStandardItemListWidget::updateExpansionArea()).
         const qreal indentation = m_layouter->itemRect(index).height();
         for (int level = 1; level <= depth; ++level) {
-            const qreal inset = level * indentation;
-            if (inset >= slot.width()) {
-                break;
-            }
-            const QRectF rect = rightToLeft ? slot.adjusted(0, 0, -inset, 0) : slot.adjusted(inset, 0, 0, 0);
-            painter->fillRect(rect, m_expansionTintColors.at((level - 1) % colorCount));
+            fill(level * indentation, level);
+        }
+        if (heading) {
+            // In the color of the children, from the end of the expansion arrow on, which keeps the
+            // color of the parent: a few pixels before the tint of the children starts.
+            const qreal arrowEnd = (depth + 1) * indentation - (indentation - styleOption().iconSize) / 2;
+            fill(arrowEnd, depth + 1);
         }
     }
 }

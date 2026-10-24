@@ -18,6 +18,7 @@
 #include <QPainter>
 #include <QSignalBlocker>
 #include <QStyle>
+#include <QStyleOption>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -58,16 +59,36 @@ protected:
         const QIcon fileIcon = QIcon::fromTheme(QStringLiteral("text-plain"));
         const bool rightToLeft = layoutDirection() == Qt::RightToLeft;
 
+        const QList<Row> allRows = rows();
         int y = 1;
-        for (const Row &row : rows()) {
+        for (int i = 0; i < allRows.count(); ++i) {
+            const Row &row = allRows.at(i);
+            const bool expanded = i + 1 < allRows.count() && allRows.at(i + 1).depth > row.depth;
             const QRect slot(frame.left() + 1, y, frame.width() - 2, height);
-            // As the view does: one area per level, from its indentation to the end of the column.
+            // As the view does: one area per level, from its indentation to the end of the column,
+            // and for an expanded folder the color of its children from the end of its arrow on.
             if (!m_colors.isEmpty()) {
-                for (int level = 1; level <= row.depth; ++level) {
-                    const int inset = level * height;
+                const auto fill = [&](int inset, int level) {
                     const QRect area = rightToLeft ? slot.adjusted(0, 0, -inset, 0) : slot.adjusted(inset, 0, 0, 0);
                     painter.fillRect(area, m_colors.at((level - 1) % m_colors.count()));
+                };
+                for (int level = 1; level <= row.depth; ++level) {
+                    fill(level * height, level);
                 }
+                if (expanded) {
+                    fill((row.depth + 1) * height - (height - iconSize) / 2, row.depth + 1);
+                }
+            }
+
+            if (row.folder) {
+                QStyleOption arrow;
+                arrow.initFrom(this);
+                arrow.rect =
+                    QStyle::visualRect(layoutDirection(),
+                                       slot,
+                                       QRect(slot.left() + row.depth * height + (height - iconSize) / 2, y + (height - iconSize) / 2, iconSize, iconSize));
+                const QStyle::PrimitiveElement collapsed = rightToLeft ? QStyle::PE_IndicatorArrowLeft : QStyle::PE_IndicatorArrowRight;
+                style()->drawPrimitive(expanded ? QStyle::PE_IndicatorArrowDown : collapsed, &arrow, &painter, this);
             }
 
             // Like the compact view: the expansion arrow, then the icon and the name.
