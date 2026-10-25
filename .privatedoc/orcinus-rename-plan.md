@@ -1,0 +1,174 @@
+# OR: Rename Whale → Orcinus (2026-10-25)
+
+Release blocker B1 (`whale-release-plan.md`): "Whale" collides with `org.kde.whale` and other
+projects; the user chose **Orcinus** (trademark search done, see B1). The icon stays.
+
+Basis: master aff29389e. All findings below were checked in the source and in the install
+manifest of `../build-whale-system`.
+
+**Goal:** everything a user, packager or plugin author sees, and everything Whale stores on disk
+or on the bus, says Orcinus. Dolphin keeps working in parallel exactly as before (the rules of
+`whale-rename-plan.md` still apply).
+
+**Non-goals:** no rename of internal code names (decision N1). No change to what is shared with
+Dolphin (system `libdolphinvcs`, `dolphin/vcs`, `[Dolphin]` view properties, handbook).
+
+## Decisions
+
+Recommendations in bold; to be confirmed by the user.
+
+| # | Question | Recommendation | Alternative |
+|---|---|---|---|
+| N1 | Internal code names (`src/whale/`, classes `Whale…`, CMake variables `WHALE_*`, test names, action names `whale_*`, dev/test env vars `WHALE_*`) | **Keep.** About 7,500 occurrences in `src/whale/` alone; renaming them is pure churn. Dolphin itself keeps internal names that differ from products (target `dolphin` builds `whale`). `CONTRIBUTING.md` explains "Whale was the working title". | One mechanical rename commit (sed + `git mv`), now or after 1.0 |
+| N2 | Action names `whale_*` (stored in the user's toolbar and shortcut files) | **Keep** (part of N1). They are invisible, and keeping them makes the config migration a plain copy. | Rename to `orcinus_*`, plus migration of every kxmlgui file |
+| N3 | View plugin externals: namespace `whale/views`, metadata keys `X-Whale-*`, library `libwhaleviewapi.so`, plugin file `whale_treemap.so` | **Rename now** to `orcinus/views`, `X-Orcinus-*`, `liborcinusviewapi.so`, `orcinus_treemap`. Packagers see the paths, plugin authors the keys; after 1.0 renaming them would break plugins. Headers are not installed yet, so the C++ class names stay (N1). | Keep (cheaper now, permanent "whale" in installed paths) |
+| N4 | Logging category `org.kde.whale` | **`io.github.arkarit.orcinus`** (same as the app ID; `org.kde.*` suggests a KDE project), file `orcinus.categories`. | `orcinus` |
+| N5 | SPDX `2026 Whale contributors` (240 files) | **Change to `2026 Orcinus contributors`** in one mechanical commit. Same people, so legally only a name change; consistent for a public repo. | Keep (historically correct, but confusing) |
+| N6 | Local directories `../build-whale`, `../build-whale-system`, `install-whale`, checkout dir | **Keep.** Local only; renaming forces a reconfigure and touches CLAUDE.md, memories and scripts for no user benefit. | Rename together with the scripts |
+| N7 | `.privatedoc/whale-*.md` | **Keep the file names** (history, cross-references in commits). The RL1 translation pass changes the product name in the text where it describes the current state; "Whale" stays where it describes the past. | Rename all to `orcinus-*` |
+| N8 | Migration of existing user data | **One-off script, not shipped** (`.privatedoc/orcinus-migrate-user.sh`). The user is the only Whale user; in-app migration code would stay in the product forever for nobody. | Migration at first start in Orcinus |
+
+## Inventory: what changes
+
+### Central constants (`CMakeLists.txt`)
+
+| Constant | Today | New |
+|---|---|---|
+| `WHALE_EXECUTABLE` | `whale` | `orcinus` |
+| `WHALE_COMPONENT` | `whale` | `orcinus` (→ `orcinusrc` default config, `orcinusstaterc`, `~/.local/share/orcinus`, KCrash, session names, D-Bus object path) |
+| `WHALE_APP_ID` | `io.github.arkarit.whale` | `io.github.arkarit.orcinus` (desktop file, icon, metainfo, D-Bus service names, Wayland app_id) |
+| `WHALE_DISPLAY_NAME` | `Whale` | `Orcinus` (dev build: `Orcinus-Dev`) |
+| `WHALE_BUG_URL` / `WHALE_HOMEPAGE` | `github.com/Arkarit/whale…` | `github.com/Arkarit/orcinus…` |
+| `WHALE_ORG_DOMAIN` | `arkarit.github.io` | unchanged |
+
+### Hard-coded names that should derive from the constants
+
+| Where | Today | Change |
+|---|---|---|
+| `src/CMakeLists.txt:14` | `TRANSLATION_DOMAIN="whale"` | from `WHALE_COMPONENT` |
+| `src/CMakeLists.txt:194–195` | category `org.kde.whale`, description "Whale" | N4, from constants |
+| `src/CMakeLists.txt:260` | `OUTPUT_NAME whaleprivate` | `${WHALE_COMPONENT}private` → `liborcinusprivate.so.6` |
+| `CMakeLists.txt` translation loop | `whale.mo`, `po-whale/<lang>/whale.po` | `${WHALE_COMPONENT}.mo`; directory `po-orcinus/<lang>/orcinus.po` |
+| `CMakeLists.txt` completions | `completions/whale.zsh.in` → `_whale` | `orcinus.zsh.in` → `_orcinus`, `#compdef orcinus` |
+| `plasma-whale.service.in` | | `plasma-orcinus.service.in` (only with FileManager1 ON) |
+| `src/io.github.arkarit.whale.metainfo.xml` | file name and content | `io.github.arkarit.orcinus.metainfo.xml`; id, name, binary, URLs; "based on KDE Dolphin" stays |
+| `src/dolphin.qrc:2` | prefix `/kxmlgui5/whale` | `/kxmlgui5/orcinus` (must match the component) |
+
+### Config and state files (hard-coded in source)
+
+| Today | New | Where |
+|---|---|---|
+| `whalerc` | `orcinusrc` | `<kcfgfile>` in 11 `.kcfg` files (same list as `whale-rename-plan.md` step 3) plus code that opens it explicitly |
+| `whalestylesrc` | `orcinusstylesrc` | `whale/styles/whalestylestore.cpp:77` |
+| `whaleviewpreferencesrc` (state) | `orcinusviewpreferencesrc` | `whale/host/whaleviewpreferences.cpp:26` |
+
+Where the code opens one of them by name, derive it from the component
+(`QCoreApplication::applicationName() + "rc"`, …) so a later rename touches only CMake.
+
+### Runtime identities in code
+
+| Where | Today | New |
+|---|---|---|
+| `src/global.h:47` | command-line option `--whale-view-style` (pop out) | `--view-style`. Hidden from `--help` if it is not already |
+| dev automation | `io.github.arkarit.whale.DevAutomation`, `/whale/DevAutomation` | from app ID / component |
+| `src/whale/devmcp/adapter/whale_dev_mcp.py:600` | bus-name prefix `io.github.arkarit.whale` | `io.github.arkarit.orcinus` (adapter file name stays, N1) |
+| `whaleviewregistry.cpp:26`, `plugins/treemap/CMakeLists.txt:15` | namespace `whale/views` | `orcinus/views` (N3) |
+| `whaleviewapiversion.h.in:21`, `whaleviewactions.cpp:590`, `whale_treemap.json.in` | `X-Whale-ViewApiVersion`, `X-Whale-RequiresLocal`, `X-Whale-Capabilities` | `X-Orcinus-*` (N3) |
+| `src/whale/CMakeLists.txt:25` | `libwhaleviewapi.so.10` | `OUTPUT_NAME orcinusviewapi` (target name stays) |
+| treemap plugin | `whale_treemap` (also the plugin ID stored in view preferences and styles) | `orcinus_treemap`; the migration script rewrites the stored IDs |
+
+### User-visible strings
+
+- 17 `i18n` calls contain "Whale" (`main.cpp` `--help` texts, `dolphinmainwindow.cpp` tooltip and
+  credit line "Whale Fork: %1", `dolphinviewcontainer.cpp`, settings pages, viewer and styles
+  pages, servicemenuinstaller). Replace with "Orcinus" literally, like upstream writes "Dolphin";
+  translators then see the product name.
+- Credit line: "Orcinus: %1" or "Fork: %1" instead of "Whale Fork: %1".
+- `po-whale/de/whale.po`: rename and update the msgids. The real translation batch is RL2 anyway.
+
+### Repository files
+
+- `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/whale-vs-dolphin.md` → `docs/orcinus-vs-dolphin.md`.
+- Scripts: `run-whale.sh` → `run-orcinus.sh`, `global-install-whale.sh` →
+  `global-install-orcinus.sh` (content: binary, manifest names; build dirs stay, N6).
+- SPDX headers (N5).
+- `REUSE.toml`: check annotations that mention Whale.
+
+### Guards
+
+- `cmake/WhaleIdentityTest.cmake` (file name stays, N1): additionally forbid
+  `io\.github\.arkarit\.whale`, `"whale[a-z]*rc"`, `/kxmlgui5/whale`, `X-Whale-`, `"whale/views"` and
+  "Whale" inside `i18n…(` string literals.
+- The DESTDIR collision check of the install script: no installed path contains `whale`.
+
+## What stays
+
+- Everything in N1/N2/N6/N7.
+- Everything shared with Dolphin (`whale-rename-plan.md` section 3.4).
+- History: no rewrite. Commits, issues and old `.privatedoc` texts keep saying Whale.
+
+## Steps (one commit each; build both configs and run the full suite after each)
+
+### OR1: Constants and installed file names
+Central constants, derived names in CMake (translation domain, `liborcinusprivate`, logging
+category, `.mo`, completions, plasma service, metainfo file, `po-orcinus`). After this the build
+installs only `orcinus`-named files.
+Test: identity test, DESTDIR install of `../build-whale-system` → manifest contains no `whale`.
+
+### OR2: Runtime identity in code
+Config/state file names, qrc prefix, pop-out option, dev automation bus names, MCP adapter
+prefix, dev-build title. Extend the identity test.
+Test: full suite; dev MCP e2e tests (they use the bus names).
+
+### OR3: View plugin externals (N3)
+Namespace, metadata keys, library output name, treemap plugin ID; test plugins in
+`src/whale/tests/plugins/` follow.
+Test: plugin loading tests including the wrong-API-version test.
+
+### OR4: Visible strings and the German catalog
+17 i18n strings, credit line, `po-orcinus/de/orcinus.po` msgids.
+Test: `LANGUAGE=de` start of the dev build, `--help` output.
+
+### OR5: Repository and docs
+README, AGENTS.md, CLAUDE.md, docs file, scripts, REUSE. SPDX headers as a separate mechanical
+commit (N5), so the content commits stay readable.
+
+### OR6: GitHub
+Rename the repo `Arkarit/whale` → `Arkarit/orcinus` (GitHub redirects old URLs), update the
+`origin` URL, update the issue texts of #1–#5 where they name the product. Done by the user or
+by me with `gh` after confirmation, because it is outward-facing.
+
+### OR7: Migration of the user's installation (N8)
+`.privatedoc/orcinus-migrate-user.sh`, run once by the user with Whale closed:
+- copy (not move, so a rollback is possible): `~/.config/whalerc` → `orcinusrc`,
+  `whalestylesrc` → `orcinusstylesrc`, `~/.local/state/whalestaterc` → `orcinusstaterc`,
+  `whaleviewpreferencesrc` → `orcinusviewpreferencesrc`, `~/.local/share/whale/` → `orcinus/`,
+  `~/.local/share/kxmlgui5/whale/` → `orcinus/`;
+- rewrite stored plugin IDs `whale_treemap` → `orcinus_treemap` in the copied files;
+- `~/.config/mimeapps.list`: `inode/directory` → `io.github.arkarit.orcinus.desktop`;
+- Plasma: pinned task-manager launchers and a possible Meta+E shortcut that point to
+  `io.github.arkarit.whale.desktop` (`plasma-org.kde.plasma.desktop-appletsrc`,
+  `kglobalshortcutsrc`): the script lists them, the user changes them in the UI;
+- dry-run mode that only prints what it would do.
+
+System install: uninstall the old Whale with its `install_manifest.txt`, install Orcinus with
+`global-install-orcinus.sh`, check that `dolphin` still starts and `dpkg -V dolphin` is clean.
+
+Also update the Claude Code side: memories, the `whale-dev` MCP server entry (name can stay;
+the bus prefix changed in OR2).
+
+### OR8: Acceptance
+- Isolation tests R1–R15 from `whale-rename-plan.md` section 7.3 with the new names, plus:
+  Orcinus and a leftover Whale must not talk to each other (different bus names).
+- After the migration: styles, toolbars, view preferences and shortcuts of the user are all there.
+- `grep -ri whale` over the installed files: no hits, except texts that deliberately say
+  "formerly Whale".
+
+## Risks
+
+| Risk | Mitigation |
+|---|---|
+| Missed hard-coded name → Orcinus reads or writes a `whale*` file | Identity test (OR2), `strace -e openat` check during OR8 |
+| Dev MCP e2e tests break on bus names | OR2 changes the adapter in the same commit |
+| Upstream merges | The changes are in Whale-only code or in the lines already changed for Whale; no new conflict areas |
+| The user's daily Whale breaks during the switch | The migration copies; the old config stays until the user deletes it |
