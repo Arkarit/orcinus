@@ -19,6 +19,7 @@
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTest>
 
 /**
@@ -51,6 +52,9 @@ private:
     // Waits until the stand-in terminal has finished; returns its log.
     QString waitForTerminal();
 
+    // A runtime directory of the test's own: the status files of scripts run meanwhile (by Whale
+    // or other tests) are none of its business.
+    QTemporaryDir m_runtime;
     QScopedPointer<TestDir> m_dir;
     QString m_terminal;
     QString m_log;
@@ -61,6 +65,9 @@ private:
 void WhaleScriptLauncherTest::initTestCase()
 {
     QStandardPaths::setTestModeEnabled(true);
+    QVERIFY(m_runtime.isValid());
+    qputenv("XDG_RUNTIME_DIR", QFile::encodeName(m_runtime.path()));
+    QCOMPARE(QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation), m_runtime.path());
     KLocalizedString::setApplicationDomain({"whale"});
     // Never KWin: no window of the user's desktop is touched.
     WhaleScriptLauncher::setWindowRequestHandler([this](WhaleScriptLauncher::WindowRequest request, qint64 pid) {
