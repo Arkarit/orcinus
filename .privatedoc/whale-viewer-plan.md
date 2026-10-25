@@ -129,6 +129,27 @@ grün).
 
 - Vorladen, Farbprofile, HiDPI, hochwertige Skalierung; Zoom/Pan (V-E5); animierte GIF/WebP.
 
+Entscheidungen (Benutzer, 2026-10-25):
+- V-E12 Zoom-Tasten: zusätzlich zu Strg+Mausrad `+`/`-`, `0` = einpassen, `1` = 100 %.
+- V-E13 Zoom über 100 %: Pixel scharf (nearest) als Vorgabe, in den Einstellungen auf glatt
+  umstellbar.
+- V-E14 Farbprofil: Claude entscheidet. Bilder mit eingebettetem Profil werden nach sRGB
+  umgerechnet; KWin behandelt Fenster ohne eigenes Profil als sRGB und rechnet selbst auf den
+  Bildschirm um. Ein echtes Bildschirmprofil im Viewer erst, falls es nötig wird.
+- V-E15 Neue Einstellung „Immer hochskalieren“ (Vorgabe aus): kleine Bilder werden bis an den
+  Bildschirmrand vergrößert (in der Qualität von V-E13: aus = glatt beim Einpassen, sonst wie Zoom).
+
+Schritte:
+- V2a: Skalieren im Worker-Thread statt im GUI-Thread; Cache mit Nachbarn (±1, in
+  Blätterrichtung +2) und Speichergrenze; `QImageReader`-Grenze anheben (große Panoramen).
+- V2b: Farbprofile nach sRGB (V-E14); Qualität des Herunterskalierens prüfen; „Immer
+  hochskalieren“ (V-E15) mit Einstellungsseite.
+- V2c: Zoom/Pan (V-E5, V-E12, V-E13): Strg+Rad zur Mausposition, mittlere Maustaste verschiebt,
+  Tasten; gezeichnet wird der sichtbare Ausschnitt aus dem vollen Bild; beim Wechsel einpassen.
+  Einstellung „scharf/glatt“.
+- V2d: Animierte GIF/WebP: Animation in Schleife, hält beim Blättern an.
+- V2e: Dev MCP (Zoom, Cache, Animation), `test_v2_acceptance.py`, beide Builds, volle Suite.
+
 ### V3 – Video
 
 - libmpv, Bedienleiste, Video-Optionen (V-E7).
