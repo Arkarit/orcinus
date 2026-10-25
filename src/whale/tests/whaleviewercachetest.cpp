@@ -37,6 +37,7 @@ private Q_SLOTS:
     void testLargeImage();
     void testUpscale();
     void testColorProfileToSRgb();
+    void testRequestFull();
 
 private:
     QUrl createImage(const QString &name, const QSize &size);
@@ -223,6 +224,34 @@ void WhaleViewerCacheTest::testColorProfileToSRgb()
     QVERIFY(expected != QColor(40, 180, 60));
     QCOMPARE(full.pixelColor(0, 0), expected);
     QCOMPARE(cache.entry(url)->scaled.pixelColor(0, 0), expected);
+}
+
+void WhaleViewerCacheTest::testRequestFull()
+{
+    const QUrl a = createImage(QStringLiteral("a.png"), QSize(400, 300));
+    const QUrl b = createImage(QStringLiteral("b.png"), QSize(400, 300));
+    WhaleViewerCache cache;
+    cache.setFullImageBudget(0);
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.setCurrent(a);
+    cache.request(a, QSize(200, 200), 1.0);
+    cache.request(b, QSize(200, 200), 1.0);
+    QTRY_COMPARE(ready.count(), 2);
+    QVERIFY(cache.entry(b)->full.isNull());
+    QCOMPARE(cache.entry(b)->fullSize, QSize(400, 300));
+
+    // b becomes the current file and is zoomed into: its full image is decoded again, and a,
+    // no longer current, drops its own.
+    cache.setCurrent(b);
+    QVERIFY(cache.entry(a)->full.isNull());
+    cache.requestFull(b, 1.0);
+    QVERIFY(cache.isPending(b));
+    QTRY_COMPARE(ready.count(), 3);
+    QCOMPARE(cache.entry(b)->full.size(), QSize(400, 300));
+    QCOMPARE(cache.entry(b)->scaled.size(), QSize(200, 150));
+    // Nothing to do once it is there.
+    cache.requestFull(b, 1.0);
+    QVERIFY(!cache.isPending(b));
 }
 
 QTEST_MAIN(WhaleViewerCacheTest)

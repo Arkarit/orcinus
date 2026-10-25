@@ -167,6 +167,17 @@ RGB32/ARGB32. Herunterskalieren mit `Qt::SmoothTransformation` (in Qt flächenge
 whalerc `[Viewer] Upscale` (Vorgabe aus), Seite „Viewer“: „Enlarge small images to fill the
 screen“. Die Häkchen der Seite haben Objektnamen (`wrapAround`, `upscale`) für die Tests.
 
+Stand V2c (2026-10-25): Zoom in Geräte-Pixeln je Bildpixel (`1` = 100 % = ein Bildpixel je
+Bildschirmpixel, auch bei HiDPI). Strg+Mausrad (1,25 je Raste, Touchpad stufenlos) zur
+Mausposition, `+`/`=`/`-` und `1` zur Fenstermitte, `0` einpassen. Nach unten bis zur eingepassten
+Größe (dann wieder Einpassen-Modus), höchstens bis 100 %, wenn das Einpassen größer ist
+(„Immer hochskalieren“); nach oben bis 3200 %. Kleiner als das Fenster: zentriert; größer: kein
+schwarzer Rand, wo noch Bild ist. Mittlere Maustaste zieht (Hand-Cursor). Gezeichnet wird nur der
+sichtbare Ausschnitt des vollen Bildes; fehlt es (Budget), holt `WhaleViewerCache::requestFull()`
+es nach, bis dahin das eingepasste gestreckt. Über 100 % scharf, whalerc `[Viewer] SmoothZoom` /
+Häkchen „Smooth the pixels when zoomed in beyond 100%“ glättet; unter 100 % immer glatt. Blättern
+passt wieder ein. Das Budget wird auch beim Wechsel des aktuellen Bildes geprüft.
+
 ### V3 – Video
 
 - libmpv, Bedienleiste, Video-Optionen (V-E7).

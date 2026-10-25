@@ -84,6 +84,10 @@ WhaleViewerSettingsPage::WhaleViewerSettingsPage(QWidget *parent)
     m_upscale->setObjectName(QStringLiteral("upscale"));
     layout->addWidget(m_upscale);
 
+    m_smoothZoom = new QCheckBox(i18nc("@option:check", "Smooth the pixels when zoomed in beyond 100%"), this);
+    m_smoothZoom->setObjectName(QStringLiteral("smoothZoom"));
+    layout->addWidget(m_smoothZoom);
+
     loadSettings();
 
     connect(m_types, &QTreeWidget::itemChanged, this, [this]() {
@@ -93,6 +97,7 @@ WhaleViewerSettingsPage::WhaleViewerSettingsPage(QWidget *parent)
     });
     connect(m_wrapAround, &QCheckBox::toggled, this, &WhaleViewerSettingsPage::changed);
     connect(m_upscale, &QCheckBox::toggled, this, &WhaleViewerSettingsPage::changed);
+    connect(m_smoothZoom, &QCheckBox::toggled, this, &WhaleViewerSettingsPage::changed);
 }
 
 WhaleViewerSettingsPage::~WhaleViewerSettingsPage() = default;
@@ -123,6 +128,7 @@ void WhaleViewerSettingsPage::applySettings()
     WhaleViewerSettings::setMimeTypes(patterns());
     WhaleViewerSettings::setWrapAround(m_wrapAround->isChecked());
     WhaleViewerSettings::setUpscale(m_upscale->isChecked());
+    WhaleViewerSettings::setSmoothZoom(m_smoothZoom->isChecked());
 }
 
 void WhaleViewerSettingsPage::restoreDefaults()
@@ -132,6 +138,7 @@ void WhaleViewerSettingsPage::restoreDefaults()
     setPatterns(defaults);
     m_wrapAround->setChecked(false);
     m_upscale->setChecked(false);
+    m_smoothZoom->setChecked(false);
     Q_EMIT changed();
 }
 
@@ -140,6 +147,7 @@ void WhaleViewerSettingsPage::loadSettings()
     setPatterns(WhaleViewerSettings::mimeTypes());
     m_wrapAround->setChecked(WhaleViewerSettings::wrapAround());
     m_upscale->setChecked(WhaleViewerSettings::upscale());
+    m_smoothZoom->setChecked(WhaleViewerSettings::smoothZoom());
 }
 
 void WhaleViewerSettingsPage::setPatterns(const QStringList &patterns)

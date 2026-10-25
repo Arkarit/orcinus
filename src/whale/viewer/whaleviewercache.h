@@ -37,6 +37,8 @@ public:
     struct Entry {
         /// The image at full resolution, null if it was dropped for the budget or failed.
         QImage full;
+        /// The size of the image at full resolution, also when the full image was dropped.
+        QSize fullSize;
         /// The image fitted into the available size, with its device pixel ratio set.
         QImage scaled;
         /// The size (in device pixels) it was fitted into.
@@ -64,6 +66,12 @@ public:
      */
     void request(const QUrl &url, const QSize &available, qreal dpr);
 
+    /**
+     * Asks for the full image of @p url again if it was dropped for the budget (to zoom into
+     * it). imageReady() tells when it is there.
+     */
+    void requestFull(const QUrl &url, qreal dpr);
+
     /** The file shown: it is decoded first and keeps its full image regardless of the budget. */
     void setCurrent(const QUrl &url);
 
@@ -88,6 +96,7 @@ private:
         QSize available;
     };
 
+    void start(const QUrl &url, const QImage &full, const QSize &available, qreal dpr);
     void enforceBudget();
 
     QHash<QUrl, Entry> m_entries;

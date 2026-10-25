@@ -112,12 +112,25 @@ void WhaleViewerCache::request(const QUrl &url, const QSize &available, qreal dp
     if (pendingIt != m_pending.constEnd() && pendingIt->available == available) {
         return;
     }
+    // An image already decoded is only scaled again.
+    start(url, entryIt != m_entries.constEnd() ? entryIt->full : QImage(), available, dpr);
+}
+
+void WhaleViewerCache::requestFull(const QUrl &url, qreal dpr)
+{
+    const auto entryIt = m_entries.constFind(url);
+    if (entryIt == m_entries.constEnd() || entryIt->error || !entryIt->full.isNull() || m_pending.contains(url)) {
+        return;
+    }
+    start(url, QImage(), entryIt->available, dpr);
+}
+
+void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &available, qreal dpr)
+{
+    const auto pendingIt = m_pending.constFind(url);
     if (pendingIt != m_pending.constEnd()) {
         *pendingIt->cancelled = true;
     }
-
-    // An image already decoded is only scaled again.
-    const QImage full = entryIt != m_entries.constEnd() ? entryIt->full : QImage();
     auto cancelled = std::make_shared<std::atomic_bool>(false);
     m_pending.insert(url, {cancelled, available});
 
@@ -132,6 +145,7 @@ void WhaleViewerCache::request(const QUrl &url, const QSize &available, qreal dp
         const Decoded decoded = watcher->result();
         Entry entry;
         entry.full = decoded.full;
+        entry.fullSize = decoded.full.size();
         entry.scaled = decoded.scaled;
         entry.available = available;
         entry.error = decoded.scaled.isNull();
@@ -150,6 +164,7 @@ void WhaleViewerCache::request(const QUrl &url, const QSize &available, qreal dp
 void WhaleViewerCache::setCurrent(const QUrl &url)
 {
     m_current = url;
+    enforceBudget();
 }
 
 void WhaleViewerCache::retainOnly(const QList<QUrl> &urls)

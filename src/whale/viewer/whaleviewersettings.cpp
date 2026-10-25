@@ -16,6 +16,7 @@ const char MimeTypesKey[] = "MimeTypes";
 const char WrapAroundKey[] = "WrapAround";
 const char MultiSelectionKey[] = "MultiSelection";
 const char UpscaleKey[] = "Upscale";
+const char SmoothZoomKey[] = "SmoothZoom";
 
 KConfigGroup group()
 {
@@ -58,6 +59,18 @@ void setUpscale(bool upscale)
 {
     KConfigGroup viewerGroup = group();
     viewerGroup.writeEntry(UpscaleKey, upscale);
+    viewerGroup.sync();
+}
+
+bool smoothZoom()
+{
+    return group().readEntry(SmoothZoomKey, false);
+}
+
+void setSmoothZoom(bool smoothZoom)
+{
+    KConfigGroup viewerGroup = group();
+    viewerGroup.writeEntry(SmoothZoomKey, smoothZoom);
     viewerGroup.sync();
 }
 

@@ -7,7 +7,6 @@
 #include "whaleviewer.h"
 
 #include "views/dolphinview.h"
-#include "whaleviewercache.h"
 #include "whaleviewersettings.h"
 
 #include <KLocalizedString>
@@ -18,6 +17,7 @@
 #include <QScreen>
 #include <QTimer>
 #include <QVariantAnimation>
+#include <QtMath>
 
 namespace
 {
@@ -28,6 +28,8 @@ constexpr int LoadDelay = 40;
 constexpr int OverlayDuration = 1000;
 constexpr int OverlayFadeDuration = 300;
 constexpr int CursorHideDelay = 1500;
+constexpr qreal ZoomStep = 1.25;
+constexpr qreal MaxZoom = 32;
 }
 
 WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidget *window)
@@ -51,7 +53,9 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     m_loadTimer->setSingleShot(true);
     m_loadTimer->setInterval(LoadDelay);
     connect(m_loadTimer, &QTimer::timeout, this, &WhaleViewer::load);
-    m_cache->setUpscale(WhaleViewerSettings::upscale());
+    m_upscale = WhaleViewerSettings::upscale();
+    m_smoothZoom = WhaleViewerSettings::smoothZoom();
+    m_cache->setUpscale(m_upscale);
     connect(m_cache, &WhaleViewerCache::imageReady, this, &WhaleViewer::slotImageReady);
 
     m_overlayTimer->setSingleShot(true);
@@ -203,6 +207,7 @@ void WhaleViewer::showIndex(int index)
 void WhaleViewer::pagedTo(int direction)
 {
     m_direction = direction;
+    m_zoom = 0;
     showOverlay(m_list.currentItem().name());
     // A preloaded file shows at once; the view follows (and the rest loads) once paging rests.
     showFromCache();
@@ -249,9 +254,13 @@ void WhaleViewer::slotImageReady(const QUrl &url)
     if (url != currentUrl()) {
         return; // a neighbour
     }
+    // Also for another window size, or the full image again for zoom: then it is no news.
+    const bool wasLoaded = isLoaded();
     showFromCache();
     if (!m_loadTimer->isActive()) {
-        Q_EMIT loadFinished(url);
+        if (!wasLoaded) {
+            Q_EMIT loadFinished(url);
+        }
         preload();
     }
 }
@@ -293,6 +302,111 @@ QSize WhaleViewer::availableSize() const
     return size() * devicePixelRatioF();
 }
 
+const WhaleViewerCache::Entry *WhaleViewer::shownEntry() const
+{
+    return isLoaded() ? m_cache->entry(currentUrl()) : nullptr;
+}
+
+qreal WhaleViewer::fittedZoom() const
+{
+    const WhaleViewerCache::Entry *entry = shownEntry();
+    if (!entry || entry->fullSize.isEmpty()) {
+        return 0;
+    }
+    return qreal(WhaleViewerCache::fittedSize(entry->fullSize, availableSize(), m_upscale).width()) / entry->fullSize.width();
+}
+
+QRectF WhaleViewer::imageRect() const
+{
+    const WhaleViewerCache::Entry *entry = shownEntry();
+    if (!entry) {
+        return QRectF();
+    }
+    const QSizeF size = QSizeF(entry->fullSize) * zoom() / devicePixelRatioF();
+    if (m_zoom > 0) {
+        return QRectF(m_origin, size);
+    }
+    return QRectF(QPointF((width() - size.width()) / 2, (height() - size.height()) / 2), size);
+}
+
+bool WhaleViewer::isZoomed() const
+{
+    return m_zoom > 0;
+}
+
+qreal WhaleViewer::zoom() const
+{
+    return m_zoom > 0 ? m_zoom : fittedZoom();
+}
+
+QRectF WhaleViewer::visibleImageRect() const
+{
+    const QRectF image = imageRect();
+    if (image.isEmpty()) {
+        return QRectF();
+    }
+    const QRectF visible = image.intersected(QRectF(rect()));
+    return QRectF(imagePosition(visible.topLeft()), imagePosition(visible.bottomRight()));
+}
+
+QPointF WhaleViewer::imagePosition(const QPointF &position) const
+{
+    const QRectF image = imageRect();
+    if (image.isEmpty()) {
+        return QPointF();
+    }
+    return (position - image.topLeft()) * devicePixelRatioF() / zoom();
+}
+
+void WhaleViewer::setZoom(qreal zoom, const QPointF &anchor)
+{
+    const WhaleViewerCache::Entry *entry = shownEntry();
+    const qreal fitted = fittedZoom();
+    if (!entry || fitted <= 0) {
+        return;
+    }
+    zoom = qBound(qMin(fitted, 1.0), zoom, MaxZoom);
+    if (qFuzzyCompare(zoom, fitted) || (fitted <= 1 && zoom < fitted)) {
+        fitToWindow();
+        return;
+    }
+    const QPointF point = imagePosition(anchor);
+    m_zoom = zoom;
+    m_origin = anchor - point * zoom / devicePixelRatioF();
+    clampOrigin();
+    // The full image of a neighbour may have been dropped for the memory budget.
+    m_cache->requestFull(currentUrl(), devicePixelRatioF());
+    update();
+}
+
+void WhaleViewer::zoomBy(qreal factor, const QPointF &anchor)
+{
+    setZoom(zoom() * factor, anchor);
+}
+
+void WhaleViewer::fitToWindow()
+{
+    m_zoom = 0;
+    update();
+}
+
+void WhaleViewer::pan(const QPointF &delta)
+{
+    if (m_zoom > 0) {
+        m_origin += delta;
+        clampOrigin();
+        update();
+    }
+}
+
+void WhaleViewer::clampOrigin()
+{
+    const QSizeF size = imageRect().size();
+    // Smaller than the window: centred; larger: no black edge where there is more image.
+    m_origin.setX(size.width() <= width() ? (width() - size.width()) / 2 : qBound(width() - size.width(), m_origin.x(), 0.0));
+    m_origin.setY(size.height() <= height() ? (height() - size.height()) / 2 : qBound(height() - size.height(), m_origin.y(), 0.0));
+}
+
 void WhaleViewer::followInView()
 {
     if (m_source && !m_list.isEmpty()) {
@@ -315,7 +429,22 @@ void WhaleViewer::paintEvent(QPaintEvent *event)
     QPainter painter(this);
     painter.fillRect(rect(), Qt::black);
 
-    if (!m_shown.isNull() && !m_shownError) {
+    const WhaleViewerCache::Entry *entry = shownEntry();
+    if (m_zoom > 0 && entry) {
+        const QRectF image = imageRect();
+        const QRectF visible = image.intersected(QRectF(rect()));
+        if (!entry->full.isNull()) {
+            // Only the visible part, from the full image.
+            const qreal scale = image.width() / entry->fullSize.width();
+            const QRectF source((visible.topLeft() - image.topLeft()) / scale, visible.size() / scale);
+            painter.setRenderHint(QPainter::SmoothPixmapTransform, m_smoothZoom || m_zoom < 1);
+            painter.drawImage(visible, entry->full, source);
+        } else {
+            // Until the full image is there again.
+            painter.setRenderHint(QPainter::SmoothPixmapTransform);
+            painter.drawImage(image, m_shown);
+        }
+    } else if (!m_shown.isNull() && !m_shownError) {
         // Fitted in another window size (just resized): drawn scaled until the new one is there.
         QSizeF size = m_shown.deviceIndependentSize();
         if (size.width() > width() || size.height() > height()) {
@@ -356,6 +485,9 @@ void WhaleViewer::resizeEvent(QResizeEvent *event)
     if (!m_list.isEmpty()) {
         m_cache->request(currentUrl(), availableSize(), devicePixelRatioF());
     }
+    if (m_zoom > 0) {
+        clampOrigin();
+    }
 }
 
 void WhaleViewer::keyPressEvent(QKeyEvent *event)
@@ -381,6 +513,19 @@ void WhaleViewer::keyPressEvent(QKeyEvent *event)
     case Qt::Key_End:
         showIndex(m_list.count() - 1);
         break;
+    case Qt::Key_Plus:
+    case Qt::Key_Equal:
+        zoomBy(ZoomStep, QRectF(rect()).center());
+        break;
+    case Qt::Key_Minus:
+        zoomBy(1 / ZoomStep, QRectF(rect()).center());
+        break;
+    case Qt::Key_1:
+        setZoom(1, QRectF(rect()).center());
+        break;
+    case Qt::Key_0:
+        fitToWindow();
+        break;
     default:
         QWidget::keyPressEvent(event);
         return;
@@ -392,7 +537,8 @@ void WhaleViewer::wheelEvent(QWheelEvent *event)
 {
     event->accept();
     if (event->modifiers() & Qt::ControlModifier) {
-        return; // zoom, V2
+        zoomBy(qPow(ZoomStep, event->angleDelta().y() / 120.0), event->position());
+        return;
     }
     // Accumulate: one notch is 120; touchpads send less at a time.
     m_wheelDelta += event->angleDelta().y();
@@ -406,6 +552,13 @@ void WhaleViewer::wheelEvent(QWheelEvent *event)
 void WhaleViewer::mousePressEvent(QMouseEvent *event)
 {
     event->accept();
+    if (event->button() == Qt::MiddleButton && m_zoom > 0) {
+        m_panning = true;
+        m_panPosition = event->position();
+        m_cursorTimer->stop();
+        setCursor(Qt::ClosedHandCursor);
+        return;
+    }
     if (event->button() != Qt::LeftButton) {
         return;
     }
@@ -421,8 +574,23 @@ void WhaleViewer::mousePressEvent(QMouseEvent *event)
 void WhaleViewer::mouseMoveEvent(QMouseEvent *event)
 {
     QWidget::mouseMoveEvent(event);
+    if (m_panning) {
+        pan(event->position() - m_panPosition);
+        m_panPosition = event->position();
+        return;
+    }
     unsetCursor();
     m_cursorTimer->start();
+}
+
+void WhaleViewer::mouseReleaseEvent(QMouseEvent *event)
+{
+    event->accept();
+    if (event->button() == Qt::MiddleButton && m_panning) {
+        m_panning = false;
+        unsetCursor();
+        m_cursorTimer->start();
+    }
 }
 
 void WhaleViewer::closeEvent(QCloseEvent *event)

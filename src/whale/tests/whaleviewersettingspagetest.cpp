@@ -48,6 +48,7 @@ private Q_SLOTS:
     void testOtherPatternsKept();
     void testWrapAround();
     void testUpscale();
+    void testSmoothZoom();
     void testRestoreDefaults();
     void testChangedOnlyByTheUser();
     void testPageInDialog();
@@ -57,6 +58,7 @@ private:
     QTreeWidgetItem *type(WhaleViewerSettingsPage &page, const QString &name) const;
     QCheckBox *wrapAround(WhaleViewerSettingsPage &page) const;
     QCheckBox *upscale(WhaleViewerSettingsPage &page) const;
+    QCheckBox *smoothZoom(WhaleViewerSettingsPage &page) const;
 
     QTemporaryDir m_tmpHome;
 };
@@ -104,6 +106,11 @@ QCheckBox *WhaleViewerSettingsPageTest::upscale(WhaleViewerSettingsPage &page) c
     return page.findChild<QCheckBox *>(QStringLiteral("upscale"));
 }
 
+QCheckBox *WhaleViewerSettingsPageTest::smoothZoom(WhaleViewerSettingsPage &page) const
+{
+    return page.findChild<QCheckBox *>(QStringLiteral("smoothZoom"));
+}
+
 void WhaleViewerSettingsPageTest::testImageMimeTypes()
 {
     const QStringList types = WhaleViewerSettingsPage::imageMimeTypes();
@@ -127,6 +134,7 @@ void WhaleViewerSettingsPageTest::testDefaults()
     QVERIFY(!type(page, QStringLiteral("image/png"))->text(0).isEmpty());
     QVERIFY(!wrapAround(page)->isChecked());
     QVERIFY(!upscale(page)->isChecked());
+    QVERIFY(!smoothZoom(page)->isChecked());
 }
 
 void WhaleViewerSettingsPageTest::testTurnOffOneType()
@@ -224,6 +232,22 @@ void WhaleViewerSettingsPageTest::testUpscale()
     QVERIFY(upscale(again)->isChecked());
     again.restoreDefaults();
     QVERIFY(!upscale(again)->isChecked());
+}
+
+void WhaleViewerSettingsPageTest::testSmoothZoom()
+{
+    {
+        WhaleViewerSettingsPage page;
+        QSignalSpy changed(&page, &SettingsPageBase::changed);
+        smoothZoom(page)->setChecked(true);
+        QCOMPARE(changed.count(), 1);
+        page.applySettings();
+    }
+    QVERIFY(WhaleViewerSettings::smoothZoom());
+    WhaleViewerSettingsPage again;
+    QVERIFY(smoothZoom(again)->isChecked());
+    again.restoreDefaults();
+    QVERIFY(!smoothZoom(again)->isChecked());
 }
 
 void WhaleViewerSettingsPageTest::testRestoreDefaults()

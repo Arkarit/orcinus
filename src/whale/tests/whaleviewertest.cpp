@@ -51,6 +51,11 @@ private Q_SLOTS:
     void testFastPagingLoadsOnlyTheLast();
     void testPreloadsNeighbours();
     void testUpscale();
+    void testZoomTowardsThePointer();
+    void testZoomKeys();
+    void testPan();
+    void testPagingFitsAgain();
+    void testZoomSharpOrSmooth();
     void testLoadError();
     void testEscapeCloses();
     void testCloseWhilePaging();
@@ -68,6 +73,9 @@ private:
     WhaleViewer *openByActivation(const QString &name);
     WhaleViewer *openSelection();
     void wheel(QWidget *widget, int delta);
+    void ctrlWheel(QWidget *widget, const QPointF &position, int delta);
+    void mouse(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPointF &position);
+    WhaleViewer *openImage(const QString &name, const QImage &image);
 
     TestDir *m_testDir = nullptr;
     DolphinViewContainer *m_container = nullptr;
@@ -187,6 +195,42 @@ void WhaleViewerTest::wheel(QWidget *widget, int delta)
     const QPointF position(widget->width() / 2.0, widget->height() / 2.0);
     QWheelEvent event(position, widget->mapToGlobal(position), QPoint(), QPoint(0, delta), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
     QApplication::sendEvent(widget, &event);
+}
+
+void WhaleViewerTest::ctrlWheel(QWidget *widget, const QPointF &position, int delta)
+{
+    QWheelEvent event(position, widget->mapToGlobal(position), QPoint(), QPoint(0, delta), Qt::NoButton, Qt::ControlModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(widget, &event);
+}
+
+void WhaleViewerTest::mouse(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPointF &position)
+{
+    const Qt::MouseButtons buttons = type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::MouseButtons(Qt::MiddleButton);
+    QMouseEvent event(type, position, widget->mapToGlobal(position), type == QEvent::MouseMove ? Qt::NoButton : button, buttons, Qt::NoModifier);
+    QApplication::sendEvent(widget, &event);
+}
+
+WhaleViewer *WhaleViewerTest::openImage(const QString &name, const QImage &image)
+{
+    // Another image than the small ones of init(), added to the folder.
+    QByteArray data;
+    QBuffer buffer(&data);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "png");
+    m_testDir->createFile(name, data);
+    const int count = m_view->itemsCount();
+    if (!QTest::qWaitFor([this, count]() {
+            return m_view->itemsCount() > count;
+        })) {
+        return nullptr;
+    }
+    WhaleViewer *viewer = openByActivation(name);
+    if (!viewer || !QTest::qWaitFor([viewer]() {
+            return viewer->isLoaded();
+        })) {
+        return nullptr;
+    }
+    return viewer;
 }
 
 void WhaleViewerTest::testOpenByActivation()
@@ -354,6 +398,164 @@ void WhaleViewerTest::testUpscale()
     const QSize available = viewer->size() * viewer->devicePixelRatioF();
     QTRY_COMPARE(viewer->cache().entry(url(QStringLiteral("1.png")))->scaled.size(), WhaleViewerCache::fittedSize(QSize(40, 30), available, true));
     QVERIFY(viewer->cache().entry(url(QStringLiteral("1.png")))->scaled.width() > 40);
+}
+
+static QImage largeImage()
+{
+    QImage image(4000, 3000, QImage::Format_RGB32);
+    image.fill(Qt::darkGreen);
+    return image;
+}
+
+static bool fuzzyEqual(const QPointF &a, const QPointF &b)
+{
+    return qAbs(a.x() - b.x()) < 1 && qAbs(a.y() - b.y()) < 1;
+}
+
+void WhaleViewerTest::testZoomTowardsThePointer()
+{
+    WhaleViewer *viewer = openImage(QStringLiteral("large.png"), largeImage());
+    QVERIFY(viewer);
+    QVERIFY(!viewer->isZoomed());
+    const qreal fitted = viewer->zoom();
+    QVERIFY(fitted > 0 && fitted < 1);
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().topLeft(), QPointF(0, 0)));
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().bottomRight(), QPointF(4000, 3000)));
+
+    const QPointF pointer(viewer->width() / 4.0, viewer->height() / 3.0);
+    ctrlWheel(viewer, pointer, 120);
+    QVERIFY(viewer->isZoomed());
+    QVERIFY(qFuzzyCompare(viewer->zoom(), fitted * 1.25));
+    // Not paged.
+    QCOMPARE(viewer->currentUrl(), url(QStringLiteral("large.png")));
+
+    // Ctrl+wheel: the point of the image under the pointer stays under it (V-E5), once the image
+    // is larger than the window (smaller, it stays centred).
+    ctrlWheel(viewer, pointer, 360);
+    const QPointF before = viewer->imagePosition(pointer);
+    ctrlWheel(viewer, pointer, 120);
+    QVERIFY(fuzzyEqual(viewer->imagePosition(pointer), before));
+    ctrlWheel(viewer, pointer, -120);
+    QVERIFY(fuzzyEqual(viewer->imagePosition(pointer), before));
+    // Back down to the fitted size: fitted again.
+    ctrlWheel(viewer, pointer, -480);
+    QVERIFY(!viewer->isZoomed());
+    QVERIFY(qFuzzyCompare(viewer->zoom(), fitted));
+    ctrlWheel(viewer, pointer, -120);
+    QVERIFY(!viewer->isZoomed());
+}
+
+void WhaleViewerTest::testZoomKeys()
+{
+    WhaleViewer *viewer = openImage(QStringLiteral("large.png"), largeImage());
+    QVERIFY(viewer);
+    const qreal fitted = viewer->zoom();
+    // 1: 100 %, one image pixel per device pixel (V-E12).
+    QTest::keyClick(viewer, Qt::Key_1);
+    QVERIFY(viewer->isZoomed());
+    QCOMPARE(viewer->zoom(), 1.0);
+    const qreal dpr = viewer->devicePixelRatioF();
+    QVERIFY(qAbs(viewer->visibleImageRect().width() - viewer->width() * dpr) < 1);
+    // Towards the middle: it stays in the middle.
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().center(), QPointF(2000, 1500)));
+    QTest::keyClick(viewer, Qt::Key_Plus);
+    QCOMPARE(viewer->zoom(), 1.25);
+    QTest::keyClick(viewer, Qt::Key_Minus);
+    QCOMPARE(viewer->zoom(), 1.0);
+    QTest::keyClick(viewer, Qt::Key_0);
+    QVERIFY(!viewer->isZoomed());
+    QVERIFY(qFuzzyCompare(viewer->zoom(), fitted));
+    // Up to 3200 %.
+    for (int i = 0; i < 40; ++i) {
+        QTest::keyClick(viewer, Qt::Key_Plus);
+    }
+    QCOMPARE(viewer->zoom(), 32.0);
+}
+
+void WhaleViewerTest::testPan()
+{
+    WhaleViewer *viewer = openImage(QStringLiteral("large.png"), largeImage());
+    QVERIFY(viewer);
+    // Not zoomed: the middle button does nothing.
+    const QPointF middle(viewer->width() / 2.0, viewer->height() / 2.0);
+    const QRectF fitted = viewer->visibleImageRect();
+    mouse(viewer, QEvent::MouseButtonPress, Qt::MiddleButton, middle);
+    mouse(viewer, QEvent::MouseMove, Qt::MiddleButton, middle + QPointF(50, 50));
+    mouse(viewer, QEvent::MouseButtonRelease, Qt::MiddleButton, middle + QPointF(50, 50));
+    QCOMPARE(viewer->visibleImageRect(), fitted);
+
+    QTest::keyClick(viewer, Qt::Key_1);
+    const QRectF before = viewer->visibleImageRect();
+    // Dragging the image right and down shows more of its left and top.
+    mouse(viewer, QEvent::MouseButtonPress, Qt::MiddleButton, middle);
+    mouse(viewer, QEvent::MouseMove, Qt::MiddleButton, middle + QPointF(100, 40));
+    mouse(viewer, QEvent::MouseButtonRelease, Qt::MiddleButton, middle + QPointF(100, 40));
+    const qreal dpr = viewer->devicePixelRatioF();
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().topLeft(), before.topLeft() - QPointF(100, 40) * dpr));
+    // Moving the mouse afterwards does not drag on.
+    mouse(viewer, QEvent::MouseMove, Qt::NoButton, middle);
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().topLeft(), before.topLeft() - QPointF(100, 40) * dpr));
+
+    // Not beyond the edge of the image.
+    viewer->pan(QPointF(100000, 100000));
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().topLeft(), QPointF(0, 0)));
+    viewer->pan(QPointF(-100000, -100000));
+    QVERIFY(fuzzyEqual(viewer->visibleImageRect().bottomRight(), QPointF(4000, 3000)));
+}
+
+void WhaleViewerTest::testPagingFitsAgain()
+{
+    WhaleViewer *viewer = openImage(QStringLiteral("large.png"), largeImage());
+    QVERIFY(viewer);
+    QTest::keyClick(viewer, Qt::Key_1);
+    QVERIFY(viewer->isZoomed());
+    QTest::keyClick(viewer, Qt::Key_Home);
+    QVERIFY(!viewer->isZoomed());
+    QTRY_VERIFY(viewer->isLoaded());
+    // A small image (40 × 30) at 100 % fits already: zooming out goes no further.
+    QCOMPARE(viewer->zoom(), 1.0);
+    QTest::keyClick(viewer, Qt::Key_Minus);
+    QVERIFY(!viewer->isZoomed());
+    QCOMPARE(viewer->zoom(), 1.0);
+    QTest::keyClick(viewer, Qt::Key_Plus);
+    QVERIFY(viewer->isZoomed());
+}
+
+static QSet<QRgb> colorsInTheMiddle(QWidget *widget)
+{
+    const QImage shot = widget->grab(QRect(widget->width() / 2 - 20, widget->height() / 2 - 20, 40, 40)).toImage();
+    QSet<QRgb> colors;
+    for (int y = 0; y < shot.height(); ++y) {
+        for (int x = 0; x < shot.width(); ++x) {
+            colors.insert(shot.pixel(x, y));
+        }
+    }
+    return colors;
+}
+
+void WhaleViewerTest::testZoomSharpOrSmooth()
+{
+    // A checkerboard of single pixels at 800 %: sharp, only black and white (V-E13).
+    QImage checker(40, 30, QImage::Format_RGB32);
+    for (int y = 0; y < checker.height(); ++y) {
+        for (int x = 0; x < checker.width(); ++x) {
+            checker.setPixel(x, y, (x + y) % 2 ? qRgb(255, 255, 255) : qRgb(0, 0, 0));
+        }
+    }
+    WhaleViewer *viewer = openImage(QStringLiteral("checker.png"), checker);
+    QVERIFY(viewer);
+    viewer->setZoom(8, QPointF(viewer->width() / 2.0, viewer->height() / 2.0));
+    QCOMPARE(colorsInTheMiddle(viewer), (QSet<QRgb>{qRgb(0, 0, 0), qRgb(255, 255, 255)}));
+    viewer->close();
+    QTRY_VERIFY(!WhaleViewer::instance());
+
+    // Smooth: grey in between.
+    WhaleViewerSettings::setSmoothZoom(true);
+    viewer = openByActivation(QStringLiteral("checker.png"));
+    QVERIFY(viewer);
+    QTRY_VERIFY(viewer->isLoaded());
+    viewer->setZoom(8, QPointF(viewer->width() / 2.0, viewer->height() / 2.0));
+    QVERIFY(colorsInTheMiddle(viewer).count() > 2);
 }
 
 void WhaleViewerTest::testLoadError()

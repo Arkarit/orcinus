@@ -44,6 +44,13 @@ void setWrapAround(bool wrapAround);
 bool upscale();
 void setUpscale(bool upscale);
 
+/**
+ * @return Whether images zoomed in beyond 100 % are smoothed (V-E13). Default off: their pixels
+ *         show sharp, to judge the sharpness of a photo.
+ */
+bool smoothZoom();
+void setSmoothZoom(bool smoothZoom);
+
 MultiSelection multiSelection();
 void setMultiSelection(MultiSelection multiSelection);
 }

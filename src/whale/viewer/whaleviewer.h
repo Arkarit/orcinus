@@ -7,6 +7,7 @@
 #ifndef WHALEVIEWER_H
 #define WHALEVIEWER_H
 
+#include "whaleviewercache.h"
 #include "whaleviewerlist.h"
 
 #include <QImage>
@@ -14,7 +15,6 @@
 #include <QWidget>
 
 class DolphinView;
-class WhaleViewerCache;
 class QTimer;
 class QVariantAnimation;
 
@@ -31,6 +31,10 @@ class QVariantAnimation;
  * closes. A click elsewhere does nothing (V-E10). The file name shows briefly at the bottom, as
  * does a note at the first or last file. A file that fails to load shows its name and a message,
  * and the viewer stays there (V-E11). The pointer hides after a short rest.
+ *
+ * Zoom (V-E5, V-E12): Ctrl+wheel towards the pointer, +/- towards the middle, 1 for 100 %, 0 to
+ * fit again; the middle button drags a zoomed image. Paging fits again. Beyond 100 % the pixels
+ * show sharp unless WhaleViewerSettings::smoothZoom() (V-E13).
  *
  * There is at most one viewer; opening another closes the one before.
  *
@@ -81,6 +85,26 @@ public:
     /** @return The images decoded for the current file and its neighbours (V2a). */
     const WhaleViewerCache &cache() const;
 
+    /** @return Whether the image is zoomed; otherwise it is fitted into the window. */
+    bool isZoomed() const;
+    /** @return Device pixels per image pixel, zoomed or fitted; 0 without an image. */
+    qreal zoom() const;
+    /** @return The part of the image (in its pixels) that is visible in the window. */
+    QRectF visibleImageRect() const;
+    /** @return The point of the image (in its pixels) at @p position in the window. */
+    QPointF imagePosition(const QPointF &position) const;
+    /**
+     * Zooms to @p zoom device pixels per image pixel; the point of the image at @p anchor stays
+     * where it is. Down to the fitted size it fits again; it goes no further down than 100 %
+     * (or the fitted size, if that is smaller) and no further up than 3200 %.
+     */
+    void setZoom(qreal zoom, const QPointF &anchor);
+    void zoomBy(qreal factor, const QPointF &anchor);
+    /** Fits the image into the window again. */
+    void fitToWindow();
+    /** Moves a zoomed image by @p delta (window pixels), as dragging with the middle button. */
+    void pan(const QPointF &delta);
+
     /** Moves @p steps files on (backwards if negative), as the wheel and the keys do. */
     void step(int steps);
     /** Goes to the file @p index of the list, as Home and End do. */
@@ -99,6 +123,7 @@ protected:
     void wheelEvent(QWheelEvent *event) override;
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
 
 private:
@@ -114,6 +139,12 @@ private:
     /** @return The current file and the neighbours to keep decoded: one back, two ahead. */
     QList<QUrl> wantedUrls() const;
     QSize availableSize() const;
+    /** @return The image shown, if it is loaded; else nullptr. */
+    const WhaleViewerCache::Entry *shownEntry() const;
+    qreal fittedZoom() const;
+    /** @return Where the whole image lies in the window, fitted or zoomed. */
+    QRectF imageRect() const;
+    void clampOrigin();
     void followInView();
     void showOverlay(const QString &text);
 
@@ -130,6 +161,15 @@ private:
     /// The direction paged in last, +1 or -1: the neighbours ahead are preloaded.
     int m_direction = 1;
     int m_wheelDelta = 0;
+
+    bool m_upscale = false;
+    bool m_smoothZoom = false;
+    /// Device pixels per image pixel while zoomed; 0 when fitted.
+    qreal m_zoom = 0;
+    /// The top left corner of the zoomed image in the window.
+    QPointF m_origin;
+    bool m_panning = false;
+    QPointF m_panPosition;
 
     QTimer *m_loadTimer = nullptr;
     QTimer *m_overlayTimer = nullptr;
