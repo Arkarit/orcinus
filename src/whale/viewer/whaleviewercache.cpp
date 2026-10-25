@@ -6,6 +6,7 @@
 
 #include "whaleviewercache.h"
 
+#include <QColorSpace>
 #include <QFutureWatcher>
 #include <QImageReader>
 #include <QThreadPool>
@@ -37,7 +38,22 @@ struct Decoded {
     QImage scaled;
 };
 
-Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, std::shared_ptr<std::atomic_bool> cancelled)
+// The window is sRGB to the compositor: other profiles (Adobe RGB, Display P3, CMYK …) are
+// converted, or their colours come out wrong.
+void convertToSRgb(QImage &image)
+{
+    const QColorSpace colorSpace = image.colorSpace();
+    if (!colorSpace.isValid() || colorSpace == QColorSpace::SRgb) {
+        return;
+    }
+    if (colorSpace.colorModel() == QColorSpace::ColorModel::Rgb) {
+        image.convertToColorSpace(QColorSpace::SRgb);
+    } else {
+        image.convertToColorSpace(QColorSpace::SRgb, image.hasAlphaChannel() ? QImage::Format_ARGB32 : QImage::Format_RGB32);
+    }
+}
+
+Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, bool upscale, std::shared_ptr<std::atomic_bool> cancelled)
 {
     if (*cancelled) {
         return {};
@@ -47,11 +63,12 @@ Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, std
         reader.setAutoTransform(true);
         reader.setAllocationLimit(AllocationLimitMB);
         full = reader.read();
+        convertToSRgb(full);
     }
     if (full.isNull() || *cancelled) {
         return {full, QImage()};
     }
-    const QSize target = WhaleViewerCache::fittedSize(full.size(), available);
+    const QSize target = WhaleViewerCache::fittedSize(full.size(), available, upscale);
     QImage scaled = target == full.size() ? full : full.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     scaled.setDevicePixelRatio(dpr);
     return {full, scaled};
@@ -71,13 +88,18 @@ WhaleViewerCache::~WhaleViewerCache()
     }
 }
 
-QSize WhaleViewerCache::fittedSize(const QSize &imageSize, const QSize &available)
+QSize WhaleViewerCache::fittedSize(const QSize &imageSize, const QSize &available, bool upscale)
 {
     QSize target = imageSize;
-    if (target.width() > available.width() || target.height() > available.height()) {
+    if (upscale || target.width() > available.width() || target.height() > available.height()) {
         target.scale(available, Qt::KeepAspectRatio);
     }
     return target.expandedTo(QSize(1, 1));
+}
+
+void WhaleViewerCache::setUpscale(bool upscale)
+{
+    m_upscale = upscale;
 }
 
 void WhaleViewerCache::request(const QUrl &url, const QSize &available, qreal dpr)
@@ -118,8 +140,11 @@ void WhaleViewerCache::request(const QUrl &url, const QSize &available, qreal dp
         Q_EMIT imageReady(url);
     });
     const int priority = url == m_current ? CurrentPriority : 0;
-    watcher->setFuture(
-        QtConcurrent::task(&decode).withArguments(url.toLocalFile(), full, available, dpr, cancelled).onThreadPool(*pool()).withPriority(priority).spawn());
+    watcher->setFuture(QtConcurrent::task(&decode)
+                           .withArguments(url.toLocalFile(), full, available, dpr, m_upscale, cancelled)
+                           .onThreadPool(*pool())
+                           .withPriority(priority)
+                           .spawn());
 }
 
 void WhaleViewerCache::setCurrent(const QUrl &url)

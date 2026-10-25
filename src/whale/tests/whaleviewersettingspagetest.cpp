@@ -47,6 +47,7 @@ private Q_SLOTS:
     void testAllTypesBecomeTheGroup();
     void testOtherPatternsKept();
     void testWrapAround();
+    void testUpscale();
     void testRestoreDefaults();
     void testChangedOnlyByTheUser();
     void testPageInDialog();
@@ -55,6 +56,7 @@ private:
     QTreeWidgetItem *images(WhaleViewerSettingsPage &page) const;
     QTreeWidgetItem *type(WhaleViewerSettingsPage &page, const QString &name) const;
     QCheckBox *wrapAround(WhaleViewerSettingsPage &page) const;
+    QCheckBox *upscale(WhaleViewerSettingsPage &page) const;
 
     QTemporaryDir m_tmpHome;
 };
@@ -94,7 +96,12 @@ QTreeWidgetItem *WhaleViewerSettingsPageTest::type(WhaleViewerSettingsPage &page
 
 QCheckBox *WhaleViewerSettingsPageTest::wrapAround(WhaleViewerSettingsPage &page) const
 {
-    return page.findChild<QCheckBox *>();
+    return page.findChild<QCheckBox *>(QStringLiteral("wrapAround"));
+}
+
+QCheckBox *WhaleViewerSettingsPageTest::upscale(WhaleViewerSettingsPage &page) const
+{
+    return page.findChild<QCheckBox *>(QStringLiteral("upscale"));
 }
 
 void WhaleViewerSettingsPageTest::testImageMimeTypes()
@@ -119,6 +126,7 @@ void WhaleViewerSettingsPageTest::testDefaults()
     QCOMPARE(type(page, QStringLiteral("image/png"))->checkState(0), Qt::Checked);
     QVERIFY(!type(page, QStringLiteral("image/png"))->text(0).isEmpty());
     QVERIFY(!wrapAround(page)->isChecked());
+    QVERIFY(!upscale(page)->isChecked());
 }
 
 void WhaleViewerSettingsPageTest::testTurnOffOneType()
@@ -200,6 +208,22 @@ void WhaleViewerSettingsPageTest::testWrapAround()
     QVERIFY(WhaleViewerSettings::wrapAround());
     WhaleViewerSettingsPage again;
     QVERIFY(wrapAround(again)->isChecked());
+}
+
+void WhaleViewerSettingsPageTest::testUpscale()
+{
+    {
+        WhaleViewerSettingsPage page;
+        QSignalSpy changed(&page, &SettingsPageBase::changed);
+        upscale(page)->setChecked(true);
+        QCOMPARE(changed.count(), 1);
+        page.applySettings();
+    }
+    QVERIFY(WhaleViewerSettings::upscale());
+    WhaleViewerSettingsPage again;
+    QVERIFY(upscale(again)->isChecked());
+    again.restoreDefaults();
+    QVERIFY(!upscale(again)->isChecked());
 }
 
 void WhaleViewerSettingsPageTest::testRestoreDefaults()

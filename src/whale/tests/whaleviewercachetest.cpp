@@ -7,12 +7,14 @@
 /*
  * The images of the built-in viewer, decoded and scaled in the background (V2a,
  * .privatedoc/whale-viewer-plan.md): fitting, errors, scaling again, the memory budget,
- * forgetting files, images larger than Qt allows by default.
+ * forgetting files, images larger than Qt allows by default. Colour profiles and enlarging small
+ * images (V2b).
  */
 
 #include "whaleviewercache.h"
 #include "testdir.h"
 
+#include <QColorSpace>
 #include <QFile>
 #include <QImage>
 #include <QSignalSpy>
@@ -33,6 +35,8 @@ private Q_SLOTS:
     void testBudget();
     void testRetainOnly();
     void testLargeImage();
+    void testUpscale();
+    void testColorProfileToSRgb();
 
 private:
     QUrl createImage(const QString &name, const QSize &size);
@@ -178,6 +182,47 @@ void WhaleViewerCacheTest::testLargeImage()
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 30000);
     QVERIFY(!cache.entry(url)->error);
     QCOMPARE(cache.entry(url)->scaled.size(), QSize(800, 800));
+}
+
+void WhaleViewerCacheTest::testUpscale()
+{
+    QCOMPARE(WhaleViewerCache::fittedSize(QSize(40, 30), QSize(800, 800), true), QSize(800, 600));
+    QCOMPARE(WhaleViewerCache::fittedSize(QSize(4000, 3000), QSize(800, 800), true), QSize(800, 600));
+
+    const QUrl url = createImage(QStringLiteral("small.png"), QSize(40, 30));
+    WhaleViewerCache cache;
+    cache.setUpscale(true);
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.request(url, QSize(200, 200), 1.0);
+    QTRY_COMPARE(ready.count(), 1);
+    QCOMPARE(cache.entry(url)->scaled.size(), QSize(200, 150));
+}
+
+void WhaleViewerCacheTest::testColorProfileToSRgb()
+{
+    // A Display P3 image: its green is not sRGB's green.
+    QImage image(20, 20, QImage::Format_RGB32);
+    image.fill(QColor(40, 180, 60));
+    image.setColorSpace(QColorSpace::DisplayP3);
+    const QString path = m_testDir->path() + QStringLiteral("/p3.png");
+    QVERIFY(image.save(path, "png"));
+    const QUrl url = QUrl::fromLocalFile(path);
+    {
+        // Qt writes the profile along.
+        QImage reread(path);
+        QCOMPARE(reread.colorSpace(), QColorSpace(QColorSpace::DisplayP3));
+    }
+
+    WhaleViewerCache cache;
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.request(url, QSize(200, 200), 1.0);
+    QTRY_COMPARE(ready.count(), 1);
+    const QImage full = cache.entry(url)->full;
+    QCOMPARE(full.colorSpace(), QColorSpace(QColorSpace::SRgb));
+    const QColor expected = image.convertedToColorSpace(QColorSpace::SRgb).pixelColor(0, 0);
+    QVERIFY(expected != QColor(40, 180, 60));
+    QCOMPARE(full.pixelColor(0, 0), expected);
+    QCOMPARE(cache.entry(url)->scaled.pixelColor(0, 0), expected);
 }
 
 QTEST_MAIN(WhaleViewerCacheTest)

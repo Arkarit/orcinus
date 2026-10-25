@@ -37,6 +37,13 @@ void setMimeTypes(const QStringList &mimeTypes);
 bool wrapAround();
 void setWrapAround(bool wrapAround);
 
+/**
+ * @return Whether images smaller than the screen are enlarged to fill it (V-E15). Default off:
+ *         they show at their size.
+ */
+bool upscale();
+void setUpscale(bool upscale);
+
 MultiSelection multiSelection();
 void setMultiSelection(MultiSelection multiSelection);
 }

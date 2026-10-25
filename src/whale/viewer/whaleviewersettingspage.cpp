@@ -77,7 +77,12 @@ WhaleViewerSettingsPage::WhaleViewerSettingsPage(QWidget *parent)
     m_images->addChildren(children);
 
     m_wrapAround = new QCheckBox(i18nc("@option:check", "Continue with the first file after the last one"), this);
+    m_wrapAround->setObjectName(QStringLiteral("wrapAround"));
     layout->addWidget(m_wrapAround);
+
+    m_upscale = new QCheckBox(i18nc("@option:check", "Enlarge small images to fill the screen"), this);
+    m_upscale->setObjectName(QStringLiteral("upscale"));
+    layout->addWidget(m_upscale);
 
     loadSettings();
 
@@ -87,6 +92,7 @@ WhaleViewerSettingsPage::WhaleViewerSettingsPage(QWidget *parent)
         }
     });
     connect(m_wrapAround, &QCheckBox::toggled, this, &WhaleViewerSettingsPage::changed);
+    connect(m_upscale, &QCheckBox::toggled, this, &WhaleViewerSettingsPage::changed);
 }
 
 WhaleViewerSettingsPage::~WhaleViewerSettingsPage() = default;
@@ -116,6 +122,7 @@ void WhaleViewerSettingsPage::applySettings()
 {
     WhaleViewerSettings::setMimeTypes(patterns());
     WhaleViewerSettings::setWrapAround(m_wrapAround->isChecked());
+    WhaleViewerSettings::setUpscale(m_upscale->isChecked());
 }
 
 void WhaleViewerSettingsPage::restoreDefaults()
@@ -124,6 +131,7 @@ void WhaleViewerSettingsPage::restoreDefaults()
     defaults.append(ImagesPattern);
     setPatterns(defaults);
     m_wrapAround->setChecked(false);
+    m_upscale->setChecked(false);
     Q_EMIT changed();
 }
 
@@ -131,6 +139,7 @@ void WhaleViewerSettingsPage::loadSettings()
 {
     setPatterns(WhaleViewerSettings::mimeTypes());
     m_wrapAround->setChecked(WhaleViewerSettings::wrapAround());
+    m_upscale->setChecked(WhaleViewerSettings::upscale());
 }
 
 void WhaleViewerSettingsPage::setPatterns(const QStringList &patterns)

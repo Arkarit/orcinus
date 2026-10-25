@@ -50,6 +50,7 @@ private Q_SLOTS:
     void testEdgeClicks();
     void testFastPagingLoadsOnlyTheLast();
     void testPreloadsNeighbours();
+    void testUpscale();
     void testLoadError();
     void testEscapeCloses();
     void testCloseWhilePaging();
@@ -334,6 +335,25 @@ void WhaleViewerTest::testPreloadsNeighbours()
     QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("1.png"))));
     QVERIFY(viewer->cache().entry(url(QStringLiteral("4.png"))));
     QVERIFY(!viewer->cache().entry(url(QStringLiteral("5.png"))));
+}
+
+void WhaleViewerTest::testUpscale()
+{
+    // The images are 40 × 30: without the setting they stay so (V-E15).
+    WhaleViewer *viewer = openByActivation(QStringLiteral("1.png"));
+    QVERIFY(viewer);
+    QTRY_VERIFY(viewer->isLoaded());
+    QCOMPARE(viewer->cache().entry(url(QStringLiteral("1.png")))->scaled.size(), QSize(40, 30));
+    viewer->close();
+    QTRY_VERIFY(!WhaleViewer::instance());
+
+    WhaleViewerSettings::setUpscale(true);
+    viewer = openByActivation(QStringLiteral("1.png"));
+    QVERIFY(viewer);
+    QTRY_VERIFY(viewer->isLoaded());
+    const QSize available = viewer->size() * viewer->devicePixelRatioF();
+    QTRY_COMPARE(viewer->cache().entry(url(QStringLiteral("1.png")))->scaled.size(), WhaleViewerCache::fittedSize(QSize(40, 30), available, true));
+    QVERIFY(viewer->cache().entry(url(QStringLiteral("1.png")))->scaled.width() > 40);
 }
 
 void WhaleViewerTest::testLoadError()

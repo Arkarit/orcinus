@@ -15,6 +15,7 @@ const QString GroupName = QStringLiteral("Viewer");
 const char MimeTypesKey[] = "MimeTypes";
 const char WrapAroundKey[] = "WrapAround";
 const char MultiSelectionKey[] = "MultiSelection";
+const char UpscaleKey[] = "Upscale";
 
 KConfigGroup group()
 {
@@ -45,6 +46,18 @@ void setWrapAround(bool wrapAround)
 {
     KConfigGroup viewerGroup = group();
     viewerGroup.writeEntry(WrapAroundKey, wrapAround);
+    viewerGroup.sync();
+}
+
+bool upscale()
+{
+    return group().readEntry(UpscaleKey, false);
+}
+
+void setUpscale(bool upscale)
+{
+    KConfigGroup viewerGroup = group();
+    viewerGroup.writeEntry(UpscaleKey, upscale);
     viewerGroup.sync();
 }
 

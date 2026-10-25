@@ -24,6 +24,9 @@
  * other files than the current one stay only within a memory budget; beyond it, only their
  * scaled image stays, and the full one is decoded again when it is needed.
  *
+ * Images with a colour profile of their own are converted to sRGB, the colour space the
+ * compositor assumes for the window (V-E14).
+ *
  * See .privatedoc/whale-viewer-plan.md (V2a).
  */
 class WhaleViewerCache : public QObject
@@ -46,9 +49,13 @@ public:
 
     /**
      * @return The size an image of @p imageSize is shown at in @p available (device pixels):
-     *         fitted into it with its aspect ratio, never larger than the image.
+     *         fitted into it with its aspect ratio; never larger than the image unless
+     *         @p upscale.
      */
-    static QSize fittedSize(const QSize &imageSize, const QSize &available);
+    static QSize fittedSize(const QSize &imageSize, const QSize &available, bool upscale = false);
+
+    /** Whether small images are enlarged to fill the available size (V-E15). Default off. */
+    void setUpscale(bool upscale);
 
     /**
      * Asks for the image of @p url (a local file) fitted into @p available with the device
@@ -87,6 +94,7 @@ private:
     QHash<QUrl, Pending> m_pending;
     QUrl m_current;
     qint64 m_budget;
+    bool m_upscale = false;
 };
 
 #endif

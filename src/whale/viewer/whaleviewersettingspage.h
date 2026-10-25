@@ -23,7 +23,8 @@ class QTreeWidgetItem;
  * later are included; otherwise the names of the types that are on. Patterns of other groups
  * in the setting (video, V3) are kept as they are.
  *
- * Also whether paging goes round (wrap-around). The A/B switch for multiple selections stays
+ * Also whether paging goes round (wrap-around) and whether small images are enlarged to the
+ * screen (V2b). The A/B switch for multiple selections stays
  * hidden in whalerc.
  */
 class WhaleViewerSettingsPage : public SettingsPageBase
@@ -51,6 +52,7 @@ private:
     QTreeWidget *m_types = nullptr;
     QTreeWidgetItem *m_images = nullptr;
     QCheckBox *m_wrapAround = nullptr;
+    QCheckBox *m_upscale = nullptr;
     QStringList m_otherPatterns;
     bool m_loading = false;
 };

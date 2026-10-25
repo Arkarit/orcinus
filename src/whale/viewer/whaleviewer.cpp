@@ -51,6 +51,7 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     m_loadTimer->setSingleShot(true);
     m_loadTimer->setInterval(LoadDelay);
     connect(m_loadTimer, &QTimer::timeout, this, &WhaleViewer::load);
+    m_cache->setUpscale(WhaleViewerSettings::upscale());
     connect(m_cache, &WhaleViewerCache::imageReady, this, &WhaleViewer::slotImageReady);
 
     m_overlayTimer->setSingleShot(true);
