@@ -166,6 +166,7 @@ target_sources(dolphinstatic PRIVATE
     viewer/whaleviewer.cpp
     viewer/whaleviewerlist.cpp
     viewer/whaleviewersettings.cpp
+    viewer/whaleviewersettingspage.cpp
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/viewer)
 

@@ -105,6 +105,12 @@ file“/„Last file“ am Ende ohne Wrap-around. Strg+Mausrad ist für V2 reser
 Für V2 merken: Qt begrenzt `QImageReader` auf 256 MB je Bild (ca. 64 MP), größere Bilder gelten
 derzeit als Ladefehler.
 
+Stand V1c (2026-10-25): Seite „Viewer“ nach „Styles“ (`WhaleViewerSettingsPage`): Baum „Images“
+(an/aus für alle) mit jedem Bildtyp, den Qt dekodieren kann (Beschreibung + MIME-Name). Alle an =
+`image/*` (später dekodierbare Typen sind dabei), sonst die Namen der eingeschalteten. Muster
+anderer Gruppen (z. B. `video/*` für V3) bleiben erhalten. Dazu „Continue with the first file after
+the last one“ (Wrap-around). Der A/B-Schalter bleibt versteckt; „Defaults“ lässt ihn in Ruhe.
+
 ### V2 – Qualität und Tempo
 
 - Vorladen, Farbprofile, HiDPI, hochwertige Skalierung; Zoom/Pan (V-E5); animierte GIF/WebP.

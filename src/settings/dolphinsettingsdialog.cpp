@@ -14,6 +14,7 @@
 #include "trash/trashsettingspage.h"
 #include "viewmodes/viewsettingspage.h"
 #include "whalestylessettingspage.h"
+#include "whaleviewersettingspage.h"
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #include "userfeedback/userfeedbacksettingspage.h"
@@ -60,6 +61,12 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     stylesSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("preferences-desktop-theme-global")));
     connect(stylesSettingsPage, &WhaleStylesSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
 
+    // Whale: V1c, the built-in viewer.
+    auto viewerSettingsPage = new WhaleViewerSettingsPage(this);
+    KPageWidgetItem *viewerSettingsFrame = addPage(viewerSettingsPage, i18nc("@title:group", "Viewer"));
+    viewerSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("view-preview")));
+    connect(viewerSettingsPage, &WhaleViewerSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
+
     // Context Menu
     auto contextMenuSettingsPage = new ContextMenuSettingsPage(this,
                                                                actions,
@@ -103,6 +110,7 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     m_pages.append(interfaceSettingsPage);
     m_pages.append(viewSettingsPage);
     m_pages.append(stylesSettingsPage); // Whale: ST4
+    m_pages.append(viewerSettingsPage); // Whale: V1c
     m_pages.append(contextMenuSettingsPage);
     if (trashSettingsPage) {
         m_pages.append(trashSettingsPage);
