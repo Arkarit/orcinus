@@ -239,6 +239,19 @@ hat nur `image/*` und muss „Videos“ einschalten). Seite: Gruppe „Videos“
 `videoLoop`), alles nur mit mpv. whalerc `[Viewer]` `VideoAutoplay`, `VideoSound`, `VideoLoop`.
 In V3a werden Videos schon angeboten, aber erst V3b spielt sie ab.
 
+Stand V3b (2026-10-25): `WhaleVideoPlayer` (`src/whale/viewer/whalevideoplayer.*`): mpv mit
+`config=no`, ohne eigene Tasten/OSC, `keep-open=yes` (letztes Bild bleibt, Pause am Ende),
+`hwdec=auto-safe`, `vo=libmpv` bzw. offscreen `vo=null`/`ao=null`; Optionen → `loop-file`,
+`mute`, `pause` vor `loadfile`. Nur die zuletzt geladene Datei zählt (Pfadvergleich bei
+FILE_LOADED, `playlist_entry_id` bei END_FILE mit Fehler). Leertaste am Ende ohne Schleife
+spielt von vorn. `WhaleVideoWidget` (QOpenGLWidget, Render-API, Wayland-/X11-Display für
+Hardware-Dekodierung), durchlässig für Maus, ohne Fokus; wird vor dem Player gelöscht.
+`WhaleViewerOverlay`: Kind-Widget ganz oben, zeichnet Name/Hinweise (`paintOverlay()`). Viewer:
+Video statt Bild (schwarz bis es läuft), Anhalten beim Blättern und Schließen, Tasten nach V-E17,
+Ladefehler wie bei Bildern, Videos nicht im Cache/Vorladen. Testvideo (WebM, 3 KB, 2 s, rot, Ton)
+eingebettet in `src/whale/tests/whaletestvideo.h`; Tests `whalevideoplayertest`,
+`WhaleViewerTest::testVideo*`. Der GL-Pfad ist offscreen nicht getestet (V3d: kwin_wayland --virtual).
+
 ### V4 – Extras
 
 - Optional Löschen (V-E6), evtl. Leertaste = zur Auswahl hinzufügen/entfernen,

@@ -359,6 +359,14 @@ ecm_add_test(whaleviewercachetest.cpp ../../tests/testdir.cpp
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whaleviewercachetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 
+# The player of videos of the built-in viewer (V3b), built with libmpv.
+if(HAVE_MPV)
+    ecm_add_test(whalevideoplayertest.cpp ../../tests/testdir.cpp
+        TEST_NAME whalevideoplayertest
+        LINK_LIBRARIES dolphinstatic Qt6::Test)
+    target_include_directories(whalevideoplayertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+endif()
+
 # The "Viewer" page of the settings dialog (V1c).
 ecm_add_test(whaleviewersettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleviewersettingspagetest

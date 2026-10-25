@@ -10,6 +10,7 @@
  */
 
 #include "whaleviewer.h"
+#include "config-dolphin.h"
 #include "dolphinviewcontainer.h"
 #include "kitemviews/kfileitemmodel.h"
 #include "kitemviews/kitemlistcontainer.h"
@@ -17,8 +18,12 @@
 #include "kitemviews/kitemlistselectionmanager.h"
 #include "testdir.h"
 #include "views/dolphinview.h"
+#include "whaletestvideo.h"
 #include "whaleviewercache.h"
 #include "whaleviewersettings.h"
+#if HAVE_MPV
+#include "whalevideoplayer.h"
+#endif
 
 #include <KConfigGroup>
 #include <KSharedConfig>
@@ -57,6 +62,9 @@ private Q_SLOTS:
     void testPagingFitsAgain();
     void testZoomSharpOrSmooth();
     void testAnimation();
+    void testVideo();
+    void testVideoError();
+    void testVideoSettings();
     void testLoadError();
     void testEscapeCloses();
     void testCloseWhilePaging();
@@ -602,6 +610,99 @@ void WhaleViewerTest::testAnimation()
     QVERIFY(!viewer->cache().entry(url(QStringLiteral("1.png")))->animated);
     QTest::qWait(100);
     QVERIFY(!viewer->isAnimating());
+}
+
+void WhaleViewerTest::testVideo()
+{
+#if HAVE_MPV
+    WhaleViewer *viewer = openFile(QStringLiteral("clip.webm"), whaleTestVideo());
+    QVERIFY(viewer);
+    QVERIFY(viewer->isVideo());
+    QCOMPARE(viewer->overlayText(), QStringLiteral("clip.webm"));
+    WhaleVideoPlayer *player = viewer->videoPlayer();
+    QVERIFY(player);
+    QCOMPARE(player->url(), url(QStringLiteral("clip.webm")));
+    // The view follows as with images (V-E8).
+    QTRY_COMPARE(m_view->currentItemUrl(), url(QStringLiteral("clip.webm")));
+    // Plays at once, with sound, over and over (V-E16).
+    QVERIFY(!player->isPaused());
+    QVERIFY(!player->isMuted());
+    QTRY_VERIFY(player->position() > 0.2);
+
+    // Space, M (V-E17).
+    QTest::keyClick(viewer, Qt::Key_Space);
+    QTRY_VERIFY(player->isPaused());
+    QTest::keyClick(viewer, Qt::Key_M);
+    QTRY_VERIFY(player->isMuted());
+    // Left and Right seek; they do not page.
+    player->seekTo(1.5);
+    QTRY_VERIFY(player->position() > 1.4);
+    QTest::keyClick(viewer, Qt::Key_Left);
+    QTRY_VERIFY(player->position() < 0.1);
+    QCOMPARE(viewer->currentUrl(), url(QStringLiteral("clip.webm")));
+    // No zoom for videos.
+    QTest::keyClick(viewer, Qt::Key_1);
+    QVERIFY(!viewer->isZoomed());
+
+    // Up pages; the video stops.
+    QTest::keyClick(viewer, Qt::Key_Up);
+    QCOMPARE(viewer->currentUrl(), url(QStringLiteral("broken.png")));
+    QVERIFY(!viewer->isVideo());
+    QVERIFY(player->url().isEmpty());
+    // And back: it plays again.
+    QTest::keyClick(viewer, Qt::Key_Down);
+    QTRY_VERIFY(viewer->isLoaded());
+    QCOMPARE(player->url(), url(QStringLiteral("clip.webm")));
+    QTRY_VERIFY(player->position() > 0.2);
+
+    // Escape: closed, the video selected.
+    QTest::keyClick(viewer, Qt::Key_Escape);
+    QTRY_VERIFY(!WhaleViewer::instance());
+    QCOMPARE(selectedUrls(), QList<QUrl>{url(QStringLiteral("clip.webm"))});
+#else
+    QVERIFY(!WhaleViewerSettings::videoSupported());
+    QSKIP("built without libmpv");
+#endif
+}
+
+void WhaleViewerTest::testVideoError()
+{
+#if HAVE_MPV
+    m_testDir->createFile(QStringLiteral("bad.webm"), "not a video");
+    QTRY_COMPARE(m_view->itemsCount(), 10);
+    WhaleViewer *viewer = openByActivation(QStringLiteral("bad.webm"));
+    QVERIFY(viewer);
+    QVERIFY(viewer->isVideo());
+    // As with images (V-E11).
+    QTRY_VERIFY(viewer->hasLoadError());
+    QVERIFY(!viewer->isLoaded());
+    // On to an image (7.png; bad.webm comes before broken.png).
+    QTest::keyClick(viewer, Qt::Key_Up);
+    QCOMPARE(viewer->currentUrl(), url(QStringLiteral("7.png")));
+    QTRY_VERIFY(viewer->isLoaded());
+    QVERIFY(!viewer->hasLoadError());
+#else
+    QSKIP("built without libmpv");
+#endif
+}
+
+void WhaleViewerTest::testVideoSettings()
+{
+#if HAVE_MPV
+    WhaleViewerSettings::setVideoAutoplay(false);
+    WhaleViewerSettings::setVideoSound(false);
+    WhaleViewerSettings::setVideoLoop(false);
+    WhaleViewer *viewer = openFile(QStringLiteral("clip.webm"), whaleTestVideo());
+    QVERIFY(viewer);
+    WhaleVideoPlayer *player = viewer->videoPlayer();
+    QTRY_VERIFY(player->isPaused());
+    QTRY_VERIFY(player->isMuted());
+    QCOMPARE(player->options().loop, false);
+    QTest::qWait(200);
+    QVERIFY(player->position() < 0.05);
+#else
+    QSKIP("built without libmpv");
+#endif
 }
 
 void WhaleViewerTest::testLoadError()

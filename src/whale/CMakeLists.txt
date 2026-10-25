@@ -171,6 +171,14 @@ target_sources(dolphinstatic PRIVATE
     viewer/whaleviewer.qrc
 )
 target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/viewer)
+if(HAVE_MPV)
+    # Videos (V3).
+    target_sources(dolphinstatic PRIVATE
+        viewer/whalevideoplayer.cpp
+        viewer/whalevideowidget.cpp
+    )
+    target_link_libraries(dolphinstatic PkgConfig::MPV Qt6::OpenGLWidgets)
+endif()
 
 ########### plugins ###############
 

@@ -16,6 +16,7 @@
 
 class DolphinView;
 class QMovie;
+class WhaleVideoPlayer;
 class QTimer;
 class QVariantAnimation;
 
@@ -38,6 +39,11 @@ class QVariantAnimation;
  * show sharp unless WhaleViewerSettings::smoothZoom() (V-E13).
  *
  * Animated images (GIF, WebP …) play over and over once loaded, and stop when paging on.
+ *
+ * Videos (V3, built with libmpv) play in a WhaleVideoWidget over the window, as the settings
+ * say (autoplay, sound, loop); paging on stops them. Left and Right seek 5 seconds in a video,
+ * Space plays and pauses, M turns the sound off and on (V-E17). What is shown over the image or
+ * video (the file name, notes) is painted by a transparent child on top.
  *
  * There is at most one viewer; opening another closes the one before.
  *
@@ -108,6 +114,11 @@ public:
     /** Moves a zoomed image by @p delta (window pixels), as dragging with the middle button. */
     void pan(const QPointF &delta);
 
+    /** @return Whether the current file is a video (V3). */
+    bool isVideo() const;
+    /** @return The player of videos, once the viewer showed one; else nullptr. */
+    WhaleVideoPlayer *videoPlayer() const;
+
     /** @return Whether the file shown is an animation that plays. */
     bool isAnimating() const;
     /** @return The number of the frame of the animation shown, or -1. */
@@ -155,6 +166,11 @@ private:
     void clampOrigin();
     void startAnimation();
     void stopAnimation();
+    void startVideo();
+    void stopVideo();
+    /** Paints what lies over the image or video: the file name or a note. */
+    void paintOverlay(QPainter &painter);
+    friend class WhaleViewerOverlay;
     void followInView();
     void showOverlay(const QString &text);
 
@@ -180,6 +196,11 @@ private:
     QPointF m_origin;
     bool m_panning = false;
     QPointF m_panPosition;
+
+    QWidget *m_overlayWidget;
+    WhaleVideoPlayer *m_videoPlayer = nullptr;
+    /// Draws the video; only where there is a screen to draw on.
+    QWidget *m_videoWidget = nullptr;
 
     QMovie *m_movie = nullptr;
     /// The frame of m_movie shown, at full size; null without an animation.

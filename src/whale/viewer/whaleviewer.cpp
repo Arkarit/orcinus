@@ -6,8 +6,13 @@
 
 #include "whaleviewer.h"
 
+#include "config-dolphin.h"
 #include "views/dolphinview.h"
 #include "whaleviewersettings.h"
+#if HAVE_MPV
+#include "whalevideoplayer.h"
+#include "whalevideowidget.h"
+#endif
 
 #include <KLocalizedString>
 
@@ -31,7 +36,32 @@ constexpr int OverlayFadeDuration = 300;
 constexpr int CursorHideDelay = 1500;
 constexpr qreal ZoomStep = 1.25;
 constexpr qreal MaxZoom = 32;
+constexpr double SeekStep = 5;
 }
+
+/// Over the image or video (a video widget covers what the viewer paints itself).
+class WhaleViewerOverlay : public QWidget
+{
+public:
+    explicit WhaleViewerOverlay(WhaleViewer *viewer)
+        : QWidget(viewer)
+        , m_viewer(viewer)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setFocusPolicy(Qt::NoFocus);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *event) override
+    {
+        Q_UNUSED(event)
+        QPainter painter(this);
+        m_viewer->paintOverlay(painter);
+    }
+
+private:
+    WhaleViewer *m_viewer;
+};
 
 WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidget *window)
     : QWidget(nullptr, Qt::Window | Qt::FramelessWindowHint)
@@ -44,6 +74,7 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     , m_overlayTimer(new QTimer(this))
     , m_cursorTimer(new QTimer(this))
     , m_overlayFade(new QVariantAnimation(this))
+    , m_overlayWidget(new WhaleViewerOverlay(this))
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setAttribute(Qt::WA_OpaquePaintEvent);
@@ -69,11 +100,11 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     m_overlayFade->setDuration(OverlayFadeDuration);
     connect(m_overlayFade, &QVariantAnimation::valueChanged, this, [this](const QVariant &value) {
         m_overlayOpacity = value.toReal();
-        update();
+        m_overlayWidget->update();
     });
     connect(m_overlayFade, &QVariantAnimation::finished, this, [this]() {
         m_overlayText.clear();
-        update();
+        m_overlayWidget->update();
     });
 
     m_cursorTimer->setSingleShot(true);
@@ -88,7 +119,12 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     }
 }
 
-WhaleViewer::~WhaleViewer() = default;
+WhaleViewer::~WhaleViewer()
+{
+    // The widget's render context goes before the player.
+    delete m_videoWidget;
+    delete m_videoPlayer;
+}
 
 void WhaleViewer::install()
 {
@@ -162,11 +198,17 @@ QUrl WhaleViewer::currentUrl() const
 
 bool WhaleViewer::isLoaded() const
 {
+    if (isVideo()) {
+        return m_videoPlayer && m_videoPlayer->url() == currentUrl() && m_videoPlayer->isLoaded();
+    }
     return !m_shownError && !m_shown.isNull() && m_shownUrl == currentUrl();
 }
 
 bool WhaleViewer::hasLoadError() const
 {
+    if (isVideo()) {
+        return m_videoPlayer && m_videoPlayer->url() == currentUrl() && m_videoPlayer->hasError();
+    }
     return m_shownError && m_shownUrl == currentUrl();
 }
 
@@ -210,9 +252,18 @@ void WhaleViewer::pagedTo(int direction)
     m_direction = direction;
     m_zoom = 0;
     stopAnimation();
+    stopVideo();
     showOverlay(m_list.currentItem().name());
-    // A preloaded file shows at once; the view follows (and the rest loads) once paging rests.
-    showFromCache();
+    if (isVideo()) {
+        // Black until it plays, not the image before.
+        m_shown = QImage();
+        m_shownUrl = currentUrl();
+        m_shownError = false;
+        update();
+    } else {
+        // A preloaded file shows at once; the view follows (and the rest loads) once paging rests.
+        showFromCache();
+    }
     scheduleLoad();
     Q_EMIT currentChanged(currentUrl());
 }
@@ -233,6 +284,11 @@ void WhaleViewer::load()
     const QUrl url = currentUrl();
     m_cache->setCurrent(url);
     m_cache->retainOnly(wantedUrls());
+    if (isVideo()) {
+        startVideo();
+        preload();
+        return;
+    }
     const WhaleViewerCache::Entry *entry = m_cache->entry(url);
     if (entry && (entry->error || entry->available == availableSize())) {
         showFromCache();
@@ -294,7 +350,8 @@ QList<QUrl> WhaleViewer::wantedUrls() const
         if (wrapAround) {
             index = ((index % count) + count) % count;
         }
-        if (index >= 0 && index < count && !urls.contains(items.at(index).url())) {
+        // Videos are not decoded ahead.
+        if (index >= 0 && index < count && !urls.contains(items.at(index).url()) && !WhaleViewerList::isVideo(items.at(index))) {
             urls.append(items.at(index).url());
         }
     }
@@ -411,6 +468,60 @@ void WhaleViewer::clampOrigin()
     m_origin.setY(size.height() <= height() ? (height() - size.height()) / 2 : qBound(height() - size.height(), m_origin.y(), 0.0));
 }
 
+bool WhaleViewer::isVideo() const
+{
+    return WhaleViewerList::isVideo(m_list.currentItem());
+}
+
+WhaleVideoPlayer *WhaleViewer::videoPlayer() const
+{
+    return m_videoPlayer;
+}
+
+void WhaleViewer::startVideo()
+{
+#if HAVE_MPV
+    if (!m_videoPlayer) {
+        m_videoPlayer = new WhaleVideoPlayer(this);
+        m_videoPlayer->setOptions({WhaleViewerSettings::videoAutoplay(), WhaleViewerSettings::videoSound(), WhaleViewerSettings::videoLoop()});
+        connect(m_videoPlayer, &WhaleVideoPlayer::loaded, this, [this](const QUrl &url) {
+            if (url == currentUrl()) {
+                Q_EMIT loadFinished(url);
+            }
+        });
+        connect(m_videoPlayer, &WhaleVideoPlayer::failed, this, [this](const QUrl &url) {
+            if (url == currentUrl()) {
+                if (m_videoWidget) {
+                    m_videoWidget->hide();
+                }
+                update();
+                Q_EMIT loadFinished(url);
+            }
+        });
+        connect(m_videoPlayer, &WhaleVideoPlayer::stateChanged, m_overlayWidget, qOverload<>(&QWidget::update));
+        if (m_videoPlayer->rendersToWidget()) {
+            m_videoWidget = new WhaleVideoWidget(m_videoPlayer, this);
+            m_videoWidget->setGeometry(rect());
+            m_overlayWidget->raise();
+        }
+    }
+    if (m_videoWidget) {
+        m_videoWidget->show();
+    }
+    m_videoPlayer->load(currentUrl());
+#endif
+}
+
+void WhaleViewer::stopVideo()
+{
+    if (m_videoPlayer && !m_videoPlayer->url().isEmpty()) {
+        m_videoPlayer->stop();
+    }
+    if (m_videoWidget) {
+        m_videoWidget->hide();
+    }
+}
+
 bool WhaleViewer::isAnimating() const
 {
     return m_movie && m_movie->state() == QMovie::Running;
@@ -457,7 +568,7 @@ void WhaleViewer::showOverlay(const QString &text)
     m_overlayText = text;
     m_overlayOpacity = 1.0;
     m_overlayTimer->start();
-    update();
+    m_overlayWidget->update();
 }
 
 void WhaleViewer::paintEvent(QPaintEvent *event)
@@ -495,12 +606,16 @@ void WhaleViewer::paintEvent(QPaintEvent *event)
         painter.drawImage(target, m_shown);
     }
 
-    painter.setPen(Qt::white);
-    if (m_shownError) {
-        const QString name = m_shownUrl.fileName();
+    if (hasLoadError()) {
+        painter.setPen(Qt::white);
+        const QString name = currentUrl().fileName();
         painter.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, i18nc("@info in the viewer, %1 is a file name", "%1 cannot be displayed.", name));
     }
+}
 
+void WhaleViewer::paintOverlay(QPainter &painter)
+{
+    painter.setPen(Qt::white);
     if (!m_overlayText.isEmpty() && m_overlayOpacity > 0) {
         QFont overlayFont = font();
         overlayFont.setPointSizeF(overlayFont.pointSizeF() * 1.25);
@@ -523,6 +638,10 @@ void WhaleViewer::paintEvent(QPaintEvent *event)
 void WhaleViewer::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
+    m_overlayWidget->setGeometry(rect());
+    if (m_videoWidget) {
+        m_videoWidget->setGeometry(rect());
+    }
     if (!m_list.isEmpty()) {
         m_cache->request(currentUrl(), availableSize(), devicePixelRatioF());
     }
@@ -533,6 +652,29 @@ void WhaleViewer::resizeEvent(QResizeEvent *event)
 
 void WhaleViewer::keyPressEvent(QKeyEvent *event)
 {
+    if (isVideo() && m_videoPlayer) {
+        // V-E17; Up, Down and the rest page as with images.
+        switch (event->key()) {
+        case Qt::Key_Left:
+            m_videoPlayer->seekBy(-SeekStep);
+            event->accept();
+            return;
+        case Qt::Key_Right:
+            m_videoPlayer->seekBy(SeekStep);
+            event->accept();
+            return;
+        case Qt::Key_Space:
+            m_videoPlayer->togglePause();
+            event->accept();
+            return;
+        case Qt::Key_M:
+            m_videoPlayer->toggleMute();
+            event->accept();
+            return;
+        default:
+            break;
+        }
+    }
     switch (event->key()) {
     case Qt::Key_Escape:
         close();
@@ -636,6 +778,7 @@ void WhaleViewer::mouseReleaseEvent(QMouseEvent *event)
 
 void WhaleViewer::closeEvent(QCloseEvent *event)
 {
+    stopVideo();
     // A file paged to but not loaded yet: the view still shows where the viewer stopped.
     if (m_loadTimer->isActive()) {
         m_loadTimer->stop();
