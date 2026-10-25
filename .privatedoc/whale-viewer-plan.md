@@ -137,7 +137,8 @@ Entscheidungen (Benutzer, 2026-10-25):
   umgerechnet; KWin behandelt Fenster ohne eigenes Profil als sRGB und rechnet selbst auf den
   Bildschirm um. Ein echtes Bildschirmprofil im Viewer erst, falls es nötig wird.
 - V-E15 Neue Einstellung „Immer hochskalieren“ (Vorgabe aus): kleine Bilder werden bis an den
-  Bildschirmrand vergrößert (in der Qualität von V-E13: aus = glatt beim Einpassen, sonst wie Zoom).
+  Bildschirmrand vergrößert, immer glatt (das Einpassen soll das Bild zeigen, nicht seine Pixel;
+  scharf/glatt nach V-E13 gilt nur für den Zoom).
 
 Schritte:
 - V2a: Skalieren im Worker-Thread statt im GUI-Thread; Cache mit Nachbarn (±1, in
@@ -159,6 +160,12 @@ nur bis 512 MB, sonst nur das eingepasste. `QImageReader`-Grenze 2 GB. Ein vorge
 erscheint beim Blättern sofort; `loadFinished` und das Folgen der View weiter erst, wenn das
 Blättern ruht. Beim Ändern der Fenstergröße wird das alte Bild gestreckt gezeigt, bis das neu
 skalierte da ist. Tests `whaleviewercachetest`, `WhaleViewerTest::testPreloadsNeighbours`.
+
+Stand V2b (2026-10-25): Beim Dekodieren werden Bilder mit eigenem Profil (`QImage::colorSpace()`
+gültig und nicht sRGB) nach sRGB umgerechnet, andere Farbmodelle (CMYK, Grau) dabei nach
+RGB32/ARGB32. Herunterskalieren mit `Qt::SmoothTransformation` (in Qt flächengemittelt) bleibt.
+whalerc `[Viewer] Upscale` (Vorgabe aus), Seite „Viewer“: „Enlarge small images to fill the
+screen“. Die Häkchen der Seite haben Objektnamen (`wrapAround`, `upscale`) für die Tests.
 
 ### V3 – Video
 
