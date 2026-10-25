@@ -31,8 +31,18 @@ Orca (the GNOME screen reader), Orcinus, Shachi, Grampus (too close to Gramps), 
 SeaWorld documentary), Orque, Épaulard, Spekkhogger. The user chose **Orcinus**: no package of
 that name anywhere, only small dead projects on GitHub. The icon stays.
 
-Still open for B1: trademark search (DPMA, EUIPO, USPTO; manual, done by the user) and the
-rename plan itself (what changes, what stays internal, migration of existing user config).
+Trademark search (2026-10-25, DPMA / EUIPO / USPTO, done by the user):
+
+- DE 302022014414 and EU 018921004 "orcinus" (word/figurative, enesty GmbH / Jurke
+  Engineering GmbH, represented by patent attorneys): classes 7, 9, 11, temperature control
+  technology. Class 9 covers only "software for temperature control devices / temperature
+  control systems"; no class 42. Assessment: low residual risk, the goods are clearly different
+  from a file manager. Not legal advice.
+- EU 016842916 "NORCINUS" (Italian food/catering, classes 35, 43): irrelevant.
+- US 88322629: clothing, irrelevant.
+
+Still open for B1: the rename plan itself (what changes, what stays internal, migration of
+existing user config).
 
 ### B2: Dependency on Dolphin's system libraries
 
