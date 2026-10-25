@@ -225,11 +225,15 @@ public:
      * @p action "key" (@p argument as in QKeySequence, e.g. "Right", "PgDown", "Escape"),
      * "wheel" (@p argument the angle, 120 a notch, negative is down = next) or "click"
      * (@p argument "left", "center" or "right": a click into that part of the window).
+     * V2e: "zoom_wheel" (Ctrl+wheel, @p argument the angle, optionally followed by x and y as
+     * fractions of the window, e.g. "120 0.25 0.5") and "drag" (@p argument "dx dy": the middle
+     * button drags from the middle of the window).
      */
     QJsonObject viewerInput(const QString &action, const QString &argument);
     /**
      * V1d: changes the viewer's settings, as the settings page does: @p options with
-     * "wrapAround" (bool), "mimeTypes" (list) and the hidden "multiSelection" ("keep" or "move").
+     * "wrapAround" (bool), "mimeTypes" (list), "upscale" and "smoothZoom" (bool, V2e) and the hidden
+     * "multiSelection" ("keep" or "move").
      */
     QJsonObject setViewerOptions(const QJsonObject &options);
     /// V1d: a PNG image of the open viewer, rendered by Whale itself; empty without one.

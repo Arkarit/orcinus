@@ -47,6 +47,7 @@
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
 #include "whaleviewer.h"
+#include "whaleviewercache.h"
 #include "whaleviewersettings.h"
 #include "whaleviewhost.h"
 #include "whaleviewpreferences.h"
@@ -98,6 +99,8 @@
 #include <QToolButton>
 #include <QVariantAnimation>
 #include <QWheelEvent>
+
+#include <cmath>
 
 namespace
 {
@@ -2528,6 +2531,8 @@ QJsonObject WhaleDevAutomation::viewerState() const
          QJsonObject{
              {QStringLiteral("mimeTypes"), QJsonArray::fromStringList(mimeTypes)},
              {QStringLiteral("wrapAround"), WhaleViewerSettings::wrapAround()},
+             {QStringLiteral("upscale"), WhaleViewerSettings::upscale()},
+             {QStringLiteral("smoothZoom"), WhaleViewerSettings::smoothZoom()},
              {QStringLiteral("multiSelection"),
               WhaleViewerSettings::multiSelection() == WhaleViewerSettings::MultiSelection::MoveSelection ? QStringLiteral("move") : QStringLiteral("keep")},
          }},
@@ -2556,6 +2561,24 @@ QJsonObject WhaleDevAutomation::viewerState() const
     state.insert(QStringLiteral("fullScreen"), viewer->isFullScreen());
     state.insert(QStringLiteral("active"), viewer->isActiveWindow());
     state.insert(QStringLiteral("onWindowScreen"), viewer->screen() == m_window->screen());
+
+    // V2e: zoom, the images decoded ahead, animation.
+    const WhaleViewerCache::Entry *entry = viewer->cache().entry(viewer->currentUrl());
+    state.insert(QStringLiteral("imageSize"), entry ? QJsonArray{entry->fullSize.width(), entry->fullSize.height()} : QJsonArray());
+    state.insert(QStringLiteral("zoomed"), viewer->isZoomed());
+    state.insert(QStringLiteral("zoom"), std::round(viewer->zoom() * 1000) / 1000);
+    const QRect visible = viewer->visibleImageRect().toRect();
+    state.insert(QStringLiteral("visibleRect"), QJsonArray{visible.x(), visible.y(), visible.width(), visible.height()});
+    QStringList cached;
+    const QList<QUrl> urls = viewer->cache().urls();
+    for (const QUrl &url : urls) {
+        cached.append(url.fileName());
+    }
+    cached.sort();
+    state.insert(QStringLiteral("cached"), QJsonArray::fromStringList(cached));
+    state.insert(QStringLiteral("animated"), entry && entry->animated);
+    state.insert(QStringLiteral("animating"), viewer->isAnimating());
+    state.insert(QStringLiteral("animationFrame"), viewer->animationFrame());
     return state;
 }
 
@@ -2566,7 +2589,8 @@ QJsonObject WhaleDevAutomation::viewerInput(const QString &action, const QString
         return failure(QStringLiteral("the viewer is not open"));
     }
     if (action == QLatin1String("key")) {
-        const QKeySequence sequence = QKeySequence::fromString(argument);
+        // "+" separates keys in QKeySequence.
+        const QKeySequence sequence = argument == QLatin1String("+") ? QKeySequence(Qt::Key_Plus) : QKeySequence::fromString(argument);
         if (sequence.isEmpty()) {
             return failure(QStringLiteral("unknown key \"%1\"").arg(argument));
         }
@@ -2611,6 +2635,40 @@ QJsonObject WhaleDevAutomation::viewerInput(const QString &action, const QString
         sendMouse(viewer, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton, m_inputTime += 10);
         return ok();
     }
+    if (action == QLatin1String("zoom_wheel")) {
+        // "delta" or "delta x y", x and y fractions of the window (default the middle).
+        const QStringList parts = argument.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        bool valid = parts.count() == 1 || parts.count() == 3;
+        const int delta = valid ? parts.at(0).toInt(&valid) : 0;
+        QPointF position(viewer->width() / 2.0, viewer->height() / 2.0);
+        if (valid && parts.count() == 3) {
+            position = QPointF(parts.at(1).toDouble(&valid) * viewer->width(), position.y());
+            position.setY(valid ? parts.at(2).toDouble(&valid) * viewer->height() : 0);
+        }
+        if (!valid) {
+            return failure(QStringLiteral("the zoom wheel needs an angle, e.g. 120, and optionally where (fractions of the window)"));
+        }
+        QWheelEvent event(position, viewer->mapToGlobal(position), QPoint(), QPoint(0, delta), Qt::NoButton, Qt::ControlModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(viewer, &event);
+        return ok();
+    }
+    if (action == QLatin1String("drag")) {
+        // "dx dy" in window pixels, with the middle button from the middle of the window.
+        const QStringList parts = argument.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        bool validX = false;
+        bool validY = false;
+        const int dx = parts.count() == 2 ? parts.at(0).toInt(&validX) : 0;
+        const int dy = parts.count() == 2 ? parts.at(1).toInt(&validY) : 0;
+        if (!validX || !validY) {
+            return failure(QStringLiteral("drag needs dx and dy"));
+        }
+        const QPoint from = viewer->rect().center();
+        const QPoint to = from + QPoint(dx, dy);
+        sendMouse(viewer, QEvent::MouseButtonPress, from, Qt::MiddleButton, Qt::MiddleButton, m_inputTime += 10);
+        sendMouse(viewer, QEvent::MouseMove, to, Qt::NoButton, Qt::MiddleButton, m_inputTime += 10);
+        sendMouse(viewer, QEvent::MouseButtonRelease, to, Qt::MiddleButton, Qt::NoButton, m_inputTime += 10);
+        return ok();
+    }
     return failure(QStringLiteral("unknown viewer action \"%1\"").arg(action));
 }
 
@@ -2619,6 +2677,10 @@ QJsonObject WhaleDevAutomation::setViewerOptions(const QJsonObject &options)
     for (auto it = options.begin(); it != options.end(); ++it) {
         if (it.key() == QLatin1String("wrapAround") && it.value().isBool()) {
             WhaleViewerSettings::setWrapAround(it.value().toBool());
+        } else if (it.key() == QLatin1String("upscale") && it.value().isBool()) {
+            WhaleViewerSettings::setUpscale(it.value().toBool());
+        } else if (it.key() == QLatin1String("smoothZoom") && it.value().isBool()) {
+            WhaleViewerSettings::setSmoothZoom(it.value().toBool());
         } else if (it.key() == QLatin1String("mimeTypes") && it.value().isArray()) {
             QStringList mimeTypes;
             const QJsonArray array = it.value().toArray();

@@ -185,6 +185,15 @@ Ist das aktuelle Bild fertig geladen, spielt ein `QMovie` es im GUI-Thread ab, i
 eingepasst bzw. gezoomt wie das Bild. Frames werden nicht nach sRGB umgerechnet (GIF hat keine
 Profile). Testdatei: eine 159-Byte-GIF mit drei Frames, eingebettet in `whaleviewertest`.
 
+Stand V2e (2026-10-25): Dev MCP: `viewer` in `get_ui_state` zusätzlich `settings.upscale`/
+`smoothZoom`, `imageSize`, `zoomed`, `zoom` (3 Nachkommastellen), `visibleRect` (Bildpixel),
+`cached` (Namen, sortiert), `animated`, `animating`, `animationFrame`. `viewer_input`: Tasten
+`+`/`-`/`1`/`0`, `zoom_wheel` (`delta`, `at` [x, y] als Bruchteile des Fensters), `drag` (`dx`,
+`dy`, mittlere Taste ab Fenstermitte). `set_viewer_options`: `upscale`, `smooth_zoom`. e2e
+`test_v2_acceptance.py` (A–E: Einpassen + Vorladen, Zoom/Ziehen, Blättern passt ein und
+Vorladen folgt der Richtung, animierte GIF, Hochskalieren/Glätten). Beide Builds, volle Suite grün.
+V2 ist damit fertig; offen bleibt der Praxistest (große Fotos, Farbprofile, HiDPI).
+
 ### V3 – Video
 
 - libmpv, Bedienleiste, Video-Optionen (V-E7).

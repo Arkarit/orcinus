@@ -523,14 +523,20 @@ TOOLS = [
         "description": "V1d: input for the built-in viewer (opened with activate_items on an image), sent to its "
         "window as real events: action key (key as in QKeySequence: Right/Left/Up/Down, PgDown/PgUp, Home/End, "
         "Escape closes), wheel (delta: 120 a notch, negative = down = next file; fast turns add up) or click "
-        "(where: left/right fifth page, center does nothing). The state is viewer in get_ui_state.",
+        "(where: left/right fifth page, center does nothing). V2e: keys +, -, 1 (100 %), 0 (fit) zoom; "
+        "zoom_wheel (Ctrl+wheel: delta, positive = in; at: [x, y] fractions of the window, default the middle) "
+        "and drag (dx, dy: the middle button drags a zoomed image from the middle of the window). The state is "
+        "viewer in get_ui_state.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["key", "wheel", "click"]},
+                "action": {"type": "string", "enum": ["key", "wheel", "click", "zoom_wheel", "drag"]},
                 "key": {"type": "string"},
                 "delta": {"type": "integer"},
                 "where": {"type": "string", "enum": ["left", "center", "right"]},
+                "at": {"type": "array", "items": {"type": "number"}, "minItems": 2, "maxItems": 2},
+                "dx": {"type": "integer"},
+                "dy": {"type": "integer"},
             },
             "required": ["action"],
         },
@@ -540,11 +546,14 @@ TOOLS = [
         "description": "V1d: the settings of the built-in viewer, as its settings page writes them: wrap_around, "
         "mime_types (e.g. [\"image/*\"] or single types; [] opens nothing in the viewer) and the hidden "
         "multi_selection (keep: paging through a multiple selection keeps it, move: the shown file becomes the "
-        "selection). Only the given ones change; viewer.settings in get_ui_state.",
+        "selection); V2e: upscale (small images fill the screen) and smooth_zoom (smooth instead of sharp pixels "
+        "beyond 100 %), read when the viewer opens. Only the given ones change; viewer.settings in get_ui_state.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "wrap_around": {"type": "boolean"},
+                "upscale": {"type": "boolean"},
+                "smooth_zoom": {"type": "boolean"},
                 "mime_types": {"type": "array", "items": {"type": "string"}},
                 "multi_selection": {"type": "string", "enum": ["keep", "move"]},
             },
@@ -736,11 +745,15 @@ class Whale:
             return result(iface.ConfigureToolbars(json.dumps(args)))
         if tool == "viewer_input":
             action = args["action"]
+            at = args.get("at")
             argument = {"key": args.get("key", ""), "wheel": str(args.get("delta", "")),
-                        "click": args.get("where", "")}.get(action, "")
+                        "click": args.get("where", ""),
+                        "zoom_wheel": " ".join(str(v) for v in [args.get("delta", "")] + (list(at) if at else [])),
+                        "drag": f"{args.get('dx', '')} {args.get('dy', '')}"}.get(action, "")
             return result(iface.ViewerInput(action, argument))
         if tool == "set_viewer_options":
-            names = {"wrap_around": "wrapAround", "mime_types": "mimeTypes", "multi_selection": "multiSelection"}
+            names = {"wrap_around": "wrapAround", "mime_types": "mimeTypes", "multi_selection": "multiSelection",
+                     "upscale": "upscale", "smooth_zoom": "smoothZoom"}
             options = {names[key]: value for key, value in args.items() if key in names}
             return result(iface.SetViewerOptions(json.dumps(options)))
         if tool == "screenshot":

@@ -82,6 +82,8 @@ public:
 
     /** @return The image of @p url, or nullptr if there is none yet. */
     const Entry *entry(const QUrl &url) const;
+    /** @return The files there are images of. */
+    QList<QUrl> urls() const;
     /** @return Whether @p url is being decoded or scaled. */
     bool isPending(const QUrl &url) const;
 

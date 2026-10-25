@@ -195,6 +195,11 @@ const WhaleViewerCache::Entry *WhaleViewerCache::entry(const QUrl &url) const
     return it == m_entries.constEnd() ? nullptr : &*it;
 }
 
+QList<QUrl> WhaleViewerCache::urls() const
+{
+    return m_entries.keys();
+}
+
 bool WhaleViewerCache::isPending(const QUrl &url) const
 {
     return m_pending.contains(url);
