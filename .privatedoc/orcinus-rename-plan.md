@@ -85,6 +85,8 @@ Where the code opens one of them by name, derive it from the component
   translators then see the product name.
 - Credit line: "Orcinus: %1" or "Fork: %1" instead of "Whale Fork: %1".
 - `po-whale/de/whale.po`: rename and update the msgids. The real translation batch is RL2 anyway.
+- `settings/viewmodes/expansiontintwidget.cpp:327`: the example folder "whale" in the tint
+  preview → "orcinus".
 
 ### Repository files
 
@@ -109,16 +111,32 @@ Where the code opens one of them by name, derive it from the component
 
 ## Steps (one commit each; build both configs and run the full suite after each)
 
-### OR1: Constants and installed file names
-Central constants, derived names in CMake (translation domain, `liborcinusprivate`, logging
-category, `.mo`, completions, plasma service, metainfo file, `po-orcinus`). After this the build
-installs only `orcinus`-named files.
-Test: identity test, DESTDIR install of `../build-whale-system` → manifest contains no `whale`.
+### OR1: Installed file names (no change of the runtime identity)
+Names that only affect installed files: `liborcinusprivate`, `liborcinusviewapi` (output name,
+part of N3), logging categories (N4, including `org.kde.whale.views` in `src/whale/CMakeLists.txt`),
+completions, plasma service template, metainfo file name, `po-orcinus`, `.mo` file name and the
+translation domain. The domain comes from one place: `TRANSLATION_DOMAIN` (CMake, derived from
+`WHALE_COMPONENT`); `main.cpp` (`whaleTranslationDomain`) and the ~30 tests with
+`setApplicationDomain({"whale"})` use that macro instead of a literal.
+Test: full suite; DESTDIR install of `../build-whale-system` → manifest contains no `whale`.
 
-### OR2: Runtime identity in code
-Config/state file names, qrc prefix, pop-out option, dev automation bus names, MCP adapter
-prefix, dev-build title. Extend the identity test.
-Test: full suite; dev MCP e2e tests (they use the bus names).
+### OR2: Runtime identity (constants plus everything hard-coded that depends on them)
+Found while starting OR1: the constants (`WHALE_APP_ID`, `WHALE_COMPONENT`, …) drive the bus
+names, the D-Bus object path, the default config file and the kxmlgui component at runtime, and
+many tests hard-code those values (`/whale/Whale_1`, `:/kxmlgui5/whale/…`, `whalerc`,
+`whalestaterc`, `whaleviewpreferencesrc`, `io.github.arkarit.whale-<pid>` in the e2e tests).
+Switching the constants alone would leave the suite red, so constants and the dependent names
+change in one commit:
+- central constants, display name (`Orcinus`, dev build `Orcinus-Dev`), URLs;
+- config/state file names (`.kcfg` files, `whalestylesrc`, `whaleviewpreferencesrc`), derived
+  from the component where code opens them by name;
+- qrc prefix `/kxmlgui5/orcinus` (the rc file names inside stay, N2);
+- pop-out option `--view-style`; dev automation bus names; MCP adapter prefix;
+- unit tests and e2e tests that hard-code any of these;
+- identity test extended.
+Internal group names inside the config files (e.g. `WhaleToolbars`) stay (N1/N2), so the
+migration remains a plain copy.
+Test: full suite including the dev MCP e2e tests.
 
 ### OR3: View plugin externals (N3)
 Namespace, metadata keys, library output name, treemap plugin ID; test plugins in
