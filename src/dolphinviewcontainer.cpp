@@ -23,6 +23,7 @@
 #include "statusbar/dolphinstatusbar.h"
 #include "whalefileviewtoolbar.h" // Whale: multi-toolbar TB2
 #include "whalescriptlauncher.h"
+#include "whaleviewer.h"
 #include "whaleviewhost.h"
 
 #include <KActionCollection>
@@ -156,6 +157,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent, Dol
     connect(m_view, &DolphinView::itemActivated, this, &DolphinViewContainer::slotItemActivated);
     connect(m_view, &DolphinView::fileMiddleClickActivated, this, &DolphinViewContainer::slotfileMiddleClickActivated);
     connect(m_view, &DolphinView::itemsActivated, this, &DolphinViewContainer::slotItemsActivated);
+    WhaleViewer::install(); // Whale: opening many images at once asks nothing
     connect(m_view, &DolphinView::redirection, this, &DolphinViewContainer::redirect);
     connect(m_view, &DolphinView::directoryLoadingStarted, this, &DolphinViewContainer::slotDirectoryLoadingStarted);
     connect(m_view, &DolphinView::directoryLoadingCompleted, this, &DolphinViewContainer::slotDirectoryLoadingCompleted);
@@ -847,6 +849,9 @@ void DolphinViewContainer::slotItemActivated(const KFileItem &item)
     if (WhaleScriptLauncher::launch(item, this)) { // Whale: scripts in a terminal
         return;
     }
+    if (WhaleViewer::openItem(item, m_view, window())) { // Whale: the built-in viewer
+        return;
+    }
 
     KIO::OpenUrlJob *job = new KIO::OpenUrlJob(item.targetUrl(), item.mimetype());
     // Auto*Warning*Handling, errors are put in a KMessageWidget by us in slotOpenUrlFinished.
@@ -913,6 +918,8 @@ void DolphinViewContainer::slotItemsActivated(const KFileItemList &items)
             others.append(item);
         }
     }
+    // Whale: what the built-in viewer shows, all in one viewer.
+    others = WhaleViewer::openItems(others, m_view, window());
     if (others.isEmpty()) {
         return;
     }

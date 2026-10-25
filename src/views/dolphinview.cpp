@@ -1083,6 +1083,17 @@ void DolphinView::applyLinkedSelection()
     m_linkedPending = waiting;
 }
 
+static std::function<bool(const KFileItem &)> &shownInternallyCheck()
+{
+    static std::function<bool(const KFileItem &)> check;
+    return check;
+}
+
+void DolphinView::setShownInternally(const std::function<bool(const KFileItem &)> &shownInternally)
+{
+    shownInternallyCheck() = shownInternally;
+}
+
 bool DolphinView::showViewerItem(const QUrl &url, bool select)
 {
     const int index = m_model->index(url);
@@ -1520,13 +1531,22 @@ void DolphinView::slotItemsActivated(const KItemSet &indexes)
 
     const auto modifiers = QGuiApplication::keyboardModifiers();
 
-    if (indexes.count() > 5) {
-        QString question = i18np("Are you sure you want to open 1 item?", "Are you sure you want to open %1 items?", indexes.count());
+    // Whale: files the built-in viewer shows open in one window, so they do not count (V1b).
+    int openedCount = indexes.count();
+    if (shownInternallyCheck() && openedCount > 5) {
+        for (int index : indexes) {
+            if (shownInternallyCheck()(m_model->fileItem(index))) {
+                --openedCount;
+            }
+        }
+    }
+    if (openedCount > 5) {
+        QString question = i18np("Are you sure you want to open 1 item?", "Are you sure you want to open %1 items?", openedCount);
         const int answer = KMessageBox::warningContinueCancel(
             this,
             question,
             {},
-            KGuiItem(i18ncp("@action:button", "Open %1 Item", "Open %1 Items", indexes.count()), QStringLiteral("document-open")),
+            KGuiItem(i18ncp("@action:button", "Open %1 Item", "Open %1 Items", openedCount), QStringLiteral("document-open")),
             KStandardGuiItem::cancel(),
             QStringLiteral("ConfirmOpenManyFolders"));
         if (answer != KMessageBox::PrimaryAction && answer != KMessageBox::Continue) {

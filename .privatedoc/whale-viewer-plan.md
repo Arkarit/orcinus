@@ -95,6 +95,16 @@ Schritte (2026-10-25):
 - V1d: Dev-MCP-Tools, e2e, beide Builds, volle Suite.
 - Nicht lokale URLs (smb, sftp …) öffnen in V1 wie bisher mit ihrem Programm.
 
+Stand V1b (2026-10-25): `WhaleViewer` (`src/whale/viewer/whaleviewer.*`), Haken in
+`DolphinViewContainer::slotItemActivated()`/`slotItemsActivated()` nach dem Skript-Starter.
+Laden mit `QImageReader` (EXIF-Drehung) im Hintergrund; Bildwechsel innerhalb von 40 ms
+werden zusammengefasst, nur das letzte Bild wird geladen, und erst dann folgt die View
+(beim Schließen sofort). Einpassen in Geräte-Pixeln, nie über 100 %. Rand-Klick = linkes/rechtes
+Fünftel. Tasten: ←/↑/Bild↑/Rücktaste zurück, →/↓/Bild↓ vor, Pos1/Ende, ESC. Hinweis „First
+file“/„Last file“ am Ende ohne Wrap-around. Strg+Mausrad ist für V2 reserviert (tut nichts).
+Für V2 merken: Qt begrenzt `QImageReader` auf 256 MB je Bild (ca. 64 MP), größere Bilder gelten
+derzeit als Ladefehler.
+
 ### V2 – Qualität und Tempo
 
 - Vorladen, Farbprofile, HiDPI, hochwertige Skalierung; Zoom/Pan (V-E5); animierte GIF/WebP.

@@ -26,6 +26,7 @@
 #include <QUrl>
 #include <QWidget>
 
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -431,6 +432,12 @@ public:
     {
         return m_container;
     }
+
+    /**
+     * Whale: @p shownInternally tells which files the built-in viewer shows when they are
+     * opened. Opening many items at once asks first, but not for those (V1b).
+     */
+    static void setShownInternally(const std::function<bool(const KFileItem &)> &shownInternally);
 
 public Q_SLOTS:
 

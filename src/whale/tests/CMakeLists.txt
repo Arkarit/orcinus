@@ -346,3 +346,9 @@ ecm_add_test(whaleviewerlisttest.cpp ../../tests/testdir.cpp
     TEST_NAME whaleviewerlisttest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whaleviewerlisttest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
+# The window of the built-in viewer: opening, paging, the view following it (V1b).
+ecm_add_test(whaleviewertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaleviewertest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whaleviewertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)

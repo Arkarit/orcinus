@@ -163,6 +163,7 @@ target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/scri
 
 # See .privatedoc/whale-viewer-plan.md.
 target_sources(dolphinstatic PRIVATE
+    viewer/whaleviewer.cpp
     viewer/whaleviewerlist.cpp
     viewer/whaleviewersettings.cpp
 )
