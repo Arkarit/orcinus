@@ -525,12 +525,15 @@ TOOLS = [
         "Escape closes), wheel (delta: 120 a notch, negative = down = next file; fast turns add up) or click "
         "(where: left/right fifth page, center does nothing). V2e: keys +, -, 1 (100 %), 0 (fit) zoom; "
         "zoom_wheel (Ctrl+wheel: delta, positive = in; at: [x, y] fractions of the window, default the middle) "
-        "and drag (dx, dy: the middle button drags a zoomed image from the middle of the window). The state is "
-        "viewer in get_ui_state.",
+        "and drag (dx, dy: the middle button drags a zoomed image from the middle of the window). V3d, videos: "
+        "keys Left/Right seek 5 s, Space plays/pauses, M mutes; pointer (the pointer moves: the controls show); "
+        "controls (target: play, or a fraction 0..1 of the progress to seek to; needs the controls showing). "
+        "The state is viewer in get_ui_state.",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "action": {"type": "string", "enum": ["key", "wheel", "click", "zoom_wheel", "drag"]},
+                "action": {"type": "string", "enum": ["key", "wheel", "click", "zoom_wheel", "drag", "pointer", "controls"]},
+                "target": {"type": "string"},
                 "key": {"type": "string"},
                 "delta": {"type": "integer"},
                 "where": {"type": "string", "enum": ["left", "center", "right"]},
@@ -547,13 +550,17 @@ TOOLS = [
         "mime_types (e.g. [\"image/*\"] or single types; [] opens nothing in the viewer) and the hidden "
         "multi_selection (keep: paging through a multiple selection keeps it, move: the shown file becomes the "
         "selection); V2e: upscale (small images fill the screen) and smooth_zoom (smooth instead of sharp pixels "
-        "beyond 100 %), read when the viewer opens. Only the given ones change; viewer.settings in get_ui_state.",
+        "beyond 100 %), read when the viewer opens; V3d: video_autoplay, video_sound, video_loop (read when a "
+        "viewer first plays a video). Only the given ones change; viewer.settings in get_ui_state.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "wrap_around": {"type": "boolean"},
                 "upscale": {"type": "boolean"},
                 "smooth_zoom": {"type": "boolean"},
+                "video_autoplay": {"type": "boolean"},
+                "video_sound": {"type": "boolean"},
+                "video_loop": {"type": "boolean"},
                 "mime_types": {"type": "array", "items": {"type": "string"}},
                 "multi_selection": {"type": "string", "enum": ["keep", "move"]},
             },
@@ -749,11 +756,13 @@ class Whale:
             argument = {"key": args.get("key", ""), "wheel": str(args.get("delta", "")),
                         "click": args.get("where", ""),
                         "zoom_wheel": " ".join(str(v) for v in [args.get("delta", "")] + (list(at) if at else [])),
-                        "drag": f"{args.get('dx', '')} {args.get('dy', '')}"}.get(action, "")
+                        "drag": f"{args.get('dx', '')} {args.get('dy', '')}",
+                        "controls": str(args.get("target", ""))}.get(action, "")
             return result(iface.ViewerInput(action, argument))
         if tool == "set_viewer_options":
             names = {"wrap_around": "wrapAround", "mime_types": "mimeTypes", "multi_selection": "multiSelection",
-                     "upscale": "upscale", "smooth_zoom": "smoothZoom"}
+                     "upscale": "upscale", "smooth_zoom": "smoothZoom", "video_autoplay": "videoAutoplay",
+                     "video_sound": "videoSound", "video_loop": "videoLoop"}
             options = {names[key]: value for key, value in args.items() if key in names}
             return result(iface.SetViewerOptions(json.dumps(options)))
         if tool == "screenshot":

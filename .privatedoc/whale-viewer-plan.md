@@ -259,6 +259,19 @@ Video, solange der Mauszeiger zu sehen ist (verschwindet mit ihm nach 1,5 s), be
 solange pausiert. Klick auf den Knopf: Abspielen/Pause; Klick/Ziehen im Fortschritt: springen.
 Klicks auf die Leiste blättern nicht, auch an den Rändern. Der Dateiname rückt über die Leiste.
 
+Stand V3d (2026-10-25): Dev MCP: `viewer.settings` + `videoSupported`, `videoAutoplay`,
+`videoSound`, `videoLoop`; `viewer.video`, `controlsVisible`, `player` (`file`, `loaded`, `error`,
+`position`/`duration` auf 0,1 s, `paused`, `muted`, `atEnd`, `size`, `drawn`). `viewer_input`:
+`pointer`, `controls` (`target` `play` oder Bruchteil des Fortschritts); Tasten Space/M/←/→.
+`set_viewer_options`: `video_autoplay`, `video_sound`, `video_loop`. e2e `test_v3_acceptance.py`
+(A–F; 77 ohne libmpv; Video aus `whaletestvideo.h`). Von Hand: `test_v3_render_virtual.py`
+startet ein unsichtbares `kwin_wayland --virtual` in einer eigenen D-Bus-Sitzung ohne
+Service-Aktivierung (sonst überleben Portale/ksecretd die Sitzung), Ton aus, und prüft per
+Screenshot: Video wirklich gezeichnet (rot), Leiste darüber, Bild nach dem Blättern ohne Video —
+bestanden. Volle Suite grün bis auf das bekannte `whalescriptlaunchertest` (alte `*.status`-Datei
+in /run/user/1000/whale-scripts) und bei -j8 flaky m9/tb (einzeln grün). V3 ist fertig; offen:
+Praxistest mit echten Videos (Hardware-Dekodierung, große Dateien, Ton).
+
 ### V4 – Extras
 
 - Optional Löschen (V-E6), evtl. Leertaste = zur Auswahl hinzufügen/entfernen,

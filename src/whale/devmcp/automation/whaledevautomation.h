@@ -227,12 +227,15 @@ public:
      * (@p argument "left", "center" or "right": a click into that part of the window).
      * V2e: "zoom_wheel" (Ctrl+wheel, @p argument the angle, optionally followed by x and y as
      * fractions of the window, e.g. "120 0.25 0.5") and "drag" (@p argument "dx dy": the middle
-     * button drags from the middle of the window).
+     * button drags from the middle of the window). V3d: "controls" (@p argument "play" or a
+     * fraction of the progress of a video to seek to, a click on the controls) and "pointer"
+     * (the pointer moves, the controls show).
      */
     QJsonObject viewerInput(const QString &action, const QString &argument);
     /**
      * V1d: changes the viewer's settings, as the settings page does: @p options with
-     * "wrapAround" (bool), "mimeTypes" (list), "upscale" and "smoothZoom" (bool, V2e) and the hidden
+     * "wrapAround" (bool), "mimeTypes" (list), "upscale" and "smoothZoom" (bool, V2e),
+     * "videoAutoplay", "videoSound" and "videoLoop" (bool, V3d) and the hidden
      * "multiSelection" ("keep" or "move").
      */
     QJsonObject setViewerOptions(const QJsonObject &options);

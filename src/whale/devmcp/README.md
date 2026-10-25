@@ -21,7 +21,7 @@ CTest does not belong here.
 | D-Bus face | `automation/whaledevautomationdbus.*` | Exports exactly the listed methods on `/whale/DevAutomation` (interface `io.github.arkarit.whale.DevAutomation`) of the instance's own session bus name `io.github.arkarit.whale-<pid>`. |
 | MCP adapter | `adapter/whale_dev_mcp.py` | Separate process, stdio MCP server. One tool = one D-Bus call; no logic, no state. Python standard library + `python3-dbus`. |
 | Launcher | `whale-dev-session.sh` | Starts the build tree's Whale with the automation in a profile of its own. |
-| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3, F1 and TB acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_tb_acceptance.py` (multi-toolbar, TB6), `test_lk_acceptance.py` (linked split view), `test_v1_acceptance.py` (the built-in viewer), `test_v2_acceptance.py` (its zoom, preloading and animations), `test_f1_wayland_real.py` (real drags on Plasma/Wayland), `test_lk_wayland_real.py` (the linked split view with real clicks on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
+| Tests | `tests/` | In-process test of the automation; end-to-end M3–M7, M9, T1, T2, O3, F1 and TB acceptance through the MCP (`test_m3_acceptance.py` … `test_m7_acceptance.py`, `test_m9_acceptance.py`, `test_t1_acceptance.py`, `test_t2_acceptance.py`, `test_o3_acceptance.py`, `test_f1_acceptance.py`, `test_tb_acceptance.py` (multi-toolbar, TB6), `test_lk_acceptance.py` (linked split view), `test_v1_acceptance.py` (the built-in viewer), `test_v2_acceptance.py` (its zoom, preloading and animations), `test_v3_acceptance.py` (videos, with libmpv), `test_v3_render_virtual.py` (videos really drawn, by hand: an invisible `kwin_wayland --virtual` on a D-Bus session of its own, needs Pillow), `test_f1_wayland_real.py` (real drags on Plasma/Wayland), `test_lk_wayland_real.py` (the linked split view with real clicks on Plasma/Wayland), shared `mcp_test_support.py`; `wayland_real_input.py` for real input on Plasma/Wayland). |
 
 ## Activation
 
@@ -96,8 +96,8 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `location_bar_input` | LB4: enters `text` into a file view's location bar as the user does: a click on its toggle button if it shows the breadcrumb, the text typed over the editor's text, with `submit` Return. `toolbar` is a pane index, `active` or an `instanceId`. Errors for unknown panes and instances and for a location bar that is not placed or not shown. Ctrl+L is `trigger_action edit_location` |
 | `configure_toolbars` | TB6: operates KDE's Configure Toolbars through its widgets, in this order: `open`, `select` (`global`/`file-view`), `remove`, `insert` (IDs, `-` separator, `|` spacer; at the end), `defaults` (KDE's question answered with Reset), `apply`, `ok`, `cancel`; returns the dialog state |
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
-| `viewer_input` | V1d: input for the built-in viewer, events sent to its window: `action` `key` (`key` as in QKeySequence: Right, Left, PgDown, Home, End, Escape …), `wheel` (`delta`, 120 a notch, negative = next) or `click` (`where` `left`/`right` edge or `center`); V2e: keys `+`, `-`, `1`, `0` zoom, `zoom_wheel` (Ctrl+wheel, `delta`, `at` [x, y] fractions of the window) and `drag` (`dx`, `dy` with the middle button). The viewer opens with `activate_items` on images |
-| `set_viewer_options` | V1d: the viewer's settings as its settings page writes them: `wrap_around`, `mime_types`, the hidden `multi_selection` (`keep`/`move`), and (V2e) `upscale`, `smooth_zoom` |
+| `viewer_input` | V1d: input for the built-in viewer, events sent to its window: `action` `key` (`key` as in QKeySequence: Right, Left, PgDown, Home, End, Escape …), `wheel` (`delta`, 120 a notch, negative = next) or `click` (`where` `left`/`right` edge or `center`); V2e: keys `+`, `-`, `1`, `0` zoom, `zoom_wheel` (Ctrl+wheel, `delta`, `at` [x, y] fractions of the window) and `drag` (`dx`, `dy` with the middle button); V3d, videos: keys Left/Right seek, Space, M, `pointer` (the controls show) and `controls` (`target` `play` or a fraction of the progress). The viewer opens with `activate_items` on images |
+| `set_viewer_options` | V1d: the viewer's settings as its settings page writes them: `wrap_around`, `mime_types`, the hidden `multi_selection` (`keep`/`move`), (V2e) `upscale`, `smooth_zoom`, (V3d) `video_autoplay`, `video_sound`, `video_loop` |
 | `screenshot` | PNG of the main window, or with `target: viewer` of the open viewer, rendered by Whale itself (works on Wayland) |
 
 Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default).
@@ -150,7 +150,11 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `upscale` and `smoothZoom`; `imageSize` (full resolution), `zoomed`, `zoom` (device pixels per
   image pixel, zoomed or fitted, 3 decimals), `visibleRect` (the visible part in image pixels:
   x, y, width, height), `cached` (names of the files decoded ahead, sorted), `animated`,
-  `animating` and `animationFrame` (-1 without an animation).
+  `animating` and `animationFrame` (-1 without an animation). V3d: `settings` also
+  `videoSupported` (built with libmpv), `videoAutoplay`, `videoSound`, `videoLoop`; `video`
+  (the current file is one), `controlsVisible`, and once a video played `player` (`file`,
+  `loaded`, `error`, `position` and `duration` in seconds to 0.1, `paused`, `muted`, `atEnd`,
+  `size`, `drawn`: whether it goes to the screen, not on the offscreen platform).
 - `panes.N.panelRole` (PI): the position whose global view properties the view reads and
   writes (`left`/`right`). It follows `side`; a view that moves (the left view closes) takes its
   style along.

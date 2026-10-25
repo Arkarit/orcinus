@@ -6,6 +6,7 @@
 
 #include "whaledevautomation.h"
 
+#include "config-dolphin.h"
 #include "dolphin_generalsettings.h"
 #include "dolphinmainwindow.h"
 #include "dolphintabpage.h"
@@ -48,6 +49,9 @@
 #include "whaleviewdebug.h"
 #include "whaleviewer.h"
 #include "whaleviewercache.h"
+#if HAVE_MPV
+#include "whalevideoplayer.h"
+#endif
 #include "whaleviewersettings.h"
 #include "whaleviewhost.h"
 #include "whaleviewpreferences.h"
@@ -2533,6 +2537,10 @@ QJsonObject WhaleDevAutomation::viewerState() const
              {QStringLiteral("wrapAround"), WhaleViewerSettings::wrapAround()},
              {QStringLiteral("upscale"), WhaleViewerSettings::upscale()},
              {QStringLiteral("smoothZoom"), WhaleViewerSettings::smoothZoom()},
+             {QStringLiteral("videoSupported"), WhaleViewerSettings::videoSupported()},
+             {QStringLiteral("videoAutoplay"), WhaleViewerSettings::videoAutoplay()},
+             {QStringLiteral("videoSound"), WhaleViewerSettings::videoSound()},
+             {QStringLiteral("videoLoop"), WhaleViewerSettings::videoLoop()},
              {QStringLiteral("multiSelection"),
               WhaleViewerSettings::multiSelection() == WhaleViewerSettings::MultiSelection::MoveSelection ? QStringLiteral("move") : QStringLiteral("keep")},
          }},
@@ -2579,6 +2587,27 @@ QJsonObject WhaleDevAutomation::viewerState() const
     state.insert(QStringLiteral("animated"), entry && entry->animated);
     state.insert(QStringLiteral("animating"), viewer->isAnimating());
     state.insert(QStringLiteral("animationFrame"), viewer->animationFrame());
+
+    // V3d: videos.
+    state.insert(QStringLiteral("video"), viewer->isVideo());
+    state.insert(QStringLiteral("controlsVisible"), viewer->controlsVisible());
+#if HAVE_MPV
+    if (const WhaleVideoPlayer *player = viewer->videoPlayer()) {
+        state.insert(QStringLiteral("player"),
+                     QJsonObject{
+                         {QStringLiteral("file"), player->url().fileName()},
+                         {QStringLiteral("loaded"), player->isLoaded()},
+                         {QStringLiteral("error"), player->hasError()},
+                         {QStringLiteral("position"), std::round(player->position() * 10) / 10},
+                         {QStringLiteral("duration"), std::round(player->duration() * 10) / 10},
+                         {QStringLiteral("paused"), player->isPaused()},
+                         {QStringLiteral("muted"), player->isMuted()},
+                         {QStringLiteral("atEnd"), player->isAtEnd()},
+                         {QStringLiteral("size"), QJsonArray{player->videoSize().width(), player->videoSize().height()}},
+                         {QStringLiteral("drawn"), player->rendersToWidget()},
+                     });
+    }
+#endif
     return state;
 }
 
@@ -2652,6 +2681,32 @@ QJsonObject WhaleDevAutomation::viewerInput(const QString &action, const QString
         QApplication::sendEvent(viewer, &event);
         return ok();
     }
+    if (action == QLatin1String("controls")) {
+        // "play", or a fraction of the progress to seek to, e.g. "0.75" (V3d).
+        if (!viewer->controlsVisible()) {
+            return failure(QStringLiteral("the controls of a video do not show"));
+        }
+        QPoint position;
+        bool fraction = false;
+        const qreal value = argument.toDouble(&fraction);
+        if (argument == QLatin1String("play")) {
+            position = viewer->playButtonRect().center();
+        } else if (fraction && value >= 0 && value <= 1) {
+            const QRect area = viewer->seekAreaRect();
+            const int line = viewer->fontMetrics().height();
+            position = QPoint(area.left() + line / 2 + qRound(value * (area.width() - line)), area.center().y());
+        } else {
+            return failure(QStringLiteral("controls: \"play\" or a fraction from 0 to 1, not \"%1\"").arg(argument));
+        }
+        sendMouse(viewer, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton, m_inputTime += 10);
+        sendMouse(viewer, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton, m_inputTime += 10);
+        return ok();
+    }
+    if (action == QLatin1String("pointer")) {
+        // The pointer moves over the viewer: the controls of a video show.
+        sendMouse(viewer, QEvent::MouseMove, viewer->rect().center(), Qt::NoButton, Qt::NoButton, m_inputTime += 10);
+        return ok();
+    }
     if (action == QLatin1String("drag")) {
         // "dx dy" in window pixels, with the middle button from the middle of the window.
         const QStringList parts = argument.split(QLatin1Char(' '), Qt::SkipEmptyParts);
@@ -2681,6 +2736,12 @@ QJsonObject WhaleDevAutomation::setViewerOptions(const QJsonObject &options)
             WhaleViewerSettings::setUpscale(it.value().toBool());
         } else if (it.key() == QLatin1String("smoothZoom") && it.value().isBool()) {
             WhaleViewerSettings::setSmoothZoom(it.value().toBool());
+        } else if (it.key() == QLatin1String("videoAutoplay") && it.value().isBool()) {
+            WhaleViewerSettings::setVideoAutoplay(it.value().toBool());
+        } else if (it.key() == QLatin1String("videoSound") && it.value().isBool()) {
+            WhaleViewerSettings::setVideoSound(it.value().toBool());
+        } else if (it.key() == QLatin1String("videoLoop") && it.value().isBool()) {
+            WhaleViewerSettings::setVideoLoop(it.value().toBool());
         } else if (it.key() == QLatin1String("mimeTypes") && it.value().isArray()) {
             QStringList mimeTypes;
             const QJsonArray array = it.value().toArray();
