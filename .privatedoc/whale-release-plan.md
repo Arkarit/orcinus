@@ -41,6 +41,8 @@ Trademark search (2026-10-25, DPMA / EUIPO / USPTO, done by the user):
 - EU 016842916 "NORCINUS" (Italian food/catering, classes 35, 43): irrelevant.
 - US 88322629: clothing, irrelevant.
 
+Decision (user, 2026-10-25): keep Orcinus without further safeguards (no inquiry, no lawyer).
+
 Still open for B1: the rename plan itself (what changes, what stays internal, migration of
 existing user config).
 
