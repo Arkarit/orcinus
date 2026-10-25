@@ -74,6 +74,8 @@ public:
     bool isLoaded() const;
     /** @return Whether currentUrl() failed to load (V-E11). */
     bool hasLoadError() const;
+    /** @return Whether the shown file becomes the selection, not only the current item. */
+    bool movesSelection() const;
     /** @return The text shown at the bottom right now (name or note), or empty. */
     QString overlayText() const;
 

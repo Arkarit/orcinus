@@ -263,4 +263,19 @@ QString WhaleDevAutomationDBus::LocationBarInput(const QString &toolBar, const Q
     return toJson(m_automation->locationBarInput(toolBar, text, submit));
 }
 
+QString WhaleDevAutomationDBus::ViewerInput(const QString &action, const QString &argument)
+{
+    return toJson(m_automation->viewerInput(action, argument));
+}
+
+QString WhaleDevAutomationDBus::SetViewerOptions(const QString &options)
+{
+    return toJson(m_automation->setViewerOptions(QJsonDocument::fromJson(options.toUtf8()).object()));
+}
+
+QByteArray WhaleDevAutomationDBus::ViewerScreenshot()
+{
+    return m_automation->viewerScreenshot();
+}
+
 #include "moc_whaledevautomationdbus.cpp"

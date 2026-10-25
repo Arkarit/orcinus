@@ -70,7 +70,8 @@ def run(args, work):
                           "treemap_set_options", "treemap_context_menu", "file_operation", "answer_dialog",
                           "get_preferred_view", "set_preferred_view", "clear_preferred_view",
                           "set_view_plugin_available", "trigger_toolbar_action", "configure_toolbars",
-                          "location_bar_input", "apply_style", "save_style"}
+                          "location_bar_input", "apply_style", "save_style", "viewer_input",
+                          "set_viewer_options"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")
         wait_for_instance(client, whale)

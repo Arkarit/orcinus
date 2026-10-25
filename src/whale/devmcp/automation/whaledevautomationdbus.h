@@ -83,6 +83,12 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString ConfigureToolbars(const QString &request);
     /// @p toolBar a pane index, "active" or an instanceId.
     Q_SCRIPTABLE QString LocationBarInput(const QString &toolBar, const QString &text, bool submit);
+    /// See WhaleDevAutomation::viewerInput().
+    Q_SCRIPTABLE QString ViewerInput(const QString &action, const QString &argument);
+    /// @p options is a JSON object, see WhaleDevAutomation::setViewerOptions().
+    Q_SCRIPTABLE QString SetViewerOptions(const QString &options);
+    /// Empty while the viewer is closed.
+    Q_SCRIPTABLE QByteArray ViewerScreenshot();
 
 private:
     WhaleDevAutomation *const m_automation;

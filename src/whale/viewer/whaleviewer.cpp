@@ -171,6 +171,11 @@ bool WhaleViewer::hasLoadError() const
     return m_loadError && m_loadedUrl == currentUrl();
 }
 
+bool WhaleViewer::movesSelection() const
+{
+    return m_moveSelection;
+}
+
 QString WhaleViewer::overlayText() const
 {
     return m_overlayText;

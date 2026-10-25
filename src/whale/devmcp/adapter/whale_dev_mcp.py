@@ -519,10 +519,46 @@ TOOLS = [
         },
     },
     {
+        "name": "viewer_input",
+        "description": "V1d: input for the built-in viewer (opened with activate_items on an image), sent to its "
+        "window as real events: action key (key as in QKeySequence: Right/Left/Up/Down, PgDown/PgUp, Home/End, "
+        "Escape closes), wheel (delta: 120 a notch, negative = down = next file; fast turns add up) or click "
+        "(where: left/right fifth page, center does nothing). The state is viewer in get_ui_state.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "action": {"type": "string", "enum": ["key", "wheel", "click"]},
+                "key": {"type": "string"},
+                "delta": {"type": "integer"},
+                "where": {"type": "string", "enum": ["left", "center", "right"]},
+            },
+            "required": ["action"],
+        },
+    },
+    {
+        "name": "set_viewer_options",
+        "description": "V1d: the settings of the built-in viewer, as its settings page writes them: wrap_around, "
+        "mime_types (e.g. [\"image/*\"] or single types; [] opens nothing in the viewer) and the hidden "
+        "multi_selection (keep: paging through a multiple selection keeps it, move: the shown file becomes the "
+        "selection). Only the given ones change; viewer.settings in get_ui_state.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "wrap_around": {"type": "boolean"},
+                "mime_types": {"type": "array", "items": {"type": "string"}},
+                "multi_selection": {"type": "string", "enum": ["keep", "move"]},
+            },
+        },
+    },
+    {
         "name": "screenshot",
-        "description": "PNG of the Whale main window, rendered by Whale itself (works on Wayland, also when the "
-        "window is covered). Optionally also saved to a file.",
-        "inputSchema": {"type": "object", "properties": {"save_path": {"type": "string"}}},
+        "description": "PNG of the Whale main window (target window, default) or of the open built-in viewer "
+        "(target viewer), rendered by Whale itself (works on Wayland, also when the window is covered). "
+        "Optionally also saved to a file.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"save_path": {"type": "string"}, "target": {"type": "string", "enum": ["window", "viewer"]}},
+        },
     },
 ]
 
@@ -698,8 +734,22 @@ class Whale:
             return result(iface.LocationBarInput(str(args["toolbar"]), args["text"], bool(args.get("submit", False))))
         if tool == "configure_toolbars":
             return result(iface.ConfigureToolbars(json.dumps(args)))
+        if tool == "viewer_input":
+            action = args["action"]
+            argument = {"key": args.get("key", ""), "wheel": str(args.get("delta", "")),
+                        "click": args.get("where", "")}.get(action, "")
+            return result(iface.ViewerInput(action, argument))
+        if tool == "set_viewer_options":
+            names = {"wrap_around": "wrapAround", "mime_types": "mimeTypes", "multi_selection": "multiSelection"}
+            options = {names[key]: value for key, value in args.items() if key in names}
+            return result(iface.SetViewerOptions(json.dumps(options)))
         if tool == "screenshot":
-            png = bytes(iface.Screenshot(byte_arrays=True))
+            if args.get("target", "window") == "viewer":
+                png = bytes(iface.ViewerScreenshot(byte_arrays=True))
+                if not png:
+                    raise ToolError("the viewer is not open")
+            else:
+                png = bytes(iface.Screenshot(byte_arrays=True))
             path = args.get("save_path")
             if path:
                 with open(path, "wb") as f:

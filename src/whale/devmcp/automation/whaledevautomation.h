@@ -218,6 +218,23 @@ public:
      */
     QByteArray screenshot() const;
 
+    /// V1d: the built-in viewer ("viewer" of uiState()): open or not, the file, its list, the settings.
+    QJsonObject viewerState() const;
+    /**
+     * V1d: input for the built-in viewer as the user gives it, events sent to its window:
+     * @p action "key" (@p argument as in QKeySequence, e.g. "Right", "PgDown", "Escape"),
+     * "wheel" (@p argument the angle, 120 a notch, negative is down = next) or "click"
+     * (@p argument "left", "center" or "right": a click into that part of the window).
+     */
+    QJsonObject viewerInput(const QString &action, const QString &argument);
+    /**
+     * V1d: changes the viewer's settings, as the settings page does: @p options with
+     * "wrapAround" (bool), "mimeTypes" (list) and the hidden "multiSelection" ("keep" or "move").
+     */
+    QJsonObject setViewerOptions(const QJsonObject &options);
+    /// V1d: a PNG image of the open viewer, rendered by Whale itself; empty without one.
+    QByteArray viewerScreenshot() const;
+
     /**
      * @return The preview state of all panes ("previews" of uiState()) and the results
      *         of requestPreview().

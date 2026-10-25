@@ -110,6 +110,20 @@ Stand V1c (2026-10-25): Seite „Viewer“ nach „Styles“ (`WhaleViewerSettin
 `image/*` (später dekodierbare Typen sind dabei), sonst die Namen der eingeschalteten. Muster
 anderer Gruppen (z. B. `video/*` für V3) bleiben erhalten. Dazu „Continue with the first file after
 the last one“ (Wrap-around). Der A/B-Schalter bleibt versteckt; „Defaults“ lässt ihn in Ruhe.
+Icon der Seite: kleiner Röhrenfernseher im Breeze-Stil (Codex, `src/whale/viewer/whale-viewer.svg`,
+als Ressource; Variante „flacher Monitor“ verworfen).
+
+Stand V1d (2026-10-25): Dev MCP: `viewer` in `get_ui_state` (Einstellungen, offen, Datei, Liste,
+geladen/Fehler, Hinweistext, Vollbild), `viewer_input` (Taste, Mausrad, Klick links/Mitte/rechts als
+echte Ereignisse ans Viewer-Fenster), `set_viewer_options` (auch der versteckte A/B-Schalter),
+`screenshot` mit `target: viewer`. Geöffnet wird über `activate_items`. e2e
+`test_v1_acceptance.py` (A–G: Öffnen, Blättern, Kopplung, Listenende/Wrap-around, Ladefehler/ESC,
+Mehrfachauswahl A und B, keine Rückfrage bei 7 Bildern, MIME-Liste leer → Programm öffnet).
+Nach ESC hat die View wieder echten Tastaturfokus.
+Befund nebenbei: In der doppelten Stunde nach der Zeitumstellung (25.10.2026, 02:00–03:00 MEZ)
+schlagen `viewpropertiestest` und `dolphinmainwindowtest` fehl: `ViewProperties` vergleicht lokale
+Zeitstempel, die KConfig ohne Offset speichert (Dolphin-Erbe, unabhängig vom Viewer; mit `TZ=UTC`
+grün).
 
 ### V2 – Qualität und Tempo
 

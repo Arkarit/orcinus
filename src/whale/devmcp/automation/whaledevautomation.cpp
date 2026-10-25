@@ -46,6 +46,8 @@
 #include "whaleviewcommandscope.h"
 #include "whaleviewcontextimpl.h"
 #include "whaleviewdebug.h"
+#include "whaleviewer.h"
+#include "whaleviewersettings.h"
 #include "whaleviewhost.h"
 #include "whaleviewpreferences.h"
 #include "whaleviewregistry.h"
@@ -771,6 +773,7 @@ QJsonObject WhaleDevAutomation::uiState() const
          }},
         {QStringLiteral("toolbarDialog"), WhaleDevToolbars::dialogState(m_window)},
         {QStringLiteral("styles"), stylesState()},
+        {QStringLiteral("viewer"), viewerState()},
     };
 }
 
@@ -2515,6 +2518,137 @@ QJsonObject WhaleDevAutomation::treemapSetOptions(int paneIndexArg, const QStrin
         }
     }
     return ok();
+}
+
+QJsonObject WhaleDevAutomation::viewerState() const
+{
+    QStringList mimeTypes = WhaleViewerSettings::mimeTypes();
+    QJsonObject state{
+        {QStringLiteral("settings"),
+         QJsonObject{
+             {QStringLiteral("mimeTypes"), QJsonArray::fromStringList(mimeTypes)},
+             {QStringLiteral("wrapAround"), WhaleViewerSettings::wrapAround()},
+             {QStringLiteral("multiSelection"),
+              WhaleViewerSettings::multiSelection() == WhaleViewerSettings::MultiSelection::MoveSelection ? QStringLiteral("move") : QStringLiteral("keep")},
+         }},
+    };
+    WhaleViewer *viewer = WhaleViewer::instance();
+    state.insert(QStringLiteral("open"), viewer != nullptr);
+    if (!viewer) {
+        return state;
+    }
+    QStringList names;
+    const KFileItemList items = viewer->list().items();
+    for (const KFileItem &item : items) {
+        names.append(item.name());
+    }
+    state.insert(QStringLiteral("url"), viewer->currentUrl().toString());
+    state.insert(QStringLiteral("name"), viewer->list().currentItem().name());
+    state.insert(QStringLiteral("index"), viewer->list().currentIndex());
+    state.insert(QStringLiteral("count"), viewer->list().count());
+    state.insert(QStringLiteral("files"), QJsonArray::fromStringList(names.mid(0, MaxListedItems)));
+    state.insert(QStringLiteral("fromSelection"), viewer->list().isSelection());
+    state.insert(QStringLiteral("movesSelection"), viewer->movesSelection());
+    state.insert(QStringLiteral("loaded"), viewer->isLoaded());
+    state.insert(QStringLiteral("loadError"), viewer->hasLoadError());
+    state.insert(QStringLiteral("overlay"), viewer->overlayText());
+    state.insert(QStringLiteral("visible"), viewer->isVisible());
+    state.insert(QStringLiteral("fullScreen"), viewer->isFullScreen());
+    state.insert(QStringLiteral("active"), viewer->isActiveWindow());
+    state.insert(QStringLiteral("onWindowScreen"), viewer->screen() == m_window->screen());
+    return state;
+}
+
+QJsonObject WhaleDevAutomation::viewerInput(const QString &action, const QString &argument)
+{
+    WhaleViewer *viewer = WhaleViewer::instance();
+    if (!viewer) {
+        return failure(QStringLiteral("the viewer is not open"));
+    }
+    if (action == QLatin1String("key")) {
+        const QKeySequence sequence = QKeySequence::fromString(argument);
+        if (sequence.isEmpty()) {
+            return failure(QStringLiteral("unknown key \"%1\"").arg(argument));
+        }
+        const QKeyCombination combination = sequence[0];
+        QKeyEvent press(QEvent::KeyPress, combination.key(), combination.keyboardModifiers());
+        QApplication::sendEvent(viewer, &press);
+        QKeyEvent release(QEvent::KeyRelease, combination.key(), combination.keyboardModifiers());
+        QApplication::sendEvent(viewer, &release);
+        return ok();
+    }
+    if (action == QLatin1String("wheel")) {
+        bool valid = false;
+        const int delta = argument.toInt(&valid);
+        if (!valid) {
+            return failure(QStringLiteral("the wheel needs an angle, e.g. -120"));
+        }
+        const QPoint position = viewer->rect().center();
+        QWheelEvent event(QPointF(position),
+                          QPointF(viewer->mapToGlobal(position)),
+                          QPoint(),
+                          QPoint(0, delta),
+                          Qt::NoButton,
+                          Qt::NoModifier,
+                          Qt::NoScrollPhase,
+                          false);
+        QApplication::sendEvent(viewer, &event);
+        return ok();
+    }
+    if (action == QLatin1String("click")) {
+        const int y = viewer->height() / 2;
+        QPoint position;
+        if (argument == QLatin1String("left")) {
+            position = QPoint(viewer->width() / 10, y);
+        } else if (argument == QLatin1String("center")) {
+            position = QPoint(viewer->width() / 2, y);
+        } else if (argument == QLatin1String("right")) {
+            position = QPoint(viewer->width() * 9 / 10, y);
+        } else {
+            return failure(QStringLiteral("click where? left, center or right, not \"%1\"").arg(argument));
+        }
+        sendMouse(viewer, QEvent::MouseButtonPress, position, Qt::LeftButton, Qt::LeftButton, m_inputTime += 10);
+        sendMouse(viewer, QEvent::MouseButtonRelease, position, Qt::LeftButton, Qt::NoButton, m_inputTime += 10);
+        return ok();
+    }
+    return failure(QStringLiteral("unknown viewer action \"%1\"").arg(action));
+}
+
+QJsonObject WhaleDevAutomation::setViewerOptions(const QJsonObject &options)
+{
+    for (auto it = options.begin(); it != options.end(); ++it) {
+        if (it.key() == QLatin1String("wrapAround") && it.value().isBool()) {
+            WhaleViewerSettings::setWrapAround(it.value().toBool());
+        } else if (it.key() == QLatin1String("mimeTypes") && it.value().isArray()) {
+            QStringList mimeTypes;
+            const QJsonArray array = it.value().toArray();
+            for (const QJsonValue &value : array) {
+                mimeTypes.append(value.toString());
+            }
+            WhaleViewerSettings::setMimeTypes(mimeTypes);
+        } else if (it.key() == QLatin1String("multiSelection") && (it.value() == QLatin1String("keep") || it.value() == QLatin1String("move"))) {
+            WhaleViewerSettings::setMultiSelection(it.value() == QLatin1String("move") ? WhaleViewerSettings::MultiSelection::MoveSelection
+                                                                                       : WhaleViewerSettings::MultiSelection::KeepSelection);
+        } else {
+            return failure(QStringLiteral("unknown or invalid viewer option \"%1\"").arg(it.key()));
+        }
+    }
+    QJsonObject reply = ok();
+    reply.insert(QStringLiteral("viewer"), viewerState());
+    return reply;
+}
+
+QByteArray WhaleDevAutomation::viewerScreenshot() const
+{
+    WhaleViewer *viewer = WhaleViewer::instance();
+    if (!viewer) {
+        return {};
+    }
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    viewer->grab().save(&buffer, "PNG");
+    return png;
 }
 
 #include "moc_whaledevautomation.cpp"
