@@ -110,8 +110,8 @@ Stand V1c (2026-10-25): Seite „Viewer“ nach „Styles“ (`WhaleViewerSettin
 `image/*` (später dekodierbare Typen sind dabei), sonst die Namen der eingeschalteten. Muster
 anderer Gruppen (z. B. `video/*` für V3) bleiben erhalten. Dazu „Continue with the first file after
 the last one“ (Wrap-around). Der A/B-Schalter bleibt versteckt; „Defaults“ lässt ihn in Ruhe.
-Icon der Seite: kleiner Röhrenfernseher im Breeze-Stil (Codex, `src/whale/viewer/whale-viewer.svg`,
-als Ressource; Variante „flacher Monitor“ verworfen).
+Icon der Seite: flacher Monitor mit Landschaftsbild im Breeze-Stil (Codex, `src/whale/viewer/whale-viewer.svg`,
+als Ressource; die Retro-„Glotze“ war drollig, passte aber schlechter zu den anderen Icons).
 
 Stand V1d (2026-10-25): Dev MCP: `viewer` in `get_ui_state` (Einstellungen, offen, Datei, Liste,
 geladen/Fehler, Hinweistext, Vollbild), `viewer_input` (Taste, Mausrad, Klick links/Mitte/rechts als

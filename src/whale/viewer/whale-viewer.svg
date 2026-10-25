@@ -3,53 +3,53 @@
 SPDX-FileCopyrightText: 2026 Whale contributors
 SPDX-License-Identifier: GPL-2.0-or-later
 -->
-<!-- The "Viewer" page of the settings dialog: a TV in the style of Breeze (designed with Codex). -->
+<!-- The "Viewer" page of the settings dialog: a monitor in the style of Breeze (designed with Codex). -->
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
   <defs>
-    <linearGradient id="case" x1="0" y1="5" x2="0" y2="27" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#68727a"/>
+    <linearGradient id="frame" x1="0" y1="3" x2="0" y2="25" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#566069"/>
       <stop offset="1" stop-color="#31363b"/>
     </linearGradient>
-    <linearGradient id="sky" x1="0" y1="8" x2="0" y2="23" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#60a5e7"/>
+    <linearGradient id="sky" x1="0" y1="6" x2="0" y2="21" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7cbcec"/>
       <stop offset="1" stop-color="#c6ecf7"/>
     </linearGradient>
-    <linearGradient id="glass" x1="5" y1="8" x2="24" y2="23" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ffffff" stop-opacity=".22"/>
-      <stop offset=".58" stop-color="#ffffff" stop-opacity="0"/>
+    <linearGradient id="stand" x1="0" y1="25" x2="0" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e0e5e7"/>
+      <stop offset="1" stop-color="#99a1a7"/>
     </linearGradient>
-    <clipPath id="tubeClip">
-      <rect x="5" y="8" width="19" height="15" rx="2"/>
+    <linearGradient id="shade" x1="5" y1="7" x2="26" y2="22" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffffff" stop-opacity=".18"/>
+      <stop offset=".55" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="screenClip">
+      <rect x="5" y="6" width="22" height="15" rx="1"/>
     </clipPath>
   </defs>
 
-  <!-- aerial -->
-  <path d="M10 1l6 5 6-5" fill="none" stroke="#4f575f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="10" cy="1" r="1" fill="#99a1a7"/>
-  <circle cx="22" cy="1" r="1" fill="#99a1a7"/>
+  <!-- Breeze-style soft cast shadow -->
+  <path d="M4 4h24l2 2v18l-7 7H11l-8-8V5z" fill="#292c2f" opacity=".18"/>
 
-  <!-- rounded retro TV case -->
-  <path d="M5 5h22a3 3 0 0 1 3 3v16a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3z" fill="url(#case)"/>
-  <path d="M5 5h22a3 3 0 0 1 3 3v1H2V8a3 3 0 0 1 3-3z" fill="#7b858c" opacity=".45"/>
-  <rect x="4" y="7" width="21" height="17" rx="3" fill="#232629"/>
+  <!-- television / monitor body -->
+  <rect x="2" y="3" width="28" height="22" rx="2" fill="url(#frame)"/>
+  <path d="M4 3h24a2 2 0 0 1 2 2v1H2V5a2 2 0 0 1 2-2z" fill="#6b747c" opacity=".55"/>
+  <rect x="4" y="5" width="24" height="18" rx="1" fill="#232629"/>
 
-  <!-- picture tube -->
-  <g clip-path="url(#tubeClip)">
-    <rect x="5" y="8" width="19" height="15" fill="url(#sky)"/>
-    <circle cx="19.5" cy="12" r="2.5" fill="#fdbc4b"/>
-    <path d="M4 22l6-7 5 5 3-3 7 6H4z" fill="#7aabdc"/>
-    <path d="M12 23l6-6 8 7H12z" fill="#3daee9"/>
-    <path d="M4 21l6-6 2 2-2 2 2 1-3 3z" fill="#eff0f1" opacity=".9"/>
-    <path d="M4 22l7-3 5 3 9-2v4H4z" fill="#71c837"/>
-    <path d="M5 8h19v15H5z" fill="url(#glass)"/>
+  <!-- image on the screen -->
+  <g clip-path="url(#screenClip)">
+    <rect x="5" y="6" width="22" height="15" fill="url(#sky)"/>
+    <circle cx="22.5" cy="10.5" r="2.5" fill="#fdbc4b"/>
+    <path d="M4 20l7-7 5 5 3-3 9 7H4z" fill="#7aabdc"/>
+    <path d="M12 21l7-7 10 8H12z" fill="#3daee9"/>
+    <path d="M4 20l7-7 2 2-2 2 2 1-3 3z" fill="#eff0f1" opacity=".9"/>
+    <path d="M4 19l7-2 5 2 5-2 8 3v3H4z" fill="#71c837"/>
+    <path d="M4 21l9-3 6 3 10-2v4H4z" fill="#559b2f"/>
+    <path d="M5 6h22v15H5z" fill="url(#shade)"/>
   </g>
 
-  <!-- tactile TV controls -->
-  <circle cx="27.5" cy="11.5" r="1.5" fill="#c6cdd1"/>
-  <circle cx="27.5" cy="16.5" r="1.5" fill="#99a1a7"/>
-  <rect x="27" y="21" width="2" height="1" rx=".5" fill="#3daee9"/>
-
-  <!-- angled feet and baseline shadow -->
-  <path d="M7 27h4l-2 3H5zM21 27h4l2 3h-4z" fill="#4f575f"/>
-  <path d="M5 30h22v1H5z" fill="#292c2f" opacity=".2"/>
+  <!-- power light and stand -->
+  <rect x="25" y="23" width="2" height="1" rx=".5" fill="#3daee9"/>
+  <path d="M14 25h4v3h-4z" fill="url(#stand)"/>
+  <path d="M10 28h12l2 2H8z" fill="#c6cdd1"/>
+  <path d="M8 30h16v1H8z" fill="#99a1a7"/>
 </svg>

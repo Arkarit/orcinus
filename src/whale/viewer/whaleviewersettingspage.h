@@ -37,7 +37,7 @@ public:
     void applySettings() override;
     void restoreDefaults() override;
 
-    /** @return The icon of the page in the dialog (a TV in the style of Breeze). */
+    /** @return The icon of the page in the dialog (a monitor in the style of Breeze). */
     static QIcon icon();
 
     /** @return The image types Qt can decode, by their canonical names, sorted. */
