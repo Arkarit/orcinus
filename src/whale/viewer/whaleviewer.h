@@ -15,6 +15,7 @@
 #include <QWidget>
 
 class DolphinView;
+class QMovie;
 class QTimer;
 class QVariantAnimation;
 
@@ -35,6 +36,8 @@ class QVariantAnimation;
  * Zoom (V-E5, V-E12): Ctrl+wheel towards the pointer, +/- towards the middle, 1 for 100 %, 0 to
  * fit again; the middle button drags a zoomed image. Paging fits again. Beyond 100 % the pixels
  * show sharp unless WhaleViewerSettings::smoothZoom() (V-E13).
+ *
+ * Animated images (GIF, WebP …) play over and over once loaded, and stop when paging on.
  *
  * There is at most one viewer; opening another closes the one before.
  *
@@ -105,6 +108,11 @@ public:
     /** Moves a zoomed image by @p delta (window pixels), as dragging with the middle button. */
     void pan(const QPointF &delta);
 
+    /** @return Whether the file shown is an animation that plays. */
+    bool isAnimating() const;
+    /** @return The number of the frame of the animation shown, or -1. */
+    int animationFrame() const;
+
     /** Moves @p steps files on (backwards if negative), as the wheel and the keys do. */
     void step(int steps);
     /** Goes to the file @p index of the list, as Home and End do. */
@@ -145,6 +153,8 @@ private:
     /** @return Where the whole image lies in the window, fitted or zoomed. */
     QRectF imageRect() const;
     void clampOrigin();
+    void startAnimation();
+    void stopAnimation();
     void followInView();
     void showOverlay(const QString &text);
 
@@ -170,6 +180,10 @@ private:
     QPointF m_origin;
     bool m_panning = false;
     QPointF m_panPosition;
+
+    QMovie *m_movie = nullptr;
+    /// The frame of m_movie shown, at full size; null without an animation.
+    QImage m_frame;
 
     QTimer *m_loadTimer = nullptr;
     QTimer *m_overlayTimer = nullptr;

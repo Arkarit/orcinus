@@ -12,6 +12,7 @@
 #include <KLocalizedString>
 
 #include <QKeyEvent>
+#include <QMovie>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
@@ -208,6 +209,7 @@ void WhaleViewer::pagedTo(int direction)
 {
     m_direction = direction;
     m_zoom = 0;
+    stopAnimation();
     showOverlay(m_list.currentItem().name());
     // A preloaded file shows at once; the view follows (and the rest loads) once paging rests.
     showFromCache();
@@ -234,6 +236,7 @@ void WhaleViewer::load()
     const WhaleViewerCache::Entry *entry = m_cache->entry(url);
     if (entry && (entry->error || entry->available == availableSize())) {
         showFromCache();
+        startAnimation();
         Q_EMIT loadFinished(url);
         preload();
     } else {
@@ -259,6 +262,7 @@ void WhaleViewer::slotImageReady(const QUrl &url)
     showFromCache();
     if (!m_loadTimer->isActive()) {
         if (!wasLoaded) {
+            startAnimation();
             Q_EMIT loadFinished(url);
         }
         preload();
@@ -407,6 +411,39 @@ void WhaleViewer::clampOrigin()
     m_origin.setY(size.height() <= height() ? (height() - size.height()) / 2 : qBound(height() - size.height(), m_origin.y(), 0.0));
 }
 
+bool WhaleViewer::isAnimating() const
+{
+    return m_movie && m_movie->state() == QMovie::Running;
+}
+
+int WhaleViewer::animationFrame() const
+{
+    return m_movie ? m_movie->currentFrameNumber() : -1;
+}
+
+void WhaleViewer::startAnimation()
+{
+    const WhaleViewerCache::Entry *entry = shownEntry();
+    if (m_movie || !entry || !entry->animated) {
+        return;
+    }
+    m_movie = new QMovie(currentUrl().toLocalFile(), QByteArray(), this);
+    connect(m_movie, &QMovie::frameChanged, this, [this]() {
+        m_frame = m_movie->currentImage();
+        update();
+    });
+    // Over and over, whatever the file says.
+    connect(m_movie, &QMovie::finished, m_movie, &QMovie::start);
+    m_movie->start();
+}
+
+void WhaleViewer::stopAnimation()
+{
+    delete m_movie;
+    m_movie = nullptr;
+    m_frame = QImage();
+}
+
 void WhaleViewer::followInView()
 {
     if (m_source && !m_list.isEmpty()) {
@@ -433,17 +470,21 @@ void WhaleViewer::paintEvent(QPaintEvent *event)
     if (m_zoom > 0 && entry) {
         const QRectF image = imageRect();
         const QRectF visible = image.intersected(QRectF(rect()));
-        if (!entry->full.isNull()) {
+        const QImage &full = m_frame.isNull() ? entry->full : m_frame;
+        if (!full.isNull()) {
             // Only the visible part, from the full image.
             const qreal scale = image.width() / entry->fullSize.width();
             const QRectF source((visible.topLeft() - image.topLeft()) / scale, visible.size() / scale);
             painter.setRenderHint(QPainter::SmoothPixmapTransform, m_smoothZoom || m_zoom < 1);
-            painter.drawImage(visible, entry->full, source);
+            painter.drawImage(visible, full, source);
         } else {
             // Until the full image is there again.
             painter.setRenderHint(QPainter::SmoothPixmapTransform);
             painter.drawImage(image, m_shown);
         }
+    } else if (!m_frame.isNull() && entry) {
+        painter.setRenderHint(QPainter::SmoothPixmapTransform);
+        painter.drawImage(imageRect(), m_frame);
     } else if (!m_shown.isNull() && !m_shownError) {
         // Fitted in another window size (just resized): drawn scaled until the new one is there.
         QSizeF size = m_shown.deviceIndependentSize();

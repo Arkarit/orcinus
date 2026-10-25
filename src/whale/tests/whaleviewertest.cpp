@@ -56,6 +56,7 @@ private Q_SLOTS:
     void testPan();
     void testPagingFitsAgain();
     void testZoomSharpOrSmooth();
+    void testAnimation();
     void testLoadError();
     void testEscapeCloses();
     void testCloseWhilePaging();
@@ -76,6 +77,7 @@ private:
     void ctrlWheel(QWidget *widget, const QPointF &position, int delta);
     void mouse(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPointF &position);
     WhaleViewer *openImage(const QString &name, const QImage &image);
+    WhaleViewer *openFile(const QString &name, const QByteArray &data);
 
     TestDir *m_testDir = nullptr;
     DolphinViewContainer *m_container = nullptr;
@@ -217,6 +219,11 @@ WhaleViewer *WhaleViewerTest::openImage(const QString &name, const QImage &image
     QBuffer buffer(&data);
     buffer.open(QIODevice::WriteOnly);
     image.save(&buffer, "png");
+    return openFile(name, data);
+}
+
+WhaleViewer *WhaleViewerTest::openFile(const QString &name, const QByteArray &data)
+{
     m_testDir->createFile(name, data);
     const int count = m_view->itemsCount();
     if (!QTest::qWaitFor([this, count]() {
@@ -556,6 +563,45 @@ void WhaleViewerTest::testZoomSharpOrSmooth()
     QTRY_VERIFY(viewer->isLoaded());
     viewer->setZoom(8, QPointF(viewer->width() / 2.0, viewer->height() / 2.0));
     QVERIFY(colorsInTheMiddle(viewer).count() > 2);
+}
+
+// A 4 × 4 GIF of three frames (red, blue, green), 30 ms each, looping.
+static QByteArray animatedGif()
+{
+    static const char data[] =
+        "\x47\x49\x46\x38\x39\x61\x04\x00\x04\x00\x81\x00\x00\xff\x00\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x21\xff\x0b\x4e\x45\x54\x53"
+        "\x43\x41\x50\x45\x32\x2e\x30\x03\x01\x00\x00\x00\x21\xf9\x04\x00"
+        "\x03\x00\x00\x00\x2c\x00\x00\x00\x00\x04\x00\x04\x00\x00\x08\x09"
+        "\x00\x01\x08\x1c\x48\xb0\x20\x80\x80\x00\x21\xf9\x04\x01\x03\x00"
+        "\x01\x00\x2c\x00\x00\x00\x00\x04\x00\x04\x00\x81\x00\x00\xff\x00"
+        "\x00\x00\x00\x00\x00\x00\x00\x00\x08\x09\x00\x01\x08\x1c\x48\xb0"
+        "\x20\x80\x80\x00\x21\xf9\x04\x01\x03\x00\x01\x00\x2c\x00\x00\x00"
+        "\x00\x04\x00\x04\x00\x81\x00\xff\x00\x00\x00\x00\x00\x00\x00\x00"
+        "\x00\x00\x08\x09\x00\x01\x08\x1c\x48\xb0\x20\x80\x80\x00\x3b";
+    return QByteArray(data, sizeof(data) - 1);
+}
+
+void WhaleViewerTest::testAnimation()
+{
+    WhaleViewer *viewer = openFile(QStringLiteral("anim.gif"), animatedGif());
+    QVERIFY(viewer);
+    QVERIFY(viewer->cache().entry(url(QStringLiteral("anim.gif")))->animated);
+    QTRY_VERIFY(viewer->isAnimating());
+    // All three frames, then round again.
+    QTRY_COMPARE(viewer->animationFrame(), 2);
+    QTRY_COMPARE(viewer->animationFrame(), 0);
+    QTRY_COMPARE(viewer->animationFrame(), 1);
+    QVERIFY(viewer->isAnimating());
+
+    // Paging on stops it; a still image does not play.
+    QTest::keyClick(viewer, Qt::Key_Home);
+    QVERIFY(!viewer->isAnimating());
+    QCOMPARE(viewer->animationFrame(), -1);
+    QTRY_VERIFY(viewer->isLoaded());
+    QVERIFY(!viewer->cache().entry(url(QStringLiteral("1.png")))->animated);
+    QTest::qWait(100);
+    QVERIFY(!viewer->isAnimating());
 }
 
 void WhaleViewerTest::testLoadError()

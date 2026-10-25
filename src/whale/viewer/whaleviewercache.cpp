@@ -36,6 +36,7 @@ QThreadPool *pool()
 struct Decoded {
     QImage full;
     QImage scaled;
+    bool animated = false;
 };
 
 // The window is sRGB to the compositor: other profiles (Adobe RGB, Display P3, CMYK …) are
@@ -58,20 +59,22 @@ Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, boo
     if (*cancelled) {
         return {};
     }
+    bool animated = false;
     if (full.isNull()) {
         QImageReader reader(path);
         reader.setAutoTransform(true);
         reader.setAllocationLimit(AllocationLimitMB);
         full = reader.read();
         convertToSRgb(full);
+        animated = reader.supportsAnimation() && reader.imageCount() > 1;
     }
     if (full.isNull() || *cancelled) {
-        return {full, QImage()};
+        return {full, QImage(), false};
     }
     const QSize target = WhaleViewerCache::fittedSize(full.size(), available, upscale);
     QImage scaled = target == full.size() ? full : full.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     scaled.setDevicePixelRatio(dpr);
-    return {full, scaled};
+    return {full, scaled, animated};
 }
 }
 
@@ -135,7 +138,8 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
     m_pending.insert(url, {cancelled, available});
 
     auto watcher = new QFutureWatcher<Decoded>(this);
-    connect(watcher, &QFutureWatcher<Decoded>::finished, this, [this, watcher, url, cancelled, available]() {
+    const bool rescale = !full.isNull();
+    connect(watcher, &QFutureWatcher<Decoded>::finished, this, [this, watcher, url, cancelled, available, rescale]() {
         watcher->deleteLater();
         const auto it = m_pending.constFind(url);
         if (it == m_pending.constEnd() || it->cancelled != cancelled) {
@@ -149,6 +153,9 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
         entry.scaled = decoded.scaled;
         entry.available = available;
         entry.error = decoded.scaled.isNull();
+        // Only scaled again: the file was not read.
+        const Entry *before = rescale ? this->entry(url) : nullptr;
+        entry.animated = before ? before->animated : decoded.animated;
         m_entries.insert(url, entry);
         enforceBudget();
         Q_EMIT imageReady(url);

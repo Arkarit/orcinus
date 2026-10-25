@@ -178,6 +178,13 @@ es nach, bis dahin das eingepasste gestreckt. Über 100 % scharf, whalerc `[View
 Häkchen „Smooth the pixels when zoomed in beyond 100%“ glättet; unter 100 % immer glatt. Blättern
 passt wieder ein. Das Budget wird auch beim Wechsel des aktuellen Bildes geprüft.
 
+Stand V2d (2026-10-25): Der Cache merkt sich, ob eine Datei mehrere Frames hat
+(`supportsAnimation()` und `imageCount() > 1`); gezeigt und vorgeladen wird zuerst der erste Frame.
+Ist das aktuelle Bild fertig geladen, spielt ein `QMovie` es im GUI-Thread ab, immer wieder
+(unabhängig von der Schleifenzahl der Datei); Blättern hält es an und verwirft es. Frames werden
+eingepasst bzw. gezoomt wie das Bild. Frames werden nicht nach sRGB umgerechnet (GIF hat keine
+Profile). Testdatei: eine 159-Byte-GIF mit drei Frames, eingebettet in `whaleviewertest`.
+
 ### V3 – Video
 
 - libmpv, Bedienleiste, Video-Optionen (V-E7).

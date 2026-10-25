@@ -44,6 +44,8 @@ public:
         /// The size (in device pixels) it was fitted into.
         QSize available;
         bool error = false;
+        /// Whether the file has more than one frame (animated GIF, WebP …); the images are its first.
+        bool animated = false;
     };
 
     explicit WhaleViewerCache(QObject *parent = nullptr);
