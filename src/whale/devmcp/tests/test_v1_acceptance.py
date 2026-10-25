@@ -83,9 +83,11 @@ def run(args, work):
         def key(name):
             client.tool("viewer_input", action="key", key=name)
 
-        s.expect("start", {"panes.0.loading": False, "panes.0.itemCount": 9, "viewer.open": False,
-                           "viewer.settings.mimeTypes": ["image/*"], "viewer.settings.wrapAround": False,
-                           "viewer.settings.multiSelection": "keep"})
+        state = s.expect("start", {"panes.0.loading": False, "panes.0.itemCount": 9, "viewer.open": False,
+                                   "viewer.settings.wrapAround": False, "viewer.settings.multiSelection": "keep"})
+        # Also video/* when built with libmpv (V3).
+        if state["viewer"]["settings"]["mimeTypes"][:1] != ["image/*"]:
+            raise Failure(f"start: MIME types {state['viewer']['settings']['mimeTypes']}")
 
         # A
         client.tool("set_selection", pane=0, urls=[uri("3.png")], current=uri("3.png"))

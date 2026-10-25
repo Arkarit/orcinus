@@ -28,12 +28,26 @@ enum class MultiSelection {
 
 /**
  * @return The MIME types the viewer opens: names such as image/png, or groups given as the
- *         first part with an asterisk (image/ and *). Default: all images.
+ *         first part with an asterisk (image/ and *). Default: all images, and all videos when
+ *         built with libmpv (videoSupported()).
  */
 QStringList mimeTypes();
 void setMimeTypes(const QStringList &mimeTypes);
 
 /** @return Whether paging goes from the last file to the first and back. Default off. */
+/** @return Whether this build plays videos (libmpv, V3). */
+bool videoSupported();
+
+/** @return Whether a video starts playing when it is shown (V-E16). Default on. */
+bool videoAutoplay();
+void setVideoAutoplay(bool autoplay);
+/** @return Whether videos play their sound; M turns it off and on in the viewer. Default on. */
+bool videoSound();
+void setVideoSound(bool sound);
+/** @return Whether a video starts again at its end. Default on. */
+bool videoLoop();
+void setVideoLoop(bool loop);
+
 bool wrapAround();
 void setWrapAround(bool wrapAround);
 

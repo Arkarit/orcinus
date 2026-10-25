@@ -26,9 +26,15 @@ public:
     /**
      * @return Whether the viewer can show @p item: a local file whose MIME type (or one of its
      *         parents) is one of @p mimeTypes (see WhaleViewerSettings::mimeTypes()) and that Qt
-     *         can decode.
+     *         can decode, or that is a video (isVideo()).
      */
     static bool isDisplayable(const KFileItem &item, const QStringList &mimeTypes);
+
+    /**
+     * @return Whether @p item is a video the viewer plays (V3): a video type, built with libmpv,
+     *         that Qt cannot decode as an image.
+     */
+    static bool isVideo(const KFileItem &item);
 
     /**
      * @return The list for @p opened: the displayable files among @p viewItems (the items of

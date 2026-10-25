@@ -230,6 +230,15 @@ Schritte:
 - V3c: Bedienleiste (V-E18).
 - V3d: Dev MCP (Video-Zustand, Eingaben), `test_v3_acceptance.py`, beide Builds, volle Suite.
 
+Stand V3a (2026-10-25): CMake-Option `WHALE_WITH_MPV` (Vorgabe an) sucht `pkg-config mpv`,
+`HAVE_MPV` in `config-dolphin.h`. Video = Typ ist/erbt `video/*`, Qt dekodiert ihn nicht als Bild
+(`WhaleViewerList::isVideo()`); ob mpv es abspielen kann, zeigt sich erst beim Abspielen.
+Vorgabe der MIME-Liste mit mpv `image/*` + `video/*` (wer die Seite schon einmal gespeichert hat,
+hat nur `image/*` und muss „Videos“ einschalten). Seite: Gruppe „Videos“ (alle bekannten
+`video/*`-Typen außer Bildtypen) und drei Häkchen (Objektnamen `videoAutoplay`, `videoSound`,
+`videoLoop`), alles nur mit mpv. whalerc `[Viewer]` `VideoAutoplay`, `VideoSound`, `VideoLoop`.
+In V3a werden Videos schon angeboten, aber erst V3b spielt sie ab.
+
 ### V4 – Extras
 
 - Optional Löschen (V-E6), evtl. Leertaste = zur Auswahl hinzufügen/entfernen,

@@ -52,9 +52,15 @@ private Q_SLOTS:
     void testRestoreDefaults();
     void testChangedOnlyByTheUser();
     void testPageInDialog();
+    void testVideos();
 
 private:
+    QTreeWidgetItem *group(WhaleViewerSettingsPage &page, const QString &pattern) const;
     QTreeWidgetItem *images(WhaleViewerSettingsPage &page) const;
+    QTreeWidgetItem *videos(WhaleViewerSettingsPage &page) const;
+    QCheckBox *checkBox(WhaleViewerSettingsPage &page, const QString &name) const;
+    /// What the page writes with all types on: images, and videos when built with libmpv.
+    QStringList allTypes() const;
     QTreeWidgetItem *type(WhaleViewerSettingsPage &page, const QString &name) const;
     QCheckBox *wrapAround(WhaleViewerSettingsPage &page) const;
     QCheckBox *upscale(WhaleViewerSettingsPage &page) const;
@@ -81,16 +87,46 @@ void WhaleViewerSettingsPageTest::init()
 
 QTreeWidgetItem *WhaleViewerSettingsPageTest::images(WhaleViewerSettingsPage &page) const
 {
+    return group(page, QStringLiteral("image/*"));
+}
+
+QTreeWidgetItem *WhaleViewerSettingsPageTest::videos(WhaleViewerSettingsPage &page) const
+{
+    return group(page, QStringLiteral("video/*"));
+}
+
+QTreeWidgetItem *WhaleViewerSettingsPageTest::group(WhaleViewerSettingsPage &page, const QString &pattern) const
+{
     auto tree = page.findChild<QTreeWidget *>();
-    return tree && tree->topLevelItemCount() == 1 ? tree->topLevelItem(0) : nullptr;
+    for (int i = 0; tree && i < tree->topLevelItemCount(); ++i) {
+        if (tree->topLevelItem(i)->text(1) == pattern) {
+            return tree->topLevelItem(i);
+        }
+    }
+    return nullptr;
+}
+
+QCheckBox *WhaleViewerSettingsPageTest::checkBox(WhaleViewerSettingsPage &page, const QString &name) const
+{
+    return page.findChild<QCheckBox *>(name);
+}
+
+QStringList WhaleViewerSettingsPageTest::allTypes() const
+{
+    QStringList result{QStringLiteral("image/*")};
+    if (WhaleViewerSettings::videoSupported()) {
+        result.append(QStringLiteral("video/*"));
+    }
+    return result;
 }
 
 QTreeWidgetItem *WhaleViewerSettingsPageTest::type(WhaleViewerSettingsPage &page, const QString &name) const
 {
-    QTreeWidgetItem *group = images(page);
-    for (int i = 0; group && i < group->childCount(); ++i) {
-        if (group->child(i)->text(1) == name) {
-            return group->child(i);
+    for (QTreeWidgetItem *group : {images(page), videos(page)}) {
+        for (int i = 0; group && i < group->childCount(); ++i) {
+            if (group->child(i)->text(1) == name) {
+                return group->child(i);
+            }
         }
     }
     return nullptr;
@@ -149,7 +185,8 @@ void WhaleViewerSettingsPageTest::testTurnOffOneType()
     QVERIFY(!mimeTypes.contains(QStringLiteral("image/*")));
     QVERIFY(!mimeTypes.contains(QStringLiteral("image/png")));
     QVERIFY(mimeTypes.contains(QStringLiteral("image/jpeg")));
-    QCOMPARE(mimeTypes.count(), WhaleViewerSettingsPage::imageMimeTypes().count() - 1);
+    // And the videos as their group, built with libmpv.
+    QCOMPARE(mimeTypes.count(), WhaleViewerSettingsPage::imageMimeTypes().count() - 1 + allTypes().count() - 1);
 
     // The viewer follows: PNG files open with their application again.
     TestDir dir;
@@ -177,7 +214,8 @@ void WhaleViewerSettingsPageTest::testTurnOffAllImages()
         QCOMPARE(type(page, QStringLiteral("image/jpeg"))->checkState(0), Qt::Unchecked);
         page.applySettings();
     }
-    QVERIFY(WhaleViewerSettings::mimeTypes().isEmpty());
+    // Videos stay on, built with libmpv.
+    QCOMPARE(WhaleViewerSettings::mimeTypes(), allTypes().mid(1));
     WhaleViewerSettingsPage again;
     QCOMPARE(images(again)->checkState(0), Qt::Unchecked);
 }
@@ -198,12 +236,12 @@ void WhaleViewerSettingsPageTest::testAllTypesBecomeTheGroup()
 
 void WhaleViewerSettingsPageTest::testOtherPatternsKept()
 {
-    WhaleViewerSettings::setMimeTypes({QStringLiteral("video/*"), QStringLiteral("image/png")});
+    WhaleViewerSettings::setMimeTypes({QStringLiteral("audio/*"), QStringLiteral("image/png")});
     {
         WhaleViewerSettingsPage page;
         page.applySettings();
     }
-    QCOMPARE(WhaleViewerSettings::mimeTypes(), (QStringList{QStringLiteral("video/*"), QStringLiteral("image/png")}));
+    QCOMPARE(WhaleViewerSettings::mimeTypes(), (QStringList{QStringLiteral("audio/*"), QStringLiteral("image/png")}));
 }
 
 void WhaleViewerSettingsPageTest::testWrapAround()
@@ -252,7 +290,7 @@ void WhaleViewerSettingsPageTest::testSmoothZoom()
 
 void WhaleViewerSettingsPageTest::testRestoreDefaults()
 {
-    WhaleViewerSettings::setMimeTypes({QStringLiteral("video/*"), QStringLiteral("image/png")});
+    WhaleViewerSettings::setMimeTypes({QStringLiteral("audio/*"), QStringLiteral("image/png")});
     WhaleViewerSettings::setWrapAround(true);
     WhaleViewerSettings::setMultiSelection(WhaleViewerSettings::MultiSelection::MoveSelection);
     WhaleViewerSettingsPage page;
@@ -262,7 +300,7 @@ void WhaleViewerSettingsPageTest::testRestoreDefaults()
     QCOMPARE(images(page)->checkState(0), Qt::Checked);
     QVERIFY(!wrapAround(page)->isChecked());
     page.applySettings();
-    QCOMPARE(WhaleViewerSettings::mimeTypes(), (QStringList{QStringLiteral("video/*"), QStringLiteral("image/*")}));
+    QCOMPARE(WhaleViewerSettings::mimeTypes(), QStringList{QStringLiteral("audio/*")} + allTypes());
     QVERIFY(!WhaleViewerSettings::wrapAround());
     // The hidden experiment switch is not the page's.
     QCOMPARE(WhaleViewerSettings::multiSelection(), WhaleViewerSettings::MultiSelection::MoveSelection);
@@ -301,6 +339,45 @@ void WhaleViewerSettingsPageTest::testPageInDialog()
     QVERIFY(apply->isEnabled());
     apply->click();
     QVERIFY(WhaleViewerSettings::wrapAround());
+}
+
+void WhaleViewerSettingsPageTest::testVideos()
+{
+    if (!WhaleViewerSettings::videoSupported()) {
+        WhaleViewerSettingsPage page;
+        QVERIFY(!videos(page));
+        QVERIFY(!checkBox(page, QStringLiteral("videoAutoplay")));
+        QSKIP("built without libmpv");
+    }
+    QVERIFY(WhaleViewerSettingsPage::videoMimeTypes().contains(QStringLiteral("video/mp4")));
+    QVERIFY(!WhaleViewerSettingsPage::videoMimeTypes().contains(QStringLiteral("image/png")));
+    {
+        WhaleViewerSettingsPage page;
+        QVERIFY(videos(page));
+        QCOMPARE(videos(page)->checkState(0), Qt::Checked);
+        QCOMPARE(type(page, QStringLiteral("video/mp4"))->checkState(0), Qt::Checked);
+        for (const QString &name : {QStringLiteral("videoAutoplay"), QStringLiteral("videoSound"), QStringLiteral("videoLoop")}) {
+            QVERIFY(checkBox(page, name)->isChecked());
+        }
+        // Only MP4 of the videos, no sound, once.
+        videos(page)->setCheckState(0, Qt::Unchecked);
+        type(page, QStringLiteral("video/mp4"))->setCheckState(0, Qt::Checked);
+        checkBox(page, QStringLiteral("videoSound"))->setChecked(false);
+        checkBox(page, QStringLiteral("videoLoop"))->setChecked(false);
+        page.applySettings();
+    }
+    QCOMPARE(WhaleViewerSettings::mimeTypes(), (QStringList{QStringLiteral("image/*"), QStringLiteral("video/mp4")}));
+    QVERIFY(WhaleViewerSettings::videoAutoplay());
+    QVERIFY(!WhaleViewerSettings::videoSound());
+    QVERIFY(!WhaleViewerSettings::videoLoop());
+
+    WhaleViewerSettingsPage again;
+    QCOMPARE(videos(again)->checkState(0), Qt::PartiallyChecked);
+    QVERIFY(!checkBox(again, QStringLiteral("videoSound"))->isChecked());
+    again.restoreDefaults();
+    QCOMPARE(videos(again)->checkState(0), Qt::Checked);
+    QVERIFY(checkBox(again, QStringLiteral("videoSound"))->isChecked());
+    QVERIFY(checkBox(again, QStringLiteral("videoLoop"))->isChecked());
 }
 
 QTEST_MAIN(WhaleViewerSettingsPageTest)

@@ -6,6 +6,8 @@
 
 #include "whaleviewerlist.h"
 
+#include "config-dolphin.h"
+
 #include <QImageReader>
 #include <QMimeType>
 #include <QSet>
@@ -44,6 +46,23 @@ bool decodable(const QMimeType &type)
     return false;
 }
 
+bool videoType(const QMimeType &type)
+{
+    if (type.name().startsWith(QLatin1String("video/"))) {
+        return true;
+    }
+    const QStringList ancestors = type.allAncestors();
+    return std::any_of(ancestors.cbegin(), ancestors.cend(), [](const QString &name) {
+        return name.startsWith(QLatin1String("video/"));
+    });
+}
+
+// Plays with libmpv (V3): a video type Qt cannot decode as an image (as it can MNG).
+bool playable(const QMimeType &type)
+{
+    return HAVE_MPV && videoType(type) && !decodable(type);
+}
+
 QUrl folderOf(const QUrl &url)
 {
     return url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
@@ -63,7 +82,12 @@ bool WhaleViewerList::isDisplayable(const KFileItem &item, const QStringList &mi
             return matches(name, pattern);
         });
     });
-    return wanted && decodable(type);
+    return wanted && (decodable(type) || playable(type));
+}
+
+bool WhaleViewerList::isVideo(const KFileItem &item)
+{
+    return !item.isNull() && playable(item.determineMimeType());
 }
 
 WhaleViewerList WhaleViewerList::fromFolder(const KFileItemList &viewItems, const KFileItem &opened, const QStringList &mimeTypes)

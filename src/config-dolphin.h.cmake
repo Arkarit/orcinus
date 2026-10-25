@@ -4,6 +4,7 @@
 #cmakedefine01 HAVE_PACKAGEKIT
 #cmakedefine01 HAVE_TERMINAL
 #cmakedefine01 HAVE_X11
+#cmakedefine01 HAVE_MPV
 
 #define WHALE_EXECUTABLE "@WHALE_EXECUTABLE@"
 #define WHALE_COMPONENT "@WHALE_COMPONENT@"

@@ -37,6 +37,7 @@ private Q_SLOTS:
 
     void testDisplayable();
     void testDisplayableByMimeType();
+    void testVideo();
     void testFolderInViewOrder();
     void testFolderLeavesOutExpandedSubfolders();
     void testFolderOfExpandedSubfolder();
@@ -173,6 +174,24 @@ void WhaleViewerListTest::testDisplayableByMimeType()
     QVERIFY(!WhaleViewerList::isDisplayable(item(QStringLiteral("c.txt")), {QStringLiteral("text/*")}));
 }
 
+void WhaleViewerListTest::testVideo()
+{
+    m_testDir->createFile(QStringLiteral("clip.mp4"), "not really a video");
+    const KFileItem clip(url(QStringLiteral("clip.mp4")));
+    QVERIFY(!WhaleViewerList::isVideo(item(QStringLiteral("a.png"))));
+    QVERIFY(!WhaleViewerList::isDisplayable(clip, m_images));
+    if (!WhaleViewerSettings::videoSupported()) {
+        QVERIFY(!WhaleViewerList::isVideo(clip));
+        QVERIFY(!WhaleViewerList::isDisplayable(clip, {QStringLiteral("video/*")}));
+        QSKIP("built without libmpv");
+    }
+    // By its type; whether mpv can play it shows when it does (a load error otherwise).
+    QVERIFY(WhaleViewerList::isVideo(clip));
+    QVERIFY(WhaleViewerList::isDisplayable(clip, {QStringLiteral("video/*")}));
+    QVERIFY(WhaleViewerList::isDisplayable(clip, {QStringLiteral("video/mp4")}));
+    QVERIFY(!WhaleViewerList::isDisplayable(clip, {QStringLiteral("video/webm")}));
+}
+
 void WhaleViewerListTest::testFolderInViewOrder()
 {
     const WhaleViewerList list = WhaleViewerList::fromFolder(m_view->items(), item(QStringLiteral("b.jpg")), m_images);
@@ -284,7 +303,14 @@ void WhaleViewerListTest::testMoveWrapAround()
 
 void WhaleViewerListTest::testSettings()
 {
-    QCOMPARE(WhaleViewerSettings::mimeTypes(), QStringList{QStringLiteral("image/*")});
+    QStringList defaults{QStringLiteral("image/*")};
+    if (WhaleViewerSettings::videoSupported()) {
+        defaults.append(QStringLiteral("video/*"));
+    }
+    QCOMPARE(WhaleViewerSettings::mimeTypes(), defaults);
+    QVERIFY(WhaleViewerSettings::videoAutoplay());
+    QVERIFY(WhaleViewerSettings::videoSound());
+    QVERIFY(WhaleViewerSettings::videoLoop());
     QVERIFY(!WhaleViewerSettings::wrapAround());
     QCOMPARE(WhaleViewerSettings::multiSelection(), WhaleViewerSettings::MultiSelection::KeepSelection);
 

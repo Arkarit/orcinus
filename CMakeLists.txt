@@ -168,6 +168,20 @@ else ()
     message(WARNING "Baloo packages not found. They are needed for the metadata features of Dolphin (including the information panel).")
 endif()
 
+# Videos in Whale's built-in viewer (V3, .privatedoc/whale-viewer-plan.md).
+option(WHALE_WITH_MPV "Play videos in the built-in viewer with libmpv, if it is found" ON)
+set(HAVE_MPV FALSE)
+if(WHALE_WITH_MPV)
+    find_package(PkgConfig)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(MPV IMPORTED_TARGET mpv)
+    endif()
+    add_feature_info(libmpv MPV_FOUND "Videos in the built-in viewer")
+    if(MPV_FOUND)
+        set(HAVE_MPV TRUE)
+    endif()
+endif()
+
 # TODO: drop HAVE_TERMINAL once we are sure the terminal panel works on Windows too.
 if(WIN32)
     set(HAVE_TERMINAL FALSE)

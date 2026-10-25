@@ -18,13 +18,14 @@ class QTreeWidgetItem;
  * @brief The "Viewer" page of the settings dialog (Whale, V1c).
  *
  * Which file types the built-in viewer opens, as a tree: "Images" turns all of them on or off,
- * below it each image type Qt can decode. With all of them on, the setting is the group
- * (WhaleViewerSettings::mimeTypes() "image/" and asterisk), so types that become decodable
- * later are included; otherwise the names of the types that are on. Patterns of other groups
- * in the setting (video, V3) are kept as they are.
+ * below it each image type Qt can decode; built with libmpv, "Videos" likewise with the video
+ * types (V3). With all of a group on, the setting is the group (WhaleViewerSettings::mimeTypes()
+ * "image/" and asterisk), so types that become known later are included; otherwise the names of
+ * the types that are on. Other patterns in the setting are kept as they are.
  *
  * Also whether paging goes round (wrap-around) whether small images are enlarged to the
- * screen (V2b) and whether zoomed in pixels are smoothed (V2c). The A/B switch for multiple selections stays
+ * screen (V2b), whether zoomed in pixels are smoothed (V2c) and, with videos, autoplay, sound
+ * and loop (V3). The A/B switch for multiple selections stays
  * hidden in whalerc.
  */
 class WhaleViewerSettingsPage : public SettingsPageBase
@@ -43,17 +44,26 @@ public:
 
     /** @return The image types Qt can decode, by their canonical names, sorted. */
     static QStringList imageMimeTypes();
+    /** @return The video types, by their canonical names, sorted (without the image ones). */
+    static QStringList videoMimeTypes();
 
 private:
     void loadSettings();
     void setPatterns(const QStringList &patterns);
     QStringList patterns() const;
 
+    QTreeWidgetItem *addGroup(const QString &title, const QString &pattern, const QStringList &names);
+    QCheckBox *addCheckBox(const QString &text, const QString &objectName);
+
     QTreeWidget *m_types = nullptr;
-    QTreeWidgetItem *m_images = nullptr;
+    /// "Images" and, with libmpv, "Videos": their pattern in column 1.
+    QList<QTreeWidgetItem *> m_groups;
     QCheckBox *m_wrapAround = nullptr;
     QCheckBox *m_upscale = nullptr;
     QCheckBox *m_smoothZoom = nullptr;
+    QCheckBox *m_videoAutoplay = nullptr;
+    QCheckBox *m_videoSound = nullptr;
+    QCheckBox *m_videoLoop = nullptr;
     QStringList m_otherPatterns;
     bool m_loading = false;
 };

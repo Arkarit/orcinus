@@ -6,6 +6,8 @@
 
 #include "whaleviewersettings.h"
 
+#include "config-dolphin.h"
+
 #include <KConfigGroup>
 #include <KSharedConfig>
 
@@ -17,10 +19,20 @@ const char WrapAroundKey[] = "WrapAround";
 const char MultiSelectionKey[] = "MultiSelection";
 const char UpscaleKey[] = "Upscale";
 const char SmoothZoomKey[] = "SmoothZoom";
+const char VideoAutoplayKey[] = "VideoAutoplay";
+const char VideoSoundKey[] = "VideoSound";
+const char VideoLoopKey[] = "VideoLoop";
 
 KConfigGroup group()
 {
     return KConfigGroup(KSharedConfig::openConfig(), GroupName);
+}
+
+void writeBool(const char *key, bool value)
+{
+    KConfigGroup viewerGroup = group();
+    viewerGroup.writeEntry(key, value);
+    viewerGroup.sync();
 }
 }
 
@@ -28,7 +40,11 @@ namespace WhaleViewerSettings
 {
 QStringList mimeTypes()
 {
-    return group().readEntry(MimeTypesKey, QStringList{QStringLiteral("image/*")});
+    QStringList defaults{QStringLiteral("image/*")};
+    if (videoSupported()) {
+        defaults.append(QStringLiteral("video/*"));
+    }
+    return group().readEntry(MimeTypesKey, defaults);
 }
 
 void setMimeTypes(const QStringList &mimeTypes)
@@ -36,6 +52,41 @@ void setMimeTypes(const QStringList &mimeTypes)
     KConfigGroup viewerGroup = group();
     viewerGroup.writeEntry(MimeTypesKey, mimeTypes);
     viewerGroup.sync();
+}
+
+bool videoSupported()
+{
+    return HAVE_MPV;
+}
+
+bool videoAutoplay()
+{
+    return group().readEntry(VideoAutoplayKey, true);
+}
+
+void setVideoAutoplay(bool autoplay)
+{
+    writeBool(VideoAutoplayKey, autoplay);
+}
+
+bool videoSound()
+{
+    return group().readEntry(VideoSoundKey, true);
+}
+
+void setVideoSound(bool sound)
+{
+    writeBool(VideoSoundKey, sound);
+}
+
+bool videoLoop()
+{
+    return group().readEntry(VideoLoopKey, true);
+}
+
+void setVideoLoop(bool loop)
+{
+    writeBool(VideoLoopKey, loop);
 }
 
 bool wrapAround()
