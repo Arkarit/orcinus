@@ -198,6 +198,38 @@ V2 ist damit fertig; offen bleibt der Praxistest (große Fotos, Farbprofile, HiD
 
 - libmpv, Bedienleiste, Video-Optionen (V-E7).
 
+Entscheidungen (Benutzer, 2026-10-25, Vorschläge bestätigt):
+- V-E16 Vorgaben (V-E7): automatisch abspielen an, Ton an, Schleife an; alles umstellbar.
+- V-E17 Tasten bei Videos: ←/→ spulen 5 s; ↑/↓, Bild↑/↓, Rücktaste, Pos1/Ende, Mausrad und
+  Rand-Klick blättern wie bei Bildern; Leertaste Abspielen/Pause; `M` Ton aus/an. Zoom-Tasten
+  wirken bei Videos nicht. Bei Bildern ändert sich nichts.
+- V-E18 Bedienleiste: selbst gezeichnet unten, nur bei Mausbewegung (verschwindet mit dem
+  Mauszeiger) und solange pausiert; Abspiel-Zustand, Fortschritt, Zeit, Hinweis bei stummem Ton.
+  Klick in die Leiste springt dorthin; Klick ins Bild tut weiterhin nichts (V-E10).
+  Kein Lautstärkeregler.
+
+Aufbau:
+- libmpv optional (`pkg-config mpv`, `HAVE_MPV`); ohne es keine Videos, alles andere wie bisher.
+- `WhaleVideoPlayer` (QObject, ohne GL): mpv-Handle, Optionen, Ereignisse über den
+  Wakeup-Callback in den GUI-Thread, Eigenschaften (Position, Dauer, Pause, Ton, Ende, Fehler) als
+  Signale. Testbar offscreen mit `vo=null`/`ao=null` (auf der Plattform „offscreen“ automatisch).
+- `WhaleVideoWidget` (QOpenGLWidget): mpv-Render-API, zeichnet den Player; durchlässig für Maus,
+  ohne Fokus, damit der Viewer Tasten und Maus behält.
+- Was über dem Bild liegt (Dateiname, Hinweise, Bedienleiste), zeichnet ein durchsichtiges
+  Kind-Widget ganz oben, damit es auch über dem Video liegt.
+- Videos laufen nicht durch den Bild-Cache und werden nicht vorgeladen; ein Player für alle.
+  `LC_NUMERIC` wird für mpv auf „C“ gesetzt (verlangt libmpv).
+
+Schritte:
+- V3a: CMake/`HAVE_MPV`; Videos anzeigbar (MIME passt, `video/*`, mit mpv); Vorgabe der
+  MIME-Liste mit mpv `image/*` + `video/*`; Gruppe „Videos“ auf der Einstellungsseite;
+  Einstellungen Autoplay/Ton/Schleife (whalerc `[Viewer]`). Tests.
+- V3b: `WhaleVideoPlayer` + `WhaleVideoWidget`, Overlay-Widget, Einbau in den Viewer (Video statt
+  Bild, Anhalten beim Blättern, Tasten nach V-E17, Ladefehler wie bei Bildern). Tests mit einem
+  kleinen, im Test eingebetteten Video.
+- V3c: Bedienleiste (V-E18).
+- V3d: Dev MCP (Video-Zustand, Eingaben), `test_v3_acceptance.py`, beide Builds, volle Suite.
+
 ### V4 – Extras
 
 - Optional Löschen (V-E6), evtl. Leertaste = zur Auswahl hinzufügen/entfernen,
