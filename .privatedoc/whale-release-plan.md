@@ -15,6 +15,39 @@ are translated to English as part of RL1 (decision D3).
 | D3 | Language of `.privatedoc/` | **English.** All remaining documents are translated before the repo goes public. |
 | D4 | History rewrite? | **Only for gross findings** in the audit: insults or personal data. Everything else stays in the history. |
 
+## Blockers (handled first, before RL1)
+
+Decisions that are expensive to change after the release.
+
+### B1: Name (decided 2026-10-25: **Orcinus**)
+
+"Whale" is taken in exactly our niche: `org.kde.whale` (Carl Schwan's Kirigami file manager on
+invent.kde.org, since 2020), a second "Whale" file manager announced on KDE Discuss in
+August 2026, the Naver Whale browser (`naver-whale-stable-bin` in the AUR), and the AUR package
+name `whale` (an unofficial Trello app).
+
+Candidates checked (AUR, Flathub, Debian/Ubuntu sources, Fedora, GitHub): Willy (English slang),
+Orca (the GNOME screen reader), Orcinus, Shachi, Grampus (too close to Gramps), Blackfish (the
+SeaWorld documentary), Orque, Épaulard, Spekkhogger. The user chose **Orcinus**: no package of
+that name anywhere, only small dead projects on GitHub. The icon stays.
+
+Still open for B1: trademark search (DPMA, EUIPO, USPTO; manual, done by the user) and the
+rename plan itself (what changes, what stays internal, migration of existing user config).
+
+### B2: Dependency on Dolphin's system libraries
+
+Phase 1 reuses the system `libdolphinvcs.so.6` and the `dolphin/vcs` plugins. Every package
+therefore depends on an ABI-compatible Dolphin package, and Flatpak cannot work this way.
+Options: accept Dolphin as a dependency, build an own VCS library that still loads Dolphin's VCS
+plugins, or disable VCS cleanly when the library is missing.
+
+### B3: What is stable after 1.0
+
+The style format (`Version` key) and the view plugin API (`X-Whale-ViewApiVersion`) are already
+versioned. To decide: whether the plugin API is meant for third parties and promised stable, or
+declared internal/unstable for 1.0 (proposal); and how config key changes are migrated once
+users have them.
+
 ## Order
 
 1. RL1 Repo audit and legal
