@@ -110,7 +110,12 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     m_cursorTimer->setSingleShot(true);
     m_cursorTimer->setInterval(CursorHideDelay);
     connect(m_cursorTimer, &QTimer::timeout, this, [this]() {
+        if (m_seeking) {
+            return;
+        }
         setCursor(Qt::BlankCursor);
+        m_pointerShown = false;
+        m_overlayWidget->update();
     });
     m_cursorTimer->start();
 
@@ -616,6 +621,10 @@ void WhaleViewer::paintEvent(QPaintEvent *event)
 void WhaleViewer::paintOverlay(QPainter &painter)
 {
     painter.setPen(Qt::white);
+    const bool controls = controlsVisible();
+    if (controls) {
+        paintControls(painter);
+    }
     if (!m_overlayText.isEmpty() && m_overlayOpacity > 0) {
         QFont overlayFont = font();
         overlayFont.setPointSizeF(overlayFont.pointSizeF() * 1.25);
@@ -624,7 +633,9 @@ void WhaleViewer::paintOverlay(QPainter &painter)
         const int margin = metrics.height() / 2;
         const QString text = metrics.elidedText(m_overlayText, Qt::ElideMiddle, width() * 4 / 5);
         QRect box(0, 0, metrics.horizontalAdvance(text) + 2 * margin, metrics.height() + margin);
-        box.moveCenter(QPoint(width() / 2, height() - 3 * metrics.height()));
+        // Above the controls while they show.
+        const int bottom = controls ? height() - controlBarRect().top() + metrics.height() : 2 * metrics.height();
+        box.moveCenter(QPoint(width() / 2, height() - bottom - metrics.height()));
 
         painter.setOpacity(m_overlayOpacity);
         painter.setRenderHint(QPainter::Antialiasing);
@@ -633,6 +644,107 @@ void WhaleViewer::paintOverlay(QPainter &painter)
         painter.fillPath(path, QColor(0, 0, 0, 170));
         painter.drawText(box, Qt::AlignCenter, text);
     }
+}
+
+bool WhaleViewer::controlsVisible() const
+{
+#if HAVE_MPV
+    return isVideo() && isLoaded() && (m_pointerShown || m_seeking || m_videoPlayer->isPaused());
+#else
+    return false;
+#endif
+}
+
+QRect WhaleViewer::controlBarRect() const
+{
+    const int line = fontMetrics().height();
+    return QRect(line, height() - 3 * line, width() - 2 * line, 2 * line);
+}
+
+QRect WhaleViewer::playButtonRect() const
+{
+    const QRect bar = controlBarRect();
+    return QRect(bar.topLeft(), QSize(bar.height(), bar.height()));
+}
+
+QRect WhaleViewer::seekAreaRect() const
+{
+    // Between the button and the time ("0:00:00 / 0:00:00" and "Muted" at most).
+    const QRect bar = controlBarRect();
+    const QFontMetrics metrics = fontMetrics();
+    const int text = metrics.horizontalAdvance(QStringLiteral("0:00:00 / 0:00:00"))
+        + metrics.horizontalAdvance(i18nc("@info in the controls of a video in the viewer", "Muted")) + 3 * metrics.height();
+    return QRect(QPoint(playButtonRect().right() + 1, bar.top()), QPoint(qMax(playButtonRect().right() + 1, bar.right() - text), bar.bottom()));
+}
+
+static QString timeText(double seconds)
+{
+    const int total = qMax(0, qRound(seconds));
+    const int hours = total / 3600;
+    const int minutes = total / 60 % 60;
+    const QString rest = QStringLiteral("%1:%2").arg(minutes, hours > 0 ? 2 : 1, 10, QLatin1Char('0')).arg(total % 60, 2, 10, QLatin1Char('0'));
+    return hours > 0 ? QStringLiteral("%1:%2").arg(hours).arg(rest) : rest;
+}
+
+void WhaleViewer::paintControls(QPainter &painter)
+{
+#if HAVE_MPV
+    painter.save();
+    painter.setRenderHint(QPainter::Antialiasing);
+    const QFontMetrics metrics = fontMetrics();
+    const int line = metrics.height();
+    const QRect bar = controlBarRect();
+    QPainterPath background;
+    background.addRoundedRect(bar, line / 2, line / 2);
+    painter.fillPath(background, QColor(0, 0, 0, 170));
+
+    // Play or pause, as a click on it does.
+    const QRectF button = QRectF(playButtonRect()).adjusted(line * 0.6, line * 0.55, -line * 0.6, -line * 0.55);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(Qt::white);
+    if (m_videoPlayer->isPaused()) {
+        painter.drawPolygon(QPolygonF{button.topLeft(), QPointF(button.right(), button.center().y()), button.bottomLeft()});
+    } else {
+        const qreal barWidth = button.width() / 3;
+        painter.drawRect(QRectF(button.topLeft(), QSizeF(barWidth, button.height())));
+        painter.drawRect(QRectF(QPointF(button.right() - barWidth, button.top()), QSizeF(barWidth, button.height())));
+    }
+
+    // The progress.
+    const QRect area = seekAreaRect();
+    const qreal thickness = line / 4.0;
+    const QRectF track(area.left() + line / 2.0, area.center().y() - thickness / 2, area.width() - line, thickness);
+    const double duration = m_videoPlayer->duration();
+    const qreal fraction = duration > 0 ? qBound(0.0, m_videoPlayer->position() / duration, 1.0) : 0;
+    painter.setBrush(QColor(255, 255, 255, 90));
+    painter.drawRoundedRect(track, thickness / 2, thickness / 2);
+    painter.setBrush(Qt::white);
+    painter.drawRoundedRect(QRectF(track.topLeft(), QSizeF(track.width() * fraction, thickness)), thickness / 2, thickness / 2);
+    painter.drawEllipse(QPointF(track.left() + track.width() * fraction, track.center().y()), line / 3.0, line / 3.0);
+
+    // The time, and whether the sound is off.
+    painter.setPen(Qt::white);
+    QString text = QStringLiteral("%1 / %2").arg(timeText(m_videoPlayer->position()), timeText(duration));
+    if (m_videoPlayer->isMuted()) {
+        text = i18nc("@info in the controls of a video in the viewer", "Muted") + QStringLiteral("   ") + text;
+    }
+    painter.drawText(QRect(QPoint(area.right() + 1, bar.top()), QPoint(bar.right() - line, bar.bottom())), Qt::AlignRight | Qt::AlignVCenter, text);
+    painter.restore();
+#else
+    Q_UNUSED(painter)
+#endif
+}
+
+void WhaleViewer::seekToPosition(qreal x)
+{
+#if HAVE_MPV
+    const QRect area = seekAreaRect();
+    const qreal line = fontMetrics().height();
+    const qreal fraction = qBound(0.0, (x - area.left() - line / 2) / (area.width() - line), 1.0);
+    m_videoPlayer->seekTo(fraction * m_videoPlayer->duration());
+#else
+    Q_UNUSED(x)
+#endif
 }
 
 void WhaleViewer::resizeEvent(QResizeEvent *event)
@@ -745,6 +857,16 @@ void WhaleViewer::mousePressEvent(QMouseEvent *event)
     if (event->button() != Qt::LeftButton) {
         return;
     }
+    // The controls of a video (V-E18) before the edges.
+    if (controlsVisible() && controlBarRect().contains(event->position().toPoint())) {
+        if (playButtonRect().contains(event->position().toPoint())) {
+            m_videoPlayer->togglePause();
+        } else if (seekAreaRect().contains(event->position().toPoint())) {
+            m_seeking = true;
+            seekToPosition(event->position().x());
+        }
+        return;
+    }
     // Only the left and right fifth page (V-E10).
     const qreal x = event->position().x();
     if (x < width() / 5.0) {
@@ -762,13 +884,24 @@ void WhaleViewer::mouseMoveEvent(QMouseEvent *event)
         m_panPosition = event->position();
         return;
     }
+    if (m_seeking) {
+        seekToPosition(event->position().x());
+    }
     unsetCursor();
     m_cursorTimer->start();
+    if (!m_pointerShown) {
+        m_pointerShown = true;
+        m_overlayWidget->update();
+    }
 }
 
 void WhaleViewer::mouseReleaseEvent(QMouseEvent *event)
 {
     event->accept();
+    if (event->button() == Qt::LeftButton && m_seeking) {
+        m_seeking = false;
+        m_overlayWidget->update();
+    }
     if (event->button() == Qt::MiddleButton && m_panning) {
         m_panning = false;
         unsetCursor();

@@ -65,6 +65,7 @@ private Q_SLOTS:
     void testVideo();
     void testVideoError();
     void testVideoSettings();
+    void testVideoControls();
     void testLoadError();
     void testEscapeCloses();
     void testCloseWhilePaging();
@@ -700,6 +701,65 @@ void WhaleViewerTest::testVideoSettings()
     QCOMPARE(player->options().loop, false);
     QTest::qWait(200);
     QVERIFY(player->position() < 0.05);
+#else
+    QSKIP("built without libmpv");
+#endif
+}
+
+void WhaleViewerTest::testVideoControls()
+{
+#if HAVE_MPV
+    WhaleViewer *viewer = openFile(QStringLiteral("clip.webm"), whaleTestVideo());
+    QVERIFY(viewer);
+    WhaleVideoPlayer *player = viewer->videoPlayer();
+    const QPoint middle = viewer->rect().center();
+    auto move = [viewer](const QPoint &position, Qt::MouseButtons buttons) {
+        QMouseEvent event(QEvent::MouseMove, position, viewer->mapToGlobal(position), Qt::NoButton, buttons, Qt::NoModifier);
+        QApplication::sendEvent(viewer, &event);
+    };
+    // Where a fraction of the video is in the progress.
+    auto at = [viewer](qreal fraction) {
+        const QRect area = viewer->seekAreaRect();
+        const int line = viewer->fontMetrics().height();
+        return QPoint(area.left() + line / 2 + qRound(fraction * (area.width() - line)), area.center().y());
+    };
+
+    // With the pointer moving; they hide with it while the video plays (V-E18).
+    move(middle, Qt::NoButton);
+    QVERIFY(viewer->controlsVisible());
+    QVERIFY(viewer->controlBarRect().bottom() < viewer->height());
+    QTRY_VERIFY_WITH_TIMEOUT(!viewer->controlsVisible(), 4000);
+    // Paused, they stay.
+    QTest::keyClick(viewer, Qt::Key_Space);
+    QTRY_VERIFY(viewer->controlsVisible());
+
+    // The button plays and pauses.
+    QTest::mouseClick(viewer, Qt::LeftButton, Qt::NoModifier, viewer->playButtonRect().center());
+    QTRY_VERIFY(!player->isPaused());
+    move(middle, Qt::NoButton);
+    QTest::mouseClick(viewer, Qt::LeftButton, Qt::NoModifier, viewer->playButtonRect().center());
+    QTRY_VERIFY(player->isPaused());
+
+    // A click into the progress seeks there.
+    QTest::mouseClick(viewer, Qt::LeftButton, Qt::NoModifier, at(0.75));
+    QTRY_VERIFY(qAbs(player->position() - 1.5) < 0.2);
+    // Dragging seeks along.
+    QTest::mousePress(viewer, Qt::LeftButton, Qt::NoModifier, at(0.25));
+    QTRY_VERIFY(qAbs(player->position() - 0.5) < 0.2);
+    move(at(0.5), Qt::LeftButton);
+    QTRY_VERIFY(qAbs(player->position() - 1.0) < 0.2);
+    QTest::mouseRelease(viewer, Qt::LeftButton, Qt::NoModifier, at(0.5));
+
+    // Clicks on the bar do not page, also at the edges.
+    const QRect bar = viewer->controlBarRect();
+    QTest::mouseClick(viewer, Qt::LeftButton, Qt::NoModifier, QPoint(bar.right() - 2, bar.center().y()));
+    QCOMPARE(viewer->currentUrl(), url(QStringLiteral("clip.webm")));
+
+    // Images have none.
+    QTest::keyClick(viewer, Qt::Key_Home);
+    QTRY_VERIFY(viewer->isLoaded());
+    move(middle, Qt::NoButton);
+    QVERIFY(!viewer->controlsVisible());
 #else
     QSKIP("built without libmpv");
 #endif

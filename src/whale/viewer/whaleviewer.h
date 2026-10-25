@@ -45,6 +45,9 @@ class QVariantAnimation;
  * Space plays and pauses, M turns the sound off and on (V-E17). What is shown over the image or
  * video (the file name, notes) is painted by a transparent child on top.
  *
+ * Controls of a video (V-E18): a bar at the bottom while the pointer moves or the video is
+ * paused, with a button to play and pause, the progress (click or drag to seek) and the time.
+ *
  * There is at most one viewer; opening another closes the one before.
  *
  * See .privatedoc/whale-viewer-plan.md.
@@ -119,6 +122,13 @@ public:
     /** @return The player of videos, once the viewer showed one; else nullptr. */
     WhaleVideoPlayer *videoPlayer() const;
 
+    /** @return Whether the controls of a video show (V-E18). */
+    bool controlsVisible() const;
+    /** @return Where the controls are in the window: the whole bar, its play button, the area that seeks. */
+    QRect controlBarRect() const;
+    QRect playButtonRect() const;
+    QRect seekAreaRect() const;
+
     /** @return Whether the file shown is an animation that plays. */
     bool isAnimating() const;
     /** @return The number of the frame of the animation shown, or -1. */
@@ -170,6 +180,8 @@ private:
     void stopVideo();
     /** Paints what lies over the image or video: the file name or a note. */
     void paintOverlay(QPainter &painter);
+    void paintControls(QPainter &painter);
+    void seekToPosition(qreal x);
     friend class WhaleViewerOverlay;
     void followInView();
     void showOverlay(const QString &text);
@@ -198,6 +210,10 @@ private:
     QPointF m_panPosition;
 
     QWidget *m_overlayWidget;
+    /// Whether the pointer moved lately (it hides after a rest).
+    bool m_pointerShown = true;
+    /// Whether the left button drags in the progress of a video.
+    bool m_seeking = false;
     WhaleVideoPlayer *m_videoPlayer = nullptr;
     /// Draws the video; only where there is a screen to draw on.
     QWidget *m_videoWidget = nullptr;

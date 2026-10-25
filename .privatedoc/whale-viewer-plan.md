@@ -252,6 +252,13 @@ Ladefehler wie bei Bildern, Videos nicht im Cache/Vorladen. Testvideo (WebM, 3 K
 eingebettet in `src/whale/tests/whaletestvideo.h`; Tests `whalevideoplayertest`,
 `WhaleViewerTest::testVideo*`. Der GL-Pfad ist offscreen nicht getestet (V3d: kwin_wayland --virtual).
 
+Stand V3c (2026-10-25): Bedienleiste, gezeichnet im Overlay: abgerundet unten (eine Zeile Abstand,
+zwei Zeilen hoch), links Abspiel-/Pause-Knopf, dann Fortschritt (Spur + Punkt), rechts
+„m:ss / m:ss“ (ab einer Stunde h:mm:ss), davor „Muted“ bei stummem Ton. Sichtbar bei geladenem
+Video, solange der Mauszeiger zu sehen ist (verschwindet mit ihm nach 1,5 s), beim Ziehen und
+solange pausiert. Klick auf den Knopf: Abspielen/Pause; Klick/Ziehen im Fortschritt: springen.
+Klicks auf die Leiste blättern nicht, auch an den Rändern. Der Dateiname rückt über die Leiste.
+
 ### V4 – Extras
 
 - Optional Löschen (V-E6), evtl. Leertaste = zur Auswahl hinzufügen/entfernen,
