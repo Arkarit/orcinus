@@ -207,6 +207,9 @@ Entscheidungen (Benutzer, 2026-10-25, Vorschläge bestätigt):
   Mauszeiger) und solange pausiert; Abspiel-Zustand, Fortschritt, Zeit, Hinweis bei stummem Ton.
   Klick in die Leiste springt dorthin; Klick ins Bild tut weiterhin nichts (V-E10).
   Kein Lautstärkeregler.
+- V-E19 (Benutzer, 2026-10-25, für das erste Release): Linksklick auf ein Video pausiert bzw.
+  spielt weiter. Die Randfünftel blättern weiterhin (wie bei Bildern), die Leiste geht vor; für
+  Bilder bleibt V-E10 (Klick tut nichts).
 
 Aufbau:
 - libmpv optional (`pkg-config mpv`, `HAVE_MPV`); ohne es keine Videos, alles andere wie bisher.

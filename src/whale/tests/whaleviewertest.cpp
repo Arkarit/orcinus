@@ -630,6 +630,13 @@ void WhaleViewerTest::testVideo()
     QVERIFY(!player->isMuted());
     QTRY_VERIFY(player->position() > 0.2);
 
+    // A click between the edges pauses and plays (V-E19); the edges still page.
+    QTest::mouseClick(viewer, Qt::LeftButton, Qt::NoModifier, viewer->rect().center());
+    QTRY_VERIFY(player->isPaused());
+    QTest::mouseClick(viewer, Qt::LeftButton, Qt::NoModifier, viewer->rect().center());
+    QTRY_VERIFY(!player->isPaused());
+    QCOMPARE(viewer->currentUrl(), url(QStringLiteral("clip.webm")));
+
     // Space, M (V-E17).
     QTest::keyClick(viewer, Qt::Key_Space);
     QTRY_VERIFY(player->isPaused());

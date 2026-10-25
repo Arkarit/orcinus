@@ -523,7 +523,7 @@ TOOLS = [
         "description": "V1d: input for the built-in viewer (opened with activate_items on an image), sent to its "
         "window as real events: action key (key as in QKeySequence: Right/Left/Up/Down, PgDown/PgUp, Home/End, "
         "Escape closes), wheel (delta: 120 a notch, negative = down = next file; fast turns add up) or click "
-        "(where: left/right fifth page, center does nothing). V2e: keys +, -, 1 (100 %), 0 (fit) zoom; "
+        "(where: left/right fifth page, center does nothing on images, pauses and plays a video). V2e: keys +, -, 1 (100 %), 0 (fit) zoom; "
         "zoom_wheel (Ctrl+wheel: delta, positive = in; at: [x, y] fractions of the window, default the middle) "
         "and drag (dx, dy: the middle button drags a zoomed image from the middle of the window). V3d, videos: "
         "keys Left/Right seek 5 s, Space plays/pauses, M mutes; pointer (the pointer moves: the controls show); "

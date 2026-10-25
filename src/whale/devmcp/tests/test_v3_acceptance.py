@@ -7,7 +7,7 @@
 driven only through the dev MCP. Skipped (77) when Whale is built without libmpv.
 
   A  opening a video plays it, with sound, over and over; the view follows
-  B  Space, M, Left/Right seek and do not page
+  B  a click on the video and Space pause, M mutes, Left/Right seek and do not page
   C  the controls: they show with the pointer and while paused; play button, seeking
   D  paging stops the video, paging back plays it again
   E  the settings: not at once, no sound
@@ -107,6 +107,10 @@ def run(args, work):
         print("ok    A: plays, over and over")
 
         # B
+        client.tool("viewer_input", action="click", where="center")
+        viewer("B: a click on the video pauses", {"player.paused": True, "name": "2.webm"})
+        client.tool("viewer_input", action="click", where="center")
+        viewer("B: and plays", {"player.paused": False, "name": "2.webm"})
         key("Space")
         viewer("B: Space pauses", {"player.paused": True})
         key("M")

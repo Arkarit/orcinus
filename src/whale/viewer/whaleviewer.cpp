@@ -867,12 +867,14 @@ void WhaleViewer::mousePressEvent(QMouseEvent *event)
         }
         return;
     }
-    // Only the left and right fifth page (V-E10).
+    // Only the left and right fifth page (V-E10); in between, a click pauses a video (V-E19).
     const qreal x = event->position().x();
     if (x < width() / 5.0) {
         step(-1);
     } else if (x > width() * 4 / 5.0) {
         step(1);
+    } else if (isVideo() && isLoaded()) {
+        m_videoPlayer->togglePause();
     }
 }
 

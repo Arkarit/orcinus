@@ -42,7 +42,8 @@ class QVariantAnimation;
  *
  * Videos (V3, built with libmpv) play in a WhaleVideoWidget over the window, as the settings
  * say (autoplay, sound, loop); paging on stops them. Left and Right seek 5 seconds in a video,
- * Space plays and pauses, M turns the sound off and on (V-E17). What is shown over the image or
+ * Space or a click between the edges plays and pauses, M turns the sound off and on (V-E17,
+ * V-E19). What is shown over the image or
  * video (the file name, notes) is painted by a transparent child on top.
  *
  * Controls of a video (V-E18): a bar at the bottom while the pointer moves or the video is
