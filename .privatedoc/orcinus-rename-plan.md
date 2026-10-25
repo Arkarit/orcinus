@@ -15,7 +15,7 @@ Dolphin (system `libdolphinvcs`, `dolphin/vcs`, `[Dolphin]` view properties, han
 
 ## Decisions
 
-Recommendations in bold; to be confirmed by the user.
+Recommendations in bold; **confirmed by the user on 2026-10-25.**
 
 | # | Question | Recommendation | Alternative |
 |---|---|---|---|
