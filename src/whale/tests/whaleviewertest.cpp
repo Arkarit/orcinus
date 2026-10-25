@@ -17,6 +17,7 @@
 #include "kitemviews/kitemlistselectionmanager.h"
 #include "testdir.h"
 #include "views/dolphinview.h"
+#include "whaleviewercache.h"
 #include "whaleviewersettings.h"
 
 #include <KConfigGroup>
@@ -48,6 +49,7 @@ private Q_SLOTS:
     void testWheelAccumulates();
     void testEdgeClicks();
     void testFastPagingLoadsOnlyTheLast();
+    void testPreloadsNeighbours();
     void testLoadError();
     void testEscapeCloses();
     void testCloseWhilePaging();
@@ -304,6 +306,34 @@ void WhaleViewerTest::testFastPagingLoadsOnlyTheLast()
     QTRY_VERIFY(viewer->isLoaded());
     QCOMPARE(loaded.count(), 1);
     QCOMPARE(loaded.first().first().toUrl(), url(QStringLiteral("5.png")));
+}
+
+void WhaleViewerTest::testPreloadsNeighbours()
+{
+    WhaleViewer *viewer = openByActivation(QStringLiteral("3.png"));
+    QVERIFY(viewer);
+    QTRY_VERIFY(viewer->isLoaded());
+    // One back, two ahead (V2a).
+    QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("2.png"))));
+    QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("4.png"))));
+    QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("5.png"))));
+    QVERIFY(!viewer->cache().entry(url(QStringLiteral("6.png"))));
+    QVERIFY(!viewer->cache().isPending(url(QStringLiteral("6.png"))));
+
+    // A preloaded file shows at once.
+    QTest::keyClick(viewer, Qt::Key_Right);
+    QVERIFY(viewer->isLoaded());
+    // Then 6.png is ahead, and 2.png is forgotten.
+    QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("6.png"))));
+    QVERIFY(!viewer->cache().entry(url(QStringLiteral("2.png"))));
+
+    // Paging back turns the direction round: two behind.
+    QTest::keyClick(viewer, Qt::Key_Left);
+    QVERIFY(viewer->isLoaded());
+    QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("2.png"))));
+    QTRY_VERIFY(viewer->cache().entry(url(QStringLiteral("1.png"))));
+    QVERIFY(viewer->cache().entry(url(QStringLiteral("4.png"))));
+    QVERIFY(!viewer->cache().entry(url(QStringLiteral("5.png"))));
 }
 
 void WhaleViewerTest::testLoadError()

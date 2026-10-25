@@ -7,19 +7,17 @@
 #include "whaleviewer.h"
 
 #include "views/dolphinview.h"
+#include "whaleviewercache.h"
 #include "whaleviewersettings.h"
 
 #include <KLocalizedString>
 
-#include <QFutureWatcher>
-#include <QImageReader>
 #include <QKeyEvent>
 #include <QPainter>
 #include <QPainterPath>
 #include <QScreen>
 #include <QTimer>
 #include <QVariantAnimation>
-#include <QtConcurrentRun>
 
 namespace
 {
@@ -30,13 +28,6 @@ constexpr int LoadDelay = 40;
 constexpr int OverlayDuration = 1000;
 constexpr int OverlayFadeDuration = 300;
 constexpr int CursorHideDelay = 1500;
-
-QImage readImage(const QString &path)
-{
-    QImageReader reader(path);
-    reader.setAutoTransform(true);
-    return reader.read();
-}
 }
 
 WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidget *window)
@@ -45,6 +36,7 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     , m_window(window)
     , m_list(list)
     , m_moveSelection(!list.isSelection() || WhaleViewerSettings::multiSelection() == WhaleViewerSettings::MultiSelection::MoveSelection)
+    , m_cache(new WhaleViewerCache(this))
     , m_loadTimer(new QTimer(this))
     , m_overlayTimer(new QTimer(this))
     , m_cursorTimer(new QTimer(this))
@@ -59,6 +51,7 @@ WhaleViewer::WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidg
     m_loadTimer->setSingleShot(true);
     m_loadTimer->setInterval(LoadDelay);
     connect(m_loadTimer, &QTimer::timeout, this, &WhaleViewer::load);
+    connect(m_cache, &WhaleViewerCache::imageReady, this, &WhaleViewer::slotImageReady);
 
     m_overlayTimer->setSingleShot(true);
     m_overlayTimer->setInterval(OverlayDuration);
@@ -163,12 +156,12 @@ QUrl WhaleViewer::currentUrl() const
 
 bool WhaleViewer::isLoaded() const
 {
-    return !m_loadError && !m_image.isNull() && m_loadedUrl == currentUrl();
+    return !m_shownError && !m_shown.isNull() && m_shownUrl == currentUrl();
 }
 
 bool WhaleViewer::hasLoadError() const
 {
-    return m_loadError && m_loadedUrl == currentUrl();
+    return m_shownError && m_shownUrl == currentUrl();
 }
 
 bool WhaleViewer::movesSelection() const
@@ -181,14 +174,17 @@ QString WhaleViewer::overlayText() const
     return m_overlayText;
 }
 
+const WhaleViewerCache &WhaleViewer::cache() const
+{
+    return *m_cache;
+}
+
 void WhaleViewer::step(int steps)
 {
     const int before = m_list.currentIndex();
     const bool stopped = m_list.move(steps, WhaleViewerSettings::wrapAround());
     if (m_list.currentIndex() != before) {
-        showOverlay(m_list.currentItem().name());
-        scheduleLoad();
-        Q_EMIT currentChanged(currentUrl());
+        pagedTo(steps < 0 ? -1 : 1);
     } else if (stopped) {
         showOverlay(steps < 0 ? i18nc("@info:status in the viewer", "First file") : i18nc("@info:status in the viewer", "Last file"));
     }
@@ -199,10 +195,18 @@ void WhaleViewer::showIndex(int index)
     const int before = m_list.currentIndex();
     m_list.setCurrentIndex(index);
     if (m_list.currentIndex() != before) {
-        showOverlay(m_list.currentItem().name());
-        scheduleLoad();
-        Q_EMIT currentChanged(currentUrl());
+        pagedTo(m_list.currentIndex() < before ? -1 : 1);
     }
+}
+
+void WhaleViewer::pagedTo(int direction)
+{
+    m_direction = direction;
+    showOverlay(m_list.currentItem().name());
+    // A preloaded file shows at once; the view follows (and the rest loads) once paging rests.
+    showFromCache();
+    scheduleLoad();
+    Q_EMIT currentChanged(currentUrl());
 }
 
 void WhaleViewer::scheduleLoad()
@@ -215,26 +219,77 @@ void WhaleViewer::load()
     m_loadTimer->stop();
     followInView();
 
-    const KFileItem item = m_list.currentItem();
-    if (item.isNull()) {
+    if (m_list.isEmpty()) {
         return;
     }
-    const int generation = ++m_generation;
-    const QUrl url = item.url();
-    auto watcher = new QFutureWatcher<QImage>(this);
-    connect(watcher, &QFutureWatcher<QImage>::finished, this, [this, watcher, generation, url]() {
-        watcher->deleteLater();
-        if (generation != m_generation) {
-            return; // paged on meanwhile
-        }
-        m_image = watcher->result();
-        m_loadError = m_image.isNull();
-        m_loadedUrl = url;
-        updateScaled();
-        update();
+    const QUrl url = currentUrl();
+    m_cache->setCurrent(url);
+    m_cache->retainOnly(wantedUrls());
+    const WhaleViewerCache::Entry *entry = m_cache->entry(url);
+    if (entry && (entry->error || entry->available == availableSize())) {
+        showFromCache();
         Q_EMIT loadFinished(url);
-    });
-    watcher->setFuture(QtConcurrent::run(readImage, item.localPath()));
+        preload();
+    } else {
+        m_cache->request(url, availableSize(), devicePixelRatioF());
+    }
+}
+
+void WhaleViewer::preload()
+{
+    const QList<QUrl> urls = wantedUrls();
+    for (const QUrl &url : urls) {
+        m_cache->request(url, availableSize(), devicePixelRatioF());
+    }
+}
+
+void WhaleViewer::slotImageReady(const QUrl &url)
+{
+    if (url != currentUrl()) {
+        return; // a neighbour
+    }
+    showFromCache();
+    if (!m_loadTimer->isActive()) {
+        Q_EMIT loadFinished(url);
+        preload();
+    }
+}
+
+bool WhaleViewer::showFromCache()
+{
+    const WhaleViewerCache::Entry *entry = m_cache->entry(currentUrl());
+    if (!entry) {
+        return false;
+    }
+    m_shown = entry->scaled;
+    m_shownUrl = currentUrl();
+    m_shownError = entry->error;
+    update();
+    return true;
+}
+
+QList<QUrl> WhaleViewer::wantedUrls() const
+{
+    QList<QUrl> urls;
+    const KFileItemList items = m_list.items();
+    const int count = items.count();
+    const int current = m_list.currentIndex();
+    const bool wrapAround = WhaleViewerSettings::wrapAround();
+    for (const int offset : {0, m_direction, -m_direction, 2 * m_direction}) {
+        int index = current + offset;
+        if (wrapAround) {
+            index = ((index % count) + count) % count;
+        }
+        if (index >= 0 && index < count && !urls.contains(items.at(index).url())) {
+            urls.append(items.at(index).url());
+        }
+    }
+    return urls;
+}
+
+QSize WhaleViewer::availableSize() const
+{
+    return size() * devicePixelRatioF();
 }
 
 void WhaleViewer::followInView()
@@ -253,38 +308,25 @@ void WhaleViewer::showOverlay(const QString &text)
     update();
 }
 
-void WhaleViewer::updateScaled()
-{
-    if (m_image.isNull()) {
-        m_scaled = QPixmap();
-        return;
-    }
-    // Fit into the window in device pixels, never larger than the image (V2 adds zoom).
-    const qreal dpr = devicePixelRatioF();
-    const QSize available = size() * dpr;
-    QSize target = m_image.size();
-    if (target.width() > available.width() || target.height() > available.height()) {
-        target.scale(available, Qt::KeepAspectRatio);
-    }
-    m_scaled = QPixmap::fromImage(target == m_image.size() ? m_image : m_image.scaled(target, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-    m_scaled.setDevicePixelRatio(dpr);
-}
-
 void WhaleViewer::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event)
     QPainter painter(this);
     painter.fillRect(rect(), Qt::black);
 
-    if (!m_scaled.isNull() && !m_loadError) {
-        const QSizeF size = m_scaled.deviceIndependentSize();
-        const QPointF topLeft((width() - size.width()) / 2, (height() - size.height()) / 2);
-        painter.drawPixmap(topLeft, m_scaled);
+    if (!m_shown.isNull() && !m_shownError) {
+        // Fitted in another window size (just resized): drawn scaled until the new one is there.
+        QSizeF size = m_shown.deviceIndependentSize();
+        if (size.width() > width() || size.height() > height()) {
+            size.scale(this->size(), Qt::KeepAspectRatio);
+        }
+        const QRectF target(QPointF((width() - size.width()) / 2, (height() - size.height()) / 2), size);
+        painter.drawImage(target, m_shown);
     }
 
     painter.setPen(Qt::white);
-    if (m_loadError) {
-        const QString name = m_list.currentItem().name();
+    if (m_shownError) {
+        const QString name = m_shownUrl.fileName();
         painter.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, i18nc("@info in the viewer, %1 is a file name", "%1 cannot be displayed.", name));
     }
 
@@ -310,7 +352,9 @@ void WhaleViewer::paintEvent(QPaintEvent *event)
 void WhaleViewer::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    updateScaled();
+    if (!m_list.isEmpty()) {
+        m_cache->request(currentUrl(), availableSize(), devicePixelRatioF());
+    }
 }
 
 void WhaleViewer::keyPressEvent(QKeyEvent *event)

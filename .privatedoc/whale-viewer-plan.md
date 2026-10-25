@@ -150,6 +150,16 @@ Schritte:
 - V2d: Animierte GIF/WebP: Animation in Schleife, hält beim Blättern an.
 - V2e: Dev MCP (Zoom, Cache, Animation), `test_v2_acceptance.py`, beide Builds, volle Suite.
 
+Stand V2a (2026-10-25): `WhaleViewerCache` (`src/whale/viewer/whaleviewercache.*`) dekodiert und
+skaliert in einem eigenen, prozessweiten Pool mit 2 Threads (das aktuelle Bild mit Vorrang;
+ESC wartet nicht auf große Bilder). Behalten werden das aktuelle Bild, eins zurück und zwei in
+Blätterrichtung; der Rest wird vergessen, wartende Aufträge abgebrochen. Jeder Eintrag hat das
+volle Bild (für andere Fenstergrößen, später Zoom) und das eingepasste; volle Bilder der Nachbarn
+nur bis 512 MB, sonst nur das eingepasste. `QImageReader`-Grenze 2 GB. Ein vorgeladenes Bild
+erscheint beim Blättern sofort; `loadFinished` und das Folgen der View weiter erst, wenn das
+Blättern ruht. Beim Ändern der Fenstergröße wird das alte Bild gestreckt gezeigt, bis das neu
+skalierte da ist. Tests `whaleviewercachetest`, `WhaleViewerTest::testPreloadsNeighbours`.
+
 ### V3 – Video
 
 - libmpv, Bedienleiste, Video-Optionen (V-E7).

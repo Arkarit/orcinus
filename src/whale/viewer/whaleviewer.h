@@ -10,11 +10,11 @@
 #include "whaleviewerlist.h"
 
 #include <QImage>
-#include <QPixmap>
 #include <QPointer>
 #include <QWidget>
 
 class DolphinView;
+class WhaleViewerCache;
 class QTimer;
 class QVariantAnimation;
 
@@ -78,6 +78,8 @@ public:
     bool movesSelection() const;
     /** @return The text shown at the bottom right now (name or note), or empty. */
     QString overlayText() const;
+    /** @return The images decoded for the current file and its neighbours (V2a). */
+    const WhaleViewerCache &cache() const;
 
     /** Moves @p steps files on (backwards if negative), as the wheel and the keys do. */
     void step(int steps);
@@ -103,22 +105,30 @@ private:
     WhaleViewer(DolphinView *source, const WhaleViewerList &list, QWidget *window);
     static void show(DolphinView *source, const WhaleViewerList &list, QWidget *window);
 
+    void pagedTo(int direction);
     void scheduleLoad();
     void load();
+    void preload();
+    void slotImageReady(const QUrl &url);
+    bool showFromCache();
+    /** @return The current file and the neighbours to keep decoded: one back, two ahead. */
+    QList<QUrl> wantedUrls() const;
+    QSize availableSize() const;
     void followInView();
     void showOverlay(const QString &text);
-    void updateScaled();
 
     QPointer<DolphinView> m_source;
     QPointer<QWidget> m_window;
     WhaleViewerList m_list;
     bool m_moveSelection = true;
 
-    QImage m_image;
-    QPixmap m_scaled;
-    QUrl m_loadedUrl;
-    bool m_loadError = false;
-    int m_generation = 0;
+    WhaleViewerCache *m_cache;
+    /// What is drawn: the image of m_shownUrl fitted into the window, or nothing on an error.
+    QImage m_shown;
+    QUrl m_shownUrl;
+    bool m_shownError = false;
+    /// The direction paged in last, +1 or -1: the neighbours ahead are preloaded.
+    int m_direction = 1;
     int m_wheelDelta = 0;
 
     QTimer *m_loadTimer = nullptr;

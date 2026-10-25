@@ -353,6 +353,12 @@ ecm_add_test(whaleviewertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whaleviewertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 
+# The images of the built-in viewer, decoded and scaled in the background (V2a).
+ecm_add_test(whaleviewercachetest.cpp ../../tests/testdir.cpp
+    TEST_NAME whaleviewercachetest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whaleviewercachetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+
 # The "Viewer" page of the settings dialog (V1c).
 ecm_add_test(whaleviewersettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleviewersettingspagetest
