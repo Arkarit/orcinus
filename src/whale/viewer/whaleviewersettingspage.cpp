@@ -12,11 +12,18 @@
 
 #include <QCheckBox>
 #include <QHeaderView>
+#include <QIcon>
 #include <QImageReader>
 #include <QLabel>
 #include <QMimeDatabase>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+
+static void initResources()
+{
+    // The resources of a static library are only linked in when something refers to them.
+    Q_INIT_RESOURCE(whaleviewer);
+}
 
 namespace
 {
@@ -83,6 +90,12 @@ WhaleViewerSettingsPage::WhaleViewerSettingsPage(QWidget *parent)
 }
 
 WhaleViewerSettingsPage::~WhaleViewerSettingsPage() = default;
+
+QIcon WhaleViewerSettingsPage::icon()
+{
+    initResources();
+    return QIcon(QStringLiteral(":/whale/icons/whale-viewer.svg"));
+}
 
 QStringList WhaleViewerSettingsPage::imageMimeTypes()
 {

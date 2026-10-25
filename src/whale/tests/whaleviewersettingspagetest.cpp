@@ -244,6 +244,8 @@ void WhaleViewerSettingsPageTest::testPageInDialog()
     DolphinSettingsDialog dialog(dir.url(), &mainWindow, mainWindow.actionCollection());
     auto page = dialog.findChild<WhaleViewerSettingsPage *>();
     QVERIFY(page);
+    // The icon of the page comes from the resources of the static library.
+    QVERIFY(!WhaleViewerSettingsPage::icon().pixmap(32, 32).isNull());
 
     QPushButton *apply = dialog.findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Apply);
     QVERIFY(!apply->isEnabled());

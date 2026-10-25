@@ -1,0 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Whale contributors
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<RCC>
+<qresource prefix="/whale/icons">
+<file>whale-viewer.svg</file>
+</qresource>
+</RCC>

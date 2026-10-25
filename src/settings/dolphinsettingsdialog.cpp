@@ -64,7 +64,7 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     // Whale: V1c, the built-in viewer.
     auto viewerSettingsPage = new WhaleViewerSettingsPage(this);
     KPageWidgetItem *viewerSettingsFrame = addPage(viewerSettingsPage, i18nc("@title:group", "Viewer"));
-    viewerSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("view-preview")));
+    viewerSettingsFrame->setIcon(WhaleViewerSettingsPage::icon());
     connect(viewerSettingsPage, &WhaleViewerSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
 
     // Context Menu

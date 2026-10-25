@@ -10,6 +10,7 @@
 #include "settings/settingspagebase.h"
 
 class QCheckBox;
+class QIcon;
 class QTreeWidget;
 class QTreeWidgetItem;
 
@@ -35,6 +36,9 @@ public:
 
     void applySettings() override;
     void restoreDefaults() override;
+
+    /** @return The icon of the page in the dialog (a TV in the style of Breeze). */
+    static QIcon icon();
 
     /** @return The image types Qt can decode, by their canonical names, sorted. */
     static QStringList imageMimeTypes();
