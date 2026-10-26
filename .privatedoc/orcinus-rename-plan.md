@@ -146,18 +146,34 @@ Internal group names inside the config files (e.g. `WhaleToolbars`) stay (N1/N2)
 migration remains a plain copy.
 Test: full suite including the dev MCP e2e tests.
 
+Done (2026-10-26, 53ced168a), including the metainfo file moved here from OR1. `--view-style`
+was already hidden from `--help`.
+
 ### OR3: View plugin externals (N3)
 Namespace, metadata keys, library output name, treemap plugin ID; test plugins in
 `src/whale/tests/plugins/` follow.
 Test: plugin loading tests including the wrong-API-version test.
 
+Done (2026-10-26, 78625b59c). Deviation: the test plugins keep their IDs (`whale_hello`,
+`whale_testlist`, …; internal, N1) and only move to the new namespace and keys. Plugins are sorted
+by ID, so `orcinus_treemap` now comes before them in the View Modes menu; one test expectation
+changed accordingly.
+
 ### OR4: Visible strings and the German catalog
 17 i18n strings, credit line, `po-orcinus/de/orcinus.po` msgids.
 Test: `LANGUAGE=de` start of the dev build, `--help` output.
 
+Done (2026-10-26, 2eb86dbd4). Credit line is "Orcinus: %1". The German catalog had no msgids
+naming the product (the "Whale …" strings were untranslated before as well), so only its header
+changed; the translations follow in RL2. Checked with `LANGUAGE=de orcinus --help` (offscreen)
+after installing into the private prefix.
+
 ### OR5: Repository and docs
 README, AGENTS.md, CLAUDE.md, docs file, scripts, REUSE. SPDX headers as a separate mechanical
 commit (N5), so the content commits stay readable.
+
+Done (2026-10-26, 92ca0f213 content, 761e14f08 SPDX). `CONTRIBUTING.md` does not exist; the note
+"Whale was the working title" is in README.md instead. `REUSE.toml` had nothing to change.
 
 ### OR6: GitHub
 Rename the repo `Arkarit/whale` → `Arkarit/orcinus` (GitHub redirects old URLs), update the
@@ -182,6 +198,15 @@ System install: uninstall the old Whale with its `install_manifest.txt`, install
 
 Also update the Claude Code side: memories, the `whale-dev` MCP server entry (name can stay;
 the bus prefix changed in OR2).
+
+Script written and tested on a copy of the user's files (2026-10-26); not run on the real home.
+
+Found during OR1–OR3: the DESTDIR test installs overwrote `../build-whale-system/install_manifest.txt`,
+so it no longer lists the installed Whale. The list was reconstructed from the OR1 staging (all
+104 files present in `/usr`) plus four unowned leftovers `libwhaleviewapi.so.8*`/`.9*` from older
+installs: `../build-whale-system/whale-uninstall-manifest.txt`. Uninstall with
+`sudo xargs rm < ../build-whale-system/whale-uninstall-manifest.txt`, then
+`sudo rmdir /usr/lib/x86_64-linux-gnu/qt6/plugins/whale/views /usr/lib/x86_64-linux-gnu/qt6/plugins/whale`.
 
 ### OR8: Acceptance
 - Isolation tests R1–R15 from `whale-rename-plan.md` section 7.3 with the new names, plus:
