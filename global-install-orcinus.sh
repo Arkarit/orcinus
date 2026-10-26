@@ -68,6 +68,14 @@ if readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qE 'RUNPATH|RPATH'; th
     collisions=1
 fi
 
+# B2: the private library must find its own copy of libdolphinvcs, not the one of a Dolphin package.
+private_lib="${stage_dir}${prefix}/lib/x86_64-linux-gnu/liborcinusprivate.so.6"
+if ! readelf -d "${private_lib}" | grep -qF 'RUNPATH' || ! readelf -d "${private_lib}" | grep -qF '[$ORIGIN/orcinus]' \
+    || [[ ! -e "${stage_dir}${prefix}/lib/x86_64-linux-gnu/orcinus/libdolphinvcs.so.6" ]]; then
+    echo "Check: the staged liborcinusprivate does not use the private libdolphinvcs (RUNPATH \$ORIGIN/orcinus)." >&2
+    collisions=1
+fi
+
 if [[ ${collisions} -ne 0 ]]; then
     echo "Aborting, nothing was installed." >&2
     exit 1

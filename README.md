@@ -32,10 +32,12 @@ Dolphin-named KParts, KCMs, plugins, documentation, or developer files. The
 optional FileManager1 integration can be enabled with
 `-DWHALE_PROVIDE_FILEMANAGER1=ON`.
 
-Phase 1 expects the system Dolphin package to remain installed. Orcinus reuses its
-`libdolphinvcs.so.6`, version-control plugins, service-menu integration, and
-handbook. If a matching optional BalooWidgets package is unavailable, the
-information panel is disabled but Orcinus can still be built.
+Orcinus does not need a Dolphin package to run. It installs a private copy of
+Dolphin's small version-control plugin library (`libdolphinvcs.so.6`, under
+`lib/orcinus/`), so the version-control plugins of `dolphin-plugins` work when
+they are installed. Service-menu integration and the handbook are Dolphin's and
+are used when present. If a matching optional BalooWidgets package is
+unavailable, the information panel is disabled but Orcinus can still be built.
 
 Orcinus issues belong in the [Orcinus issue tracker](https://github.com/Arkarit/orcinus/issues).
 Issues reproducible in unmodified Dolphin should be reported upstream.

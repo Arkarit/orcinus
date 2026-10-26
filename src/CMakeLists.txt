@@ -53,6 +53,11 @@ if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     install(TARGETS dolphinvcs EXPORT DolphinVcsTargets ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dolphinvcs_export.h DESTINATION ${KDE_INSTALL_INCLUDEDIR} COMPONENT Devel)
     install(FILES ${dolphinvcs_LIB_HEADERS} DESTINATION "${KDE_INSTALL_INCLUDEDIR}/Dolphin" COMPONENT Devel)
+else()
+    # Whale (B2): a private copy under Dolphin's SONAME, found through the RUNPATH of the private
+    # library, so no Dolphin package is needed. Dolphin's VCS plugins, if installed, use this copy:
+    # they need a loaded libdolphinvcs.so.6, and plugin loading casts to this very class.
+    install(TARGETS dolphinvcs LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}/${WHALE_COMPONENT} NAMELINK_SKIP)
 endif()
 
 ########### next target ###############
@@ -256,6 +261,11 @@ if(HAVE_BALOO)
     )
 endif()
 
+if(NOT WHALE_INSTALL_DOLPHIN_EXTRAS)
+    # Whale (B2): finds the private libdolphinvcs, see above.
+    set(whale_private_rpath "$ORIGIN/${WHALE_COMPONENT}" ${CMAKE_INSTALL_RPATH})
+    set_target_properties(dolphinprivate PROPERTIES INSTALL_RPATH "${whale_private_rpath}")
+endif()
 set_target_properties(dolphinprivate PROPERTIES
     OUTPUT_NAME ${WHALE_COMPONENT}private
     VERSION ${DOLPHINPRIVATE_VERSION}

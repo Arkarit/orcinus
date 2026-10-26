@@ -53,7 +53,9 @@ therefore depends on an ABI-compatible Dolphin package, and Flatpak cannot work 
 Options: accept Dolphin as a dependency, build an own VCS library that still loads Dolphin's VCS
 plugins, or disable VCS cleanly when the library is missing.
 
-#### Analysis (2026-10-26, awaiting the user's decision)
+**Decided 2026-10-26: option B, implemented** (see the end of this section).
+
+#### Analysis (2026-10-26)
 
 What VCS is here: `libdolphinvcs` contains only the plugin interface `KVersionControlPlugin`
 (one class, ~240 lines). The plugins for Git, Subversion, Mercurial, Bazaar and Dropbox come from
@@ -98,6 +100,17 @@ Steps if chosen: install the `dolphinvcs` target (no headers, no CMake config) i
 `${KDE_INSTALL_LIBDIR}/orcinus`, set `INSTALL_RPATH` `$ORIGIN/orcinus` on `liborcinusprivate`,
 extend the install script's collision check and test: Orcinus starts with `libdolphinvcs6`
 removed in a container (RL4) and loads the Git plugin when it is present.
+
+Implemented (2026-10-26): `src/CMakeLists.txt` installs `dolphinvcs` into
+`${KDE_INSTALL_LIBDIR}/${WHALE_COMPONENT}` (unless `WHALE_INSTALL_DOLPHIN_EXTRAS`) and gives
+`liborcinusprivate` the RUNPATH `$ORIGIN/orcinus`; `global-install-orcinus.sh` refuses a staging
+without it. Tested on the staged install in a mount namespace with the system
+`libdolphinvcs.so.25.12.3` hidden: Orcinus starts, maps only the private copy and Dolphin's Git
+plugin works (10 `git` calls); with the plugins hidden as well it starts without VCS. The
+container test with Dolphin uninstalled stays in RL4.
+Legal: the library is LGPL-2.0-only source from this repository (`LICENSES/LGPL-2.0-only.txt`,
+SPDX headers), so no additional notice in the repository; RL5 lists it in the packages'
+copyright files.
 
 ### B3: What is stable after 1.0
 
@@ -192,11 +205,13 @@ listed in the changelog draft.
 
 ### RL5: Packaging
 
-- Choose the formats. Candidates: Flatpak (Flathub), AUR (`whale` / `whale-git`), `.deb` for
+- Choose the formats. Candidates: Flatpak (Flathub), AUR (`orcinus` / `orcinus-git`), `.deb` for
   Ubuntu/Debian (PPA or release asset), `.rpm` (Copr / OBS), AppImage. Decide which ones the
   first release ships.
-- Dependencies: Dolphin's VCS library and plugins (Phase 1 reuses them), libmpv2 runtime,
-  Baloo. For Flatpak these have to be bundled or the features degrade cleanly.
+- Dependencies: libmpv2 runtime, Baloo; `dolphin-plugins` only as a recommendation (VCS
+  emblems). The VCS library is bundled privately (B2); list
+  `src/views/versioncontrol/kversioncontrolplugin.*` (LGPL-2.0-only) in each package's copyright
+  file. Flatpak: also build `dolphin-plugins` into the bundle, as Dolphin's Flatpak does.
 - Coexistence with Dolphin must hold in every package: no shared files, own config, own D-Bus
   name, no change to MIME defaults on install.
 - Uninstall and upgrade path: what stays behind (config, styles, state), what happens to the
