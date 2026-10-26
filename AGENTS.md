@@ -15,7 +15,7 @@ to replay across upstream merges.
 
 - `CLAUDE.md` contains the practical build, test, and architecture summary. Its instructions apply
   to every coding agent despite the filename.
-- `.privatedoc/dolphin-architektur.md` is the detailed source map and extension-point analysis.
+- `.privatedoc/dolphin-architecture.md` is the detailed source map and extension-point analysis.
 - `.privatedoc/design-notes.md` records the design decisions of every Orcinus feature, including
   coexistence with Dolphin (product identity) and what is deliberately shared with it.
 
