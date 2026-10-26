@@ -80,7 +80,7 @@ void WhaleStyleManagerTest::initTestCase()
     qputenv("XDG_DATA_HOME", m_tmpHome.filePath(QStringLiteral("data")).toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->setGlobalViewProps(true);

@@ -89,8 +89,6 @@ private:
 };
 #endif
 
-constexpr auto whaleTranslationDomain{"whale"};
-
 int main(int argc, char **argv)
 {
 #ifndef Q_OS_WIN
@@ -98,7 +96,7 @@ int main(int argc, char **argv)
     if (getuid() == 0 && (!qEnvironmentVariableIsEmpty("SUDO_USER") || !qEnvironmentVariableIsEmpty("KDESU_USER"))) {
         QCoreApplication app(argc, argv); // Needed for the xi18ndc() call below.
         std::cout << qPrintable(
-            xi18ndc(whaleTranslationDomain,
+            xi18ndc(TRANSLATION_DOMAIN,
                     "@info:shell %1 is a terminal command",
                     "Running <application>Whale</application> with <command>sudo</command> is discouraged. Please run <icode>%1</icode> instead.",
                     QStringLiteral(WHALE_EXECUTABLE " --sudo")))
@@ -131,7 +129,7 @@ int main(int argc, char **argv)
 #endif
 #endif
 
-    KLocalizedString::setApplicationDomain(whaleTranslationDomain);
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
 
     QString displayName = i18n(WHALE_DISPLAY_NAME);
     if (WHALE_DEV_BUILD) {

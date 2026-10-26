@@ -68,7 +68,7 @@ void WhaleScriptLauncherTest::initTestCase()
     QVERIFY(m_runtime.isValid());
     qputenv("XDG_RUNTIME_DIR", QFile::encodeName(m_runtime.path()));
     QCOMPARE(QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation), m_runtime.path());
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     // Never KWin: no window of the user's desktop is touched.
     WhaleScriptLauncher::setWindowRequestHandler([this](WhaleScriptLauncher::WindowRequest request, qint64 pid) {
         m_windowRequests.append({request, pid});

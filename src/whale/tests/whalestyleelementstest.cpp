@@ -93,7 +93,7 @@ void WhaleStyleElementsTest::initTestCase()
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
     TestHelpers::openNewWindowsInSingleView();
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->setGlobalViewProps(true);

@@ -206,7 +206,7 @@ void WhaleTreeCacheTest::initTestCase()
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
     TestHelpers::openNewWindowsInSingleView();
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
     for (int i = 0; i < 30; ++i) {

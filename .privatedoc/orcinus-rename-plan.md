@@ -120,6 +120,14 @@ translation domain. The domain comes from one place: `TRANSLATION_DOMAIN` (CMake
 `setApplicationDomain({"whale"})` use that macro instead of a literal.
 Test: full suite; DESTDIR install of `../build-whale-system` → manifest contains no `whale`.
 
+Done (2026-10-26) with one deviation: the installed names are derived from `WHALE_COMPONENT`,
+`WHALE_EXECUTABLE` and `WHALE_APP_ID` (`${WHALE_COMPONENT}private`, `${WHALE_COMPONENT}viewapi`,
+`${WHALE_COMPONENT}.categories`/`.mo`, `_${WHALE_EXECUTABLE}`, category `${WHALE_APP_ID}`), so
+they still say `whale` after OR1 and switch together with the constants in OR2. Only the source
+files were renamed (`po-orcinus/de/orcinus.po`, `completions/orcinus.zsh.in`,
+`plasma-orcinus.service.in`). The metainfo file name moves to OR2 because it is installed as
+`${WHALE_APP_ID}.metainfo.xml`. The manifest check moves to OR2 accordingly.
+
 ### OR2: Runtime identity (constants plus everything hard-coded that depends on them)
 Found while starting OR1: the constants (`WHALE_APP_ID`, `WHALE_COMPONENT`, …) drive the bus
 names, the D-Bus object path, the default config file and the kxmlgui component at runtime, and

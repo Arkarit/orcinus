@@ -215,10 +215,10 @@ add_test(
         "status=0; \
          for plugin in '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/*.so '${WHALE_TEST_VIEW_PLUGIN_DIR}'/whale/views/*.so; do \
              needed=\$(readelf -d \"\$plugin\" | grep NEEDED); \
-             if echo \"\$needed\" | grep -qiE 'whaleprivate|dolphin|whaleviewhost'; then \
+             if echo \"\$needed\" | grep -qiE '${WHALE_COMPONENT}private|dolphin|whaleviewhost'; then \
                  echo \"\$plugin links private libraries:\"; echo \"\$needed\"; status=1; \
              fi; \
-             echo \"\$needed\" | grep -q whaleviewapi || { echo \"\$plugin does not use libwhaleviewapi\"; status=1; }; \
+             echo \"\$needed\" | grep -q ${WHALE_COMPONENT}viewapi || { echo \"\$plugin does not use lib${WHALE_COMPONENT}viewapi\"; status=1; }; \
          done; \
          ls '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/whale_treemap.so >/dev/null || status=1; \
          for test_view in whale_hello whale_testlist; do \

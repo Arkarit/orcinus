@@ -265,17 +265,18 @@ if(WHALE_PROVIDE_FILEMANAGER1)
     ecm_generate_dbus_service_file(
         NAME org.freedesktop.FileManager1
         EXECUTABLE "${KDE_INSTALL_FULL_BINDIR}/${WHALE_EXECUTABLE} --daemon"
-        SYSTEMD_SERVICE plasma-whale.service
+        SYSTEMD_SERVICE plasma-${WHALE_COMPONENT}.service
         DESTINATION ${KDE_INSTALL_DBUSSERVICEDIR}
         RENAME ${WHALE_APP_ID}.FileManager1.service
     )
 
-    ecm_install_configured_files(INPUT plasma-whale.service.in DESTINATION ${KDE_INSTALL_SYSTEMDUSERUNITDIR})
+    configure_file(plasma-orcinus.service.in ${CMAKE_CURRENT_BINARY_DIR}/plasma-${WHALE_COMPONENT}.service @ONLY)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/plasma-${WHALE_COMPONENT}.service DESTINATION ${KDE_INSTALL_SYSTEMDUSERUNITDIR})
 endif()
 
 ecm_qt_install_logging_categories(
         EXPORT DOLPHIN
-        FILE whale.categories
+        FILE ${WHALE_COMPONENT}.categories
         DESTINATION ${KDE_INSTALL_LOGGINGCATEGORIESDIR}
         )
 
@@ -298,9 +299,9 @@ set(whale_mo_files)
 foreach(whale_po_file IN LISTS whale_po_files)
     get_filename_component(whale_po_dir "${whale_po_file}" DIRECTORY)
     get_filename_component(whale_locale "${whale_po_dir}" NAME)
-    set(whale_mo_file "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES/whale.mo")
-    # Whale's own strings (po-whale/<locale>/whale.po) come first, Dolphin's catalog after them.
-    set(whale_own_po_file "${CMAKE_CURRENT_SOURCE_DIR}/po-whale/${whale_locale}/whale.po")
+    set(whale_mo_file "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/LC_MESSAGES/${WHALE_COMPONENT}.mo")
+    # Whale's own strings (po-orcinus/<locale>/orcinus.po) come first, Dolphin's catalog after them.
+    set(whale_own_po_file "${CMAKE_CURRENT_SOURCE_DIR}/po-orcinus/${whale_locale}/orcinus.po")
     if(EXISTS "${whale_own_po_file}")
         set(whale_merged_po_file "${CMAKE_CURRENT_BINARY_DIR}/locale/${whale_locale}/whale-merged.po")
         add_custom_command(
@@ -329,8 +330,8 @@ set(WHALE_DAEMON_COMPLETION "")
 if(WHALE_PROVIDE_FILEMANAGER1)
     set(WHALE_DAEMON_COMPLETION "  '--daemon[Start Whale Daemon (only required for DBus Interface).]' \\\n")
 endif()
-configure_file(completions/whale.zsh.in ${CMAKE_CURRENT_BINARY_DIR}/_whale @ONLY)
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/_whale DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
+configure_file(completions/orcinus.zsh.in ${CMAKE_CURRENT_BINARY_DIR}/_${WHALE_EXECUTABLE} @ONLY)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/_${WHALE_EXECUTABLE} DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})
 
 feature_summary(WHAT ALL FATAL_ON_MISSING_REQUIRED_PACKAGES)
 

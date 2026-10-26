@@ -11,7 +11,7 @@ set(KFIND_PACKAGE_NAME "kfind")
 configure_file(config-dolphin.h.cmake ${CMAKE_CURRENT_BINARY_DIR}/config-dolphin.h)
 
 add_definitions(
-    -DTRANSLATION_DOMAIN=\"whale\"
+    -DTRANSLATION_DOMAIN=\"${WHALE_COMPONENT}\"
 )
 remove_definitions(
     -DQT_NO_CAST_FROM_BYTEARRAY
@@ -191,8 +191,8 @@ target_sources(dolphinprivate PRIVATE
 ecm_qt_declare_logging_category(dolphinprivate
     HEADER dolphindebug.h
     IDENTIFIER DolphinDebug
-    CATEGORY_NAME org.kde.whale
-    DESCRIPTION "Whale"
+    CATEGORY_NAME ${WHALE_APP_ID}
+    DESCRIPTION "${WHALE_DISPLAY_NAME}"
     EXPORT DOLPHIN
 )
 
@@ -257,7 +257,7 @@ if(HAVE_BALOO)
 endif()
 
 set_target_properties(dolphinprivate PROPERTIES
-    OUTPUT_NAME whaleprivate
+    OUTPUT_NAME ${WHALE_COMPONENT}private
     VERSION ${DOLPHINPRIVATE_VERSION}
     SOVERSION ${DOLPHINPRIVATE_SOVERSION}
 )

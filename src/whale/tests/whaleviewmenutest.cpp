@@ -115,7 +115,7 @@ void WhaleViewMenuTest::initTestCase()
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
     TestHelpers::openNewWindowsInSingleView();
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     m_libraryPaths = QCoreApplication::libraryPaths();
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->save();

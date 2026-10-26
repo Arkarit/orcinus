@@ -68,7 +68,7 @@ void WhaleSymlinkTargetTest::initTestCase()
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
     TestHelpers::openNewWindowsInSingleView();
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->save();
 }

@@ -171,7 +171,7 @@ void DolphinMainWindowTest::initTestCase()
     }
 
     // to save us from kxmlgui / KLocalized warning
-    KLocalizedString::setApplicationDomain({"whale"});
+    KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
 }
 
 void DolphinMainWindowTest::init()

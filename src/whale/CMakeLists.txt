@@ -51,6 +51,7 @@ target_link_libraries(whaleviewapi PUBLIC
 )
 
 set_target_properties(whaleviewapi PROPERTIES
+    OUTPUT_NAME ${WHALE_COMPONENT}viewapi
     VERSION ${WHALE_VIEW_API_VERSION}.0.0
     SOVERSION ${WHALE_VIEW_API_VERSION}
 )
@@ -87,8 +88,8 @@ target_sources(whaleviewhost PRIVATE
 ecm_qt_declare_logging_category(whaleviewhost
     HEADER whaleviewdebug.h
     IDENTIFIER WhaleViewDebug
-    CATEGORY_NAME org.kde.whale.views
-    DESCRIPTION "Whale view plugins"
+    CATEGORY_NAME ${WHALE_APP_ID}.views
+    DESCRIPTION "${WHALE_DISPLAY_NAME} view plugins"
     EXPORT DOLPHIN
 )
 
