@@ -43,7 +43,7 @@ enum PackageOperation {
 Q_NORETURN static void fail(const QString &str)
 {
     qCritical() << str;
-    const QStringList args = {"--detailederror", i18n("Whale service menu installation failed"), str};
+    const QStringList args = {"--detailederror", i18n("Orcinus service menu installation failed"), str};
     QProcess::startDetached("kdialog", args);
 
     exit(1);

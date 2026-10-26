@@ -217,7 +217,7 @@ void WhaleStylesSettingsPage::showCurrentStyle()
             auto item = new QTreeWidgetItem(m_elements);
             item->setData(0, KeyRole, it.key());
             item->setText(0, it.key());
-            item->setText(1, i18nc("@item:intext style element", "From a newer version of Whale"));
+            item->setText(1, i18nc("@item:intext style element", "From a newer version of Orcinus"));
             item->setFlags(Qt::ItemIsSelectable);
             item->setCheckState(0, it->enabled ? Qt::Checked : Qt::Unchecked);
         }

@@ -31,6 +31,7 @@ set(forbidden_runtime_identities
     "whale/views"
     "X-Whale-"
     "whale_treemap"
+    "i18n[a-z]*\\([^;]*\"[^\"\n]*Whale[^\"\n]*\""
 )
 
 foreach(source_file IN LISTS whale_source_files)

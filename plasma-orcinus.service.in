@@ -1,5 +1,5 @@
 [Unit]
-Description=Whale file manager
+Description=Orcinus file manager
 PartOf=graphical-session.target
 
 [Service]

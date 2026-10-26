@@ -1953,7 +1953,7 @@ void DolphinMainWindow::setupActions()
 
     QAction *newWindow = KStandardAction::openNew(this, &DolphinMainWindow::openNewMainWindow, actionCollection());
     newWindow->setText(i18nc("@action:inmenu File", "New &Window"));
-    newWindow->setToolTip(i18nc("@info", "Open a new Whale window"));
+    newWindow->setToolTip(i18nc("@info", "Open a new Orcinus window"));
     newWindow->setWhatsThis(xi18nc("@info:whatsthis",
                                    "This opens a new "
                                    "window just like this one with the current location."
@@ -3170,7 +3170,7 @@ void DolphinMainWindow::showAboutDialog()
         link.arg(dolphinUrl, dolphinUrl),
         licenseLink,
         QString(),
-        i18nc("@info:credit", "Whale Fork: %1", QStringLiteral("Arkarit")),
+        i18nc("@info:credit", "Orcinus: %1", QStringLiteral("Arkarit")),
         link.arg(whaleUrl, whaleUrl),
         licenseLink,
     };
@@ -3261,7 +3261,7 @@ void DolphinMainWindow::setupWhatsThis()
     // frustrate the user. If there are multiple languages that the user might
     // know with a reasonable chance you might want to have 2 external links.
     // The same might be true for any external link you translate.
-    setStandardActionWhatsThis(KStandardAction::HelpContents, xi18nc("@info:whatsthis handbook", "<para>This opens the upstream Dolphin Handbook on which Whale is based. It provides explanations for the file manager's features.</para><para>For more elaborate introductions to these features, <link url='https://userbase.kde.org/Dolphin/File_Management'>click here</link>. This opens the dedicated Dolphin page in the KDE UserBase Wiki.</para>"));
+    setStandardActionWhatsThis(KStandardAction::HelpContents, xi18nc("@info:whatsthis handbook", "<para>This opens the upstream Dolphin Handbook on which Orcinus is based. It provides explanations for the file manager's features.</para><para>For more elaborate introductions to these features, <link url='https://userbase.kde.org/Dolphin/File_Management'>click here</link>. This opens the dedicated Dolphin page in the KDE UserBase Wiki.</para>"));
     // (The i18n call should be completely in the line following the i18n: comment without any line breaks within the i18n call or the comment might not be correctly extracted. See: https://commits.kde.org/kxmlgui/a31135046e1b3335b5d7bbbe6aa9a883ce3284c1 )
 
     setStandardActionWhatsThis(KStandardAction::WhatsThis,

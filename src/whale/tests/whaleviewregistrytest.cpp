@@ -228,7 +228,7 @@ void ignoreWrongApiWarning()
 {
     QTest::ignoreMessage(
         QtWarningMsg,
-        QRegularExpression(QStringLiteral("^Ignoring view plugin .*whale_test_wrongapi.* view API version %1, but this Whale provides version %2")
+        QRegularExpression(QStringLiteral("^Ignoring view plugin .*whale_test_wrongapi.* view API version %1, but this Orcinus provides version %2")
                                .arg(WHALE_VIEW_API_VERSION + 1)
                                .arg(WHALE_VIEW_API_VERSION)));
 }

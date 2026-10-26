@@ -70,7 +70,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
     m_fontWarningLabel = new QLabel(this);
     m_fontWarningLabel->setWordWrap(true);
     m_fontWarningLabel->setVisible(false);
-    m_fontWarningLabel->setText(i18nc("@info", "Some font styles are reserved by Whale and may be overridden."));
+    m_fontWarningLabel->setText(i18nc("@info", "Some font styles are reserved by Orcinus and may be overridden."));
     topLayout->addRow(QString(), m_fontWarningLabel);
     KColorScheme scheme(QPalette::Normal);
     QPalette palette = m_fontWarningLabel->palette();

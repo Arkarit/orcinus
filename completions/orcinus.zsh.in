@@ -15,8 +15,8 @@ _urls_and_dirs() {
 _arguments -C \
   '(* -)'{-h,--help}'[Displays help on commandline options]' \
   '--select[The files and folders passed as arguments will be selected.]' \
-  '--split[Whale will get started with a split view.]' \
-  '--new-window[Whale will explicitly open in a new window.]' \
+  '--split[Orcinus will get started with a split view.]' \
+  '--new-window[Orcinus will explicitly open in a new window.]' \
 @WHALE_DAEMON_COMPLETION@  '*:: :_urls_and_dirs' \
   && ret=0
 

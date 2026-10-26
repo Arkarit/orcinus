@@ -42,7 +42,7 @@ GeneralViewSettingsPage::GeneralViewSettingsPage(const QUrl &url, QWidget *paren
 
     m_localViewProps = new QRadioButton(i18nc("@option:radio", "Remember display style for each folder"));
     QLabel *localViewPropsLabel = new QLabel(i18nc("@info",
-                                                   "Whale will add file system metadata to folders you change view properties for. If that is not possible, "
+                                                   "Orcinus will add file system metadata to folders you change view properties for. If that is not possible, "
                                                    "a hidden .directory file is created instead."));
     localViewPropsLabel->setFont(QFontDatabase::systemFont(QFontDatabase::SmallestReadableFont));
     localViewPropsLabel->setWordWrap(true);

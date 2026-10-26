@@ -1,5 +1,5 @@
-# Whale's own strings (not in Dolphin's catalogs), merged in front of Dolphin's
-# catalog when Whale's translations are built (see the top-level CMakeLists.txt).
+# Orcinus's own strings (not in Dolphin's catalogs), merged in front of Dolphin's
+# catalog when Orcinus's translations are built (see the top-level CMakeLists.txt).
 # SPDX-FileCopyrightText: 2026 Whale contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 msgid ""

@@ -51,7 +51,7 @@ void Admin::guideUserTowardsInstallingAdminWorker()
     if (!isWorkerInstalled()) {
         std::cout << qPrintable(
             xi18nc("@info:shell",
-                   "<application>Whale</application> requires <application>%1</application> to manage system-controlled files, but it is not installed.<nl/>"
+                   "<application>Orcinus</application> requires <application>%1</application> to manage system-controlled files, but it is not installed.<nl/>"
                    "Press %2 to install <application>%1</application> or %3 to cancel.",
                    ADMIN_WORKER_PACKAGE_NAME,
                    QKeySequence{Qt::Key_Enter}.toString(QKeySequence::NativeText),
@@ -79,7 +79,7 @@ void Admin::guideUserTowardsUsingAdminWorker()
     KMessageBox::information(
         nullptr,
         xi18nc("@info",
-               "<para>Make use of your administrator rights in Whale:<numberedlist>"
+               "<para>Make use of your administrator rights in Orcinus:<numberedlist>"
                "<numbereditem>Navigate to the file or folder you want to change.</numbereditem>"
                "<numbereditem>Activate the \"%1\" action either under <interface>Open Menu|More|View</interface> or <interface>Menu Bar|View</interface>.<nl/>"
                "Default shortcut: <shortcut>%2</shortcut></numbereditem>"

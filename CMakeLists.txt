@@ -11,8 +11,9 @@ set (RELEASE_SERVICE_VERSION_MICRO "70")
 set (RELEASE_SERVICE_VERSION "${RELEASE_SERVICE_VERSION_MAJOR}.${RELEASE_SERVICE_VERSION_MINOR}.${RELEASE_SERVICE_VERSION_MICRO}")
 project(Dolphin VERSION ${RELEASE_SERVICE_VERSION})
 
-# Product identity (Orcinus; the internal code name is still Whale). Keep these values centralized so the fork-specific
-# changes remain small and easy to review when merging Dolphin upstream.
+# Product identity: Orcinus (the internal code name is still Whale). Keep these values
+# centralized so the fork-specific changes remain small and easy to review when merging
+# Dolphin upstream.
 set(WHALE_EXECUTABLE "orcinus")
 set(WHALE_COMPONENT "orcinus")
 set(WHALE_ORG_DOMAIN "arkarit.github.io")
@@ -328,7 +329,7 @@ add_custom_target(whale-translations ALL DEPENDS ${whale_mo_files})
 
 set(WHALE_DAEMON_COMPLETION "")
 if(WHALE_PROVIDE_FILEMANAGER1)
-    set(WHALE_DAEMON_COMPLETION "  '--daemon[Start Whale Daemon (only required for DBus Interface).]' \\\n")
+    set(WHALE_DAEMON_COMPLETION "  '--daemon[Start Orcinus Daemon (only required for DBus Interface).]' \\\n")
 endif()
 configure_file(completions/orcinus.zsh.in ${CMAKE_CURRENT_BINARY_DIR}/_${WHALE_EXECUTABLE} @ONLY)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/_${WHALE_EXECUTABLE} DESTINATION ${KDE_INSTALL_ZSHAUTOCOMPLETEDIR})

@@ -324,7 +324,7 @@ private:
     {
         return {
             {0, true, i18nc("@item:intext example folder in a preview", "Projects")},
-            {1, true, QStringLiteral("whale")},
+            {1, true, QStringLiteral("orcinus")},
             {2, true, QStringLiteral("src")},
             {3, false, QStringLiteral("main.cpp")},
             {3, false, QStringLiteral("model.cpp")},

@@ -52,7 +52,8 @@ WhaleViewerSettingsPage::WhaleViewerSettingsPage(QWidget *parent)
 {
     auto layout = new QVBoxLayout(this);
 
-    auto label = new QLabel(i18nc("@info", "Whale shows these file types in its own viewer when they are opened, instead of opening their application:"), this);
+    auto label =
+        new QLabel(i18nc("@info", "Orcinus shows these file types in its own viewer when they are opened, instead of opening their application:"), this);
     label->setWordWrap(true);
     layout->addWidget(label);
 

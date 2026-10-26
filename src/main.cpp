@@ -98,7 +98,7 @@ int main(int argc, char **argv)
         std::cout << qPrintable(
             xi18ndc(TRANSLATION_DOMAIN,
                     "@info:shell %1 is a terminal command",
-                    "Running <application>Whale</application> with <command>sudo</command> is discouraged. Please run <icode>%1</icode> instead.",
+                    "Running <application>Orcinus</application> with <command>sudo</command> is discouraged. Please run <icode>%1</icode> instead.",
                     QStringLiteral(WHALE_EXECUTABLE " --sudo")))
                   << '\n';
         // We could perform a privilege de-escalation here and continue as normal. It is a bit safer though to simply let the user restart without sudo.
@@ -187,8 +187,8 @@ int main(int argc, char **argv)
                                         i18nc("@info:shell",
                                               "The files and folders passed as arguments "
                                               "will be selected.")));
-    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("split"), i18nc("@info:shell", "Whale will get started with a split view.")));
-    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("new-window"), i18nc("@info:shell", "Whale will explicitly open in a new window.")));
+    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("split"), i18nc("@info:shell", "Orcinus will get started with a split view.")));
+    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("new-window"), i18nc("@info:shell", "Orcinus will explicitly open in a new window.")));
     {
         // Whale (VS): internal, from "Pop out" (Dolphin::ViewStyleOption).
         QCommandLineOption viewStyleOption(QString::fromLatin1(Dolphin::ViewStyleOption));
@@ -196,11 +196,11 @@ int main(int argc, char **argv)
         viewStyleOption.setFlags(QCommandLineOption::HiddenFromHelp);
         parser.addOption(viewStyleOption);
     }
-    parser.addOption(
-        QCommandLineOption(QStringList() << QStringLiteral("sudo") << QStringLiteral("admin"), i18nc("@info:shell", "Set up Whale for administrative tasks.")));
+    parser.addOption(QCommandLineOption(QStringList() << QStringLiteral("sudo") << QStringLiteral("admin"),
+                                        i18nc("@info:shell", "Set up Orcinus for administrative tasks.")));
 #if WHALE_PROVIDE_FILEMANAGER1
     parser.addOption(
-        QCommandLineOption(QStringList() << QStringLiteral("daemon"), i18nc("@info:shell", "Start Whale Daemon (only required for DBus Interface).")));
+        QCommandLineOption(QStringList() << QStringLiteral("daemon"), i18nc("@info:shell", "Start Orcinus Daemon (only required for DBus Interface).")));
 #endif
 #ifdef BUILD_TESTING
     {

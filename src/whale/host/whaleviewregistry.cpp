@@ -47,7 +47,7 @@ bool WhaleViewRegistry::isCompatible(const KPluginMetaData &metaData, QString *r
         return reject(QStringLiteral("\"%1\" is not an integer").arg(QLatin1String(WHALE_VIEW_API_VERSION_KEY)));
     }
     if (version.toInt() != WHALE_VIEW_API_VERSION) {
-        return reject(QStringLiteral("it was built for view API version %1, but this Whale provides version %2; rebuild the plugin against this Whale")
+        return reject(QStringLiteral("it was built for view API version %1, but this Orcinus provides version %2; rebuild the plugin against this Orcinus")
                           .arg(version.toInt())
                           .arg(WHALE_VIEW_API_VERSION));
     }

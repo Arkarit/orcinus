@@ -108,7 +108,7 @@ FoldersTabsSettingsPage::FoldersTabsSettingsPage(QWidget *parent)
     topLayout->addItem(new QSpacerItem(0, Dolphin::VERTICAL_SPACER_HEIGHT, QSizePolicy::Fixed, QSizePolicy::Fixed));
     // Opening Folders
     auto *openingFoldersLabel = new QLabel{i18nc("@label:checkbox", "Opening Folders:")};
-    m_openExternallyCalledFolderInNewTab = new QCheckBox(i18nc("@option:check Opening Folders", "Keep a single Whale window, opening new folders in tabs"));
+    m_openExternallyCalledFolderInNewTab = new QCheckBox(i18nc("@option:check Opening Folders", "Keep a single Orcinus window, opening new folders in tabs"));
     openingFoldersLabel->setAccessibleName(m_openExternallyCalledFolderInNewTab->text());
     topLayout->addRow(openingFoldersLabel, m_openExternallyCalledFolderInNewTab);
     m_followSymlinksToTarget = new QCheckBox(i18nc("@option:check Opening Folders", "Always follow symbolic links to their target"));
