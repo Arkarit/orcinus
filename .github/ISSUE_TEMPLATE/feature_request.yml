@@ -1,0 +1,22 @@
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: CC0-1.0
+name: Feature request
+description: An idea for Orcinus
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What do you want to do?
+      description: The task or problem, not the solution yet
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do you do it today?
+      description: Workarounds, other tools, how Dolphin handles it

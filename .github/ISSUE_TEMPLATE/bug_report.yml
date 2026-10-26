@@ -1,0 +1,53 @@
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: CC0-1.0
+name: Bug report
+description: Something in Orcinus does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. If the problem also happens in an unmodified Dolphin of the same version, please report it to KDE as well (see CONTRIBUTING.md).
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happens, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: dolphin
+    attributes:
+      label: Does it also happen in Dolphin?
+      options:
+        - "No, only in Orcinus"
+        - "Yes, also in Dolphin"
+        - "Not checked / Dolphin not installed"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Orcinus version
+      description: "Output of `orcinus --version`"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Distribution and version, Plasma/KDE Frameworks/Qt version, Wayland or X11
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional information
+      description: Screenshots, backtraces, configuration that matters

@@ -1,8 +1,13 @@
 # Orcinus
 
-Orcinus is a personal file manager based on KDE Dolphin. This fork keeps Dolphin's
+Orcinus is a file manager based on KDE Dolphin. This fork keeps Dolphin's
 upstream history, architecture, authorship, and licensing while giving the
 application an independent identity and room for additional features.
+
+> Orcinus is an unofficial fork. It is not affiliated with, endorsed by, or
+> supported by KDE e.V. or the Dolphin developers. Please report problems with
+> Orcinus to the Orcinus issue tracker, not to KDE. KDE® is a registered
+> trademark of KDE e.V.
 
 Orcinus was developed under the working title Whale. Source directories, class
 names, CMake variables and action names still use that name; everything that is
@@ -51,21 +56,23 @@ Dolphin is KDE's file manager that lets you navigate and browse the contents of 
 
 ## User Documentation
 
-See https://userbase.kde.org/Special:myLanguage/Dolphin.
+Orcinus behaves like Dolphin except where
+[docs/orcinus-vs-dolphin.md](docs/orcinus-vs-dolphin.md) says otherwise; for
+everything else see Dolphin's documentation at
+https://userbase.kde.org/Special:myLanguage/Dolphin.
 
 ## Contributing
 
-Like other projects in the KDE ecosystem, contributions are welcome from all. This repository is managed in [KDE Invent](https://invent.kde.org/system/dolphin), our GitLab instance.
-
-* Want to contribute code? See the [GitLab wiki page](https://community.kde.org/Infrastructure/GitLab) for a tutorial on how to send a merge request.
-* Reporting a bug? Please submit it on the [KDE Bugtracking System](https://bugs.kde.org/enter_bug.cgi?format=guided&product=dolphin). Please do not use the Issues
-tab to report bugs.
-* Is there a part of Dolphin that's not translated? See the [Getting Involved in Translation wiki page](https://community.kde.org/Get_Involved/translation) to see how
-you can help translate!
-
-If you get stuck or need help with anything at all, head over to the [KDE New Contributors room](https://go.kde.org/matrix/#/#kde-welcome:kde.org) on Matrix. For questions about Dolphin, please ask in the [KDE File Management room](https://go.kde.org/matrix/#/#kde-fm:kde.org). See [Matrix](https://community.kde.org/Matrix) for more details.
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short: problems and ideas for Orcinus
+go to the [Orcinus issue tracker](https://github.com/Arkarit/orcinus/issues).
+Problems that also happen in an unmodified Dolphin belong to KDE: see
+[KDE Invent](https://invent.kde.org/system/dolphin) and the
+[KDE Bugtracking System](https://bugs.kde.org/enter_bug.cgi?format=guided&product=dolphin).
+Security issues: see [SECURITY.md](SECURITY.md).
 
 ## Development Philosophy
+
+This section is Dolphin's and applies to Orcinus as well.
 
 Dolphin is a file manager focusing on usability. When reading the term Usability people often assume that the focus is on newbies and only basic features are offered. This is not the case; Dolphin is quite full-featured, but the features are carefully chosen so as to not impede any of the users in the target user groups.
 

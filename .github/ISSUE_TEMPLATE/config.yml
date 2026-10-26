@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: CC0-1.0
+blank_issues_enabled: true
+contact_links:
+  - name: Bug in Dolphin itself
+    url: https://bugs.kde.org/enter_bug.cgi?format=guided&product=dolphin
+    about: Problems that also happen in an unmodified Dolphin belong to KDE.
+  - name: Security problem
+    url: https://github.com/Arkarit/orcinus/security
+    about: Please report security problems privately, see SECURITY.md.
