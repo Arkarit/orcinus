@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 11:12+0100\n"
+"POT-Creation-Date: 2026-10-26 12:01+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: zh_CN\n"
@@ -53,31 +53,31 @@ msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "打开新的 Orcinus 窗口"
 
-#: dolphinmainwindow.cpp:3161
+#: dolphinmainwindow.cpp:3162
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "许可证：%1"
 
-#: dolphinmainwindow.cpp:3165
+#: dolphinmainwindow.cpp:3166
 #, kde-format
 msgctxt "@info about dialog tagline, first line"
 msgid "A Dolphin."
 msgstr "一只海豚。"
 
-#: dolphinmainwindow.cpp:3165
+#: dolphinmainwindow.cpp:3166
 #, kde-format
 msgctxt "@info about dialog tagline, second line"
 msgid "Just bigger."
 msgstr "只是更大。"
 
-#: dolphinmainwindow.cpp:3173
+#: dolphinmainwindow.cpp:3174
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus：%1"
 
-#: dolphinmainwindow.cpp:3177
+#: dolphinmainwindow.cpp:3178
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -85,7 +85,7 @@ msgid ""
 "KDE."
 msgstr "Orcinus 是 Dolphin 的非官方分支，与 KDE 无关，也未获 KDE 认可。"
 
-#: dolphinmainwindow.cpp:3246
+#: dolphinmainwindow.cpp:3247
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -103,7 +103,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3266
+#: dolphinmainwindow.cpp:3267
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -118,7 +118,7 @@ msgstr ""
 "Dolphin/File_Management'>点击这里</link>。这将打开 KDE UserBase 维基中的 "
 "Dolphin 专页。</para>"
 
-#: dolphinmainwindow.cpp:3271
+#: dolphinmainwindow.cpp:3272
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""

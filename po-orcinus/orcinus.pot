@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 11:16+0100\n"
+"POT-Creation-Date: 2026-10-26 12:01+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -44,31 +44,31 @@ msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3161
+#: dolphinmainwindow.cpp:3162
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3165
+#: dolphinmainwindow.cpp:3166
 #, kde-format
 msgctxt "@info about dialog tagline, first line"
 msgid "A Dolphin."
 msgstr ""
 
-#: dolphinmainwindow.cpp:3165
+#: dolphinmainwindow.cpp:3166
 #, kde-format
 msgctxt "@info about dialog tagline, second line"
 msgid "Just bigger."
 msgstr ""
 
-#: dolphinmainwindow.cpp:3173
+#: dolphinmainwindow.cpp:3174
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3177
+#: dolphinmainwindow.cpp:3178
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -76,7 +76,7 @@ msgid ""
 "KDE."
 msgstr ""
 
-#: dolphinmainwindow.cpp:3246
+#: dolphinmainwindow.cpp:3247
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -91,7 +91,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3266
+#: dolphinmainwindow.cpp:3267
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -102,7 +102,7 @@ msgid ""
 "dedicated Dolphin page in the KDE UserBase Wiki.</para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3271
+#: dolphinmainwindow.cpp:3272
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""

@@ -65,8 +65,8 @@ Dolphin's catalog of the same language.
 
 - The catalogs for German, French, Spanish, Italian, Brazilian Portuguese,
   Polish, Russian, Simplified Chinese and Japanese were translated by an AI
-  model. German is being reviewed by the maintainer; the others are not yet
-  reviewed by native speakers, so corrections are very welcome.
+  model. German has been reviewed by a native speaker; the others have not, so
+  corrections are very welcome.
 - To add a language, copy `po-orcinus/orcinus.pot` to
   `po-orcinus/<language>/orcinus.po` (the language code as in `po/`) and
   translate it with any PO editor, e.g. Lokalize.

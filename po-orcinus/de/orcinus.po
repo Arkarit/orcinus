@@ -1,14 +1,12 @@
 # Orcinus' own strings (not in Dolphin's catalogs), merged in front of Dolphin's
 # catalog when Orcinus' translations are built (see the top-level CMakeLists.txt).
-# Machine translation by an AI model, not yet reviewed by a native speaker.
-# Corrections are welcome, see CONTRIBUTING.md.
 # SPDX-FileCopyrightText: 2026 Orcinus contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 11:15+0100\n"
+"POT-Creation-Date: 2026-10-26 12:01+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: de\n"
@@ -57,41 +55,41 @@ msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "Ein neues Orcinus-Fenster öffnen"
 
-#: dolphinmainwindow.cpp:3161
+#: dolphinmainwindow.cpp:3162
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "Lizenz: %1"
 
-#: dolphinmainwindow.cpp:3165
+#: dolphinmainwindow.cpp:3166
 #, kde-format
 msgctxt "@info about dialog tagline, first line"
 msgid "A Dolphin."
 msgstr "Ein Delfin."
 
-#: dolphinmainwindow.cpp:3165
+#: dolphinmainwindow.cpp:3166
 #, kde-format
 msgctxt "@info about dialog tagline, second line"
 msgid "Just bigger."
 msgstr "Nur größer."
 
-#: dolphinmainwindow.cpp:3173
+#: dolphinmainwindow.cpp:3174
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus: %1"
 
-#: dolphinmainwindow.cpp:3177
+#: dolphinmainwindow.cpp:3178
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
 "Orcinus is an unofficial fork of Dolphin, not affiliated with or endorsed by "
 "KDE."
 msgstr ""
-"Orcinus ist eine inoffizielle Abspaltung von Dolphin und steht in keiner "
-"Verbindung zu KDE und wird nicht von KDE unterstützt."
+"Orcinus ist eine inoffizielle Abspaltung von Dolphin und ist weder mit KDE "
+"verbunden noch offiziell von KDE unterstützt."
 
-#: dolphinmainwindow.cpp:3246
+#: dolphinmainwindow.cpp:3247
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -110,7 +108,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3266
+#: dolphinmainwindow.cpp:3267
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -126,7 +124,7 @@ msgstr ""
 "userbase.kde.org/Dolphin/File_Management'>hier</link>. Damit öffnen Sie die "
 "Dolphin-Seite im KDE-UserBase-Wiki.</para>"
 
-#: dolphinmainwindow.cpp:3271
+#: dolphinmainwindow.cpp:3272
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -283,8 +281,8 @@ msgstr "Das Terminal bleibt offen, bis Sie die Eingabetaste drücken."
 msgctxt "@info:tooltip"
 msgid "The terminal closes when the script ends, unless it failed."
 msgstr ""
-"Das Terminal schließt sich, wenn das Skript endet, außer es ist "
-"fehlgeschlagen."
+"Das Terminal schließt sich, wenn das Skript endet, es sei denn, das Skript "
+"ist fehlgeschlagen."
 
 #: settings/interface/confirmationssettingspage.cpp:103
 #, kde-format
@@ -359,7 +357,7 @@ msgstr "Neue Fenster und Unterfenster teilen"
 #, kde-format
 msgctxt "@option:check"
 msgid "Limit to home directory when inside it"
-msgstr "Auf den Persönlichen Ordner beschränken, wenn man sich darin befindet"
+msgstr "Innerhalb des persönlichen Ordners auf diesen beschränken"
 
 #: settings/interface/panelsettingspage.cpp:65
 #, kde-format
@@ -379,7 +377,8 @@ msgstr ""
 "<para>Das Erzeugen von <emphasis>Vorschauen</emphasis> für entfernte Ordner "
 "beansprucht das Netzwerk sehr stark.</para><para>Schalten Sie dies ab, wenn "
 "das Navigieren in entfernten Ordnern mit Orcinus langsam ist oder wenn Sie "
-"über eine getaktete Verbindung auf Speicher zugreifen.</para>"
+"über eine Verbindung mit begrenztem Datenvolumen auf Speicher zugreifen.</"
+"para>"
 
 #: settings/viewmodes/expansiontintwidget.cpp:163
 #, kde-format
@@ -737,7 +736,8 @@ msgstr "Geben Sie mindestens einen MIME-Typ ein."
 #, kde-format
 msgctxt "@info"
 msgid "Enter at least one pattern. Use * to match every name."
-msgstr "Geben Sie mindestens ein Muster ein. Mit * passen alle Namen."
+msgstr ""
+"Geben Sie mindestens ein Muster ein. Das Muster * trifft auf alle Namen zu."
 
 #: settings/viewmodes/filenamehighlightingruledialog.cpp:413
 #, kde-format
@@ -749,7 +749,9 @@ msgstr "Unbekannte MIME-Typen: %1"
 #, kde-format
 msgctxt "@info"
 msgid "File name patterns match names only and cannot contain \"/\"."
-msgstr "Dateinamenmuster prüfen nur den Namen und dürfen kein „/“ enthalten."
+msgstr ""
+"Dateinamenmuster werden nur mit dem Dateinamen abgeglichen und dürfen kein "
+"„/“ enthalten."
 
 #: settings/viewmodes/filenamehighlightingruledialog.cpp:455
 #, kde-format
@@ -1141,8 +1143,8 @@ msgid ""
 "Colors of the entries: by file type, or by the folder of the location they "
 "are in"
 msgstr ""
-"Farben der Einträge: nach Dateityp oder nach dem Ordner des Orts, in dem sie "
-"liegen"
+"Farben der Einträge: nach Dateityp oder nach dem Ordner, in dem sie sich "
+"befinden"
 
 #: whale/plugins/treemap/treemapview.cpp:545
 #, kde-format
@@ -1181,7 +1183,7 @@ msgid ""
 "\n"
 "Press F5 to try again."
 msgstr ""
-"Der Ordner kann nicht als Treemap gezeigt werden:\n"
+"Der Ordner kann nicht als Treemap dargestellt werden:\n"
 "%1\n"
 "\n"
 "Drücken Sie F5, um es erneut zu versuchen."
@@ -1690,8 +1692,8 @@ msgctxt "@info:tooltip"
 msgid ""
 "Apply a style first; this saves the current state of the window as that style"
 msgstr ""
-"Wenden Sie zuerst einen Style an; dies speichert dann den aktuellen Zustand "
-"des Fensters als diesen Style"
+"Wenden Sie zuerst einen Style an; dadurch wird der aktuelle Fensterzustand "
+"als dieser Style gespeichert"
 
 #: whale/styles/whalestylemanager.cpp:284
 #, kde-format
@@ -1817,7 +1819,8 @@ msgstr "Den Style jetzt so, wie hier gezeigt, auf das Fenster anwenden"
 msgctxt "@info"
 msgid "Apply a style from View → Styles or by its shortcut."
 msgstr ""
-"Einen Style wenden Sie über Ansicht → Styles oder seinen Kurzbefehl an."
+"Wenden Sie einen Style über Ansicht → Styles oder mit dem zugehörigen "
+"Kurzbefehl an."
 
 #: whale/styles/whalestylessettingspage.cpp:197
 #, kde-format
@@ -1962,7 +1965,7 @@ msgid ""
 "instead of opening their application:"
 msgstr ""
 "Orcinus zeigt diese Dateitypen beim Öffnen in seinem eigenen Betrachter "
-"statt in ihrem Programm:"
+"anstatt die zugehörige Anwendung zu starten:"
 
 #: whale/viewer/whaleviewersettingspage.cpp:62
 #, kde-format
@@ -2004,7 +2007,7 @@ msgstr "Kleine Bilder bildschirmfüllend vergrößern"
 #, kde-format
 msgctxt "@option:check"
 msgid "Smooth the pixels when zoomed in beyond 100%"
-msgstr "Pixel glätten, wenn über 100 % vergrößert"
+msgstr "Pixel glätten, bei einer Vergrößerung über 100 %"
 
 #: whale/viewer/whaleviewersettingspage.cpp:78
 #, kde-format
