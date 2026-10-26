@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 # Installs Orcinus system-wide under /usr from its own build directory ../build-whale-system.

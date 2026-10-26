@@ -9,11 +9,12 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "KDE Translators"
 SPDX-License-Identifier = "GPL-2.0-or-later"
 
-# Application logo (artwork) — same license as other KDE app icons.
+# Application logo (artwork) — same license as other KDE app icons. Orcinus: the orca icon is
+# derived from Dolphin's icon (same folder, the dolphin replaced by an orca).
 [[annotations]]
 path = "logo.png"
 precedence = "aggregate"
-SPDX-FileCopyrightText = ["2020 Ilya Bizyaev <bizyaev@zoho.com>", "2025 Jack Hill <jackhill3103@gmail.com>"]
+SPDX-FileCopyrightText = ["2020 Ilya Bizyaev <bizyaev@zoho.com>", "2025 Jack Hill <jackhill3103@gmail.com>", "2026 Orcinus contributors"]
 SPDX-License-Identifier = "LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL"
 
 # KConfigXT schema and compiler-hint files — generated XML/ini, no comment syntax.
@@ -30,11 +31,12 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "KDE Contributors"
 SPDX-License-Identifier = "GPL-2.0-or-later"
 
-# Application icons — binary files, no comment syntax.
+# Application icons — binary files, no comment syntax. Orcinus: derived from Dolphin's icon, see
+# logo.png.
 [[annotations]]
 path = "src/icons/*.png"
 precedence = "aggregate"
-SPDX-FileCopyrightText = "KDE Contributors"
+SPDX-FileCopyrightText = ["KDE Contributors", "2026 Orcinus contributors"]
 SPDX-License-Identifier = "LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL"
 
 # CMake template files — do not carry inline SPDX headers as they are used to
@@ -82,3 +84,11 @@ path = "doc/*.docbook"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "KDE Contributors"
 SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# Orcinus' own documents: project notes, plans and agent instructions (Markdown without a
+# comment syntax that survives rendering everywhere).
+[[annotations]]
+path = [".privatedoc/**.md", "AGENTS.md", "CLAUDE.md"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Orcinus contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
