@@ -5,7 +5,7 @@
  */
 
 /*
- * The built-in viewer (V1a, .privatedoc/whale-viewer-plan.md): which files it shows, the list it
+ * The built-in viewer (V1a, .privatedoc/design-notes.md): which files it shows, the list it
  * pages through, its settings, and how the view follows it.
  */
 

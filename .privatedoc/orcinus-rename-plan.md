@@ -8,7 +8,7 @@ manifest of `../build-whale-system`.
 
 **Goal:** everything a user, packager or plugin author sees, and everything Whale stores on disk
 or on the bus, says Orcinus. Dolphin keeps working in parallel exactly as before (the rules of
-`whale-rename-plan.md` still apply).
+"Product identity" in `design-notes.md` still apply).
 
 **Non-goals:** no rename of internal code names (decision N1). No change to what is shared with
 Dolphin (system `libdolphinvcs`, `dolphin/vcs`, `[Dolphin]` view properties, handbook).
@@ -58,7 +58,7 @@ Recommendations in bold; **confirmed by the user on 2026-10-25.**
 
 | Today | New | Where |
 |---|---|---|
-| `whalerc` | `orcinusrc` | `<kcfgfile>` in 11 `.kcfg` files (same list as `whale-rename-plan.md` step 3) plus code that opens it explicitly |
+| `whalerc` | `orcinusrc` | `<kcfgfile>` in 11 `.kcfg` files (all kcfg files with a `<kcfgfile>`) plus code that opens it explicitly |
 | `whalestylesrc` | `orcinusstylesrc` | `whale/styles/whalestylestore.cpp:77` |
 | `whaleviewpreferencesrc` (state) | `orcinusviewpreferencesrc` | `whale/host/whaleviewpreferences.cpp:26` |
 
@@ -106,7 +106,7 @@ Where the code opens one of them by name, derive it from the component
 ## What stays
 
 - Everything in N1/N2/N6/N7.
-- Everything shared with Dolphin (`whale-rename-plan.md` section 3.4).
+- Everything shared with Dolphin ("Deliberately shared with Dolphin" in `design-notes.md`).
 - History: no rewrite. Commits, issues and old `.privatedoc` texts keep saying Whale.
 
 ## Steps (one commit each; build both configs and run the full suite after each)
@@ -213,7 +213,7 @@ installs: `../build-whale-system/whale-uninstall-manifest.txt`. Uninstall with
 `sudo rmdir /usr/lib/x86_64-linux-gnu/qt6/plugins/whale/views /usr/lib/x86_64-linux-gnu/qt6/plugins/whale`.
 
 ### OR8: Acceptance
-- Isolation tests R1–R15 from `whale-rename-plan.md` section 7.3 with the new names, plus:
+- Isolation tests R1–R15 from "Product identity" in `design-notes.md` with the new names, plus:
   Orcinus and a leftover Whale must not talk to each other (different bus names).
 - After the migration: styles, toolbars, view preferences and shortcuts of the user are all there.
 - `grep -ri whale` over the installed files: no hits, except texts that deliberately say

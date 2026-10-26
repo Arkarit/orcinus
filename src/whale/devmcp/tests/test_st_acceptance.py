@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of styles (ST3, .privatedoc/whale-styles-plan.md) with the user's two
+"""End-to-end check of styles (ST3, .privatedoc/design-notes.md) with the user's two
 styles, driven only through the dev MCP:
 
   A  the styles of orcinusstylesrc: actions with their shortcuts, View > Styles

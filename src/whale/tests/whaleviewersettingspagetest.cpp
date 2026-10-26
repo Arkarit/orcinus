@@ -5,7 +5,7 @@
  */
 
 /*
- * The "Viewer" page of the settings dialog (V1c, .privatedoc/whale-viewer-plan.md).
+ * The "Viewer" page of the settings dialog (V1c, .privatedoc/design-notes.md).
  */
 
 #include "whaleviewersettingspage.h"

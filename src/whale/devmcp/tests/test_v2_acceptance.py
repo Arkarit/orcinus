@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of stage V2 of the built-in viewer (.privatedoc/whale-viewer-plan.md), driven
+"""End-to-end check of stage V2 of the built-in viewer (.privatedoc/design-notes.md), driven
 only through the dev MCP:
 
   A  a large image fits; the neighbours are decoded ahead (one back, two ahead)

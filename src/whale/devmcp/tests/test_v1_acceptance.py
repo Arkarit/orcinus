@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of the built-in viewer (V1, .privatedoc/whale-viewer-plan.md), driven only
+"""End-to-end check of the built-in viewer (V1, .privatedoc/design-notes.md), driven only
 through the dev MCP:
 
   A  opening an image opens the viewer with the images of its folder, the view follows

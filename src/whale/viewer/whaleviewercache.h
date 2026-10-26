@@ -27,7 +27,7 @@
  * Images with a colour profile of their own are converted to sRGB, the colour space the
  * compositor assumes for the window (V-E14).
  *
- * See .privatedoc/whale-viewer-plan.md (V2a).
+ * See .privatedoc/design-notes.md (V2a).
  */
 class WhaleViewerCache : public QObject
 {

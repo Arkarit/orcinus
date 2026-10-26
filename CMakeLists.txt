@@ -178,7 +178,7 @@ else ()
     message(WARNING "Baloo packages not found. They are needed for the metadata features of Dolphin (including the information panel).")
 endif()
 
-# Videos in Whale's built-in viewer (V3, .privatedoc/whale-viewer-plan.md).
+# Videos in Whale's built-in viewer (V3, .privatedoc/design-notes.md).
 option(WHALE_WITH_MPV "Play videos in the built-in viewer with libmpv, if it is found" ON)
 set(HAVE_MPV FALSE)
 if(WHALE_WITH_MPV)

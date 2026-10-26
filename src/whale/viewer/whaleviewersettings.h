@@ -12,7 +12,7 @@
 /**
  * @brief The settings of the built-in viewer, in orcinusrc [Viewer] (Whale).
  *
- * See .privatedoc/whale-viewer-plan.md.
+ * See .privatedoc/design-notes.md.
  */
 namespace WhaleViewerSettings
 {

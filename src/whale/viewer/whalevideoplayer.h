@@ -24,7 +24,7 @@ struct mpv_handle;
  * is no screen to draw on: mpv plays without video and audio output there, which is what the
  * tests use.
  *
- * See .privatedoc/whale-viewer-plan.md.
+ * See .privatedoc/design-notes.md.
  */
 class WhaleVideoPlayer : public QObject
 {

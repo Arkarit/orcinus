@@ -6,7 +6,7 @@
 
 /*
  * The selection of a view limited to one folder, while the views of a split view are linked
- * (LK3, rules A1–A7 of .privatedoc/whale-split-lock-plan.md).
+ * (LK3, rules A1–A7 of .privatedoc/design-notes.md).
  */
 
 #include "kitemviews/kfileitemmodel.h"

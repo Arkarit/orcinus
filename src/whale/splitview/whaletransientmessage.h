@@ -14,7 +14,7 @@ class QTimer;
 
 /**
  * @brief Information that floats above the bottom of a view area and hides itself after a
- *        few seconds (A8 of the split lock, .privatedoc/whale-split-lock-plan.md).
+ *        few seconds (A8 of the split lock, .privatedoc/design-notes.md).
  *
  * Unlike the message bar of DolphinViewContainer it is not part of the layout, so the items
  * of the view do not move while the user clicks them, and it lets the mouse through to them.

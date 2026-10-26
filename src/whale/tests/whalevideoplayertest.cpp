@@ -5,7 +5,7 @@
  */
 
 /*
- * The player of videos of the built-in viewer (V3b, .privatedoc/whale-viewer-plan.md), on the
+ * The player of videos of the built-in viewer (V3b, .privatedoc/design-notes.md), on the
  * offscreen platform (mpv without video and audio output): loading, autoplay, pause, seeking,
  * loop, sound, errors, replacing a file.
  */

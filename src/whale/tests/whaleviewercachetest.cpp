@@ -6,7 +6,7 @@
 
 /*
  * The images of the built-in viewer, decoded and scaled in the background (V2a,
- * .privatedoc/whale-viewer-plan.md): fitting, errors, scaling again, the memory budget,
+ * .privatedoc/design-notes.md): fitting, errors, scaling again, the memory budget,
  * forgetting files, images larger than Qt allows by default. Colour profiles and enlarging small
  * images (V2b).
  */

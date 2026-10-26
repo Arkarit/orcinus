@@ -5,7 +5,7 @@
  */
 
 /*
- * The window of the built-in viewer (V1b, .privatedoc/whale-viewer-plan.md): opening it by
+ * The window of the built-in viewer (V1b, .privatedoc/design-notes.md): opening it by
  * activation, paging with keys, wheel and edge clicks, the view following it, load errors.
  */
 

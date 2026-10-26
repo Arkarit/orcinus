@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of stage V3 of the built-in viewer, videos (.privatedoc/whale-viewer-plan.md),
+"""End-to-end check of stage V3 of the built-in viewer, videos (.privatedoc/design-notes.md),
 driven only through the dev MCP. Skipped (77) when Whale is built without libmpv.
 
   A  opening a video plays it, with sound, over and over; the view follows

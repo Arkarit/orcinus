@@ -24,7 +24,7 @@
 #include <QToolButton>
 
 /**
- * Whale's changes of the filter bar (FB, .privatedoc/whale-filter-bar-plan.md).
+ * Whale's changes of the filter bar (FB, .privatedoc/design-notes.md).
  */
 class WhaleFilterBarTest : public QObject
 {

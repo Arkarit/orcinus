@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of the own style of a view (VS, .privatedoc/whale-own-view-style-plan.md),
+"""End-to-end check of the own style of a view (VS, .privatedoc/design-notes.md),
 driven only through the dev MCP: the window a view pops out to ("Pop out") starts with the
 style of that view, given on the command line, and with a single view.
 

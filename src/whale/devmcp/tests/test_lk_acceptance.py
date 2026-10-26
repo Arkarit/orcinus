@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of the linked split view (LK, .privatedoc/whale-split-lock-plan.md),
+"""End-to-end check of the linked split view (LK, .privatedoc/design-notes.md),
 driven only through the dev MCP.
 
   A  the button in the right view      B  locking takes the active location

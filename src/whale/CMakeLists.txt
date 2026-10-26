@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Whale view plugins, see .privatedoc/whale-view-plugins-plan.md.
+# Whale view plugins, see .privatedoc/design-notes.md.
 
 # Exact version of the view plugin API. Plugins must be built against the same value.
 set(WHALE_VIEW_API_VERSION 10)
@@ -111,7 +111,7 @@ target_link_libraries(whaleviewhost PUBLIC
 ########### File View Toolbar, part of the application ###############
 
 # Built into dolphinstatic: the toolbar belongs to DolphinViewContainer, which lives there.
-# See .privatedoc/whale-multi-toolbar-plan.md.
+# See .privatedoc/design-notes.md.
 target_sources(dolphinstatic PRIVATE
     toolbars/whalecontainercommands.cpp
     toolbars/whalefileviewtoolbar.cpp
@@ -134,7 +134,7 @@ target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/tool
 
 ########### Styles, part of the application ###############
 
-# See .privatedoc/whale-styles-plan.md.
+# See .privatedoc/design-notes.md.
 target_sources(dolphinstatic PRIVATE
     styles/whalestyleelements.cpp
     styles/whalestyleelementtypes.cpp
@@ -147,7 +147,7 @@ target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/styl
 
 ########### Menu bar in the toolbar, part of the application ###############
 
-# See .privatedoc/whale-toolbar-menu-plan.md.
+# See .privatedoc/design-notes.md.
 target_sources(dolphinstatic PRIVATE
     menubar/whalemenubaraction.cpp
 )
@@ -162,7 +162,7 @@ target_include_directories(dolphinstatic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/scri
 
 ########### Built-in viewer, part of the application ###############
 
-# See .privatedoc/whale-viewer-plan.md.
+# See .privatedoc/design-notes.md.
 target_sources(dolphinstatic PRIVATE
     viewer/whaleviewer.cpp
     viewer/whaleviewercache.cpp

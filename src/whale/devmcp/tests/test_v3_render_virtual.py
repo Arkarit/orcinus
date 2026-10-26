@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""Videos of the built-in viewer really drawn (V3d, .privatedoc/whale-viewer-plan.md): the
+"""Videos of the built-in viewer really drawn (V3d, .privatedoc/design-notes.md): the
 OpenGL path that the offscreen tests cannot reach. Runs Whale on an invisible KWin of its own
 (kwin_wayland --virtual) on a D-Bus session of its own, so it touches neither the desktop nor
 its KWin; the sound is off. Not part of ctest (needs kwin_wayland and Pillow); run by hand:

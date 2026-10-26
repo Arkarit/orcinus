@@ -51,7 +51,7 @@ class QVariantAnimation;
  *
  * There is at most one viewer; opening another closes the one before.
  *
- * See .privatedoc/whale-viewer-plan.md.
+ * See .privatedoc/design-notes.md.
  */
 class WhaleViewer : public QWidget
 {

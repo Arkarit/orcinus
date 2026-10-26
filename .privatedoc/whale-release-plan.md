@@ -280,7 +280,7 @@ Findings:
 
 - Version scheme: own (e.g. 1.0.0) or tied to Dolphin's release version. Record the Dolphin
   base version in the About dialog or `--version` either way.
-- `CHANGELOG.md` and release notes. Source: `whale-ux-diary.md`, the plan documents,
+- `CHANGELOG.md` and release notes. Source: `design-notes.md`,
   `docs/orcinus-vs-dolphin.md`.
 - CI on GitHub Actions: build, ctest (offscreen), clang-format, REUSE, XML/YAML/JSON lint.
   Known pre-existing failure: `DolphinMainWindowTest::testAccessibilityTree` under offscreen
@@ -292,7 +292,7 @@ Findings:
 - Upstream strategy after release: how often upstream is merged, whether releases get a
   stable branch, and how upstream merges are tested before they reach a release.
 - FileManager1: decide whether the first release offers the opt-in from
-  `whale-rename-plan.md` section 6.1 or leaves "Show in folder" with Dolphin.
+  "Default file manager and Show in folder" in `design-notes.md` or leaves "Show in folder" with Dolphin.
 
 ### RL4: Test containers
 

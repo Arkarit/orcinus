@@ -17,7 +17,7 @@ class QToolButton;
 
 /**
  * @brief The lock of a split view: links the two views of a tab (LK, plan
- *        .privatedoc/whale-split-lock-plan.md).
+ *        .privatedoc/design-notes.md).
  *
  * One per DolphinTabPage, created by it. The toggle button (a chain link) is at the start of
  * the File View Toolbar of the right view, while the split view is open; fixed as the split

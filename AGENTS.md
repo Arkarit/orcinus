@@ -16,8 +16,8 @@ to replay across upstream merges.
 - `CLAUDE.md` contains the practical build, test, and architecture summary. Its instructions apply
   to every coding agent despite the filename.
 - `.privatedoc/dolphin-architektur.md` is the detailed source map and extension-point analysis.
-- `.privatedoc/whale-rename-plan.md` is the product-rename and collision-avoidance plan. Its section
-  9 decisions were confirmed on 2026-09-29 and phase 1 has been implemented.
+- `.privatedoc/design-notes.md` records the design decisions of every Orcinus feature, including
+  coexistence with Dolphin (product identity) and what is deliberately shared with it.
 
 Treat `.privatedoc/` as internal project documentation unless the user explicitly asks to publish
 it.

@@ -17,7 +17,7 @@ class QToolBar;
 class QToolButton;
 
 /**
- * @brief The menu bar as an element of the window's toolbars (TM, .privatedoc/whale-toolbar-menu-plan.md).
+ * @brief The menu bar as an element of the window's toolbars (TM, .privatedoc/design-notes.md).
  *
  * Each widget it creates holds a menu bar of its own with the menus of the window's menu bar
  * (the same QMenu objects), and follows that one when KXmlGui builds it anew. It is as wide as
