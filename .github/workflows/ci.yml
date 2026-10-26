@@ -29,7 +29,10 @@ jobs:
             kcmutils knewstuff kcoreaddons ki18n kdbusaddons kbookmarks kconfig kio kparts \
             solid kiconthemes kcompletion ktextwidgets knotifications kcrash kwindowsystem \
             kwidgetsaddons kcodecs kguiaddons kcolorscheme kxmlgui kdoctools kfilemetadata \
-            baloo baloo-widgets packagekit-qt6 mpv breeze-icons
+            baloo baloo-widgets packagekit-qt6 mpv breeze-icons \
+            breeze ttf-dejavu noto-fonts kio-extras kdegraphics-thumbnailers
+          # The tests check permissions and show no root warning, so they run as a normal user.
+          useradd --create-home tester
 
       - uses: actions/checkout@v4
         with:
@@ -42,7 +45,11 @@ jobs:
         run: cmake --build build
 
       - name: Test
-        run: dbus-run-session -- ctest --test-dir build --output-on-failure -j "$(nproc)"
+        run: |
+          chown -R tester: build
+          install -d -m 700 -o tester /tmp/runtime-tester
+          su tester -c "cd '$PWD' && HOME=/home/tester XDG_RUNTIME_DIR=/tmp/runtime-tester QT_STYLE_OVERRIDE=breeze \
+            dbus-run-session -- ctest --test-dir build --output-on-failure -j $(nproc)"
 
       - name: Release configuration
         run: cmake -DBUILD_DIR=build -P cmake/WhaleReleaseCheck.cmake
