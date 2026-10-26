@@ -130,7 +130,7 @@ Startsätze der Rollen, statt Dateien zu überschreiben, die Views dann irgendwa
   den Satz der Position“, künftig „behält den eigenen Stil“. Dazu die LK-Tests zu E5.
 - Dev MCP: optional `panes.N.ownStyle.viewMode` (eigener Stil, ≠ `viewMode` bei dynamischer
   Ansicht oder Orten mit eigenem Stil).
-- `docs/whale-vs-dolphin.md` 2.4 anpassen.
+- `docs/orcinus-vs-dolphin.md` 2.4 anpassen.
 
 ### VS5 (optional): Stil in der Sitzung
 

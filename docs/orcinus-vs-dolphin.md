@@ -3,11 +3,11 @@ SPDX-FileCopyrightText: 2026 Whale contributors
 SPDX-License-Identifier: GPL-2.0-or-later
 -->
 
-# Whale compared to Dolphin
+# Orcinus compared to Dolphin
 
-Whale is based on KDE Dolphin and follows its upstream development. Everything not
+Orcinus is based on KDE Dolphin and follows its upstream development. Everything not
 listed here behaves as described in the
-[Dolphin Handbook](https://docs.kde.org/?application=dolphin), which Whale's
+[Dolphin Handbook](https://docs.kde.org/?application=dolphin), which Orcinus's
 *Help → Handbook* opens as well.
 
 Each section states what differs, where to find it, and whether the default
@@ -17,9 +17,9 @@ matches Dolphin's behavior.
 
 ## 1. Application identity and coexistence
 
-<!-- TODO: own app id (io.github.arkarit.whale), binary `whale`, own D-Bus name and
-     configuration files, so Whale and Dolphin can be installed and run side by side;
-     Whale does not take over "Show in folder" (org.freedesktop.FileManager1);
+<!-- TODO: own app id (io.github.arkarit.orcinus), binary `orcinus`, own D-Bus name and
+     configuration files, so Orcinus and Dolphin can be installed and run side by side;
+     Orcinus does not take over "Show in folder" (org.freedesktop.FileManager1);
      settings are not shared with Dolphin; handbook, service menus and version
      control plugins are Dolphin's. -->
 
@@ -117,11 +117,11 @@ matches Dolphin's behavior.
 ## 6. Smaller differences
 
 <!-- TODO: About dialog credits Dolphin; Information panel available with
-     older Baloo Widgets; "Whale-Dev" title for development builds (only
+     older Baloo Widgets; "Orcinus-Dev" title for development builds (only
      relevant for contributors, maybe move to a developer section). -->
 
 ## 7. Known limitations
 
 <!-- TODO: handbook and help links still describe Dolphin; translations of new
-     features are incomplete; Whale-specific settings are not available in
+     features are incomplete; Orcinus-specific settings are not available in
      System Settings modules. -->

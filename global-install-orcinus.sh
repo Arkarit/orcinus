@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Installs Whale system-wide under /usr from its own build directory ../build-whale-system.
+# Installs Orcinus system-wide under /usr from its own build directory ../build-whale-system.
 #
 # Never install into /usr from ../build-whale: that binary has a RUNPATH pointing to the private
 # install prefix, and its data directory is compiled in.
@@ -39,7 +39,7 @@ fi
 echo "==> Building"
 cmake --build "${build_dir}"
 
-# Files that the previous installation of Whale put there may be replaced. Everything else must not
+# Files that the previous installation of Orcinus put there may be replaced. Everything else must not
 # exist yet and must not belong to a package. Save the manifest first, staging overwrites it.
 previous_manifest="${stage_dir}.previous-manifest"
 if [[ -f "${build_dir}/install_manifest.txt" ]]; then
@@ -58,7 +58,7 @@ while IFS= read -r file; do
         echo "Collision: ${file} belongs to package $(dpkg -S "${file}" 2>/dev/null | cut -d: -f1)" >&2
         collisions=1
     elif [[ -e "${file}" || -L "${file}" ]] && ! grep -qxF "${file}" "${previous_manifest}"; then
-        echo "Collision: ${file} already exists and was not installed by Whale" >&2
+        echo "Collision: ${file} already exists and was not installed by Orcinus" >&2
         collisions=1
     fi
 done < <(cd "${stage_dir}" && find . ! -type d)
@@ -75,7 +75,7 @@ fi
 echo "    $(cd "${stage_dir}" && find . ! -type d | wc -l) files, no collisions"
 
 if pgrep -x orcinus > /dev/null; then
-    echo "Warning: Whale is running. Close it to use the new version after installation." >&2
+    echo "Warning: Orcinus is running. Close it to use the new version after installation." >&2
 fi
 
 echo "==> Installing to ${prefix} (sudo)"

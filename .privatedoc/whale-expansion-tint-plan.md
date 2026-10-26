@@ -109,7 +109,7 @@ hinter der View).
 
 ### ET4: Abschluss
 
-- Eintrag in `docs/whale-vs-dolphin.md`.
+- Eintrag in `docs/orcinus-vs-dolphin.md`.
 - Build beider Konfigurationen (`../build-whale`, `../build-whale-system`), alle Tests.
 - Lokalisierung erst im Sammelschritt vor dem Release.
 

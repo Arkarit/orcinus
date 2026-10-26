@@ -85,7 +85,7 @@ listed in the changelog draft.
   binary files. Rewrite the history only for findings covered by D4.
 - `.privatedoc/`: sort out obsolete documents (delete them), translate the rest to English.
   Check them for personal data in the same pass.
-- Check repo-root helper scripts (`run-whale.sh`, `global-install-whale.sh`, ...) for
+- Check repo-root helper scripts (`run-orcinus.sh`, `global-install-orcinus.sh`, ...) for
   machine-specific paths. Generalize or document them.
 - Check `AGENTS.md` / `CLAUDE.md` for content that should not be public.
 - Licensing: REUSE lint must pass; every new file has SPDX headers; Dolphin's copyright notices
@@ -119,7 +119,7 @@ listed in the changelog draft.
 - Version scheme: own (e.g. 1.0.0) or tied to Dolphin's release version. Record the Dolphin
   base version in the About dialog or `--version` either way.
 - `CHANGELOG.md` and release notes. Source: `whale-ux-diary.md`, the plan documents,
-  `docs/whale-vs-dolphin.md`.
+  `docs/orcinus-vs-dolphin.md`.
 - CI on GitHub Actions: build, ctest (offscreen), clang-format, REUSE, XML/YAML/JSON lint.
   Known pre-existing failure: `DolphinMainWindowTest::testAccessibilityTree` under offscreen
   (fails on upstream too); mark it as expected or skip it in CI.
@@ -155,7 +155,7 @@ listed in the changelog draft.
   name, no change to MIME defaults on install.
 - Uninstall and upgrade path: what stays behind (config, styles, state), what happens to the
   user's Dolphin settings (nothing).
-- The `global-install-whale.sh` collision check is a good model for a package file check.
+- The `global-install-orcinus.sh` collision check is a good model for a package file check.
 
 ### RL6: Automated tests across distros
 
@@ -180,7 +180,7 @@ listed in the changelog draft.
 - Do this after the string freeze and the final UI, so screenshots don't have to be redone.
 - Website (GitHub Pages or similar): what Whale is, the relationship to Dolphin, features with
   screenshots, install instructions per distro/package, links to issues and docs.
-- Fill `docs/whale-vs-dolphin.md` (outline exists). Decide whether the DocBook supplement to
+- Fill `docs/orcinus-vs-dolphin.md` (outline exists). Decide whether the DocBook supplement to
   the Dolphin handbook is part of the first release or comes later.
 - README rework: short pitch, screenshots, install, build from source, contributing.
 - Final screenshots also go into the metainfo (RL1).

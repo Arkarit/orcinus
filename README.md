@@ -1,26 +1,30 @@
-# Whale
+# Orcinus
 
-Whale is a personal file manager based on KDE Dolphin. This fork keeps Dolphin's
+Orcinus is a personal file manager based on KDE Dolphin. This fork keeps Dolphin's
 upstream history, architecture, authorship, and licensing while giving the
 application an independent identity and room for additional features.
 
-Whale is currently intended to coexist with the distribution-provided Dolphin.
+Orcinus was developed under the working title Whale. Source directories, class
+names, CMake variables and action names still use that name; everything that is
+installed or shown to users says Orcinus.
+
+Orcinus is currently intended to coexist with the distribution-provided Dolphin.
 It uses its own executable, application ID, configuration, session state,
 private library, desktop entry, and translation domain. Shared KDE facilities
 such as places, service menus, trash, and per-folder view properties remain
 shared intentionally.
 
-## Building Whale
+## Building Orcinus
 
 Use a build and install prefix separate from any Dolphin development build:
 
 ```bash
-cmake -S . -B ../build-whale -G Ninja \
+cmake -S . -B ../build-orcinus -G Ninja \
     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
     -DBUILD_TESTING=ON \
-    -DCMAKE_INSTALL_PREFIX="$PWD/../install-whale"
-cmake --build ../build-whale
-../build-whale/bin/whale --new-window
+    -DCMAKE_INSTALL_PREFIX="$PWD/../install-orcinus"
+cmake --build ../build-orcinus
+../build-orcinus/bin/orcinus --new-window
 ```
 
 The safe defaults do not claim `org.freedesktop.FileManager1` and do not install
@@ -28,12 +32,12 @@ Dolphin-named KParts, KCMs, plugins, documentation, or developer files. The
 optional FileManager1 integration can be enabled with
 `-DWHALE_PROVIDE_FILEMANAGER1=ON`.
 
-Phase 1 expects the system Dolphin package to remain installed. Whale reuses its
+Phase 1 expects the system Dolphin package to remain installed. Orcinus reuses its
 `libdolphinvcs.so.6`, version-control plugins, service-menu integration, and
 handbook. If a matching optional BalooWidgets package is unavailable, the
-information panel is disabled but Whale can still be built.
+information panel is disabled but Orcinus can still be built.
 
-Whale issues belong in the [Whale issue tracker](https://github.com/Arkarit/whale/issues).
+Orcinus issues belong in the [Orcinus issue tracker](https://github.com/Arkarit/orcinus/issues).
 Issues reproducible in unmodified Dolphin should be reported upstream.
 
 ## Upstream Dolphin

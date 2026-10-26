@@ -54,7 +54,7 @@ Branch `feature/panel-identity` (von `master` 4153886a7), nicht gepusht:
 | PI1 | c9b081c80 | Rollen-Speicher in `ViewProperties` (`global` / `global-right`), Fallback Right → Left. |
 | PI2 | f8ba51ca9 | Rollen in `DolphinTabPage`, Mitnahme beim Schließen der linken View, `keepGlobalStyle()`. |
 | PI3 | a720711d3 | `SplitViewAtStartup` (LastState/AlwaysSplit/AlwaysSingle), Migration, Combobox. |
-| PI4 | bc499fe77 | Dev MCP: `panes.N.panelRole`, `splitViewAtStartup`. Doku-Gliederung 2.4 in `docs/whale-vs-dolphin.md` (ungetrackt wie die übrige Datei). |
+| PI4 | bc499fe77 | Dev MCP: `panes.N.panelRole`, `splitViewAtStartup`. Doku-Gliederung 2.4 in `docs/orcinus-vs-dolphin.md` (ungetrackt wie die übrige Datei). |
 
 Abweichungen vom Plan:
 
@@ -129,7 +129,7 @@ Offen / bekannt:
 ### PI4: Abschluss
 
 - Dev MCP: Rolle und Speicherort pro Panel in `get_ui_state` anzeigen.
-- `docs/whale-vs-dolphin.md`: Abschnitt „Panels merken sich ihre Ansicht“.
+- `docs/orcinus-vs-dolphin.md`: Abschnitt „Panels merken sich ihre Ansicht“.
 
 ## Offene Punkte
 

@@ -2,11 +2,13 @@
 
 ## Project
 
-This repository is a fork of KDE Dolphin that is being developed into **Whale**. The immediate goal
+This repository is a fork of KDE Dolphin that is being developed into **Orcinus** (working title
+and internal code name: Whale; `src/whale/`, `Whale*` classes and `WHALE_*` variables keep that
+name, see `.privatedoc/orcinus-rename-plan.md`). The immediate goal
 is a personal file manager that can coexist with the system Dolphin; later publication remains an
 option. Preserve KDE authorship, licensing, and upstream history.
 
-`origin` is the Whale fork. `upstream` is KDE Dolphin. Keep Whale-specific changes focused and easy
+`origin` is the Orcinus fork. `upstream` is KDE Dolphin. Keep Orcinus-specific changes focused and easy
 to replay across upstream merges.
 
 ## Read before changing code
@@ -25,13 +27,14 @@ it.
 - The established out-of-tree build is `../build-dolphin`; do not reconfigure it casually.
 - Its private install prefix is `../install-dolphin`; never install development artifacts into the
   system prefix.
-- For the Whale rename, configure a separate `../build-whale` and use a separate
+- For Orcinus, configure a separate `../build-whale` and use a separate
   `../install-whale` prefix.
 - A focused build does not refresh installed runtime resources. After changing icons, desktop
   files, translations, or similar data, run `cmake --install ../build-whale` into the private
   `../install-whale` prefix before visual testing; never install them into the system prefix.
-- Run `../build-whale/bin/whale --new-window` when a fresh development window is wanted. Whale and
-  Dolphin now have distinct D-Bus identities; without the option, Whale may reuse its own instance.
+- Run `../build-whale/bin/orcinus --new-window` when a fresh development window is wanted. Orcinus
+  and Dolphin have distinct D-Bus identities; without the option, Orcinus may reuse its own
+  instance.
 - Prefer focused builds/tests while iterating, then run the relevant broader test set. Tests use
   QTest and are registered in `src/tests/CMakeLists.txt`.
 - New source files need SPDX headers. Keep KDE clang-format and CI conventions intact.
@@ -43,11 +46,11 @@ it.
   upstream-facing structure.
 - Keep narrowly scoped features and fixes Dolphin-compatible whenever practical. Structure them as
   small, self-contained changes that can be replayed onto a plain Dolphin fork and proposed
-  upstream as merge requests; isolate unavoidable Whale product integration from the transferable
+  upstream as merge requests; isolate unavoidable Orcinus product integration from the transferable
   core change.
-- Whale and the installed Dolphin must remain usable in parallel. Never introduce shared installed
+- Orcinus and the installed Dolphin must remain usable in parallel. Never introduce shared installed
   filenames, application identity, configuration, session state, or private-library SONAMEs.
-- In particular, an installed Whale must use `libwhaleprivate`, never `libdolphinprivate`; an ABI
+- In particular, an installed Orcinus must use `liborcinusprivate`, never `libdolphinprivate`; an ABI
   collision can break the system Dolphin.
 - Keep intentionally shared KDE resources shared: KIO infrastructure, places/bookmarks, service
   menus, Baloo data, thumbnail cache, trash, and (for phase 1) per-folder view properties.

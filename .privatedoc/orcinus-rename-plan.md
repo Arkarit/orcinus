@@ -90,7 +90,7 @@ Where the code opens one of them by name, derive it from the component
 
 ### Repository files
 
-- `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/whale-vs-dolphin.md` → `docs/orcinus-vs-dolphin.md`.
+- `README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/orcinus-vs-dolphin.md` → `docs/orcinus-vs-dolphin.md`.
 - Scripts: `run-whale.sh` → `run-orcinus.sh`, `global-install-whale.sh` →
   `global-install-orcinus.sh` (content: binary, manifest names; build dirs stay, N6).
 - SPDX headers (N5).

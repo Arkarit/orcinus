@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 msgid ""
 msgstr ""
-"Project-Id-Version: whale\n"
+"Project-Id-Version: orcinus\n"
 "PO-Revision-Date: 2026-10-07 00:00+0200\n"
-"Last-Translator: Whale contributors\n"
+"Last-Translator: Orcinus contributors\n"
 "Language-Team: German\n"
 "Language: de\n"
 "MIME-Version: 1.0\n"
