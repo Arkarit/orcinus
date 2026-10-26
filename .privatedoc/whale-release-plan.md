@@ -53,9 +53,55 @@ therefore depends on an ABI-compatible Dolphin package, and Flatpak cannot work 
 Options: accept Dolphin as a dependency, build an own VCS library that still loads Dolphin's VCS
 plugins, or disable VCS cleanly when the library is missing.
 
+#### Analysis (2026-10-26, awaiting the user's decision)
+
+What VCS is here: `libdolphinvcs` contains only the plugin interface `KVersionControlPlugin`
+(one class, ~240 lines). The plugins for Git, Subversion, Mercurial, Bazaar and Dropbox come from
+the separate package `dolphin-plugins` and provide the status emblems and the version control
+context menu entries. Only `liborcinusprivate` links the library (`NEEDED libdolphinvcs.so.6`),
+so Orcinus does not start at all without it.
+
+Facts checked:
+- **Plugin loading needs one shared copy.** `VersionControlObserver::initPlugins()` loads the
+  plugins with `KPluginFactory::instantiatePlugin<KVersionControlPlugin>`, i.e. `qobject_cast`.
+  That works only if Orcinus and the plugin use the same loaded copy of the class. An own library
+  under another name would load next to the system one (the plugins need `libdolphinvcs.so.6`)
+  and every cast would fail, so "own library, other name" is not possible.
+- **A private copy with the same SONAME works.** Test with the installed Orcinus, offscreen and
+  a throwaway profile, Git plugin enabled, the build tree's `libdolphinvcs.so.6` (26.11.70) in a
+  private directory first on the library path: only the private copy is mapped, the system's
+  `fileviewgitplugin.so` (built against 25.12.3) loads and runs (10 `git` calls, the same as
+  with the system library). The dynamic loader satisfies the plugin's `NEEDED` with the copy
+  that is already loaded.
+- **The interface is stable.** Last API change 2020 (`localRepositoryRoot`, before that a new
+  pure virtual in April 2020); SOVERSION 6 since the KF6 port. We merge upstream regularly, so a
+  private copy follows any future change.
+- **Packaging today:** Debian/Ubuntu ship the library as the tiny package `libdolphinvcs6`
+  (no dependency on `dolphin`); Fedora in `dolphin-libs` together with `libdolphinprivate`;
+  Arch only inside the full `dolphin` package. `dolphin-plugins` depends on `dolphin` on all
+  three, so VCS emblems need Dolphin installed in any case. Dolphin's Flatpak builds
+  `dolphin-plugins` into its own bundle.
+
+Options:
+
+| | Option | For | Against |
+|---|---|---|---|
+| A | Keep: depend on the system library | No work | Arch packages pull in the full Dolphin; ABI tied to the distro's Dolphin; Flatpak/AppImage must bundle anyway |
+| B | **Install a private copy** `libdolphinvcs.so.6` in `${LIBDIR}/orcinus/`, found through the RUNPATH of `liborcinusprivate` | No dependency on any Dolphin package; Dolphin's plugins still work when installed; no file collision (private directory); same build for distro packages, Flatpak and AppImage | A second copy of an 18 KB library; some distro policies frown on bundled libraries (private libraries in `/usr/lib/<package>/` are accepted by Debian) |
+| C | Make VCS optional at build time (`#if`) | Smallest dependency set | Changes in upstream files (`dolphinview`, `versioncontrolobserver`, settings), merge conflicts; packagers have to choose; the feature disappears |
+| D | Load the library at runtime (`dlopen`) and switch VCS off without it | Works with and without Dolphin | Most code, the interface is a C++ class with signals; still needs the system library for the plugins |
+
+Recommendation: **B.** It removes the dependency with a few lines of CMake, keeps VCS fully
+working wherever `dolphin-plugins` is installed, and is the layout every bundle format needs
+anyway. The `dolphin/vcs` namespace and the plugins stay Dolphin's (no change to CLAUDE.md's rule).
+Steps if chosen: install the `dolphinvcs` target (no headers, no CMake config) into
+`${KDE_INSTALL_LIBDIR}/orcinus`, set `INSTALL_RPATH` `$ORIGIN/orcinus` on `liborcinusprivate`,
+extend the install script's collision check and test: Orcinus starts with `libdolphinvcs6`
+removed in a container (RL4) and loads the Git plugin when it is present.
+
 ### B3: What is stable after 1.0
 
-The style format (`Version` key) and the view plugin API (`X-Whale-ViewApiVersion`) are already
+The style format (`Version` key) and the view plugin API (`X-Orcinus-ViewApiVersion`) are already
 versioned. To decide: whether the plugin API is meant for third parties and promised stable, or
 declared internal/unstable for 1.0 (proposal); and how config key changes are migrated once
 users have them.
