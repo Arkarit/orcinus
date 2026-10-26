@@ -13,6 +13,23 @@ It is **not** a remote control, not an API, not ABI stable and never part of a
 regular build. Anything that can be done reliably with a shell, KIO, CMake or
 CTest does not belong here.
 
+## Design
+
+Three ways were considered (2026-10-05):
+
+| Option | Verdict |
+|---|---|
+| Separate MCP server with its own IPC channel | An own channel is unnecessary, D-Bus is already there; in practice the same as the chosen option. |
+| MCP server inside the Whale process | Whale would have to serve JSON-RPC over stdio or a socket: MCP code in the product, more attack surface. Rejected. |
+| **Diagnostic object on D-Bus plus a thin adapter** (chosen) | Whale knows nothing about MCP; local and bound to the session, no port; state is queried deterministically in-process; screenshots through `QWidget::grab()` work on Wayland without a portal. |
+
+The existing Appium tests (`appiumtests/`, Selenium over AT-SPI) were not reused: they only
+see the accessibility tree (no view IDs, focus proxies or hidden Dolphin children), and the
+kitemviews accessibility crashed in `filenamehighlightingviewtest` at the time.
+
+Guiding question for every tool: can it already be done reliably with a shell or a test?
+Then it does not belong here.
+
 ## Layout
 
 | Part | Where | What |
@@ -337,6 +354,11 @@ system itself.
   focus; all other shortcuts go through the window's shortcuts (`treemap_key`).
 - The clipboard is the user's own outside of offscreen (also in a test profile, as it
   belongs to the compositor), so clipboard steps run offscreen only.
+- Two Whales starting at the same moment block each other for up to 25 s (D-Bus timeout):
+  at start-up `Dolphin::dolphinGuiInstances()` asks every running instance synchronously
+  (inherited from Dolphin). Tests therefore start a second instance only later.
+- On Wayland the instance started last gets the activation; a second instance in a test
+  therefore always runs offscreen.
 - Only the current tab's panes are addressed.
 - The automation answers before Dolphin restores its session at start-up; wait for
   the restored state (e.g. `tabs.count`) before acting.
