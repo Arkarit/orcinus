@@ -58,5 +58,20 @@ the test suite before submitting a change and add tests for new behavior.
 
 ## Translations
 
-Orcinus reuses Dolphin's translations. Strings that only exist in Orcinus live
-in `po-orcinus/<language>/orcinus.po`.
+Orcinus reuses Dolphin's translations for everything it shares with Dolphin.
+Only the strings that exist in Orcinus alone (about 300) are translated here, in
+`po-orcinus/<language>/orcinus.po`; at build time they are merged in front of
+Dolphin's catalog of the same language.
+
+- The catalogs for German, French, Spanish, Italian, Brazilian Portuguese,
+  Polish, Russian, Simplified Chinese and Japanese were translated by an AI
+  model. German is being reviewed by the maintainer; the others are not yet
+  reviewed by native speakers, so corrections are very welcome.
+- To add a language, copy `po-orcinus/orcinus.pot` to
+  `po-orcinus/<language>/orcinus.po` (the language code as in `po/`) and
+  translate it with any PO editor, e.g. Lokalize.
+- Send translations as pull requests. Once the repository is public, Orcinus
+  will also be translatable on Weblate.
+- After changing user-visible strings, run `po-orcinus/update-catalogs.sh`; it
+  regenerates the template and merges it into every catalog.
+- Use the same terms as Dolphin's catalog of your language (`po/<language>/dolphin.po`).

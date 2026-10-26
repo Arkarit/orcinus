@@ -1,0 +1,2065 @@
+# Orcinus' own strings (not in Dolphin's catalogs), merged in front of Dolphin's
+# catalog when Orcinus' translations are built (see the top-level CMakeLists.txt).
+# Machine translation by an AI model, not yet reviewed by a native speaker.
+# Corrections are welcome, see CONTRIBUTING.md.
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: GPL-2.0-or-later
+msgid ""
+msgstr ""
+"Project-Id-Version: orcinus\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-26 11:12+0100\n"
+"PO-Revision-Date: 2026-10-26 00:00+0100\n"
+"Last-Translator: Orcinus contributors\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+
+#: admin/workerintegration.cpp:54
+#, kde-kuit-format
+msgctxt "@info:shell"
+msgid ""
+"<application>Orcinus</application> requires <application>%1</application> to "
+"manage system-controlled files, but it is not installed.<nl/>Press %2 to "
+"install <application>%1</application> or %3 to cancel."
+msgstr ""
+"<application>Orcinus</application> necesita <application>%1</application> "
+"para gestionar archivos controlados por el sistema, pero no está instalado."
+"<nl/>Pulse %2 para instalar <application>%1</application> o %3 para cancelar."
+
+#: admin/workerintegration.cpp:82
+#, kde-kuit-format
+msgctxt "@info"
+msgid ""
+"<para>Make use of your administrator rights in Orcinus:"
+"<numberedlist><numbereditem>Navigate to the file or folder you want to "
+"change.</numbereditem><numbereditem>Activate the \"%1\" action either under "
+"<interface>Open Menu|More|View</interface> or <interface>Menu Bar|View</"
+"interface>.<nl/>Default shortcut: <shortcut>%2</shortcut></"
+"numbereditem><numbereditem>After authorization you can manage files as an "
+"administrator.</numbereditem></numberedlist></para>"
+msgstr ""
+"<para>Use sus derechos de administrador en Orcinus:"
+"<numberedlist><numbereditem>Vaya al archivo o la carpeta que quiera cambiar."
+"</numbereditem><numbereditem>Active la acción «%1» en <interface>Abrir menú|"
+"Más|Ver</interface> o en <interface>Barra de menú|Ver</interface>.<nl/>Atajo "
+"predeterminado: <shortcut>%2</shortcut></numbereditem><numbereditem>Tras la "
+"autorización podrá gestionar archivos como administrador.</numbereditem></"
+"numberedlist></para>"
+
+#: dolphinmainwindow.cpp:1956
+#, kde-format
+msgctxt "@info"
+msgid "Open a new Orcinus window"
+msgstr "Abrir una nueva ventana de Orcinus"
+
+#: dolphinmainwindow.cpp:3161
+#, kde-format
+msgctxt "@info:credit %1 is the name of a license"
+msgid "License: %1"
+msgstr "Licencia: %1"
+
+#: dolphinmainwindow.cpp:3165
+#, kde-format
+msgctxt "@info about dialog tagline, first line"
+msgid "A Dolphin."
+msgstr "Un delfín."
+
+#: dolphinmainwindow.cpp:3165
+#, kde-format
+msgctxt "@info about dialog tagline, second line"
+msgid "Just bigger."
+msgstr "Solo que más grande."
+
+#: dolphinmainwindow.cpp:3173
+#, kde-format
+msgctxt "@info:credit"
+msgid "Orcinus: %1"
+msgstr "Orcinus: %1"
+
+#: dolphinmainwindow.cpp:3177
+#, kde-format
+msgctxt "@info:credit"
+msgid ""
+"Orcinus is an unofficial fork of Dolphin, not affiliated with or endorsed by "
+"KDE."
+msgstr ""
+"Orcinus es una bifurcación no oficial de Dolphin, sin relación con KDE ni "
+"respaldada por KDE."
+
+#: dolphinmainwindow.cpp:3246
+#, kde-kuit-format
+msgctxt "@info:whatsthis"
+msgid ""
+"This opens a window where you can change a multitude of settings for this "
+"application. For an explanation of the various settings, consult the "
+"<emphasis>Configuring Dolphin</emphasis> chapter in the upstream "
+"<interface>Dolphin Handbook</interface>."
+msgstr ""
+"Esto abre una ventana en la que puede cambiar muchas opciones de esta "
+"aplicación. Para una explicación de las distintas opciones, consulte el "
+"capítulo <emphasis>Configuración de Dolphin</emphasis> del <interface>Manual "
+"de Dolphin</interface> original."
+
+#. i18n: If the external link isn't available in your language it might make
+#. sense to state the external link's language in brackets to not
+#. frustrate the user. If there are multiple languages that the user might
+#. know with a reasonable chance you might want to have 2 external links.
+#. The same might be true for any external link you translate.
+#: dolphinmainwindow.cpp:3266
+#, kde-kuit-format
+msgctxt "@info:whatsthis handbook"
+msgid ""
+"<para>This opens the upstream Dolphin Handbook on which Orcinus is based. It "
+"provides explanations for the file manager's features.</para><para>For more "
+"elaborate introductions to these features, <link url='https://"
+"userbase.kde.org/Dolphin/File_Management'>click here</link>. This opens the "
+"dedicated Dolphin page in the KDE UserBase Wiki.</para>"
+msgstr ""
+"<para>Esto abre el manual de Dolphin, en el que se basa Orcinus. Explica las "
+"funciones del gestor de archivos.</para><para>Para introducciones más "
+"detalladas a estas funciones, <link url='https://userbase.kde.org/Dolphin/"
+"File_Management'>pulse aquí</link>. Se abrirá la página dedicada a Dolphin "
+"en la wiki KDE UserBase.</para>"
+
+#: dolphinmainwindow.cpp:3271
+#, kde-kuit-format
+msgctxt "@info:whatsthis whatsthis button"
+msgid ""
+"<para>This is the button that invokes the help feature you are using right "
+"now! Click it, then click any component of this application to ask \"What's "
+"this?\" about it. The mouse cursor will change appearance if no help is "
+"available for a spot.</para><para>There are two other ways to get help: The "
+"upstream <link url='help:/dolphin/index.html'>Dolphin Handbook</link> and "
+"the <link url='https://userbase.kde.org/Dolphin/File_Management'>KDE "
+"UserBase Wiki</link>.</para><para>The \"What's this?\" help is missing in "
+"most other windows so don't get too used to this.</para>"
+msgstr ""
+"<para>¡Este es el botón de la ayuda que está usando ahora mismo! Púlselo y "
+"luego pulse cualquier parte de esta aplicación para preguntar «¿Qué es "
+"esto?». El puntero del ratón cambia de aspecto si no hay ayuda disponible en "
+"un lugar.</para><para>Hay otras dos formas de obtener ayuda: el <link "
+"url='help:/dolphin/index.html'>Manual de Dolphin</link> original y la <link "
+"url='https://userbase.kde.org/Dolphin/File_Management'>wiki KDE UserBase</"
+"link>.</para><para>La ayuda «¿Qué es esto?» falta en la mayoría de las demás "
+"ventanas, así que no se acostumbre demasiado.</para>"
+
+#: dolphinviewcontainer.cpp:130
+#, kde-format
+msgid "Running Orcinus as root can be dangerous. Please be careful."
+msgstr "Ejecutar Orcinus como root puede ser peligroso. Tenga cuidado."
+
+#: dolphinviewcontainer.cpp:1073
+#, kde-format
+msgctxt "@info:status"
+msgid "Orcinus does not support web pages, the web browser has been launched"
+msgstr "Orcinus no admite páginas web; se ha lanzado el navegador web"
+
+#: dolphinviewcontainer.cpp:1076
+#, kde-format
+msgctxt "@info:status"
+msgid ""
+"Protocol not supported by Orcinus, default application has been launched"
+msgstr ""
+"Protocolo no admitido por Orcinus; se ha lanzado la aplicación predeterminada"
+
+#: filterbar/filterbar.cpp:47
+#, kde-format
+msgctxt "@item:inmenu the filter applies to"
+msgid "Files (Folders Stay Shown)"
+msgstr "Archivos (las carpetas siguen visibles)"
+
+#: filterbar/filterbar.cpp:49
+#, kde-format
+msgctxt "@item:inmenu the filter applies to"
+msgid "Folders (Files Stay Shown)"
+msgstr "Carpetas (los archivos siguen visibles)"
+
+#: filterbar/filterbar.cpp:51
+#, kde-format
+msgctxt "@item:inmenu the filter applies to"
+msgid "Files and Folders"
+msgstr "Archivos y carpetas"
+
+#: filterbar/filterbar.cpp:255
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Filter Applies To: %1"
+msgstr "El filtro se aplica a: %1"
+
+#: main.cpp:101
+#, kde-kuit-format
+msgctxt "@info:shell %1 is a terminal command"
+msgid ""
+"Running <application>Orcinus</application> with <command>sudo</command> is "
+"discouraged. Please run <icode>%1</icode> instead."
+msgstr ""
+"No se recomienda ejecutar <application>Orcinus</application> con "
+"<command>sudo</command>. Ejecute <icode>%1</icode> en su lugar."
+
+#: main.cpp:190
+#, kde-format
+msgctxt "@info:shell"
+msgid "Orcinus will get started with a split view."
+msgstr "Orcinus se iniciará con una vista dividida."
+
+#: main.cpp:191
+#, kde-format
+msgctxt "@info:shell"
+msgid "Orcinus will explicitly open in a new window."
+msgstr "Orcinus se abrirá explícitamente en una ventana nueva."
+
+#: main.cpp:200
+#, kde-format
+msgctxt "@info:shell"
+msgid "Set up Orcinus for administrative tasks."
+msgstr "Preparar Orcinus para tareas de administración."
+
+#: main.cpp:203
+#, kde-format
+msgctxt "@info:shell"
+msgid "Start Orcinus Daemon (only required for DBus Interface)."
+msgstr "Iniciar el demonio de Orcinus (solo necesario para la interfaz D-Bus)."
+
+#: settings/dolphinsettingsdialog.cpp:60
+#, kde-format
+msgctxt "@title:group"
+msgid "Styles"
+msgstr "Estilos"
+
+#: settings/dolphinsettingsdialog.cpp:66
+#, kde-format
+msgctxt "@title:group"
+msgid "Viewer"
+msgstr "Visor"
+
+#: settings/interface/confirmationssettingspage.cpp:70
+#, kde-format
+msgctxt "@title:group"
+msgid "Ask for confirmation in Orcinus when:"
+msgstr "Pedir confirmación en Orcinus al:"
+
+#: settings/interface/confirmationssettingspage.cpp:91
+#, kde-format
+msgctxt "@item:inlistbox When opening an executable file:"
+msgid "Run script in terminal"
+msgstr "Ejecutar el script en un terminal"
+
+#: settings/interface/confirmationssettingspage.cpp:92
+#, kde-format
+msgctxt "@item:inlistbox When opening an executable file:"
+msgid "Run script in terminal and close"
+msgstr "Ejecutar el script en un terminal y cerrarlo"
+
+#: settings/interface/confirmationssettingspage.cpp:93
+#, kde-format
+msgctxt "@item:inlistbox When opening an executable file:"
+msgid "Run script in minimized terminal"
+msgstr "Ejecutar el script en un terminal minimizado"
+
+#: settings/interface/confirmationssettingspage.cpp:94
+#, kde-format
+msgctxt "@item:inlistbox When opening an executable file:"
+msgid "Run script in minimized terminal and close"
+msgstr "Ejecutar el script en un terminal minimizado y cerrarlo"
+
+#: settings/interface/confirmationssettingspage.cpp:96
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The terminal stays open until you press Enter."
+msgstr "El terminal permanece abierto hasta que pulse Intro."
+
+#: settings/interface/confirmationssettingspage.cpp:99
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The terminal closes when the script ends, unless it failed."
+msgstr ""
+"El terminal se cierra cuando termina el script, salvo que haya fallado."
+
+#: settings/interface/confirmationssettingspage.cpp:103
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"The terminal starts in the taskbar and stays open until you press Enter. If "
+"the script fails, it comes to the front."
+msgstr ""
+"El terminal se inicia en la barra de tareas y permanece abierto hasta que "
+"pulse Intro. Si el script falla, pasa a primer plano."
+
+#: settings/interface/confirmationssettingspage.cpp:108
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"The terminal starts in the taskbar and closes when the script ends. If the "
+"script fails, it comes to the front instead."
+msgstr ""
+"El terminal se inicia en la barra de tareas y se cierra cuando termina el "
+"script. Si el script falla, pasa a primer plano en su lugar."
+
+#: settings/interface/folderstabssettingspage.cpp:111
+#, kde-format
+msgctxt "@option:check Opening Folders"
+msgid "Keep a single Orcinus window, opening new folders in tabs"
+msgstr ""
+"Mantener una sola ventana de Orcinus y abrir las carpetas nuevas en pestañas"
+
+#: settings/interface/folderstabssettingspage.cpp:114
+#, kde-format
+msgctxt "@option:check Opening Folders"
+msgid "Always follow symbolic links to their target"
+msgstr "Seguir siempre los enlaces simbólicos hasta su destino"
+
+#: settings/interface/folderstabssettingspage.cpp:116
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"A folder opened through a symbolic link is shown at its real location, so "
+"the location bar shows the target path instead of the path of the link."
+msgstr ""
+"Una carpeta abierta mediante un enlace simbólico se muestra en su ubicación "
+"real, de modo que la barra de ubicación muestra la ruta del destino en lugar "
+"de la del enlace."
+
+#: settings/interface/folderstabssettingspage.cpp:173
+#, kde-format
+msgctxt "@item:inlistbox Split view in new windows and tabs"
+msgid "As last used"
+msgstr "Como la última vez"
+
+#: settings/interface/folderstabssettingspage.cpp:174
+#, kde-format
+msgctxt "@item:inlistbox Split view in new windows and tabs"
+msgid "Always"
+msgstr "Siempre"
+
+#: settings/interface/folderstabssettingspage.cpp:175
+#, kde-format
+msgctxt "@item:inlistbox Split view in new windows and tabs"
+msgid "Never"
+msgstr "Nunca"
+
+#: settings/interface/folderstabssettingspage.cpp:180
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Split new windows and tabs"
+msgstr "Dividir las ventanas y pestañas nuevas"
+
+#: settings/interface/panelsettingspage.cpp:64
+#, kde-format
+msgctxt "@option:check"
+msgid "Limit to home directory when inside it"
+msgstr "Limitar a la carpeta personal cuando se está dentro de ella"
+
+#: settings/interface/panelsettingspage.cpp:65
+#, kde-format
+msgctxt "@label:checkbox"
+msgid "Folders Panel:"
+msgstr "Panel de carpetas:"
+
+#: settings/interface/previewssettingspage.cpp:100
+#, kde-kuit-format
+msgctxt "@info"
+msgid ""
+"<para>Creating <emphasis>previews</emphasis> for remote folders is very "
+"intensive in terms of network resource usage.</para><para>Disable this if "
+"navigating remote folders in Orcinus is slow or when accessing storage over "
+"metered connections.</para>"
+msgstr ""
+"<para>Crear <emphasis>vistas previas</emphasis> de carpetas remotas consume "
+"muchos recursos de red.</para><para>Desactive esta opción si la navegación "
+"por carpetas remotas es lenta en Orcinus o si accede al almacenamiento "
+"mediante conexiones de uso medido.</para>"
+
+#: settings/viewmodes/expansiontintwidget.cpp:163
+#, kde-format
+msgctxt "@item:intext example file size in a preview"
+msgid "%1 KiB"
+msgstr "%1 KiB"
+
+#: settings/viewmodes/expansiontintwidget.cpp:326
+#, kde-format
+msgctxt "@item:intext example folder in a preview"
+msgid "Projects"
+msgstr "Proyectos"
+
+#: settings/viewmodes/expansiontintwidget.cpp:334
+#, kde-format
+msgctxt "@item:intext example file in a preview"
+msgid "notes.txt"
+msgstr "notas.txt"
+
+#: settings/viewmodes/expansiontintwidget.cpp:335
+#, kde-format
+msgctxt "@item:intext example folder in a preview"
+msgid "Music"
+msgstr "Música"
+
+#: settings/viewmodes/expansiontintwidget.cpp:380
+#, kde-format
+msgctxt "@option:radio view mode"
+msgid "Compact"
+msgstr "Compacta"
+
+#: settings/viewmodes/expansiontintwidget.cpp:381
+#, kde-format
+msgctxt "@option:radio view mode"
+msgid "Details"
+msgstr "Detalles"
+
+#: settings/viewmodes/expansiontintwidget.cpp:384
+#, kde-format
+msgctxt "@label view mode whose settings are shown"
+msgid "View mode:"
+msgstr "Modo de visualización:"
+
+#: settings/viewmodes/expansiontintwidget.cpp:387
+#, kde-format
+msgctxt "@item:inlistbox expanded folder colors"
+msgid "Off"
+msgstr "Desactivado"
+
+#: settings/viewmodes/expansiontintwidget.cpp:388
+#, kde-format
+msgctxt ""
+"@item:inlistbox expanded folder colors, alternating like old printer paper"
+msgid "Printer paper"
+msgstr "Papel de impresora"
+
+#: settings/viewmodes/expansiontintwidget.cpp:390
+#, kde-format
+msgctxt "@item:inlistbox expanded folder colors"
+msgid "Grey"
+msgstr "Gris"
+
+#: settings/viewmodes/expansiontintwidget.cpp:391
+#, kde-format
+msgctxt "@item:inlistbox expanded folder colors"
+msgid "Pastel (Subtle)"
+msgstr "Pastel (suave)"
+
+#: settings/viewmodes/expansiontintwidget.cpp:392
+#, kde-format
+msgctxt "@item:inlistbox expanded folder colors"
+msgid "Pastel (Vivid)"
+msgstr "Pastel (intenso)"
+
+#: settings/viewmodes/expansiontintwidget.cpp:393
+#, kde-format
+msgctxt "@item:inlistbox expanded folder colors"
+msgid "Custom"
+msgstr "Personalizado"
+
+#: settings/viewmodes/expansiontintwidget.cpp:394
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Background colors:"
+msgstr "Colores de fondo:"
+
+#: settings/viewmodes/expansiontintwidget.cpp:401
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Color of level %1"
+msgstr "Color del nivel %1"
+
+#: settings/viewmodes/expansiontintwidget.cpp:414
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Add a color"
+msgstr "Añadir un color"
+
+#: settings/viewmodes/expansiontintwidget.cpp:417
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Remove the last color"
+msgstr "Eliminar el último color"
+
+#: settings/viewmodes/expansiontintwidget.cpp:424
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Colors the contents of expanded folders by depth and shows the folder names "
+"next to them where there is room."
+msgstr ""
+"Colorea el contenido de las carpetas desplegadas según su profundidad y "
+"muestra el nombre de las carpetas al lado cuando hay espacio."
+
+#: settings/viewmodes/expansiontintwidget.cpp:428
+#, kde-format
+msgctxt "@option:check"
+msgid "Show folder names next to their contents"
+msgstr "Mostrar el nombre de las carpetas junto a su contenido"
+
+#: settings/viewmodes/expansiontintwidget.cpp:429
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Where there is room, the names of the expanded folders are shown in the "
+"indentation."
+msgstr ""
+"Cuando hay espacio, el nombre de las carpetas desplegadas se muestra en la "
+"sangría."
+
+#: settings/viewmodes/expansiontintwidget.cpp:440
+#: settings/viewmodes/expansiontintwidget.cpp:635
+#, kde-format
+msgctxt "@label opacity in percent"
+msgid "%1 %"
+msgstr "%1 %"
+
+#: settings/viewmodes/expansiontintwidget.cpp:443
+#, kde-format
+msgctxt "@label:slider"
+msgid "Name opacity:"
+msgstr "Opacidad de los nombres:"
+
+#: settings/viewmodes/expansiontintwidget.cpp:531
+#, kde-format
+msgctxt ""
+"@item:inlistbox expanded folder colors: none, but the lines of the tree as "
+"before"
+msgid "Classic (tree lines)"
+msgstr "Clásico (líneas del árbol)"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:59
+#, kde-format
+msgctxt "@item:inlistbox text style attribute is not changed"
+msgid "Unchanged"
+msgstr "Sin cambios"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:106
+#, kde-format
+msgctxt "@title:window"
+msgid "File Name Highlighting Rule"
+msgstr "Regla de resaltado de nombres de archivo"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:114
+#: whale/styles/whalestylessettingspage.cpp:79
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name:"
+msgstr "Nombre:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:117
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:274
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting condition"
+msgid "Executable files"
+msgstr "Archivos ejecutables"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:119
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:276
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting condition"
+msgid "Symbolic links"
+msgstr "Enlaces simbólicos"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:121
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting condition"
+msgid "MIME type"
+msgstr "Tipo MIME"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:122
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting condition"
+msgid "File name pattern"
+msgstr "Patrón de nombre de archivo"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:125
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Condition:"
+msgstr "Condición:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:128
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting rule applies to"
+msgid "Files and folders"
+msgstr "Archivos y carpetas"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:130
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting rule applies to"
+msgid "Folders"
+msgstr "Carpetas"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:132
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting rule applies to"
+msgid "Files"
+msgstr "Archivos"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:134
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Applies to:"
+msgstr "Se aplica a:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:142
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose…"
+msgstr "Elegir…"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:149
+#, kde-format
+msgctxt "@option:check file name patterns"
+msgid "Case sensitive"
+msgstr "Distinguir mayúsculas y minúsculas"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:156
+#, kde-format
+msgctxt "@option:radio text color"
+msgid "Unchanged"
+msgstr "Sin cambios"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:157
+#, kde-format
+msgctxt "@option:radio text color"
+msgid "From color scheme:"
+msgstr "Del esquema de color:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:158
+#, kde-format
+msgctxt "@option:radio text color"
+msgid "Custom:"
+msgstr "Personalizado:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:180
+#, kde-format
+msgctxt "@label"
+msgid "Text color:"
+msgstr "Color del texto:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:183
+#, kde-format
+msgctxt "@info"
+msgid "Colors from the color scheme adapt to light and dark color schemes."
+msgstr ""
+"Los colores del esquema de color se adaptan a esquemas claros y oscuros."
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:206
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Bold"
+msgstr "Negrita"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:206
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Not bold"
+msgstr "Sin negrita"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:208
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Bold:"
+msgstr "Negrita:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:210
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Italic"
+msgstr "Cursiva"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:210
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Not italic"
+msgstr "Sin cursiva"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:212
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Italic:"
+msgstr "Cursiva:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:218
+#, kde-format
+msgctxt "@label"
+msgid "Preview:"
+msgstr "Vista previa:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:278
+#, kde-format
+msgctxt "@item:inlistbox %1 is a list of MIME types"
+msgid "MIME type: %1"
+msgstr "Tipo MIME: %1"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:280
+#, kde-format
+msgctxt "@item:inlistbox %1 is a list of file name patterns"
+msgid "File name: %1"
+msgstr "Nombre de archivo: %1"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:386
+#, kde-format
+msgctxt "@label:textbox"
+msgid "MIME types:"
+msgstr "Tipos MIME:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:386
+#, kde-format
+msgctxt "@label:textbox"
+msgid "File name patterns:"
+msgstr "Patrones de nombre de archivo:"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:387
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "e.g. image/*; text/plain"
+msgstr "p. ej. image/*; text/plain"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:388
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "e.g. *.cpp; *.h; Makefile"
+msgstr "p. ej. *.cpp; *.h; Makefile"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:409
+#, kde-format
+msgctxt "@info"
+msgid "Enter at least one MIME type."
+msgstr "Introduzca al menos un tipo MIME."
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:409
+#, kde-format
+msgctxt "@info"
+msgid "Enter at least one pattern. Use * to match every name."
+msgstr ""
+"Introduzca al menos un patrón. Use * para que coincida con cualquier nombre."
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:413
+#, kde-format
+msgctxt "@info %1 is a list of MIME types"
+msgid "Unknown MIME types: %1"
+msgstr "Tipos MIME desconocidos: %1"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:421
+#, kde-format
+msgctxt "@info"
+msgid "File name patterns match names only and cannot contain \"/\"."
+msgstr ""
+"Los patrones de nombre de archivo solo comprueban el nombre y no pueden "
+"contener «/»."
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:455
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose MIME Types"
+msgstr "Elegir tipos MIME"
+
+#: settings/viewmodes/filenamehighlightingruledialog.cpp:456
+#, kde-format
+msgctxt "@info"
+msgid "Select the MIME types whose file names should be highlighted:"
+msgstr "Seleccione los tipos MIME cuyos nombres de archivo se deben resaltar:"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:158
+#, kde-format
+msgctxt "@title:column file name highlighting rule"
+msgid "Rule"
+msgstr "Regla"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:160
+#, kde-format
+msgctxt "@title:column"
+msgid "Preview"
+msgstr "Vista previa"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:179
+#, kde-format
+msgctxt "@title:group"
+msgid "File Names"
+msgstr "Nombres de archivo"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:183
+#, kde-format
+msgctxt "@option:check"
+msgid "Highlight file names"
+msgstr "Resaltar nombres de archivo"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:203
+#, kde-format
+msgctxt "@action:button"
+msgid "Add…"
+msgstr "Añadir…"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:204
+#, kde-format
+msgctxt "@action:button"
+msgid "Edit…"
+msgstr "Editar…"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:205
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove"
+msgstr "Eliminar"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:206
+#, kde-format
+msgctxt "@action:button"
+msgid "Move Up"
+msgstr "Subir"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:207
+#, kde-format
+msgctxt "@action:button"
+msgid "Move Down"
+msgstr "Bajar"
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:215
+#, kde-format
+msgctxt "@info"
+msgid "Rules higher in the list take precedence."
+msgstr "Las reglas más arriba en la lista tienen prioridad."
+
+#: settings/viewmodes/filenamehighlightingtab.cpp:219
+#, kde-format
+msgctxt "@title:group"
+msgid "Expanded Folders"
+msgstr "Carpetas desplegadas"
+
+#: settings/viewmodes/generalviewsettingspage.cpp:45
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Orcinus will add file system metadata to folders you change view properties "
+"for. If that is not possible, a hidden .directory file is created instead."
+msgstr ""
+"Orcinus añade metadatos del sistema de archivos a las carpetas cuyas "
+"propiedades de visualización cambie. Si no es posible, se crea en su lugar "
+"un archivo oculto .directory."
+
+#: settings/viewmodes/viewsettingspage.cpp:46
+#, kde-format
+msgctxt "@title:tab how file names are highlighted"
+msgid "Highlighting"
+msgstr "Resaltado"
+
+#: settings/viewmodes/viewsettingstab.cpp:73
+#, kde-format
+msgctxt "@info"
+msgid "Some font styles are reserved by Orcinus and may be overridden."
+msgstr ""
+"Algunos estilos de letra están reservados por Orcinus y pueden ser "
+"sobrescritos."
+
+#: settings/viewmodes/viewsettingstab.cpp:129
+#, kde-format
+msgctxt "@option:check"
+msgid "Drag files and folders from anywhere on the row"
+msgstr "Arrastrar archivos y carpetas desde cualquier parte de la fila"
+
+#: settings/viewmodes/viewsettingstab.cpp:131
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Hold Shift while dragging from the empty part of a row to start a selection "
+"rectangle instead."
+msgstr ""
+"Mantenga pulsada Mayúsculas al arrastrar desde la parte vacía de una fila "
+"para iniciar en su lugar un rectángulo de selección."
+
+#: settings/viewmodes/viewsettingstab.cpp:132
+#, kde-format
+msgctxt "@label:checkbox"
+msgid "Dragging:"
+msgstr "Arrastrar:"
+
+#: userfeedback/settingsdatasource.cpp:29
+#, kde-format
+msgctxt "description of kuserfeedback data source provided by Orcinus"
+msgid "A subset of Orcinus settings."
+msgstr "Una parte de las preferencias de Orcinus."
+
+#: views/dolphinviewactionhandler.cpp:385
+#, kde-kuit-format
+msgctxt "@info:whatsthis"
+msgid ""
+"<para>When this is enabled, <emphasis>hidden</emphasis> files and folders "
+"are visible. They will be displayed semi-transparent.</para><para>Hidden "
+"items only differ from normal ones in that their name starts with a dot (\"."
+"\"). Typically, there is no need for users to access them, which is why they "
+"are hidden.</para><para>Items can also be hidden if their names are listed "
+"in a text file named \".hidden\". Files with the \"application/x-trash\" "
+"MIME type, such as backup files, can also be hidden by enabling that setting "
+"in Configure Orcinus > View > General.</para>"
+msgstr ""
+"<para>Cuando esta opción está activada, los archivos y carpetas "
+"<emphasis>ocultos</emphasis> son visibles. Se muestran semitransparentes.</"
+"para><para>Los elementos ocultos solo se diferencian de los normales en que "
+"su nombre empieza por un punto («.»). Normalmente los usuarios no necesitan "
+"acceder a ellos, por eso están ocultos.</para><para>Los elementos también se "
+"pueden ocultar si su nombre figura en un archivo de texto llamado «.hidden». "
+"Los archivos con el tipo MIME «application/x-trash», como las copias de "
+"seguridad, también se pueden ocultar activando esa opción en Configurar "
+"Orcinus > Vista > General.</para>"
+
+#: views/dolphinview.cpp:242
+#, kde-format
+msgctxt "@info"
+msgid "Stopped expanding the folders: there are more than %1 items."
+msgstr "Se ha detenido el despliegue de las carpetas: hay más de %1 elementos."
+
+#: views/filenamehighlightingsettings.cpp:66
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting rule"
+msgid "Executable files"
+msgstr "Archivos ejecutables"
+
+#: views/filenamehighlightingsettings.cpp:72
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting rule"
+msgid "Symbolic links"
+msgstr "Enlaces simbólicos"
+
+#: views/filenamehighlightingsettings.cpp:77
+#, kde-format
+msgctxt "@item:inlistbox file name highlighting rule"
+msgid "Media files"
+msgstr "Archivos multimedia"
+
+#: whale/host/whalefileoperationsimpl.cpp:378
+#, kde-format
+msgctxt "@info"
+msgid "Do you really want to cut this item? It is moved when you paste it."
+msgid_plural ""
+"Do you really want to cut these %1 items? They are moved when you paste them."
+msgstr[0] "¿Seguro que quiere cortar este elemento? Se moverá cuando lo pegue."
+msgstr[1] ""
+"¿Seguro que quiere cortar estos %1 elementos? Se moverán cuando los pegue."
+
+#: whale/host/whalefileoperationsimpl.cpp:383
+#, kde-format
+msgctxt "@title:window"
+msgid "Cut"
+msgstr "Cortar"
+
+#: whale/host/whalefileoperationsimpl.cpp:385
+#, kde-format
+msgctxt "@action:button"
+msgid "Cut"
+msgstr "Cortar"
+
+#: whale/host/whalerecursivecontent.cpp:143
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot paste into a recursive view because no single destination folder is "
+"selected. Turn off “Show flat (no folders)” first."
+msgstr ""
+"No se puede pegar en una vista recursiva porque no hay una única carpeta de "
+"destino seleccionada. Desactive primero «Mostrar plano (sin carpetas)»."
+
+#: whale/host/whalerecursivecontent.cpp:147
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot drop files into a recursive view because it contains items from "
+"multiple folders. Turn off “Show flat (no folders)” to choose a destination."
+msgstr ""
+"No se pueden soltar archivos en una vista recursiva porque contiene "
+"elementos de varias carpetas. Desactive «Mostrar plano (sin carpetas)» para "
+"elegir un destino."
+
+#: whale/host/whalerecursivecontent.cpp:151
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot create new items in a recursive view because it contains items from "
+"multiple folders. Turn off “Show flat (no folders)” first."
+msgstr ""
+"No se pueden crear elementos nuevos en una vista recursiva porque contiene "
+"elementos de varias carpetas. Desactive primero «Mostrar plano (sin "
+"carpetas)»."
+
+#: whale/host/whalerecursivecontent.cpp:155
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot copy or move items into a recursive view because it contains items "
+"from multiple folders. Turn off “Show flat (no folders)” first."
+msgstr ""
+"No se pueden copiar ni mover elementos a una vista recursiva porque contiene "
+"elementos de varias carpetas. Desactive primero «Mostrar plano (sin "
+"carpetas)»."
+
+#: whale/host/whaletreescannerimpl.cpp:110
+#, kde-format
+msgctxt "@info"
+msgid "The location is not valid."
+msgstr "La ubicación no es válida."
+
+#: whale/host/whaletreescannerimpl.cpp:113
+#, kde-format
+msgctxt "@info %1 is a location"
+msgid "Only local folders can be scanned, not %1."
+msgstr "Solo se pueden analizar carpetas locales, no %1."
+
+#: whale/host/whaletreescannerimpl.cpp:116
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "The folder %1 does not exist."
+msgstr "La carpeta %1 no existe."
+
+#: whale/host/whaletreescannerimpl.cpp:119
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "%1 is not a folder."
+msgstr "%1 no es una carpeta."
+
+#: whale/host/whaletreescannerimpl.cpp:122
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "The folder %1 cannot be read."
+msgstr "No se puede leer la carpeta %1."
+
+#: whale/host/whaleviewactions.cpp:94
+#, kde-format
+msgctxt "@action:inmenu View menu"
+msgid "View Modes"
+msgstr "Modos de visualización"
+
+#: whale/host/whaleviewactions.cpp:102
+#, kde-format
+msgctxt "@action:inmenu View menu"
+msgid "Show flat (no folders)"
+msgstr "Mostrar plano (sin carpetas)"
+
+#: whale/host/whaleviewactions.cpp:104
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Show the files of all subfolders in the file list, without the folders"
+msgstr ""
+"Mostrar en la lista de archivos los archivos de todas las subcarpetas, sin "
+"las carpetas"
+
+#: whale/host/whaleviewhost.cpp:565
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot paste here because this view shows items from multiple folders. "
+"Switch to another view mode to choose a destination folder."
+msgstr ""
+"No se puede pegar aquí porque esta vista muestra elementos de varias "
+"carpetas. Cambie a otro modo de visualización para elegir una carpeta de "
+"destino."
+
+#: whale/host/whaleviewhost.cpp:569
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot drop files here because this view shows items from multiple folders. "
+"Switch to another view mode to choose a destination folder."
+msgstr ""
+"No se pueden soltar archivos aquí porque esta vista muestra elementos de "
+"varias carpetas. Cambie a otro modo de visualización para elegir una carpeta "
+"de destino."
+
+#: whale/host/whaleviewhost.cpp:573
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot create new items here because this view shows items from multiple "
+"folders. Switch to another view mode to choose a destination folder."
+msgstr ""
+"No se pueden crear elementos nuevos aquí porque esta vista muestra elementos "
+"de varias carpetas. Cambie a otro modo de visualización para elegir una "
+"carpeta de destino."
+
+#: whale/host/whaleviewhost.cpp:577
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Cannot copy or move items into this view because it shows items from "
+"multiple folders. Switch to another view mode to choose a destination folder."
+msgstr ""
+"No se pueden copiar ni mover elementos a esta vista porque muestra elementos "
+"de varias carpetas. Cambie a otro modo de visualización para elegir una "
+"carpeta de destino."
+
+#: whale/menubar/whalemenubaraction.cpp:35
+#, kde-format
+msgctxt "@action:intoolbar"
+msgid "Menu Bar"
+msgstr "Barra de menú"
+
+#: whale/menubar/whalemenubaraction.cpp:37
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The menus of the window"
+msgstr "Los menús de la ventana"
+
+#: whale/menubar/whalemenubaraction.cpp:74
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Menu"
+msgstr "Menú"
+
+#: whale/plugins/treemap/treemapview.cpp:406
+#, kde-format
+msgctxt "@option:check Treemap: show the names of entries"
+msgid "Names"
+msgstr "Nombres"
+
+#: whale/plugins/treemap/treemapview.cpp:416
+#, kde-format
+msgctxt "@info:tooltip Treemap"
+msgid "Zoom out to the folder above (wheel down, −)"
+msgstr "Alejar hasta la carpeta superior (rueda hacia abajo, −)"
+
+#: whale/plugins/treemap/treemapview.cpp:430
+#, kde-format
+msgctxt "@item:inlistbox Treemap colors"
+msgid "File Types"
+msgstr "Tipos de archivo"
+
+#: whale/plugins/treemap/treemapview.cpp:431
+#, kde-format
+msgctxt "@item:inlistbox Treemap colors"
+msgid "Top Folders"
+msgstr "Carpetas principales"
+
+#: whale/plugins/treemap/treemapview.cpp:432
+#, kde-format
+msgctxt "@info:tooltip Treemap"
+msgid ""
+"Colors of the entries: by file type, or by the folder of the location they "
+"are in"
+msgstr ""
+"Colores de las entradas: por tipo de archivo o por la carpeta de la "
+"ubicación en la que están"
+
+#: whale/plugins/treemap/treemapview.cpp:545
+#, kde-format
+msgctxt "@info Treemap"
+msgid "The treemap can only show local folders."
+msgstr "El mapa de árbol solo puede mostrar carpetas locales."
+
+#: whale/plugins/treemap/treemapview.cpp:550
+#, kde-format
+msgctxt "@info Treemap"
+msgid ""
+"Scanning %1…\n"
+"%2 entries so far"
+msgstr ""
+"Analizando %1…\n"
+"%2 entradas hasta ahora"
+
+#: whale/plugins/treemap/treemapview.cpp:551
+#, kde-format
+msgctxt "@info Treemap"
+msgid "Scanning %1…"
+msgstr "Analizando %1…"
+
+#: whale/plugins/treemap/treemapview.cpp:553
+#, kde-format
+msgctxt "@info Treemap"
+msgid "Nothing in this folder takes up space."
+msgstr "Nada en esta carpeta ocupa espacio."
+
+#: whale/plugins/treemap/treemapview.cpp:555
+#, kde-format
+msgctxt "@info Treemap: %1 is the reason"
+msgid ""
+"The folder cannot be shown as a treemap:\n"
+"%1\n"
+"\n"
+"Press F5 to try again."
+msgstr ""
+"La carpeta no se puede mostrar como mapa de árbol:\n"
+"%1\n"
+"\n"
+"Pulse F5 para volver a intentarlo."
+
+#: whale/plugins/treemap/treemapview.cpp:868
+#, kde-format
+msgctxt "@action:inmenu Treemap: open the file or enter the folder"
+msgid "Open"
+msgstr "Abrir"
+
+#: whale/plugins/treemap/treemapview.cpp:876
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Open With…"
+msgstr "Abrir con…"
+
+#: whale/plugins/treemap/treemapview.cpp:884
+#, kde-format
+msgctxt ""
+"@action:inmenu Treemap: go to the folder that contains this folder and "
+"select it"
+msgid "Show in Parent Folder"
+msgstr "Mostrar en la carpeta superior"
+
+#: whale/plugins/treemap/treemapview.cpp:885
+#, kde-format
+msgctxt "@action:inmenu Treemap: go to the folder of this file and select it"
+msgid "Show in Folder"
+msgstr "Mostrar en la carpeta"
+
+#: whale/plugins/treemap/treemapview.cpp:890
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Copy"
+msgstr "Copiar"
+
+#: whale/plugins/treemap/treemapview.cpp:893
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Cut"
+msgstr "Cortar"
+
+#: whale/plugins/treemap/treemapview.cpp:899
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Copy Location"
+msgstr "Copiar ubicación"
+
+#: whale/plugins/treemap/treemapview.cpp:904
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Rename…"
+msgstr "Cambiar nombre…"
+
+#: whale/plugins/treemap/treemapview.cpp:907
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Move to Trash"
+msgstr "Mover a la papelera"
+
+#: whale/plugins/treemap/treemapview.cpp:910
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Delete"
+msgstr "Borrar"
+
+#: whale/plugins/treemap/treemapview.cpp:917
+#, kde-format
+msgctxt "@action:inmenu Treemap"
+msgid "Properties"
+msgstr "Propiedades"
+
+#: whale/plugins/treemap/treemapview.cpp:1106
+#, kde-format
+msgctxt "@info Treemap: %1 is the folder, %2 its size"
+msgid "%1 — %2"
+msgstr "%1 — %2"
+
+#: whale/plugins/treemap/treemapview.cpp:1122
+#, kde-format
+msgctxt "@info Treemap"
+msgid "%1 small entry — %2"
+msgid_plural "%1 small entries — %2"
+msgstr[0] "%1 entrada pequeña — %2"
+msgstr[1] "%1 entradas pequeñas — %2"
+
+#: whale/plugins/treemap/treemapview.cpp:1127
+#, kde-format
+msgctxt "@info Treemap: %1 folder, %2 size, %3 number of files"
+msgid "%1 — %2 in %3 files"
+msgstr "%1 — %2 en %3 archivos"
+
+#: whale/plugins/treemap/treemapview.cpp:1131
+#, kde-format
+msgctxt "@info Treemap: %1 file, %2 size"
+msgid "%1 — %2"
+msgstr "%1 — %2"
+
+#: whale/scripts/whalescriptlauncher.cpp:244
+#, kde-format
+msgctxt "@info:shell %1 is the exit code of a script run in a terminal"
+msgid "The script ended with exit code %1."
+msgstr "El script terminó con el código de salida %1."
+
+#: whale/scripts/whalescriptlauncher.cpp:245
+#, kde-format
+msgctxt "@info:shell"
+msgid "Press Enter to close this window."
+msgstr "Pulse Intro para cerrar esta ventana."
+
+#: whale/splitview/whalesplitlock.cpp:91
+#, kde-format
+msgctxt "@info"
+msgid "Search results cannot be linked."
+msgstr "Los resultados de búsqueda no se pueden enlazar."
+
+#: whale/splitview/whalesplitlock.cpp:94
+#, kde-format
+msgctxt "@info"
+msgid "Only local folders can be linked."
+msgstr "Solo se pueden enlazar carpetas locales."
+
+#: whale/splitview/whalesplitlock.cpp:99
+#, kde-format
+msgctxt "@info"
+msgid "This view cannot be linked."
+msgstr "Esta vista no se puede enlazar."
+
+#: whale/splitview/whalesplitlock.cpp:192
+#, kde-format
+msgctxt "@info"
+msgid ""
+"While the views are linked, only items of one folder can be selected. This "
+"also applies to the flat view, which does not show the folders."
+msgstr ""
+"Mientras las vistas estén enlazadas, solo se pueden seleccionar elementos de "
+"una carpeta. Esto también vale para la vista plana, que no muestra las "
+"carpetas."
+
+#: whale/splitview/whalesplitlock.cpp:195
+#, kde-format
+msgctxt "@info"
+msgid "While the views are linked, only items of one folder can be selected."
+msgstr ""
+"Mientras las vistas estén enlazadas, solo se pueden seleccionar elementos de "
+"una carpeta."
+
+#: whale/splitview/whalesplitlock.cpp:269
+#, kde-format
+msgctxt "@info %1 is why"
+msgid "The views are no longer linked. %1"
+msgstr "Las vistas ya no están enlazadas. %1"
+
+#: whale/splitview/whalesplitlock.cpp:328
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Unlink Views"
+msgstr "Desenlazar las vistas"
+
+#: whale/splitview/whalesplitlock.cpp:330
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Link Views: both views go to the same folder and select the same items"
+msgstr ""
+"Enlazar las vistas: ambas vistas van a la misma carpeta y seleccionan los "
+"mismos elementos"
+
+#: whale/splitview/whalesplitlock.cpp:332
+#, kde-format
+msgctxt "@info:tooltip %1 is why"
+msgid "The views cannot be linked. %1"
+msgstr "Las vistas no se pueden enlazar. %1"
+
+#: whale/splitview/whalesplitviewbutton.cpp:103
+#, kde-format
+msgctxt "@info:tooltip View refer here to split view"
+msgid ""
+"Close Right View\n"
+"Right-click to move it to a new tab or window"
+msgstr ""
+"Cerrar la vista de la derecha\n"
+"Clic derecho para moverla a una pestaña o ventana nueva"
+
+#: whale/styles/whalestyleelementtypes.cpp:104
+#, kde-format
+msgctxt "@item:intext view mode"
+msgid "Icons"
+msgstr "Iconos"
+
+#: whale/styles/whalestyleelementtypes.cpp:106
+#, kde-format
+msgctxt "@item:intext view mode"
+msgid "Compact"
+msgstr "Compacta"
+
+#: whale/styles/whalestyleelementtypes.cpp:108
+#, kde-format
+msgctxt "@item:intext view mode"
+msgid "Details"
+msgstr "Detalles"
+
+#: whale/styles/whalestyleelementtypes.cpp:124
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Split view"
+msgstr "Vista dividida"
+
+#: whale/styles/whalestyleelementtypes.cpp:153
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "Two views"
+msgstr "Dos vistas"
+
+#: whale/styles/whalestyleelementtypes.cpp:153
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "One view"
+msgstr "Una vista"
+
+#: whale/styles/whalestyleelementtypes.cpp:172
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Style of the left view"
+msgstr "Estilo de la vista izquierda"
+
+#: whale/styles/whalestyleelementtypes.cpp:173
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Style of the right view"
+msgstr "Estilo de la vista derecha"
+
+#: whale/styles/whalestyleelementtypes.cpp:224
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "previews"
+msgstr "vistas previas"
+
+#: whale/styles/whalestyleelementtypes.cpp:227
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "hidden files"
+msgstr "archivos ocultos"
+
+#: whale/styles/whalestyleelementtypes.cpp:229
+#: whale/styles/whalestyleelementtypes.cpp:653
+#, kde-format
+msgctxt "@item:intext separator of a list"
+msgid ", "
+msgstr ", "
+
+#: whale/styles/whalestyleelementtypes.cpp:275
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "View on the left"
+msgstr "Vista de la izquierda"
+
+#: whale/styles/whalestyleelementtypes.cpp:276
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "View on the right"
+msgstr "Vista de la derecha"
+
+#: whale/styles/whalestyleelementtypes.cpp:312
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "File list"
+msgstr "Lista de archivos"
+
+#: whale/styles/whalestyleelementtypes.cpp:353
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Linked views"
+msgstr "Vistas enlazadas"
+
+#: whale/styles/whalestyleelementtypes.cpp:374
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "Linked"
+msgstr "Enlazadas"
+
+#: whale/styles/whalestyleelementtypes.cpp:374
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "Not linked"
+msgstr "No enlazadas"
+
+#: whale/styles/whalestyleelementtypes.cpp:483
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Filter of the left view"
+msgstr "Filtro de la vista izquierda"
+
+#: whale/styles/whalestyleelementtypes.cpp:484
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Filter of the right view"
+msgstr "Filtro de la vista derecha"
+
+#: whale/styles/whalestyleelementtypes.cpp:538
+#: whale/styles/whalestyleelementtypes.cpp:694
+#: whale/styles/whalestyleelementtypes.cpp:780
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "Hidden"
+msgstr "Oculto"
+
+#: whale/styles/whalestyleelementtypes.cpp:543
+#, kde-format
+msgctxt "@item:intext the filter applies to"
+msgid "files"
+msgstr "archivos"
+
+#: whale/styles/whalestyleelementtypes.cpp:546
+#, kde-format
+msgctxt "@item:intext the filter applies to"
+msgid "folders"
+msgstr "carpetas"
+
+#: whale/styles/whalestyleelementtypes.cpp:549
+#, kde-format
+msgctxt "@item:intext the filter applies to"
+msgid "files and folders"
+msgstr "archivos y carpetas"
+
+#: whale/styles/whalestyleelementtypes.cpp:552
+#, kde-format
+msgctxt "@item:intext style element value, %1 what the filter applies to"
+msgid "Shown, empty (%1)"
+msgstr "Visible, vacío (%1)"
+
+#: whale/styles/whalestyleelementtypes.cpp:553
+#, kde-format
+msgctxt ""
+"@item:intext style element value, %1 the filter, %2 what it applies to"
+msgid "\"%1\" (%2)"
+msgstr "«%1» (%2)"
+
+#: whale/styles/whalestyleelementtypes.cpp:608
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Zoom"
+msgstr "Ampliación"
+
+#: whale/styles/whalestyleelementtypes.cpp:651
+#, kde-format
+msgctxt "@item:intext view mode, icon size / preview size in pixels"
+msgid "%1 %2/%3"
+msgstr "%1 %2/%3"
+
+#: whale/styles/whalestyleelementtypes.cpp:668
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Menu bar"
+msgstr "Barra de menú"
+
+#: whale/styles/whalestyleelementtypes.cpp:694
+#: whale/styles/whalestyleelementtypes.cpp:780
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "Shown"
+msgstr "Visible"
+
+#: whale/styles/whalestyleelementtypes.cpp:709
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Toolbars"
+msgstr "Barras de herramientas"
+
+#: whale/styles/whalestyleelementtypes.cpp:741
+#, kde-format
+msgctxt "@item:intext toolbar"
+msgid "Main Toolbar"
+msgstr "Barra de herramientas principal"
+
+#: whale/styles/whalestyleelementtypes.cpp:744
+#: whale/styles/whalestyleelementtypes.cpp:911
+#, kde-format
+msgctxt "@item:intext style element value"
+msgid "None shown"
+msgstr "Ninguna visible"
+
+#: whale/styles/whalestyleelementtypes.cpp:745
+#, kde-format
+msgctxt "@item:intext style element value, list of toolbars"
+msgid "Shown: %1"
+msgstr "Visibles: %1"
+
+#: whale/styles/whalestyleelementtypes.cpp:760
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "File View Toolbars"
+msgstr "Barras de herramientas de las vistas de archivos"
+
+#: whale/styles/whalestyleelementtypes.cpp:806
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Status bar"
+msgstr "Barra de estado"
+
+#: whale/styles/whalestyleelementtypes.cpp:832
+#, kde-format
+msgctxt "@item:intext status bar"
+msgid "Small"
+msgstr "Pequeña"
+
+#: whale/styles/whalestyleelementtypes.cpp:835
+#, kde-format
+msgctxt "@item:intext status bar"
+msgid "Full width"
+msgstr "Ancho completo"
+
+#: whale/styles/whalestyleelementtypes.cpp:838
+#, kde-format
+msgctxt "@item:intext status bar"
+msgid "Hidden"
+msgstr "Oculta"
+
+#: whale/styles/whalestyleelementtypes.cpp:867
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Panels"
+msgstr "Paneles"
+
+#: whale/styles/whalestyleelementtypes.cpp:902
+#, kde-format
+msgctxt "@item:intext panel"
+msgid "Places"
+msgstr "Lugares"
+
+#: whale/styles/whalestyleelementtypes.cpp:904
+#, kde-format
+msgctxt "@item:intext panel"
+msgid "Folders"
+msgstr "Carpetas"
+
+#: whale/styles/whalestyleelementtypes.cpp:906
+#, kde-format
+msgctxt "@item:intext panel"
+msgid "Information"
+msgstr "Información"
+
+#: whale/styles/whalestyleelementtypes.cpp:908
+#, kde-format
+msgctxt "@item:intext panel"
+msgid "Terminal"
+msgstr "Terminal"
+
+#: whale/styles/whalestyleelementtypes.cpp:912
+#, kde-format
+msgctxt "@item:intext style element value, list of panels"
+msgid "Shown: %1"
+msgstr "Visibles: %1"
+
+#: whale/styles/whalestylemanager.cpp:91
+#, kde-format
+msgctxt "@action:inmenu View"
+msgid "Styles"
+msgstr "Estilos"
+
+#: whale/styles/whalestylemanager.cpp:94
+#, kde-format
+msgctxt "@info:whatsthis"
+msgid ""
+"A style switches the whole look of the window at once: one or two views, "
+"their view modes, toolbars, panels and the status bar. Give a style a "
+"shortcut in <interface>Configure Keyboard Shortcuts</interface>."
+msgstr ""
+"Un estilo cambia de una vez todo el aspecto de la ventana: una o dos vistas, "
+"sus modos de visualización, las barras de herramientas, los paneles y la "
+"barra de estado. Asigne un atajo a un estilo en <interface>Configurar los "
+"atajos de teclado</interface>."
+
+#: whale/styles/whalestylemanager.cpp:102
+#, kde-format
+msgctxt "@action:inmenu Styles"
+msgid "Save as Style…"
+msgstr "Guardar como estilo…"
+
+#: whale/styles/whalestylemanager.cpp:111
+#, kde-format
+msgctxt "@title:group of shortcuts"
+msgid "Styles"
+msgstr "Estilos"
+
+#: whale/styles/whalestylemanager.cpp:195
+#, kde-format
+msgctxt "@action:inmenu Styles, %1 the style applied last"
+msgid "Save Style \"%1\""
+msgstr "Guardar el estilo «%1»"
+
+#: whale/styles/whalestylemanager.cpp:196
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Save the current state of the window as the style \"%1\""
+msgstr "Guardar el estado actual de la ventana como el estilo «%1»"
+
+#: whale/styles/whalestylemanager.cpp:198
+#, kde-format
+msgctxt "@action:inmenu Styles"
+msgid "Save Style"
+msgstr "Guardar estilo"
+
+#: whale/styles/whalestylemanager.cpp:199
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Apply a style first; this saves the current state of the window as that style"
+msgstr ""
+"Aplique primero un estilo; esto guarda entonces el estado actual de la "
+"ventana como ese estilo"
+
+#: whale/styles/whalestylemanager.cpp:284
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Apply the style \"%1\" to the window"
+msgstr "Aplicar el estilo «%1» a la ventana"
+
+#: whale/styles/whalestylemanager.cpp:307
+#, kde-format
+msgctxt "@title:window"
+msgid "Save as Style"
+msgstr "Guardar como estilo"
+
+#: whale/styles/whalestylemanager.cpp:308
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the style:"
+msgstr "Nombre del estilo:"
+
+#: whale/styles/whalestylemanager.cpp:321
+#, kde-format
+msgctxt "@info"
+msgid ""
+"There is already a style named \"%1\". Replace it with the current state of "
+"the window?"
+msgstr ""
+"Ya existe un estilo llamado «%1». ¿Reemplazarlo por el estado actual de la "
+"ventana?"
+
+#: whale/styles/whalestylemanager.cpp:322
+#, kde-format
+msgctxt "@title:window"
+msgid "Replace Style"
+msgstr "Reemplazar estilo"
+
+#: whale/styles/whalestylemanager.cpp:323
+#, kde-format
+msgctxt "@action:button"
+msgid "Replace"
+msgstr "Reemplazar"
+
+#: whale/styles/whalestylessettingspage.cpp:53
+#, kde-format
+msgctxt "@action:button"
+msgid "New from Window"
+msgstr "Nuevo desde la ventana"
+
+#: whale/styles/whalestylessettingspage.cpp:55
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Add a style with the current state of the window"
+msgstr "Añadir un estilo con el estado actual de la ventana"
+
+#: whale/styles/whalestylessettingspage.cpp:60
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Move up"
+msgstr "Subir"
+
+#: whale/styles/whalestylessettingspage.cpp:63
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Move down"
+msgstr "Bajar"
+
+#: whale/styles/whalestylessettingspage.cpp:83
+#, kde-format
+msgctxt "@label"
+msgid "Shortcut:"
+msgstr "Atajo:"
+
+#: whale/styles/whalestylessettingspage.cpp:86
+#, kde-format
+msgctxt "@label"
+msgid "The style sets:"
+msgstr "El estilo establece:"
+
+#: whale/styles/whalestylessettingspage.cpp:91
+#, kde-format
+msgctxt "@title:column"
+msgid "Element"
+msgstr "Elemento"
+
+#: whale/styles/whalestylessettingspage.cpp:91
+#, kde-format
+msgctxt "@title:column"
+msgid "Value"
+msgstr "Valor"
+
+#: whale/styles/whalestylessettingspage.cpp:94
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"An element without a check mark is left as it is when the style is applied."
+msgstr "Un elemento sin marca se deja como está al aplicar el estilo."
+
+#: whale/styles/whalestylessettingspage.cpp:98
+#, kde-format
+msgctxt "@action:button"
+msgid "Capture Again"
+msgstr "Capturar de nuevo"
+
+#: whale/styles/whalestylessettingspage.cpp:100
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Take the values from the current state of the window"
+msgstr "Tomar los valores del estado actual de la ventana"
+
+#: whale/styles/whalestylessettingspage.cpp:101
+#, kde-format
+msgctxt "@action:button"
+msgid "Apply to Window"
+msgstr "Aplicar a la ventana"
+
+#: whale/styles/whalestylessettingspage.cpp:103
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Apply the style to the window now, as shown here"
+msgstr "Aplicar ahora el estilo a la ventana, tal como se muestra aquí"
+
+#: whale/styles/whalestylessettingspage.cpp:111
+#, kde-format
+msgctxt "@info"
+msgid "Apply a style from View → Styles or by its shortcut."
+msgstr "Aplique un estilo desde Vista → Estilos o con su atajo."
+
+#: whale/styles/whalestylessettingspage.cpp:197
+#, kde-format
+msgctxt "@item:intext style element"
+msgid "Not captured"
+msgstr "No capturado"
+
+#: whale/styles/whalestylessettingspage.cpp:200
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Not part of this style. Capture it again to add it."
+msgstr "No forma parte de este estilo. Captúrelo de nuevo para añadirlo."
+
+#: whale/styles/whalestylessettingspage.cpp:201
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Not part of this style, so applied like this. Capture it again to change it."
+msgstr ""
+"No forma parte de este estilo, por eso se aplica así. Captúrelo de nuevo "
+"para cambiarlo."
+
+#: whale/styles/whalestylessettingspage.cpp:210
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Not applied in the current settings (only with one view style for all "
+"folders)."
+msgstr ""
+"No se aplica con las preferencias actuales (solo con un único estilo de "
+"vista para todas las carpetas)."
+
+#: whale/styles/whalestylessettingspage.cpp:220
+#, kde-format
+msgctxt "@item:intext style element"
+msgid "From a newer version of Orcinus"
+msgstr "De una versión más reciente de Orcinus"
+
+#: whale/styles/whalestylessettingspage.cpp:278
+#, kde-format
+msgctxt "@item name of a new style"
+msgid "New Style"
+msgstr "Estilo nuevo"
+
+#: whale/styles/whalestylessettingspage.cpp:280
+#, kde-format
+msgctxt "@item name of a new style, %1 a number"
+msgid "New Style %1"
+msgstr "Estilo nuevo %1"
+
+#: whale/styles/whalestylessettingspage.cpp:367
+#, kde-format
+msgctxt "@info"
+msgid "The shortcut %1 is already used by \"%2\"."
+msgstr "El atajo %1 ya lo usa «%2»."
+
+#: whale/styles/whalestylessettingspage.cpp:368
+#, kde-format
+msgctxt "@title:window"
+msgid "Shortcut in Use"
+msgstr "Atajo en uso"
+
+#: whale/toolbars/whalefileviewtoolbar.cpp:355
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Configure File View Toolbar…"
+msgstr "Configurar la barra de herramientas de la vista de archivos…"
+
+#: whale/toolbars/whalefileviewtoolbar.cpp:363
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Hide File View Toolbars"
+msgstr "Ocultar las barras de herramientas de las vistas de archivos"
+
+#: whale/toolbars/whalelocationbar.cpp:149
+#: whale/toolbars/whaletoolbarconfigurator.cpp:124
+#, kde-format
+msgctxt "@action:intoolbar"
+msgid "Location Bar"
+msgstr "Barra de ubicación"
+
+#: whale/toolbars/whaletoolbarmanager.cpp:66
+#, kde-format
+msgctxt "@action:inmenu View"
+msgid "Show File View Toolbars"
+msgstr "Mostrar las barras de herramientas de las vistas de archivos"
+
+#: whale/toolbars/whaletoolbarmanager.cpp:68
+#, kde-format
+msgctxt "@info:whatsthis"
+msgid ""
+"This shows or hides the toolbars at the top of the file views, in all views, "
+"tabs and windows. They can be configured in Configure Toolbars also while "
+"they are hidden."
+msgstr ""
+"Muestra u oculta las barras de herramientas de la parte superior de las "
+"vistas de archivos, en todas las vistas, pestañas y ventanas. Se pueden "
+"configurar en Configurar las barras de herramientas incluso mientras están "
+"ocultas."
+
+#. i18n: file: src/whale/toolbars/whalefileviewtoolbarui.rc
+#: (rc, kcfg or ui file)
+#, kde-format
+msgctxt "@title:menu"
+msgid "File View Toolbar"
+msgstr "Barra de herramientas de la vista de archivos"
+
+#: whale/viewer/whaleviewer.cpp:83
+#, kde-format
+msgctxt "@title:window"
+msgid "Viewer"
+msgstr "Visor"
+
+#: whale/viewer/whaleviewer.cpp:242
+#, kde-format
+msgctxt "@info:status in the viewer"
+msgid "First file"
+msgstr "Primer archivo"
+
+#: whale/viewer/whaleviewer.cpp:242
+#, kde-format
+msgctxt "@info:status in the viewer"
+msgid "Last file"
+msgstr "Último archivo"
+
+#: whale/viewer/whaleviewer.cpp:617
+#, kde-format
+msgctxt "@info in the viewer, %1 is a file name"
+msgid "%1 cannot be displayed."
+msgstr "No se puede mostrar %1."
+
+#: whale/viewer/whaleviewer.cpp:676 whale/viewer/whaleviewer.cpp:729
+#, kde-format
+msgctxt "@info in the controls of a video in the viewer"
+msgid "Muted"
+msgstr "Silenciado"
+
+#: whale/viewer/whaleviewersettingspage.cpp:56
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Orcinus shows these file types in its own viewer when they are opened, "
+"instead of opening their application:"
+msgstr ""
+"Orcinus muestra estos tipos de archivo en su propio visor cuando se abren, "
+"en lugar de abrir su aplicación:"
+
+#: whale/viewer/whaleviewersettingspage.cpp:62
+#, kde-format
+msgctxt "@title:column"
+msgid "File Type"
+msgstr "Tipo de archivo"
+
+#: whale/viewer/whaleviewersettingspage.cpp:62
+#, kde-format
+msgctxt "@title:column"
+msgid "MIME Type"
+msgstr "Tipo MIME"
+
+#: whale/viewer/whaleviewersettingspage.cpp:69
+#, kde-format
+msgctxt "@item:inlistbox file types"
+msgid "Images"
+msgstr "Imágenes"
+
+#: whale/viewer/whaleviewersettingspage.cpp:71
+#, kde-format
+msgctxt "@item:inlistbox file types"
+msgid "Videos"
+msgstr "Vídeos"
+
+#: whale/viewer/whaleviewersettingspage.cpp:74
+#, kde-format
+msgctxt "@option:check"
+msgid "Continue with the first file after the last one"
+msgstr "Continuar con el primer archivo después del último"
+
+#: whale/viewer/whaleviewersettingspage.cpp:75
+#, kde-format
+msgctxt "@option:check"
+msgid "Enlarge small images to fill the screen"
+msgstr "Ampliar las imágenes pequeñas para llenar la pantalla"
+
+#: whale/viewer/whaleviewersettingspage.cpp:76
+#, kde-format
+msgctxt "@option:check"
+msgid "Smooth the pixels when zoomed in beyond 100%"
+msgstr "Suavizar los píxeles con una ampliación superior al 100 %"
+
+#: whale/viewer/whaleviewersettingspage.cpp:78
+#, kde-format
+msgctxt "@option:check"
+msgid "Play videos as soon as they are shown"
+msgstr "Reproducir los vídeos en cuanto se muestran"
+
+#: whale/viewer/whaleviewersettingspage.cpp:79
+#, kde-format
+msgctxt "@option:check"
+msgid "Play the sound of videos"
+msgstr "Reproducir el sonido de los vídeos"
+
+#: whale/viewer/whaleviewersettingspage.cpp:80
+#, kde-format
+msgctxt "@option:check"
+msgid "Play videos over and over"
+msgstr "Reproducir los vídeos una y otra vez"
+
+#. i18n: file: src/dolphinpart.rc
+#: (rc, kcfg or ui file)
+#, kde-format
+msgctxt "@title:menu"
+msgid "Orcinus Toolbar"
+msgstr "Barra de herramientas de Orcinus"
+
+#. i18n: file: src/settings/dolphin_detailsmodesettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid "Drag files and folders from anywhere on the row"
+msgstr "Arrastrar archivos y carpetas desde cualquier parte de la fila"
+
+#. i18n: file: src/settings/dolphin_generalsettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid ""
+"Should an externally called folder open in a new tab in an existing Orcinus "
+"instance"
+msgstr ""
+"Si una carpeta llamada desde fuera debe abrirse en una pestaña nueva de una "
+"instancia existente de Orcinus"
+
+#. i18n: file: src/settings/dolphin_generalsettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid ""
+"Should opening a symbolic link to a folder show the folder at its target path"
+msgstr ""
+"Si al abrir un enlace simbólico a una carpeta se debe mostrar la carpeta en "
+"la ruta de su destino"
+
+#. i18n: file: src/settings/dolphin_generalsettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid ""
+"Internal config version of Orcinus, mainly used to determine whether an "
+"updated version of Orcinus is running, so as to migrate config entries that "
+"were removed/renamed ...etc"
+msgstr ""
+"Versión interna de la configuración de Orcinus, usada principalmente para "
+"saber si se está ejecutando una versión más reciente de Orcinus y migrar las "
+"entradas de configuración eliminadas o renombradas"
+
+#. i18n: file: src/settings/dolphin_generalsettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid "Whether new windows and tabs open with a split view"
+msgstr "Si las ventanas y pestañas nuevas se abren con una vista dividida"

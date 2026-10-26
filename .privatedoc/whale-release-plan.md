@@ -296,6 +296,26 @@ Findings:
 - Verify that the translations built from `dolphin.po` plus the Whale strings work in a
   running Whale in at least German and one RTL language.
 
+#### Done (2026-10-26)
+
+- **String freeze on master from 2026-10-26:** user-visible strings change only for real fixes,
+  and such a commit says so in its message ("String change: …").
+- 296 strings exist only in Orcinus (295 own + one upstream-style kcfg label); everything else
+  comes from Dolphin's catalogs. Extraction and merging: `po-orcinus/update-catalogs.sh`
+  (`extractrc.py` replaces KDE's extractrc, which is not installed here). Context comments
+  checked (7 strings without context are kcfg labels and upstream-style messages); no
+  hard-coded user-visible strings found.
+- Languages (user decision): German plus French, Spanish, Italian, Brazilian Portuguese,
+  Polish, Russian, Simplified Chinese, Japanese — all 296 strings, translated by the AI model
+  with Dolphin's terminology per language; not marked fuzzy (msgfmt would drop them), the file
+  headers say they are unreviewed machine translations. German waits for the maintainer's
+  review.
+- Workflow (user decision): pull requests now, Weblate (hosted.weblate.org) once the repository
+  is public (RL9); documented in `CONTRIBUTING.md`.
+- Verified: `LANGUAGE=de orcinus --help`; offscreen screenshots of a split view with the treemap
+  in German (own strings translated) and Arabic (right-to-left layout mirrored correctly, own
+  strings in English as there is no Arabic catalog).
+
 ### RL3: Release engineering
 
 - Version scheme: own (e.g. 1.0.0) or tied to Dolphin's release version. Record the Dolphin
@@ -388,8 +408,6 @@ Findings:
 
 ## Open questions (decided in the respective steps)
 
-- Languages of the first translation batch (RL2).
-- Translation workflow after release (RL2).
 - Version scheme (RL3).
 - FileManager1 opt-in in the first release (RL3).
 - Distro list (RL4) and package formats (RL5).
