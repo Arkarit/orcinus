@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2026 Whale contributors
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
 # SPDX-License-Identifier: BSD-3-Clause
 
 if(NOT DEFINED SOURCE_DIR)

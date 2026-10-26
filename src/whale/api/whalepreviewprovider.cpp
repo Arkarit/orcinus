@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Whale contributors
+ * SPDX-FileCopyrightText: 2026 Orcinus contributors
  *
  * SPDX-License-Identifier: LGPL-2.0-or-later
  */
