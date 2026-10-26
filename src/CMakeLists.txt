@@ -57,7 +57,7 @@ else()
     # Whale (B2): a private copy under Dolphin's SONAME, found through the RUNPATH of the private
     # library, so no Dolphin package is needed. Dolphin's VCS plugins, if installed, use this copy:
     # they need a loaded libdolphinvcs.so.6, and plugin loading casts to this very class.
-    install(TARGETS dolphinvcs LIBRARY DESTINATION ${KDE_INSTALL_LIBDIR}/${WHALE_COMPONENT} NAMELINK_SKIP)
+    install(TARGETS dolphinvcs LIBRARY DESTINATION ${WHALE_PRIVATE_LIBDIR} NAMELINK_SKIP)
 endif()
 
 ########### next target ###############
@@ -261,11 +261,8 @@ if(HAVE_BALOO)
     )
 endif()
 
-if(NOT WHALE_INSTALL_DOLPHIN_EXTRAS)
-    # Whale (B2): finds the private libdolphinvcs, see above.
-    set(whale_private_rpath "$ORIGIN/${WHALE_COMPONENT}" ${CMAKE_INSTALL_RPATH})
-    set_target_properties(dolphinprivate PROPERTIES INSTALL_RPATH "${whale_private_rpath}")
-endif()
+# Whale (B2): finds the private libdolphinvcs, see above.
+whale_use_private_libdir(dolphinprivate "${KDE_INSTALL_FULL_LIBDIR}")
 set_target_properties(dolphinprivate PROPERTIES
     OUTPUT_NAME ${WHALE_COMPONENT}private
     VERSION ${DOLPHINPRIVATE_VERSION}
@@ -536,6 +533,8 @@ endif()
 add_executable(dolphin)
 
 set_target_properties(dolphin PROPERTIES OUTPUT_NAME ${WHALE_EXECUTABLE})
+# Whale (B3): finds the private liborcinusviewapi.
+whale_use_private_libdir(dolphin "${KDE_INSTALL_FULL_BINDIR}")
 
 target_sources(dolphin PRIVATE
     dbusinterface.cpp

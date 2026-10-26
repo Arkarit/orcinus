@@ -119,7 +119,10 @@ versioned. To decide: whether the plugin API is meant for third parties and prom
 declared internal/unstable for 1.0 (proposal); and how config key changes are migrated once
 users have them.
 
-#### Analysis (2026-10-26, awaiting the user's decision)
+**Decided 2026-10-26:** proposals 1–4 below accepted; `liborcinusviewapi` is installed privately
+(done, see the end of this section). A stable public plugin API is **not** part of 1.0.
+
+#### Analysis (2026-10-26)
 
 What Orcinus fixes towards the outside, and how it is handled today:
 
@@ -149,6 +152,27 @@ Proposals:
    Own migrations go the same way instead of ad hoc flags. To verify before implementing: when
    KF6 runs `kconf_update` for an application. Implementation belongs in RL3.
 4. **Command line:** the documented options are stable; `--view-style` stays internal.
+
+Why not a stable plugin API already for 1.0 (discussed 2026-10-26): technically close (most API
+classes have d-pointers, the API has been quiet since 2026-10-07 apart from linked split views),
+but only one real plugin (the treemap) has shaped it; public headers would carry the internal
+`Whale*` class names (N1), so a freeze needs a rename of the API first; host-implemented interfaces
+(`WhaleViewContext`, 12 virtuals; `WhaleFileOperations`, 15) need extension points before they
+can be frozen; and headers, CMake config, docs, an example plugin and an ABI check in CI are
+release work without any external user yet. **After 1.0, as its own feature:** once a second
+plugin exists and the API has stayed unchanged for one or two releases, rename the API classes,
+freeze it as API 1 with extension points, install headers and CMake config, add an ABI check
+(e.g. libabigail). Possible earlier: a "technology preview" with installed headers and the
+explicit rule that plugins are rebuilt for every Orcinus version (the exact version check exists).
+
+Implemented (2026-10-26): `WHALE_PRIVATE_LIBDIR` (`lib/<arch>/orcinus`) and
+`whale_use_private_libdir()` in the top-level CMakeLists; `liborcinusviewapi` installed there;
+RUNPATHs `$ORIGIN/../lib/<arch>/orcinus` (binary), `$ORIGIN/orcinus` (`liborcinusprivate`),
+`$ORIGIN/../../../../orcinus` (treemap plugin). `global-install-orcinus.sh` now rejects any
+absolute RUNPATH entry and checks that the libraries the binary needs are in the private
+directory. Tested on the staged install with the system `libdolphinvcs` hidden: Orcinus runs,
+maps both private libraries, Dolphin's Git plugin works; the treemap resolves its API library
+on its own.
 
 ## Order
 

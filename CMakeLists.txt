@@ -50,6 +50,15 @@ include(ECMConfiguredInstall)
 include(CMakePackageConfigHelpers)
 include(GenerateExportHeader)
 include(FeatureSummary)
+
+# Orcinus' private libraries (libdolphinvcs, B2; liborcinusviewapi, B3) are installed into a
+# directory of their own. Installed binaries find them through a RUNPATH relative to their own
+# location, so packages need no absolute paths.
+set(WHALE_PRIVATE_LIBDIR "${KDE_INSTALL_LIBDIR}/${WHALE_COMPONENT}")
+function(whale_use_private_libdir target installed_in)
+    file(RELATIVE_PATH relative "${installed_in}" "${CMAKE_INSTALL_PREFIX}/${WHALE_PRIVATE_LIBDIR}")
+    set_property(TARGET ${target} PROPERTY INSTALL_RPATH "$ORIGIN/${relative}" ${CMAKE_INSTALL_RPATH})
+endfunction()
 include(ECMQtDeclareLoggingCategory)
 include(ECMDeprecationSettings)
 include(CheckIncludeFiles)

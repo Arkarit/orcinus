@@ -14,4 +14,5 @@ target_link_libraries(whaletreemapcore PUBLIC whaleviewapi Qt6::Gui)
 
 kcoreaddons_add_plugin(orcinus_treemap SOURCES whaletreemapplugin.cpp treemapview.cpp INSTALL_NAMESPACE "orcinus/views")
 target_link_libraries(orcinus_treemap PRIVATE whaletreemapcore whaleviewapi KF6::CoreAddons KF6::I18n Qt6::Widgets)
+whale_use_private_libdir(orcinus_treemap "${KDE_INSTALL_FULL_PLUGINDIR}/orcinus/views")
 set_target_properties(orcinus_treemap PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${WHALE_VIEW_PLUGIN_BUILD_DIR}/orcinus/views)

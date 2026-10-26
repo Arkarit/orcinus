@@ -35,7 +35,8 @@ optional FileManager1 integration can be enabled with
 Orcinus does not need a Dolphin package to run. It installs a private copy of
 Dolphin's small version-control plugin library (`libdolphinvcs.so.6`, under
 `lib/orcinus/`), so the version-control plugins of `dolphin-plugins` work when
-they are installed. Service-menu integration and the handbook are Dolphin's and
+they are installed. The view plugin API (`liborcinusviewapi`, same directory) is
+internal for now: there is no stable interface for third-party plugins yet. Service-menu integration and the handbook are Dolphin's and
 are used when present. If a matching optional BalooWidgets package is
 unavailable, the information panel is disabled but Orcinus can still be built.
 

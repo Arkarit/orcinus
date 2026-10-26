@@ -29,9 +29,12 @@ Running the dev build: `source ../build-whale/prefix.sh && ../build-whale/bin/or
 Orcinus has an independent D-Bus identity, so it cannot hand URLs to Dolphin. `--new-window`
 remains useful while developing because it bypasses Orcinus's own running instance.
 
-Orcinus installs a private copy of `libdolphinvcs.so.6` (into `lib/orcinus/`, found through the
-RUNPATH `$ORIGIN/orcinus` of `liborcinusprivate`; release blocker B2) and reuses Dolphin's VCS
-plugins, service menus, and handbook when they are installed. Do not rename the `dolphin/vcs` plugin namespace or the per-folder `[Dolphin]`
+Orcinus' private libraries go into `lib/<arch>/orcinus/` (`WHALE_PRIVATE_LIBDIR`): a copy of
+`libdolphinvcs.so.6` (release blocker B2) and the internal view plugin API `liborcinusviewapi`
+(B3; no headers, not stable for third parties in 1.0). Installed binaries find them through a
+relative RUNPATH set with `whale_use_private_libdir()`; `global-install-orcinus.sh` rejects
+absolute RUNPATHs. Dolphin's VCS plugins, service menus, and handbook are reused when they are
+installed. Do not rename the `dolphin/vcs` plugin namespace or the per-folder `[Dolphin]`
 view-properties group. The safe defaults are `WHALE_PROVIDE_FILEMANAGER1=OFF`,
 `WHALE_INSTALL_DOLPHIN_EXTRAS=OFF`, and disabled KUserFeedback.
 

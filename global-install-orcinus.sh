@@ -63,16 +63,32 @@ while IFS= read -r file; do
     fi
 done < <(cd "${stage_dir}" && find . ! -type d)
 
-if readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qE 'RUNPATH|RPATH'; then
-    echo "Collision check: the staged orcinus binary still has a RUNPATH." >&2
-    collisions=1
-fi
+# Installed files may only carry RUNPATHs relative to themselves ($ORIGIN, the private library
+# directory of B2/B3), never an absolute path such as the private development prefix.
+while IFS= read -r file; do
+    runpath="$(readelf -d "${file}" 2>/dev/null | sed -n 's/.*R\(UN\)\{0,1\}PATH.*\[\(.*\)\]/\2/p')"
+    [[ -z "${runpath}" ]] && continue
+    IFS=: read -ra entries <<< "${runpath}"
+    for entry in "${entries[@]}"; do
+        if [[ "${entry}" != '$ORIGIN'* ]]; then
+            echo "Collision check: ${file#"${stage_dir}"} has the absolute RUNPATH entry ${entry}." >&2
+            collisions=1
+        fi
+    done
+done < <(find "${stage_dir}" -type f \( -name '*.so*' -o -path '*/bin/*' \))
 
-# B2: the private library must find its own copy of libdolphinvcs, not the one of a Dolphin package.
-private_lib="${stage_dir}${prefix}/lib/x86_64-linux-gnu/liborcinusprivate.so.6"
-if ! readelf -d "${private_lib}" | grep -qF 'RUNPATH' || ! readelf -d "${private_lib}" | grep -qF '[$ORIGIN/orcinus]' \
-    || [[ ! -e "${stage_dir}${prefix}/lib/x86_64-linux-gnu/orcinus/libdolphinvcs.so.6" ]]; then
-    echo "Check: the staged liborcinusprivate does not use the private libdolphinvcs (RUNPATH \$ORIGIN/orcinus)." >&2
+# B2/B3: the private libraries must be there and be found by the binary and liborcinusprivate.
+private_dir="${stage_dir}${prefix}/lib/x86_64-linux-gnu/orcinus"
+view_api="$(readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -o 'liborcinusviewapi\.so\.[0-9]*')"
+for library in libdolphinvcs.so.6 "${view_api:-liborcinusviewapi}"; do
+    if [[ ! -e "${private_dir}/${library}" ]]; then
+        echo "Check: the private library ${library} is missing in ${private_dir#"${stage_dir}"}." >&2
+        collisions=1
+    fi
+done
+if ! readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qF '[$ORIGIN/../lib/x86_64-linux-gnu/orcinus]' \
+    || ! readelf -d "${stage_dir}${prefix}/lib/x86_64-linux-gnu/liborcinusprivate.so.6" | grep -qF '[$ORIGIN/orcinus]'; then
+    echo "Check: the staged binary or liborcinusprivate does not find the private library directory." >&2
     collisions=1
 fi
 

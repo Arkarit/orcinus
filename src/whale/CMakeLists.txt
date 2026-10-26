@@ -56,9 +56,9 @@ set_target_properties(whaleviewapi PROPERTIES
     SOVERSION ${WHALE_VIEW_API_VERSION}
 )
 
-# Only the runtime library: plugins are built in this tree for now, so no headers,
-# CMake config or development symlink are installed.
-install(TARGETS whaleviewapi ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} LIBRARY NAMELINK_SKIP)
+# The API is internal for 1.0 (release blocker B3): only the runtime library, in Orcinus' private
+# library directory; no headers, CMake config or development symlink.
+install(TARGETS whaleviewapi LIBRARY DESTINATION ${WHALE_PRIVATE_LIBDIR} NAMELINK_SKIP)
 
 ########### host side, linked into the application ###############
 
