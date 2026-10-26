@@ -1,6 +1,6 @@
 # `kitemviews` – architecture of Dolphin's file view
 
-State: `a7b6601ea` of 2026-09-30 (Dolphin 26.11.70-dev, still under the working title Whale).
+State: `9449d3da9` of 2026-09-30 (Dolphin 26.11.70-dev, still under the working title Whale).
 Written 2026-09-30, translated to English on 2026-10-26. The statements were checked against the
 source code of that state. Paths are relative to `src/`; line numbers refer to that state and can
 shift with upstream merges. The fork's own changes to the framework since then (expansion in

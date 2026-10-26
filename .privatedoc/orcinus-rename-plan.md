@@ -3,7 +3,7 @@
 Release blocker B1 (`whale-release-plan.md`): "Whale" collides with `org.kde.whale` and other
 projects; the user chose **Orcinus** (trademark search done, see B1). The icon stays.
 
-Basis: master aff29389e. All findings below were checked in the source and in the install
+Basis: master 2c9a97980. All findings below were checked in the source and in the install
 manifest of `../build-whale-system`.
 
 **Goal:** everything a user, packager or plugin author sees, and everything Whale stores on disk
@@ -146,7 +146,7 @@ Internal group names inside the config files (e.g. `WhaleToolbars`) stay (N1/N2)
 migration remains a plain copy.
 Test: full suite including the dev MCP e2e tests.
 
-Done (2026-10-26, 53ced168a), including the metainfo file moved here from OR1. `--view-style`
+Done (2026-10-26, f0519476e), including the metainfo file moved here from OR1. `--view-style`
 was already hidden from `--help`.
 
 ### OR3: View plugin externals (N3)
@@ -154,7 +154,7 @@ Namespace, metadata keys, library output name, treemap plugin ID; test plugins i
 `src/whale/tests/plugins/` follow.
 Test: plugin loading tests including the wrong-API-version test.
 
-Done (2026-10-26, 78625b59c). Deviation: the test plugins keep their IDs (`whale_hello`,
+Done (2026-10-26, 2bc837713). Deviation: the test plugins keep their IDs (`whale_hello`,
 `whale_testlist`, …; internal, N1) and only move to the new namespace and keys. Plugins are sorted
 by ID, so `orcinus_treemap` now comes before them in the View Modes menu; one test expectation
 changed accordingly.
@@ -163,7 +163,7 @@ changed accordingly.
 17 i18n strings, credit line, `po-orcinus/de/orcinus.po` msgids.
 Test: `LANGUAGE=de` start of the dev build, `--help` output.
 
-Done (2026-10-26, 2eb86dbd4). Credit line is "Orcinus: %1". The German catalog had no msgids
+Done (2026-10-26, 29e7bf60e). Credit line is "Orcinus: %1". The German catalog had no msgids
 naming the product (the "Whale …" strings were untranslated before as well), so only its header
 changed; the translations follow in RL2. Checked with `LANGUAGE=de orcinus --help` (offscreen)
 after installing into the private prefix.
@@ -172,7 +172,7 @@ after installing into the private prefix.
 README, AGENTS.md, CLAUDE.md, docs file, scripts, REUSE. SPDX headers as a separate mechanical
 commit (N5), so the content commits stay readable.
 
-Done (2026-10-26, 92ca0f213 content, 761e14f08 SPDX). `CONTRIBUTING.md` does not exist; the note
+Done (2026-10-26, c91ff7b96 content, ea199f187 SPDX). `CONTRIBUTING.md` does not exist; the note
 "Whale was the working title" is in README.md instead. `REUSE.toml` had nothing to change.
 
 ### OR6: GitHub
@@ -232,7 +232,7 @@ Automated part done (2026-10-26), after the user ran the migration and the syste
   `orcinusrc` has the same groups as `whalerc`, kxmlgui files (toolbars, shortcuts) and view
   properties identical, `xdg-mime query default inode/directory` = `io.github.arkarit.orcinus.desktop`.
 - Found on the way: `dolphin_smoketest` wrote into the developer's real configuration on every
-  test run; fixed in 024082d7b.
+  test run; fixed in e6682e19b.
 
 Left for the user (needs the real desktop): R1–R3, R5, R7, R8, R9 (GUI), R10, R11, R12, R13, R14,
 R15 (session file `orcinus_*` appears only after a logout with Orcinus open).

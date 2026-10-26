@@ -1,6 +1,6 @@
 # Dolphin architecture – a map for Orcinus
 
-State: upstream Dolphin `e0daa45` (26.11.70 development state) plus the fork's commit `97e69ec`
+State: upstream Dolphin `e0daa45` (26.11.70 development state) plus the fork's commit `a5f3759`
 (only `CLAUDE.md`). Written 2026-09-25 (under the working title Whale), translated to English on
 2026-10-26. A read-only analysis; all important statements were checked in the source code. Paths
 are relative to `src/` unless stated otherwise. Line numbers refer to that state and shift with

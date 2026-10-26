@@ -1,6 +1,6 @@
 # RL: First public release (2026-10-25)
 
-Whale is feature-complete for the first release (master 3a68c272d, full suite 99/99 green).
+Whale is feature-complete for the first release (master 87b1388d3, full suite 99/99 green).
 This plan covers everything between "feature-complete" and "announced".
 
 This is the first `.privatedoc` document written in English, because all remaining documents
