@@ -180,6 +180,10 @@ Rename the repo `Arkarit/whale` → `Arkarit/orcinus` (GitHub redirects old URLs
 `origin` URL, update the issue texts of #1–#5 where they name the product. Done by the user or
 by me with `gh` after confirmation, because it is outward-facing.
 
+Done (2026-10-26) with `gh` after the user's confirmation: repo renamed to `Arkarit/orcinus`,
+`origin` updated, the word "Whale" in the bodies of #1–#5 replaced (code names such as
+`src/whale/…` or `build-whale-asan` kept; no title named the product).
+
 ### OR7: Migration of the user's installation (N8)
 `.privatedoc/orcinus-migrate-user.sh`, run once by the user with Whale closed:
 - copy (not move, so a rollback is possible): `~/.config/whalerc` → `orcinusrc`,

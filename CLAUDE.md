@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-KDE Dolphin file manager (Qt6 / KDE Frameworks 6, C++20, CMake + ECM). This checkout is the base for the fork "Orcinus" (working title and internal code name "Whale": `src/whale/`, `Whale*` classes, `WHALE_*` CMake variables, `whale_*` action names and the local build directories keep it; see `.privatedoc/orcinus-rename-plan.md`): `origin` = github.com/Arkarit/whale, `upstream` = invent.kde.org/system/dolphin. Upstream changes are merged via `git fetch upstream`.
+KDE Dolphin file manager (Qt6 / KDE Frameworks 6, C++20, CMake + ECM). This checkout is the base for the fork "Orcinus" (working title and internal code name "Whale": `src/whale/`, `Whale*` classes, `WHALE_*` CMake variables, `whale_*` action names and the local build directories keep it; see `.privatedoc/orcinus-rename-plan.md`): `origin` = github.com/Arkarit/orcinus, `upstream` = invent.kde.org/system/dolphin. Upstream changes are merged via `git fetch upstream`.
 
 ## Build, run, test
 
