@@ -3173,6 +3173,8 @@ void DolphinMainWindow::showAboutDialog()
         i18nc("@info:credit", "Orcinus: %1", QStringLiteral("Arkarit")),
         link.arg(whaleUrl, whaleUrl),
         licenseLink,
+        QString(),
+        i18nc("@info:credit", "Orcinus is an unofficial fork of Dolphin, not affiliated with or endorsed by KDE."),
     };
     aboutData.setShortDescription(lines.join(QLatin1Char('\n')));
     aboutData.setOtherText(QString());
