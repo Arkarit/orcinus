@@ -41,7 +41,7 @@ foreach(source IN LISTS sources)
 endforeach()
 
 if(NOT OPTION_VALUE)
-    file(STRINGS "${WHALE_BINARY}" found REGEX "io\\.github\\.arkarit\\.whale\\.DevAutomation|WHALE_DEV_MCP")
+    file(STRINGS "${WHALE_BINARY}" found REGEX "\\.DevAutomation|WHALE_DEV_MCP")
     if(found)
         message(FATAL_ERROR "${WHALE_BINARY} was built without WHALE_ENABLE_DEV_MCP but contains the automation")
     endif()

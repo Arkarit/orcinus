@@ -184,7 +184,11 @@ endif()
 # Smoke test: launch Dolphin, verify it starts without crashing, then quit.
 if(NOT WIN32)
     add_test(NAME dolphin_smoketest COMMAND "$<TARGET_FILE:dolphin>" --self-test)
-    set_tests_properties(dolphin_smoketest PROPERTIES TIMEOUT 30)
+    # Whale: the real application is not in QStandardPaths' test mode, so it gets a profile of its
+    # own; otherwise it saves its settings and window state into the developer's configuration.
+    set(whale_smoketest_profile "${CMAKE_CURRENT_BINARY_DIR}/smoketest-profile")
+    set_tests_properties(dolphin_smoketest PROPERTIES TIMEOUT 30 ENVIRONMENT
+        "XDG_CONFIG_HOME=${whale_smoketest_profile}/config;XDG_DATA_HOME=${whale_smoketest_profile}/data;XDG_CACHE_HOME=${whale_smoketest_profile}/cache;XDG_STATE_HOME=${whale_smoketest_profile}/state")
 endif()
 
 # PlacesPanelTest
