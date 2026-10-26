@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """End-to-end check of T1 (operations on deep entries of a recursive view, here the
-treemap whale_treemap), driven only through the dev MCP.
+treemap orcinus_treemap), driven only through the dev MCP.
 
   A open a deep file           B show in folder           C properties
   D rename                     E trash                    F delete (confirmation)
@@ -221,9 +221,9 @@ def run(args, work):
         client.tool("set_hidden_files", shown=False)
         client.tool("set_window_size", width=1200, height=800)
         s.expect("folder loaded", {"url": url, "panes.0.loading": False})
-        client.tool("set_view", pane=0, view="whale_treemap")
-        state = s.expect("treemap shown", {"panes.0.viewId": "whale_treemap", f"{tm()}.status": "ready",
-                                           "focus.role": "plugin:whale_treemap"})
+        client.tool("set_view", pane=0, view="orcinus_treemap")
+        state = s.expect("treemap shown", {"panes.0.viewId": "orcinus_treemap", f"{tm()}.status": "ready",
+                                           "focus.role": "plugin:orcinus_treemap"})
         total = state["panes"][0]["treemap"]["totalSize"]
 
         # A: open a deep file with its application (the test opener), from the menu
@@ -233,20 +233,20 @@ def run(args, work):
         menu.choose("open")
         wait_until("A: the deep file was opened with its application",
                    lambda: opener_log.exists() and opener_log.read_text().split() == [str(root / "a/deep.txt")])
-        s.expect("A: the location did not change", {"url": url, "popupMenu": None, "panes.0.viewId": "whale_treemap"})
+        s.expect("A: the location did not change", {"url": url, "popupMenu": None, "panes.0.viewId": "orcinus_treemap"})
 
         # B: show in folder: the folder becomes the location, the file Whale's selection there
         menu.open(u("a/deep.txt"), FILE_MENU)
         menu.choose("show_in_folder")
         s.expect("B: show in folder", {"url": u("a"), "panes.0.selection": [u("a/deep.txt")],
-                                       "panes.0.current": u("a/deep.txt"), "panes.0.viewId": "whale_treemap",
+                                       "panes.0.current": u("a/deep.txt"), "panes.0.viewId": "orcinus_treemap",
                                        f"{tm()}.status": "ready", f"{tm()}.selected": u("a/deep.txt"),
-                                       f"{tm()}.selectedDeep": False, "focus.role": "plugin:whale_treemap"})
+                                       f"{tm()}.selectedDeep": False, "focus.role": "plugin:orcinus_treemap"})
         client.tool("set_view", pane=0, view="dolphin")
         s.expect("B: the file list shows it selected", {"panes.0.viewId": "dolphin", "panes.0.selectedNames": ["deep.txt"]})
-        client.tool("set_view", pane=0, view="whale_treemap")
+        client.tool("set_view", pane=0, view="orcinus_treemap")
         client.tool("trigger_action", action="go_back")
-        s.expect("B: back to the top", {"url": url, f"{tm()}.status": "ready", "panes.0.viewId": "whale_treemap"})
+        s.expect("B: back to the top", {"url": url, f"{tm()}.status": "ready", "panes.0.viewId": "orcinus_treemap"})
 
         # C: properties of a deep folder (KDE's dialog), then closed
         menu.open(u("a/sub"), FOLDER_MENU, folder=True)
@@ -352,12 +352,12 @@ def run(args, work):
         menu.choose("show_in_folder")
         s.expect("H: show in parent folder goes to the treemap's half, which becomes active", {
             "panes.0.url": u("a"), "panes.0.selection": [u("a/sub")], "activePane": 0,
-            "focus.role": "plugin:whale_treemap", "focus.pane": 0,
+            "focus.role": "plugin:orcinus_treemap", "focus.pane": 0,
             "panes.1.url": u("b"), "panes.1.selection": [u("b/target.txt")]})
         # Closing the split view closes the active half: the right one, the treemap stays.
         client.tool("activate_pane", pane=1)
         client.tool("set_split_view", enabled=False)
-        s.expect("H: split view closed", {"splitView": False, "panes.0.viewId": "whale_treemap"})
+        s.expect("H: split view closed", {"splitView": False, "panes.0.viewId": "orcinus_treemap"})
 
         # I: reload: F5 scans again; a change outside of Whale shows up after it (no stale cache)
         client.tool("set_location", pane=0, url=url)

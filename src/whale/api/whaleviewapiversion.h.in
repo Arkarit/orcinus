@@ -18,6 +18,6 @@
 /**
  * Key of the integer API version in the JSON metadata of a view plugin.
  */
-#define WHALE_VIEW_API_VERSION_KEY "X-Whale-ViewApiVersion"
+#define WHALE_VIEW_API_VERSION_KEY "X-Orcinus-ViewApiVersion"
 
 #endif

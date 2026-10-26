@@ -13,4 +13,4 @@ add_library(whale_hello MODULE whalehelloplugin.cpp)
 target_link_libraries(whale_hello PRIVATE whaleviewapi KF6::CoreAddons Qt6::Widgets)
 set_target_properties(whale_hello PROPERTIES
     PREFIX ""
-    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_VIEW_PLUGIN_DIR}/whale/views)
+    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_VIEW_PLUGIN_DIR}/orcinus/views)

@@ -287,8 +287,8 @@ def run(args, work):
         # I: the shown view and the lock (LK7, E8/E9)
         client.tool("clear_filter", pane=0)
         client.tool("clear_filter", pane=1)
-        client.tool("set_view", pane=1, view="whale_treemap")
-        s.expect("I: treemap on the right", {"panes.1.viewId": "whale_treemap", "panes.1.treemap.status": "ready"}, focus=False)
+        client.tool("set_view", pane=1, view="orcinus_treemap")
+        s.expect("I: treemap on the right", {"panes.1.viewId": "orcinus_treemap", "panes.1.treemap.status": "ready"}, focus=False)
         client.tool("activate_pane", pane="left")
         client.tool("set_split_lock", locked=True)
         s.expect("I: linked", {"splitLock.locked": True}, focus=False)
@@ -300,7 +300,7 @@ def run(args, work):
         s.expect("I: Bilder, one view", {"paneCount": 1, "splitLock.locked": False}, focus=False)
         client.tool("apply_style", id="kissen")
         state = s.expect("I: Kissen again: treemap on the right, linked", {
-            "paneCount": 2, "panes.1.viewId": "whale_treemap", "splitLock.locked": True,
+            "paneCount": 2, "panes.1.viewId": "orcinus_treemap", "splitLock.locked": True,
             "panes.0.viewId": "dolphin"}, focus=False)
         kissen = [style for style in state["styles"]["list"] if style["id"] == "kissen"][0]
         check(kissen["elements"]["view.right"]["description"] == "Cushion Treemap", "I: description", kissen["elements"])

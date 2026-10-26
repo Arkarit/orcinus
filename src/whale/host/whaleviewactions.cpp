@@ -580,14 +580,14 @@ void WhaleViewActions::slotViewSelected(QAction *entry)
 
 void WhaleViewActions::updateAvailableViews()
 {
-    // Views that declare "X-Whale-RequiresLocal" are offered for local locations only;
+    // Views that declare "X-Orcinus-RequiresLocal" are offered for local locations only;
     // their metadata says so without loading them. (WhaleViewPlugin::supportsUrl() is
     // asked when a view is about to be shown, see WhaleViewHost.) The entries of views
     // that are not offered stay in the menus, disabled.
     const bool local = m_host && m_host->bridge()->url().isLocalFile();
     for (auto it = m_pluginViewEntries.cbegin(); it != m_pluginViewEntries.cend(); ++it) {
         const KPluginMetaData metaData = m_services->registry()->pluginMetaData(it.key());
-        const bool requiresLocal = metaData.value(QStringLiteral("X-Whale-RequiresLocal"), false);
+        const bool requiresLocal = metaData.value(QStringLiteral("X-Orcinus-RequiresLocal"), false);
         it.value()->setEnabled(m_host && metaData.isValid() && (local || !requiresLocal));
     }
 }

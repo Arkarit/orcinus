@@ -13,4 +13,4 @@ add_library(whale_testlist MODULE whaletestlistplugin.cpp)
 target_link_libraries(whale_testlist PRIVATE whaleviewapi KF6::CoreAddons KF6::KIOCore Qt6::Widgets)
 set_target_properties(whale_testlist PROPERTIES
     PREFIX ""
-    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_VIEW_PLUGIN_DIR}/whale/views)
+    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_VIEW_PLUGIN_DIR}/orcinus/views)

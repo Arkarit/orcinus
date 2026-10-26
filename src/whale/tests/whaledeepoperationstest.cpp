@@ -64,7 +64,7 @@ using Result = WhaleFileOperations::Result;
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 
 QVariantMap treemapState(QWidget *view)
 {

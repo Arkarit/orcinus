@@ -47,7 +47,7 @@
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 // A plugin view without LinkedSelection.
 const QString testListId = QStringLiteral("whale_testlist");
 

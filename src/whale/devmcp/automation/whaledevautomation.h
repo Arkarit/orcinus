@@ -275,7 +275,7 @@ public:
     QJsonObject choosePopupEntry(const QString &text);
 
     /**
-     * Input for the treemap view (plugin whale_treemap) as the user gives it: real mouse
+     * Input for the treemap view (plugin orcinus_treemap) as the user gives it: real mouse
      * and key events sent to its canvas, at the cell of @p url. @p action is one of
      * hover (leave without url), select (click, then Up until the folder is selected),
      * activate (select, then Enter), double_click, wheel_in, wheel_out, key (@p key as

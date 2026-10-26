@@ -5,5 +5,5 @@
         "Name": "Dynamic Test",
         "Version": "0.1"
     },
-    "X-Whale-ViewApiVersion": @WHALE_VIEW_API_VERSION@
+    "X-Orcinus-ViewApiVersion": @WHALE_VIEW_API_VERSION@
 }

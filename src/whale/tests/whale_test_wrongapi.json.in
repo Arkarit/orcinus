@@ -4,5 +4,5 @@
         "License": "GPL-2.0-or-later",
         "Name": "Wrong API test plugin"
     },
-    "X-Whale-ViewApiVersion": @WHALE_VIEW_API_WRONG_VERSION@
+    "X-Orcinus-ViewApiVersion": @WHALE_VIEW_API_WRONG_VERSION@
 }

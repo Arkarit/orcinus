@@ -668,7 +668,7 @@ void WhaleLocationBarTest::testPluginView()
     QVERIFY(container);
     QPointer<WhaleLocationBar> bar = locationBar(container);
     DolphinUrlNavigator *navigator = bar->urlNavigator();
-    const QString treemapId = QStringLiteral("whale_treemap");
+    const QString treemapId = QStringLiteral("orcinus_treemap");
     WhaleViewPlugin *plugin = WhaleViewServices::of(m_mainWindow.data())->registry()->plugin(treemapId);
     QVERIFY(plugin);
     QVERIFY(container->viewHost()->showPluginView(treemapId, plugin));

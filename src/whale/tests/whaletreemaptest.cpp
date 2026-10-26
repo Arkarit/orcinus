@@ -44,7 +44,7 @@
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 const QString testListId = QStringLiteral("whale_testlist");
 
 QVariantMap treemapState(QWidget *view)
@@ -259,8 +259,8 @@ void WhaleTreemapTest::testDiscovery()
     QVERIFY(!metaData.description().isEmpty());
     QCOMPARE(metaData.iconName(), QStringLiteral("folder-chart"));
     QCOMPARE(metaData.rawData().value(QLatin1String(WHALE_VIEW_API_VERSION_KEY)).toInt(), WHALE_VIEW_API_VERSION);
-    QCOMPARE(metaData.value(QStringLiteral("X-Whale-RequiresLocal"), false), true);
-    QCOMPARE(metaData.value(QStringLiteral("X-Whale-Capabilities"), QStringList()),
+    QCOMPARE(metaData.value(QStringLiteral("X-Orcinus-RequiresLocal"), false), true);
+    QCOMPARE(metaData.value(QStringLiteral("X-Orcinus-Capabilities"), QStringList()),
              QStringList({QStringLiteral("Selection"), QStringLiteral("RecursiveContent"), QStringLiteral("KeyboardNavigation")}));
     QVERIFY(registry->plugin(treemapId));
 

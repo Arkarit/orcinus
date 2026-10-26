@@ -62,7 +62,7 @@
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 const QStringList defaultLayout = {QStringLiteral("go_back"),
                                    QStringLiteral("go_forward"),
                                    QStringLiteral("go_up"),

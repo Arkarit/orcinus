@@ -474,7 +474,7 @@ void WhaleStyleManagerTest::testStyleWithoutShownViews()
 {
     // A style saved before view.left and view.right existed shows the file list, not the view
     // the folder prefers: Whale started with the treemap and such styles could not leave it.
-    const QString treemap = QStringLiteral("whale_treemap");
+    const QString treemap = QStringLiteral("orcinus_treemap");
     WhaleViewPreferences::instance()->setPreferredView(m_dir->url(), treemap);
     DolphinMainWindow *window = openWindow();
     QVERIFY(window);

@@ -51,7 +51,7 @@ using Source = WhaleCommandRouter::Source;
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 const QString testListId = QStringLiteral("whale_testlist");
 const QString ownId = QStringLiteral("own_selection");
 

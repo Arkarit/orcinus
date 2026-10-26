@@ -6,11 +6,11 @@
         "Name": "Cushion Treemap",
         "Version": "0.1"
     },
-    "X-Whale-Capabilities": [
+    "X-Orcinus-Capabilities": [
         "Selection",
         "RecursiveContent",
         "KeyboardNavigation"
     ],
-    "X-Whale-RequiresLocal": true,
-    "X-Whale-ViewApiVersion": @WHALE_VIEW_API_VERSION@
+    "X-Orcinus-RequiresLocal": true,
+    "X-Orcinus-ViewApiVersion": @WHALE_VIEW_API_VERSION@
 }

@@ -23,7 +23,7 @@ WhaleViewRegistry::~WhaleViewRegistry() = default;
 
 QString WhaleViewRegistry::pluginNamespace()
 {
-    return QStringLiteral("whale/views");
+    return QStringLiteral("orcinus/views");
 }
 
 bool WhaleViewRegistry::isCompatible(const KPluginMetaData &metaData, QString *reason)

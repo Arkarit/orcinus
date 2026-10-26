@@ -127,7 +127,7 @@ def run(args, work):
             """A shortcut in the treemap: a real key press if asked for, else through the window's shortcuts."""
             if real and real_code is not None:
                 # Only into the active test window with the treemap focused.
-                s.expect(f"ready for the real key {name}", {"window.active": True, "focus.role": "plugin:whale_treemap"})
+                s.expect(f"ready for the real key {name}", {"window.active": True, "focus.role": "plugin:orcinus_treemap"})
                 real.key(real_code)
             else:
                 result = json.loads(client.tool("treemap_key", key=name)[0]["text"])
@@ -142,8 +142,8 @@ def run(args, work):
         client.tool("set_hidden_files", shown=False)
         client.tool("set_window_size", width=1200, height=800)
         s.expect("folder loaded", {"url": url, "panes.0.loading": False})
-        client.tool("set_view", pane=0, view="whale_treemap")
-        s.expect("treemap shown", {"panes.0.viewId": "whale_treemap", f"{tm()}.status": "ready"})
+        client.tool("set_view", pane=0, view="orcinus_treemap")
+        s.expect("treemap shown", {"panes.0.viewId": "orcinus_treemap", f"{tm()}.status": "ready"})
 
         # A: the command source
         s.expect("A: nothing selected: the treemap is the source, the actions are off", {
@@ -271,7 +271,7 @@ def run(args, work):
         client.tool("set_view", pane=0, view="dolphin")
         s.expect("H: the file list: Dolphin's selection (empty)", {"panes.0.viewId": "dolphin", "command.source": "file-list",
                                                                    "command.urls": []}, timeout_ms=0)
-        client.tool("set_view", pane=0, view="whale_treemap")
+        client.tool("set_view", pane=0, view="orcinus_treemap")
         s.expect("H: the treemap again, with its selection", {"command.source": "plugin",
                                                               "command.urls": [u("deep/open.txt")],
                                                               "actions.movetotrash.enabled": True})
@@ -289,7 +289,7 @@ def run(args, work):
         client.tool("treemap_select", pane=0, url=u("deep/cross-copy.txt"))
         s.expect("G: a click into the treemap: the left half's selection", {
             "activePane": 0, "command.source": "plugin", "command.urls": [u("deep/cross-copy.txt")],
-            "panes.1.command.urls": [uri(target / "existing.txt")], "focus.role": "plugin:whale_treemap"})
+            "panes.1.command.urls": [uri(target / "existing.txt")], "focus.role": "plugin:orcinus_treemap"})
 
         # I: copy/move to the other half: the treemap's entry, into the right half's folder
         client.tool("trigger_action", action="copy_to_other_pane")

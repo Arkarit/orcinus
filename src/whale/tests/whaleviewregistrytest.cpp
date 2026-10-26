@@ -270,7 +270,7 @@ void WhaleViewRegistryTest::testDiscovery()
     QVERIFY(hello.isValid());
     QCOMPARE(hello.name(), QStringLiteral("Hello"));
     QCOMPARE(hello.rawData().value(QLatin1String(WHALE_VIEW_API_VERSION_KEY)).toInt(), WHALE_VIEW_API_VERSION);
-    QVERIFY(hello.fileName().contains(QLatin1String("whale/views/")));
+    QVERIFY(hello.fileName().contains(QLatin1String("orcinus/views/")));
 }
 
 void WhaleViewRegistryTest::testProductViews()
@@ -283,7 +283,7 @@ void WhaleViewRegistryTest::testProductViews()
     const QList<KPluginMetaData> plugins = registry.plugins();
     QCoreApplication::setLibraryPaths(libraryPaths);
 
-    QVERIFY(containsPlugin(plugins, QStringLiteral("whale_treemap")));
+    QVERIFY(containsPlugin(plugins, QStringLiteral("orcinus_treemap")));
     QVERIFY(!containsPlugin(plugins, helloId));
     QVERIFY(!containsPlugin(plugins, QStringLiteral("whale_testlist")));
 }
@@ -333,7 +333,7 @@ void WhaleViewRegistryTest::testIsCompatible()
     QFETCH(bool, compatible);
     QFETCH(QString, reason);
 
-    const KPluginMetaData metaData(json, QStringLiteral("/plugins/whale/views/whale_test.so"));
+    const KPluginMetaData metaData(json, QStringLiteral("/plugins/orcinus/views/whale_test.so"));
     QString actualReason;
     QCOMPARE(WhaleViewRegistry::isCompatible(metaData, &actualReason), compatible);
     if (compatible) {

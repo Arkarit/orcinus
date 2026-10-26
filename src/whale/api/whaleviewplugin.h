@@ -21,9 +21,9 @@ class WhaleViewPluginPrivate;
 /**
  * @brief Entry point of a native Whale view plugin.
  *
- * A plugin is a KCoreAddons plugin in the namespace "whale/views", declared with
+ * A plugin is a KCoreAddons plugin in the namespace "orcinus/views", declared with
  * K_PLUGIN_CLASS_WITH_JSON. Its JSON metadata must contain the integer key
- * "X-Whale-ViewApiVersion" (WHALE_VIEW_API_VERSION_KEY) with the value of
+ * "X-Orcinus-ViewApiVersion" (WHALE_VIEW_API_VERSION_KEY) with the value of
  * WHALE_VIEW_API_VERSION the plugin was built against.
  *
  * Whale creates at most one instance of each plugin and never unloads it.

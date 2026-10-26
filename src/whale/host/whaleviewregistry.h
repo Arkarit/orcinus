@@ -19,7 +19,7 @@ class WhaleViewPlugin;
 /**
  * @brief Finds and loads the native view plugins of Whale.
  *
- * Plugins are searched in the KCoreAddons namespace "whale/views" of the Qt
+ * Plugins are searched in the KCoreAddons namespace "orcinus/views" of the Qt
  * library paths. Their metadata is checked for the exact view API version
  * without loading the library; incompatible plugins are rejected with a
  * warning. Compatible plugins are loaded lazily on first use, instantiated
@@ -34,7 +34,7 @@ public:
     ~WhaleViewRegistry() override;
 
     /**
-     * @return The plugin namespace that is searched ("whale/views").
+     * @return The plugin namespace that is searched ("orcinus/views").
      */
     static QString pluginNamespace();
 

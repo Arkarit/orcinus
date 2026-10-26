@@ -36,6 +36,6 @@ public:
     }
 };
 
-K_PLUGIN_CLASS_WITH_JSON(WhaleTreemapPlugin, "whale_treemap.json")
+K_PLUGIN_CLASS_WITH_JSON(WhaleTreemapPlugin, "orcinus_treemap.json")
 
 #include "whaletreemapplugin.moc"

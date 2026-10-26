@@ -36,7 +36,7 @@
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 
 const WhaleStyleElement *element(const char *key)
 {

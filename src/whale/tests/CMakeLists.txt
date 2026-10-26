@@ -25,7 +25,7 @@ target_link_libraries(whale_test_wrongapi PRIVATE whaleviewapi KF6::CoreAddons)
 set(WHALE_TEST_EXTRA_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/plugins)
 set_target_properties(whale_test_wrongapi PROPERTIES
     PREFIX ""
-    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_EXTRA_PLUGIN_DIR}/whale/views)
+    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_EXTRA_PLUGIN_DIR}/orcinus/views)
 
 # A view whose capabilities change with the location and its state (M6), in a plugin
 # directory of its own that only the tests use.
@@ -37,7 +37,7 @@ set(WHALE_TEST_DYNAMIC_PLUGIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/dynamicplugins)
 set(WHALE_TEST_DYNAMIC_PLUGIN_DIR ${WHALE_TEST_DYNAMIC_PLUGIN_DIR} PARENT_SCOPE)
 set_target_properties(whale_test_dynamic PROPERTIES
     PREFIX ""
-    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_DYNAMIC_PLUGIN_DIR}/whale/views)
+    LIBRARY_OUTPUT_DIRECTORY ${WHALE_TEST_DYNAMIC_PLUGIN_DIR}/orcinus/views)
 
 ecm_add_test(whaleviewregistrytest.cpp
     TEST_NAME whaleviewregistrytest
@@ -45,7 +45,7 @@ ecm_add_test(whaleviewregistrytest.cpp
 target_compile_definitions(whaleviewregistrytest PRIVATE
     WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
     WHALE_TEST_EXTRA_PLUGIN_DIR="${WHALE_TEST_EXTRA_PLUGIN_DIR}")
-add_dependencies(whaleviewregistrytest whale_hello whale_test_wrongapi whale_treemap)
+add_dependencies(whaleviewregistrytest whale_hello whale_test_wrongapi orcinus_treemap)
 
 ecm_add_test(whaleviewhosttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaleviewhosttest
@@ -73,14 +73,14 @@ ecm_add_test(whaleviewservicestest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DI
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whaleviewservicestest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaleviewservicestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whaleviewservicestest whale_treemap)
+add_dependencies(whaleviewservicestest orcinus_treemap)
 
 ecm_add_test(whalefileviewtoolbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whalefileviewtoolbartest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalefileviewtoolbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalefileviewtoolbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalefileviewtoolbartest whale_treemap)
+add_dependencies(whalefileviewtoolbartest orcinus_treemap)
 
 ecm_add_test(whaletoolbarconfigtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whaletoolbarconfigtest
@@ -146,7 +146,7 @@ ecm_add_test(whaletreemaptest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/sr
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whaletreemaptest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaletreemaptest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whaletreemaptest whale_treemap whale_testlist)
+add_dependencies(whaletreemaptest orcinus_treemap whale_testlist)
 
 # T1: operations on deep entries (WhaleFileOperations) and the treemap's context menu.
 ecm_add_test(whaledeepoperationstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
@@ -154,7 +154,7 @@ ecm_add_test(whaledeepoperationstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whaledeepoperationstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaledeepoperationstest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whaledeepoperationstest whale_treemap)
+add_dependencies(whaledeepoperationstest orcinus_treemap)
 
 # T2: Whale's actions on a plugin view's own selection (WhaleCommandRouter), shortcuts, split view.
 ecm_add_test(whalecommandroutingtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
@@ -162,7 +162,7 @@ ecm_add_test(whalecommandroutingtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalecommandroutingtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalecommandroutingtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalecommandroutingtest whale_treemap whale_testlist)
+add_dependencies(whalecommandroutingtest orcinus_treemap whale_testlist)
 
 # The development automation must stay out of regular builds (see src/whale/devmcp).
 add_test(NAME whale_dev_mcp_default_off
@@ -213,16 +213,16 @@ add_test(
     NAME whale_view_plugin_dependencies
     COMMAND bash -c
         "status=0; \
-         for plugin in '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/*.so '${WHALE_TEST_VIEW_PLUGIN_DIR}'/whale/views/*.so; do \
+         for plugin in '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/orcinus/views/*.so '${WHALE_TEST_VIEW_PLUGIN_DIR}'/orcinus/views/*.so; do \
              needed=\$(readelf -d \"\$plugin\" | grep NEEDED); \
              if echo \"\$needed\" | grep -qiE '${WHALE_COMPONENT}private|dolphin|whaleviewhost'; then \
                  echo \"\$plugin links private libraries:\"; echo \"\$needed\"; status=1; \
              fi; \
              echo \"\$needed\" | grep -q ${WHALE_COMPONENT}viewapi || { echo \"\$plugin does not use lib${WHALE_COMPONENT}viewapi\"; status=1; }; \
          done; \
-         ls '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/whale_treemap.so >/dev/null || status=1; \
+         ls '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/orcinus/views/orcinus_treemap.so >/dev/null || status=1; \
          for test_view in whale_hello whale_testlist; do \
-             if [ -e '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/whale/views/\$test_view.so ]; then \
+             if [ -e '${WHALE_VIEW_PLUGIN_BUILD_DIR}'/orcinus/views/\$test_view.so ]; then \
                  echo \"The test view \$test_view must not be among the product's view plugins\"; status=1; \
              fi; \
          done; \
@@ -236,7 +236,7 @@ ecm_add_test(whaleviewpreferencestest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whaleviewpreferencestest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaleviewpreferencestest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whaleviewpreferencestest whale_treemap whale_testlist)
+add_dependencies(whaleviewpreferencestest orcinus_treemap whale_testlist)
 
 # F1: "Show flat (no folders)", the file list showing the files below its location.
 ecm_add_test(whalerecursivecontenttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
@@ -244,7 +244,7 @@ ecm_add_test(whalerecursivecontenttest.cpp ../../tests/testdir.cpp ${CMAKE_SOURC
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalerecursivecontenttest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalerecursivecontenttest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalerecursivecontenttest whale_treemap)
+add_dependencies(whalerecursivecontenttest orcinus_treemap)
 set_tests_properties(whalerecursivecontenttest PROPERTIES TIMEOUT 600)
 
 # The View menus: one level of view modes (a common submenu for more than five), the view
@@ -256,14 +256,14 @@ target_include_directories(whaleviewmenutest PRIVATE ${CMAKE_SOURCE_DIR}/src/tes
 target_compile_definitions(whaleviewmenutest PRIVATE
     WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}"
     WHALE_TEST_DYNAMIC_PLUGIN_DIR="${WHALE_TEST_DYNAMIC_PLUGIN_DIR}")
-add_dependencies(whaleviewmenutest whale_treemap whale_testlist whale_hello whale_test_dynamic)
+add_dependencies(whaleviewmenutest orcinus_treemap whale_testlist whale_hello whale_test_dynamic)
 
 ecm_add_test(whalelocationbartest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whalelocationbartest
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalelocationbartest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalelocationbartest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalelocationbartest whale_treemap)
+add_dependencies(whalelocationbartest orcinus_treemap)
 
 # Expandable folders in the compact view, expanding a whole branch (CX1, CX2).
 ecm_add_test(whalecompactexpansiontest.cpp ../../tests/testdir.cpp
@@ -289,7 +289,7 @@ ecm_add_test(whalesplitlocktest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalesplitlocktest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whalesplitlocktest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalesplitlocktest whale_treemap whale_testlist)
+add_dependencies(whalesplitlocktest orcinus_treemap whale_testlist)
 
 # The selection limited to one folder while the views of a split view are linked (LK3).
 ecm_add_test(whaleselectionlimittest.cpp ../../tests/testdir.cpp
@@ -308,7 +308,7 @@ ecm_add_test(whalestyleelementstest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_D
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalestyleelementstest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(whalestyleelementstest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalestyleelementstest whale_treemap)
+add_dependencies(whalestyleelementstest orcinus_treemap)
 
 # Applying, capturing and the actions of styles in main windows (ST3).
 ecm_add_test(whalestylemanagertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
@@ -316,7 +316,7 @@ ecm_add_test(whalestylemanagertest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DI
     LINK_LIBRARIES whaleviewhost dolphinstatic Qt6::Test)
 target_include_directories(whalestylemanagertest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(whalestylemanagertest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
-add_dependencies(whalestylemanagertest whale_treemap)
+add_dependencies(whalestylemanagertest orcinus_treemap)
 
 # The page "Styles" of the settings dialog (ST4).
 ecm_add_test(whalestylessettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc

@@ -73,7 +73,7 @@ TOOLS = [
     {
         "name": "set_view",
         "description": "Shows a view in a pane: \"dolphin\" (the built-in file list) or a view plugin ID such as "
-        "\"whale_treemap\", or the test views \"whale_testlist\"/\"whale_hello\" when Whale runs with the test "
+        "\"orcinus_treemap\", or the test views \"whale_testlist\"/\"whale_hello\" when Whale runs with the test "
         "plugin directory (see availableViews in the state). By default an automatic switch "
         "(nothing is remembered); remember=true is the user's choice of the view's View menu entry (for "
         "\"dolphin\": the entry of the file list's current mode; a mode entry chooses the file list only while "
@@ -374,7 +374,7 @@ TOOLS = [
     },
     {
         "name": "treemap_hover",
-        "description": "Moves the pointer onto the cell of url in the treemap view (whale_treemap) with a real mouse "
+        "description": "Moves the pointer onto the cell of url in the treemap view (orcinus_treemap) with a real mouse "
         "event, or out of the treemap without url. The treemap outlines it and reports it to the information panel "
         "(shell.itemInfo*). State: panes.N.treemap in get_ui_state.",
         "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}},

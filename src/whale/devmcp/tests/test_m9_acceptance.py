@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""End-to-end check of the view plugin milestone M9 (the treemap view whale_treemap),
+"""End-to-end check of the view plugin milestone M9 (the treemap view orcinus_treemap),
 driven only through the dev MCP, with restarts done here as a user would start Whale again.
 
   A basic treemap        B hover and information   C navigation (folders, back/forward)
@@ -155,10 +155,10 @@ def run(args, work):
         s.expect("folder loaded", {"url": url, "panes.0.loading": False, "window.width": 1280})
 
         # A: the treemap of the tree
-        client.tool("set_view", pane=0, view="whale_treemap")
+        client.tool("set_view", pane=0, view="orcinus_treemap")
         state = s.expect("A: treemap shown and scanned", {
-            "panes.0.viewId": "whale_treemap", f"{tm()}.status": "ready", f"{tm()}.totalSize": total,
-            f"{tm()}.scanRoot": url, "focus.role": "plugin:whale_treemap"})
+            "panes.0.viewId": "orcinus_treemap", f"{tm()}.status": "ready", f"{tm()}.totalSize": total,
+            f"{tm()}.scanRoot": url, "focus.role": "plugin:orcinus_treemap"})
         if state["panes"][0]["treemap"]["cells"] < 50:
             raise Failure(f"A: only {state['panes'][0]['treemap']['cells']} cells")
         # Sorting, grouping, zoom and previews do not apply to a treemap.
@@ -190,7 +190,7 @@ def run(args, work):
         # C: navigation
         client.tool("treemap_activate", url=u("Pictures/2022"))
         s.expect("C: Enter opens the deep folder", {"url": u("Pictures/2022"), f"{tm()}.status": "ready",
-                                                    f"{tm()}.scanRoot": u("Pictures/2022"), "panes.0.viewId": "whale_treemap"})
+                                                    f"{tm()}.scanRoot": u("Pictures/2022"), "panes.0.viewId": "orcinus_treemap"})
         client.tool("trigger_action", action="go_back")
         s.expect("C: back", {"url": url, f"{tm()}.status": "ready", f"{tm()}.scanRoot": url})
         client.tool("trigger_action", action="go_forward")
@@ -211,10 +211,10 @@ def run(args, work):
             f"{tm()}.selected": u("Videos/clips/clip03.webm"), "url": url})
         client.tool("set_view", pane=0, view="dolphin")
         s.expect("D: file list; the treemap's state is kept", {"panes.0.viewId": "dolphin",
-                                                               "panes.0.storedViewStates": {"$contains": "whale_treemap"}})
-        client.tool("set_view", pane=0, view="whale_treemap")
+                                                               "panes.0.storedViewStates": {"$contains": "orcinus_treemap"}})
+        client.tool("set_view", pane=0, view="orcinus_treemap")
         s.expect("D: treemap again, as it was", {
-            "panes.0.viewId": "whale_treemap", f"{tm()}.status": "ready", f"{tm()}.zoomPath": ["Videos"],
+            "panes.0.viewId": "orcinus_treemap", f"{tm()}.status": "ready", f"{tm()}.zoomPath": ["Videos"],
             f"{tm()}.colorMode": "topFolder", f"{tm()}.showLabels": False, f"{tm()}.selected": u("Videos/clips/clip03.webm")})
         client.tool("treemap_set_options", color_mode="fileType", labels=True)
         client.tool("treemap_key", key="-")
@@ -230,7 +230,7 @@ def run(args, work):
         client.tool("trigger_action", action="go_back")
         s.expect("E: back: zoomed into Pictures again", {
             "url": url, f"{tm()}.status": "ready", f"{tm()}.zoomPath": ["Pictures"],
-            "panes.0.restore": {"source": "history", "requested": "whale_treemap", "shown": "whale_treemap", "fallback": False}})
+            "panes.0.restore": {"source": "history", "requested": "orcinus_treemap", "shown": "orcinus_treemap", "fallback": False}})
         client.tool("trigger_action", action="go_forward")
         s.expect("E: forward: Music with its selection", {"url": u("Music"), f"{tm()}.status": "ready",
                                                           f"{tm()}.selected": u("Music/Album B/track03.mp3")})
@@ -249,7 +249,7 @@ def run(args, work):
         before = client.state()["panes"][0]["treemap"]
         client.tool("treemap_select", pane=0, url=u("Code/project/build/app"))
         s.expect("F: a click into the treemap activates the left half", {
-            "activePane": 0, "focus.role": "plugin:whale_treemap", "focus.pane": 0,
+            "activePane": 0, "focus.role": "plugin:orcinus_treemap", "focus.pane": 0,
             f"{tm()}.selected": u("Code/project/build/app"), "actions.deletefile.enabled": True,
             "command.source": "plugin", "command.urls": [u("Code/project/build/app")]})
         client.tool("activate_pane", pane=1)
@@ -283,7 +283,7 @@ def run(args, work):
         # The automation answers before Dolphin has restored its session.
         s.expect("G: session restored", {"paneCount": 2}, timeout_ms=20000, focus=False)
         s.expect("G: treemap left with its state, file list right", {
-            "panes.0.viewId": "whale_treemap", "panes.0.restore.source": "session", f"{tm()}.status": "ready",
+            "panes.0.viewId": "orcinus_treemap", "panes.0.restore.source": "session", f"{tm()}.status": "ready",
             f"{tm()}.zoomPath": ["Archives"], f"{tm()}.colorMode": "topFolder",
             f"{tm()}.selected": u("Code/project/build/app"), "panes.1.viewId": "dolphin",
             "panes.1.url": u("Documents")}, timeout_ms=20000, focus=False)
@@ -294,7 +294,7 @@ def run(args, work):
         client.tool("treemap_set_options", color_mode="fileType")
 
         # H: the cache: a hit on return, a real scan after a change
-        s.expect("H: one pane, the treemap", {"paneCount": 1, "panes.0.viewId": "whale_treemap", f"{tm()}.status": "ready"})
+        s.expect("H: one pane, the treemap", {"paneCount": 1, "panes.0.viewId": "orcinus_treemap", f"{tm()}.status": "ready"})
         stats = client.state()["treeCache"]
         client.tool("set_location", pane=0, url=uri(work / "files" / "other"))
         s.expect("H: elsewhere", {f"{tm()}.status": "ready", f"{tm()}.totalSize": 5 * MB})
@@ -370,11 +370,11 @@ def run(args, work):
         try:
             client.tool("set_location", pane=0, url=uri(locked))
             state = s.expect("L: no permission: an error, the view stays usable", {
-                f"{tm()}.status": "failed", f"{tm()}.cells": 0, "panes.0.viewId": "whale_treemap"})
+                f"{tm()}.status": "failed", f"{tm()}.cells": 0, "panes.0.viewId": "orcinus_treemap"})
             if not state["panes"][0]["treemap"]["error"]:
                 raise Failure("L: no error message")
             client.tool("trigger_action", action="go_back")
-            s.expect("L: back works", {f"{tm()}.status": "ready", "panes.0.viewId": "whale_treemap"})
+            s.expect("L: back works", {f"{tm()}.status": "ready", "panes.0.viewId": "orcinus_treemap"})
         finally:
             locked.chmod(0o755)
 
@@ -383,14 +383,14 @@ def run(args, work):
         s.expect("L: treemap at the top", {"url": url, f"{tm()}.status": "ready"})
         client.tool("set_location", pane=0, url="trash:/")
         s.expect("L: trash: file list instead", {"url": "trash:/", "panes.0.viewId": "dolphin",
-                                                 "panes.0.restore": {"source": "location", "requested": "whale_treemap",
+                                                 "panes.0.restore": {"source": "location", "requested": "orcinus_treemap",
                                                                      "shown": "dolphin", "fallback": True}})
-        client.tool_error("set_view", pane=0, view="whale_treemap")  # refused or ignored
+        client.tool_error("set_view", pane=0, view="orcinus_treemap")  # refused or ignored
         state = client.state()
         if state["panes"][0]["viewId"] != "dolphin":
             raise Failure("L: the treemap was shown for trash:/")
         client.tool("trigger_action", action="go_back")
-        s.expect("L: back: the treemap again", {"url": url, "panes.0.viewId": "whale_treemap", f"{tm()}.status": "ready"})
+        s.expect("L: back: the treemap again", {"url": url, "panes.0.viewId": "orcinus_treemap", f"{tm()}.status": "ready"})
     finally:
         w.kill()
 

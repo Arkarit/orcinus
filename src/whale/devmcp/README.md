@@ -193,7 +193,7 @@ Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default
   `generated`, `failed`, `canceled`, `jobsStarted`, `jobsKilled`, `maxPending`.
 - `activations` counts pane activations, so a test can prove that an operation did
   not activate the other half of a split view.
-- Treemap (M9): `treemap` in a pane that shows `whale_treemap` (null otherwise), as the
+- Treemap (M9): `treemap` in a pane that shows `orcinus_treemap` (null otherwise), as the
   view describes itself (`treemapState()` of its widget): `status`
   (`scanning`/`ready`/`empty`/`failed`/`unsupported`), `loadingShown`, `error`,
   `statusText`, `scanRoot`, `zoomRoot`, `zoomPath`, `totalSize`, `zoomSize`, `cells`,

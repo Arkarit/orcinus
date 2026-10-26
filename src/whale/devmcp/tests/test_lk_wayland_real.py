@@ -36,7 +36,7 @@ sys.dont_write_bytecode = True  # no __pycache__ next to the sources
 import wayland_real_input
 from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
 
-TREEMAP = "whale_treemap"
+TREEMAP = "orcinus_treemap"
 ONE_FOLDER = "While the views are linked, only items of one folder can be selected."
 KEY_RIGHT = 106
 KEY_LEFTSHIFT = 42

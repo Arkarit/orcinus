@@ -58,7 +58,7 @@
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 const QString fileListId = WhaleViewHost::dolphinViewId();
 
 template<typename T>

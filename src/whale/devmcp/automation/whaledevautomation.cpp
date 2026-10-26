@@ -442,7 +442,7 @@ QJsonObject WhaleDevAutomation::paneState(DolphinViewContainer *container, int i
         }
         pluginPreviewRows = previewRows;
     }
-    // What a treemap view shows (whale_treemap describes itself through its widget).
+    // What a treemap view shows (orcinus_treemap describes itself through its widget).
     QJsonValue treemap = QJsonValue::Null;
     QVariantMap treemapState;
     if (pluginWidget && QMetaObject::invokeMethod(pluginWidget, "treemapState", Qt::DirectConnection, Q_RETURN_ARG(QVariantMap, treemapState))) {

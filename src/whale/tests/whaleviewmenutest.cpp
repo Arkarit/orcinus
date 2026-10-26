@@ -31,7 +31,7 @@
 
 namespace
 {
-const QString treemapId = QStringLiteral("whale_treemap");
+const QString treemapId = QStringLiteral("orcinus_treemap");
 const QString fileListModes[] = {QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details")};
 
 QVariantMap treemapState(QWidget *view)
@@ -347,9 +347,9 @@ void WhaleViewMenuTest::testSubmenuHoldsAllViewModes()
              QStringList({QStringLiteral("Icons"),
                           QStringLiteral("Compact"),
                           QStringLiteral("Details"),
+                          QStringLiteral("Cushion Treemap"),
                           QStringLiteral("Hello"),
-                          QStringLiteral("Test List"),
-                          QStringLiteral("Cushion Treemap")}));
+                          QStringLiteral("Test List")}));
     QCOMPARE(viewSettingsMenu()->actions().first(), viewModes);
     for (QAction *entry : viewActions()->viewModeActions()) {
         QVERIFY(!viewSettingsMenu()->actions().contains(entry));
