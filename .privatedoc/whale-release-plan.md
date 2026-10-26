@@ -119,6 +119,37 @@ versioned. To decide: whether the plugin API is meant for third parties and prom
 declared internal/unstable for 1.0 (proposal); and how config key changes are migrated once
 users have them.
 
+#### Analysis (2026-10-26, awaiting the user's decision)
+
+What Orcinus fixes towards the outside, and how it is handled today:
+
+| Surface | Today | Change after 1.0 means |
+|---|---|---|
+| View plugin API (`liborcinusviewapi`, 21 files in `src/whale/api/`, `X-Orcinus-ViewApiVersion`) | Version 10, bumped 9 times in 3 weeks; the host accepts only exactly its own version; headers and CMake config are not installed, so only plugins built in this tree exist; SOVERSION = API version | Every bump breaks every plugin built outside the tree |
+| Styles (`orcinusstylesrc`) | `Version=1`; unknown entries are kept, a newer file is read as far as understood (forward compatible) | Already prepared |
+| Session and location state (`WhalePersistence`) | `FormatVersion=1`; newer data is ignored with a warning | At worst a restored session is lost |
+| View preferences (`orcinusviewpreferencesrc`), per-folder view properties | View properties have upstream's version and migration; view preferences store plugin IDs | Plugin IDs must stay (`orcinus_treemap`) |
+| Settings (`orcinusrc`, KConfigXT) | Upstream migrates keys with `kconf_update` scripts on `dolphinrc` (2025-04, 2025-11, 2026-06); Orcinus installs none of them, so **upstream migrations never reach `orcinusrc`**. Own migrations are ad hoc (`WhaleSplitViewStartup::migrate`, toolbar `Migrated…TB7` flags) | A merged upstream key change silently resets that setting for Orcinus users |
+| Action names `whale_*` (in the user's toolbar and shortcut files) | Internal names, stored by the user | Renaming loses toolbar entries and shortcuts unless migrated |
+| Command line | `--select`, `--split`, `--new-window`, `--sudo`, `--daemon` documented; `--view-style` hidden | Scripts and desktop files break |
+| File names, app ID, D-Bus names | Fixed by the rename | Users' associations, pinned launchers, configs |
+
+Proposals:
+1. **Plugin API internal for 1.0.** No headers, no CMake config, exact version check stays;
+   plugins only in this tree. Stated in README/metainfo ("no third-party plugin API yet").
+   Optional: install `liborcinusviewapi` privately next to `libdolphinvcs` (`lib/orcinus/`), so
+   distributions do not see a public library whose SONAME changes with every API bump.
+2. **Stable promise for user data:** settings, styles, view preferences, toolbars and shortcuts
+   survive every upgrade; only a restored session may be dropped after a format change.
+   Consequences: action names `whale_*`, plugin IDs, config group and key names are frozen from
+   1.0 on (renames only with a migration), and every format change bumps its version.
+3. **One migration path for `orcinusrc`.** Port upstream's `.upd` files and their update
+   programs to `orcinusrc` with Orcinus names (Dolphin's own ones must not be shipped, collision)
+   and check, at every upstream merge, whether new `.upd` files arrived (merge checklist).
+   Own migrations go the same way instead of ad hoc flags. To verify before implementing: when
+   KF6 runs `kconf_update` for an application. Implementation belongs in RL3.
+4. **Command line:** the documented options are stable; `--view-style` stays internal.
+
 ## Order
 
 1. RL1 Repo audit and legal
