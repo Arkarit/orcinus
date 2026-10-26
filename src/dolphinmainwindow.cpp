@@ -3158,7 +3158,8 @@ void DolphinMainWindow::showAboutDialog()
     const QString whaleUrl = QStringLiteral(WHALE_HOMEPAGE);
     const QString gplUrl = QStringLiteral("https://www.gnu.org/licenses/old-licenses/gpl-2.0.html");
     const QString link = QStringLiteral("<a href=\"%1\">%2</a>");
-    const QString licenseLink = link.arg(gplUrl, i18n("License: %1", aboutData.licenses().constFirst().name(KAboutLicense::FullName)));
+    const QString licenseLink =
+        link.arg(gplUrl, i18nc("@info:credit %1 is the name of a license", "License: %1", aboutData.licenses().constFirst().name(KAboutLicense::FullName)));
 
     const QStringList lines = {
         QStringLiteral("<span style=\"font-size:large; font-weight:bold;\">%1<br />%2</span>")
