@@ -44,6 +44,9 @@ fi
 echo "==> Building"
 cmake --build "${build_dir}"
 
+echo "==> Checking the release configuration"
+cmake -DBUILD_DIR="${build_dir}" -P "${script_dir}/cmake/WhaleReleaseCheck.cmake"
+
 # Files that the previous installation of Orcinus put there may be replaced. Everything else must not
 # exist yet and must not belong to a package. Save the manifest first, staging overwrites it.
 previous_manifest="${stage_dir}.previous-manifest"

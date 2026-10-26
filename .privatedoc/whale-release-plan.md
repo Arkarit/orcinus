@@ -151,6 +151,13 @@ Proposals:
    and check, at every upstream merge, whether new `.upd` files arrived (merge checklist).
    Own migrations go the same way instead of ad hoc flags. To verify before implementing: when
    KF6 runs `kconf_update` for an application. Implementation belongs in RL3.
+   **Revised in RL3 (2026-10-26, user decision):** KF6 runs `kconf_update` from `kded6`, i.e. in
+   Plasma sessions at login and when new `.upd` files appear; on other desktops it may never
+   run. All of upstream's current `.upd` files (2024-12 to 2026-06) migrate older Dolphin formats
+   that Orcinus never had, so nothing is ported for 1.0. Two paths instead of one: upstream
+   migrations that arrive with a merge are ported as `orcinus_*.upd` (target `orcinusrc`,
+   renamed helper programs; step of the merge checklist); Orcinus' own migrations are code run
+   at start-up (like `WhaleSplitViewStartup::migrate`), which works on every desktop.
 4. **Command line:** the documented options are stable; `--view-style` stays internal.
 
 Why not a stable plugin API already for 1.0 (discussed 2026-10-26): technically close (most API
