@@ -3,6 +3,9 @@
 # SPDX-FileCopyrightText: 2026 Orcinus contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+# Developer helper: starts the development build in ../build-whale (next to the checkout) with
+# its private install prefix, in a new window.
+
 set -e
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

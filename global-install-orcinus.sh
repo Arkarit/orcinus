@@ -5,6 +5,10 @@
 
 # Installs Orcinus system-wide under /usr from its own build directory ../build-whale-system.
 #
+# A developer helper for the maintainer's setup, not an installer for users: it assumes
+# Debian/Ubuntu (dpkg for the collision check) on x86_64 and the build directory next to the
+# checkout. Distributions use their own packages instead.
+#
 # Never install into /usr from ../build-whale: that binary has a RUNPATH pointing to the private
 # install prefix, and its data directory is compiled in.
 #
