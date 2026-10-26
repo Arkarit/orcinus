@@ -10,7 +10,6 @@
 #include "config-dolphin.h"
 #include "dbusinterface.h"
 #include "dolphin_generalsettings.h"
-#include "dolphin_version.h"
 #include "dolphindebug.h"
 #include "dolphinmainwindow.h"
 #include "dolphinviewcontainer.h"
@@ -141,7 +140,7 @@ int main(int argc, char **argv)
     KAboutData aboutData(
         QStringLiteral(WHALE_COMPONENT),
         displayName,
-        QStringLiteral(DOLPHIN_VERSION_STRING),
+        QStringLiteral(WHALE_VERSION),
         i18nc("@title", "File Manager"),
         KAboutLicense::GPL,
         i18nc("@info:credit", "© 2006–%1 The Dolphin Developers", QStringLiteral("2026"))); // years term not localized, pass as string, not int

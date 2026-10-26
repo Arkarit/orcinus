@@ -11,6 +11,7 @@
 #include "admin/workerintegration.h"
 #include "config-dolphin.h"
 #include "dolphin_generalsettings.h"
+#include "dolphin_version.h"
 #include "dolphinbookmarkhandler.h"
 #include "dolphincontextmenu.h"
 #include "dolphindockwidget.h"
@@ -3167,6 +3168,7 @@ void DolphinMainWindow::showAboutDialog()
         QString(),
         i18nc("@title", "File Manager"),
         QString(),
+        i18nc("@info:credit %1 is the version of Dolphin's code that Orcinus is based on", "Based on Dolphin %1", QStringLiteral(DOLPHIN_VERSION_STRING)),
         i18nc("@info:credit", "© 2006–%1 The Dolphin Developers", QStringLiteral("2026")),
         link.arg(dolphinUrl, dolphinUrl),
         licenseLink,

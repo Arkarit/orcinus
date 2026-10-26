@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 12:01+0100\n"
+"POT-Creation-Date: 2026-10-26 12:21+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: pl\n"
@@ -51,37 +51,44 @@ msgstr ""
 "numbereditem><numbereditem>Po uwierzytelnieniu możesz zarządzać plikami jako "
 "administrator.</numbereditem></numberedlist></para>"
 
-#: dolphinmainwindow.cpp:1956
+#: dolphinmainwindow.cpp:1957
 #, kde-format
 msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "Otwórz nowe okno Orcinus"
 
-#: dolphinmainwindow.cpp:3162
+#: dolphinmainwindow.cpp:3163
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "Licencja: %1"
 
-#: dolphinmainwindow.cpp:3166
+#: dolphinmainwindow.cpp:3167
 #, kde-format
 msgctxt "@info about dialog tagline, first line"
 msgid "A Dolphin."
 msgstr "Delfin."
 
-#: dolphinmainwindow.cpp:3166
+#: dolphinmainwindow.cpp:3167
 #, kde-format
 msgctxt "@info about dialog tagline, second line"
 msgid "Just bigger."
 msgstr "Tylko większy."
 
-#: dolphinmainwindow.cpp:3174
+#: dolphinmainwindow.cpp:3171
+#, kde-format
+msgctxt ""
+"@info:credit %1 is the version of Dolphin's code that Orcinus is based on"
+msgid "Based on Dolphin %1"
+msgstr "Oparty na Dolphinie %1"
+
+#: dolphinmainwindow.cpp:3176
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus: %1"
 
-#: dolphinmainwindow.cpp:3178
+#: dolphinmainwindow.cpp:3180
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -91,7 +98,7 @@ msgstr ""
 "Orcinus to nieoficjalne odgałęzienie Dolphina, niezwiązane z KDE ani przez "
 "nie niewspierane."
 
-#: dolphinmainwindow.cpp:3247
+#: dolphinmainwindow.cpp:3249
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -110,7 +117,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3267
+#: dolphinmainwindow.cpp:3269
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -126,7 +133,7 @@ msgstr ""
 "Dolphin/File_Management'>tutaj</link>. Otworzy się strona poświęcona "
 "Dolphinowi na wiki KDE UserBase.</para>"
 
-#: dolphinmainwindow.cpp:3272
+#: dolphinmainwindow.cpp:3274
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -191,7 +198,7 @@ msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"
 msgstr "Filtr dotyczy: %1"
 
-#: main.cpp:101
+#: main.cpp:100
 #, kde-kuit-format
 msgctxt "@info:shell %1 is a terminal command"
 msgid ""
@@ -201,25 +208,25 @@ msgstr ""
 "Nie zaleca się uruchamiania <application>Orcinus</application> za pomocą "
 "<command>sudo</command>. Zamiast tego uruchom <icode>%1</icode>."
 
-#: main.cpp:190
+#: main.cpp:189
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus zostanie uruchomiony z podzielonym widokiem."
 
-#: main.cpp:191
+#: main.cpp:190
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus zostanie otwarty w nowym oknie."
 
-#: main.cpp:200
+#: main.cpp:199
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "Przygotuj Orcinus do zadań administracyjnych."
 
-#: main.cpp:203
+#: main.cpp:202
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
