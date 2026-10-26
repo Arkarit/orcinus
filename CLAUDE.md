@@ -11,9 +11,12 @@ KDE Dolphin file manager (Qt6 / KDE Frameworks 6, C++20, CMake + ECM). This chec
 There are two out-of-tree builds. The existing Dolphin/KDevelop build must not be reconfigured;
 Orcinus development uses its own build and private install prefix:
 
-- Dolphin build (do not touch): `/home/user/Projects/_external/kde/build-dolphin`
-- Whale build: `/home/user/Projects/_external/kde/build-whale` (Ninja, `RelWithDebInfo`, `BUILD_TESTING=ON`)
-- Whale install prefix: `/home/user/Desktop/Home/Projects/_external/kde/install-whale`
+All paths are relative to this checkout and describe the maintainer's local setup:
+
+- Dolphin build (do not touch): `../build-dolphin`
+- Orcinus build: `../build-whale` (Ninja, `RelWithDebInfo`, `BUILD_TESTING=ON`)
+- Orcinus install prefix: `../install-whale`
+- System build for `global-install-orcinus.sh`: `../build-whale-system` (prefix `/usr`, dev MCP and tests off)
 
 ```bash
 cmake --build ../build-whale                        # build everything
