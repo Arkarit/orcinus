@@ -8,7 +8,7 @@
 set(WHALE_VIEW_API_VERSION 10)
 
 # kcoreaddons_add_plugin puts plugins below CMAKE_LIBRARY_OUTPUT_DIRECTORY (bin/), but there
-# bin/whale is the executable, so bin/whale/views cannot exist. View plugins of the build
+# bin/orcinus is the executable, so bin/orcinus/views cannot exist. View plugins of the build
 # tree therefore go to plugins/whale/views; add that directory to QT_PLUGIN_PATH.
 set(WHALE_VIEW_PLUGIN_BUILD_DIR ${CMAKE_BINARY_DIR}/plugins)
 

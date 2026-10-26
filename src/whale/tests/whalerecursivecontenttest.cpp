@@ -210,7 +210,7 @@ void WhaleRecursiveContentTest::initTestCase()
 
 void WhaleRecursiveContentTest::init()
 {
-    QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/whaleviewpreferencesrc"));
+    QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/orcinusviewpreferencesrc"));
     QCOMPARE(WhaleViewPreferences::instance()->contentScopeCount(), 0);
     m_dir.reset(new TestDir());
     const QDateTime base = QDateTime::currentDateTime().addDays(-10);

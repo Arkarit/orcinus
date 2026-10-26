@@ -63,8 +63,8 @@ while IFS= read -r file; do
     fi
 done < <(cd "${stage_dir}" && find . ! -type d)
 
-if readelf -d "${stage_dir}${prefix}/bin/whale" | grep -qE 'RUNPATH|RPATH'; then
-    echo "Collision check: the staged whale binary still has a RUNPATH." >&2
+if readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qE 'RUNPATH|RPATH'; then
+    echo "Collision check: the staged orcinus binary still has a RUNPATH." >&2
     collisions=1
 fi
 
@@ -74,7 +74,7 @@ if [[ ${collisions} -ne 0 ]]; then
 fi
 echo "    $(cd "${stage_dir}" && find . ! -type d | wc -l) files, no collisions"
 
-if pgrep -x whale > /dev/null; then
+if pgrep -x orcinus > /dev/null; then
     echo "Warning: Whale is running. Close it to use the new version after installation." >&2
 fi
 
@@ -87,4 +87,4 @@ sudo update-desktop-database "${prefix}/share/applications"
 sudo gtk-update-icon-cache -q "${prefix}/share/icons/hicolor"
 kbuildsycoca6 > /dev/null 2>&1
 
-echo "==> Done: $(command -v whale)"
+echo "==> Done: $(command -v orcinus)"

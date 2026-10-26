@@ -7,7 +7,7 @@
     <include>QDir</include>
     <include>QUrl</include>
     <include>KCompletion</include>
-    <kcfgfile name="whalerc"/>
+    <kcfgfile name="orcinusrc"/>
     <signal name="tabBarChanged" />
     <signal name="sortingChoiceChanged" />
     <signal name="splitViewAtStartupChanged" />

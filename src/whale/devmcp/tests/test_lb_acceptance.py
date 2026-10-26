@@ -101,8 +101,8 @@ def run(args, work):
     # The profile of a TB6 user: an own File View Toolbar layout, the File View Toolbars hidden.
     config = work / "profile" / "config"
     config.mkdir(parents=True, exist_ok=True)
-    whalerc = config / "whalerc"
-    whalerc.write_text("[General]\nGlobalViewProps=false\n\n[WhaleToolbars]\nShowFileViewToolBars=false\n")
+    orcinusrc = config / "orcinusrc"
+    orcinusrc.write_text("[General]\nGlobalViewProps=false\n\n[WhaleToolbars]\nShowFileViewToolBars=false\n")
     file_view_rc = local_file(work, "whalefileviewtoolbarui.rc")
     backup = file_view_rc.with_name(file_view_rc.name + ".pre-tb7")
     file_view_rc.parent.mkdir(parents=True, exist_ok=True)
@@ -121,7 +121,7 @@ def run(args, work):
         check(migrated.count(b"whale_location_bar") == 1 and b'iconText="Upwards"' in migrated, "M: the file", migrated.decode())
         check(migrated == FILE_VIEW_TB6.replace(b'"view_redisplay" />\n', b'"view_redisplay" />\n        <Action name="whale_location_bar"/>\n'),
               "M: nothing else changed")
-        rc = whalerc.read_text()
+        rc = orcinusrc.read_text()
         check("MigratedFileViewLayoutTB7=true" in rc and "MigratedFileViewVisibilityTB7=true" in rc, "M: markers", rc)
         client.tool("trigger_action", action="whale_show_file_view_toolbars")
         s.expect("M: hidden again by the user", {"toolbars.fileViewsVisible": False, "panes.0.toolbar.locationBar.visible": False})
@@ -326,7 +326,7 @@ def run(args, work):
             "toolbars.fileViewsVisible": True, "panes.0.toolbar.layout": FILE_VIEW_DEFAULT + ["go_home"],
             "panes.0.toolbar.locationBar.present": True, "panes.0.toolbar.locationBar.visible": True,
             "panes.0.toolbar.locationBar.url": (root / "c").as_uri()}, focus=False)
-        rc = whalerc.read_text()
+        rc = orcinusrc.read_text()
         check("MigratedFileViewLayoutTB7=true" in rc and "MigratedFileViewVisibilityTB7=true" in rc, "I: markers kept", rc)
         check(backup.read_bytes() == FILE_VIEW_TB6, "I: the backup unchanged")
         check(file_view_rc.read_bytes().count(b"whale_location_bar") == 1, "I: no second migration")

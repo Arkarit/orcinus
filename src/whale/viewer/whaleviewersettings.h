@@ -10,7 +10,7 @@
 #include <QStringList>
 
 /**
- * @brief The settings of the built-in viewer, in whalerc [Viewer] (Whale).
+ * @brief The settings of the built-in viewer, in orcinusrc [Viewer] (Whale).
  *
  * See .privatedoc/whale-viewer-plan.md.
  */

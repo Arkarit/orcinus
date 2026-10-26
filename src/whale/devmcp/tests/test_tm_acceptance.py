@@ -101,7 +101,7 @@ def run(args, work):
     (folder / "a.txt").write_bytes(b"x")
     config = work / "profile" / "config"
     config.mkdir(parents=True)
-    (config / "whalestylesrc").write_text(STYLES)
+    (config / "orcinusstylesrc").write_text(STYLES)
 
     w, s = new_session(args, work, folder)
     try:

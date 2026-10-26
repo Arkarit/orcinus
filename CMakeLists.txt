@@ -11,19 +11,19 @@ set (RELEASE_SERVICE_VERSION_MICRO "70")
 set (RELEASE_SERVICE_VERSION "${RELEASE_SERVICE_VERSION_MAJOR}.${RELEASE_SERVICE_VERSION_MINOR}.${RELEASE_SERVICE_VERSION_MICRO}")
 project(Dolphin VERSION ${RELEASE_SERVICE_VERSION})
 
-# Whale product identity. Keep these values centralized so the fork-specific
+# Product identity (Orcinus; the internal code name is still Whale). Keep these values centralized so the fork-specific
 # changes remain small and easy to review when merging Dolphin upstream.
-set(WHALE_EXECUTABLE "whale")
-set(WHALE_COMPONENT "whale")
+set(WHALE_EXECUTABLE "orcinus")
+set(WHALE_COMPONENT "orcinus")
 set(WHALE_ORG_DOMAIN "arkarit.github.io")
-set(WHALE_APP_ID "io.github.arkarit.whale")
-set(WHALE_DISPLAY_NAME "Whale")
-set(WHALE_BUG_URL "https://github.com/Arkarit/whale/issues")
-set(WHALE_HOMEPAGE "https://github.com/Arkarit/whale")
+set(WHALE_APP_ID "io.github.arkarit.orcinus")
+set(WHALE_DISPLAY_NAME "Orcinus")
+set(WHALE_BUG_URL "https://github.com/Arkarit/orcinus/issues")
+set(WHALE_HOMEPAGE "https://github.com/Arkarit/orcinus")
 
-option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Whale" OFF)
+option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Orcinus" OFF)
 option(WHALE_INSTALL_DOLPHIN_EXTRAS "Install Dolphin-named compatibility artifacts (may conflict with Dolphin)" OFF)
-option(WHALE_DEV_BUILD "Development build: shows \"Whale-Dev\" in window titles to tell it apart from the regular Whale" OFF)
+option(WHALE_DEV_BUILD "Development build: shows \"Orcinus-Dev\" in window titles to tell it apart from the regular Orcinus" OFF)
 option(WHALE_ENABLE_DEV_MCP "Development only: UI test automation over D-Bus (started with WHALE_DEV_MCP=1), see src/whale/devmcp" OFF)
 
 set(QT_MIN_VERSION "6.4.0")

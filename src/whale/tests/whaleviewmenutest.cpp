@@ -123,7 +123,7 @@ void WhaleViewMenuTest::initTestCase()
 
 void WhaleViewMenuTest::init()
 {
-    QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/whaleviewpreferencesrc"));
+    QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/orcinusviewpreferencesrc"));
     m_dir.reset(new TestDir());
     m_dir->createFile(QStringLiteral("a/big.bin"), QByteArray(40000, 'a'));
     m_dir->createFile(QStringLiteral("a/sub/small.txt"), QByteArray(3000, 's'));

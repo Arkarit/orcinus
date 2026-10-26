@@ -6,6 +6,8 @@
 
 #include "whaleviewpreferences.h"
 
+#include "config-dolphin.h"
+
 #include "whaleviewdebug.h"
 
 #include <KConfigGroup>
@@ -23,7 +25,7 @@ const QString scopeGroupName = QStringLiteral("ContentScopes");
 
 WhaleViewPreferences *WhaleViewPreferences::instance()
 {
-    static WhaleViewPreferences preferences(KSharedConfig::openStateConfig(QStringLiteral("whaleviewpreferencesrc")));
+    static WhaleViewPreferences preferences(KSharedConfig::openStateConfig(QStringLiteral(WHALE_COMPONENT "viewpreferencesrc")));
     return &preferences;
 }
 

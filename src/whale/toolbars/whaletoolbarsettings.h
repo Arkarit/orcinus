@@ -16,7 +16,7 @@
  *
  * One for the application (self()): whether the File View Toolbars are shown. It is one
  * setting for all of them, in every view, tab and window of the process. Stored in the group
- * "WhaleToolbars" of the application's configuration (whalerc), written at once, so a
+ * "WhaleToolbars" of the application's configuration (orcinusrc), written at once, so a
  * process started later reads the current value. Running processes do not see each other's
  * changes.
  *

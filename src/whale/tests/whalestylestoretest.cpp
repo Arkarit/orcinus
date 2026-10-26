@@ -91,7 +91,7 @@ void WhaleStyleStoreTest::initTestCase()
 
 void WhaleStyleStoreTest::init()
 {
-    m_path = m_tmpDir.filePath(QStringLiteral("whalestylesrc-%1").arg(++m_count));
+    m_path = m_tmpDir.filePath(QStringLiteral("orcinusstylesrc-%1").arg(++m_count));
 }
 
 KSharedConfigPtr WhaleStyleStoreTest::freshConfig(const QByteArray &contents)

@@ -123,8 +123,8 @@ def install_test_opener(profile, log):
 def keep_single_view_at_startup(config):
     """New windows and tabs open with a single view, as before PI3, unless the test chose
     otherwise: by default they open with the split view that was open last."""
-    whalerc = config / "whalerc"
-    text = whalerc.read_text() if whalerc.exists() else ""
+    orcinusrc = config / "orcinusrc"
+    text = orcinusrc.read_text() if orcinusrc.exists() else ""
     if "SplitViewAtStartup=" in text:
         return
     entry = "SplitViewAtStartup=AlwaysSingle\n"
@@ -132,7 +132,7 @@ def keep_single_view_at_startup(config):
         text = text.replace("[General]\n", "[General]\n" + entry, 1)
     else:
         text = "[General]\n" + entry + ("\n" + text if text else "")
-    whalerc.write_text(text)
+    orcinusrc.write_text(text)
 
 
 def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False,

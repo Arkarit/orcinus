@@ -84,7 +84,7 @@ def run(args, work):
         plain = start_whale(args.whale, folder, work / "profile-plain", args.plugin_dir, "offscreen", automation=False)
         if json.loads(client.tool("get_ui_state")[0]["text"])["pid"] != whale.pid:
             raise Failure("the adapter talks to the wrong Whale")
-        plain_ready = subprocess.run(["gdbus", "wait", "--session", "--timeout", "30", f"io.github.arkarit.whale-{plain.pid}"],
+        plain_ready = subprocess.run(["gdbus", "wait", "--session", "--timeout", "30", f"io.github.arkarit.orcinus-{plain.pid}"],
                                      capture_output=True)
         if plain_ready.returncode != 0:
             raise Failure("the Whale without automation did not start")

@@ -8,7 +8,7 @@ OpenGL path that the offscreen tests cannot reach. Runs Whale on an invisible KW
 (kwin_wayland --virtual) on a D-Bus session of its own, so it touches neither the desktop nor
 its KWin; the sound is off. Not part of ctest (needs kwin_wayland and Pillow); run by hand:
 
-  python3 test_v3_render_virtual.py --whale ../build-whale/bin/whale --adapter ../adapter/whale_dev_mcp.py
+  python3 test_v3_render_virtual.py --whale ../build-whale/bin/orcinus --adapter ../adapter/whale_dev_mcp.py
       --plugin-dir ../build-whale/bin [--screenshots DIR]
 
 Checks: the video is drawn (red in the middle of a screenshot of the viewer), the controls are
@@ -76,7 +76,7 @@ def run(args, work):
     profile = work / "profile"
     (profile / "config").mkdir(parents=True)
     # No sound from the speakers.
-    (profile / "config" / "whalerc").write_text("[Viewer]\nVideoSound=false\n")
+    (profile / "config" / "orcinusrc").write_text("[Viewer]\nVideoSound=false\n")
 
     kwin, socket = start_kwin(work)
     os.environ["WAYLAND_DISPLAY"] = socket

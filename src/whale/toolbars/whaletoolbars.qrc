@@ -1,5 +1,5 @@
 <RCC>
-<qresource prefix="/kxmlgui5/whale">
+<qresource prefix="/kxmlgui5/orcinus">
 <file>whalefileviewtoolbarui.rc</file>
 </qresource>
 </RCC>

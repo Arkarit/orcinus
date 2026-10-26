@@ -60,7 +60,7 @@ void FileNameHighlightingSettingsTest::cleanup()
 
 KSharedConfigPtr FileNameHighlightingSettingsTest::freshConfig() const
 {
-    return KSharedConfig::openConfig(m_dir->filePath(QStringLiteral("whalerc")), KConfig::SimpleConfig);
+    return KSharedConfig::openConfig(m_dir->filePath(QStringLiteral("orcinusrc")), KConfig::SimpleConfig);
 }
 
 KSharedConfigPtr FileNameHighlightingSettingsTest::reopenedConfig() const

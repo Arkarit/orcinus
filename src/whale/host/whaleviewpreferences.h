@@ -49,7 +49,7 @@ class WhaleViewPreferences : public QObject
 
 public:
     /**
-     * @return The preferences of the application (the file "whaleviewpreferencesrc" in the
+     * @return The preferences of the application (the file "orcinusviewpreferencesrc" in the
      *         XDG state directory).
      */
     static WhaleViewPreferences *instance();

@@ -33,7 +33,7 @@ STYLE = b"[Dolphin]\nVersion=4\nViewMode=2\n\n[Settings]\nHiddenFilesShown=true\
 
 def stored_style(profile):
     """What is written down for the left position, or "" (extended attribute or .directory)."""
-    folder = profile / "data" / "whale" / "view_properties" / "global"
+    folder = profile / "data" / "orcinus" / "view_properties" / "global"
     if not folder.exists():
         return ""
     try:
@@ -52,11 +52,11 @@ def run(args, work):
     config = profile / "config"
     config.mkdir(parents=True)
     # New windows split: the popped out view comes on its own anyway.
-    (config / "whalerc").write_text("[General]\nSplitViewAtStartup=AlwaysSplit\n")
+    (config / "orcinusrc").write_text("[General]\nSplitViewAtStartup=AlwaysSplit\n")
 
     style = base64.urlsafe_b64encode(STYLE).decode().rstrip("=")
     whale = start_whale(args.whale, folder, profile, args.plugin_dir, args.platform, automation=True,
-                        extra_args=("--whale-view-style", style))
+                        extra_args=("--view-style", style))
     client = McpClient(args.adapter, dict(os.environ, WHALE_DEV_MCP_PID=str(whale.pid)))
     try:
         client.request("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},

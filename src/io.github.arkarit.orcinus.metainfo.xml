@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    SPDX-FileCopyrightText: 2026 Whale contributors
+    SPDX-License-Identifier: CC0-1.0
+-->
+<component type="desktop-application">
+  <id>io.github.arkarit.orcinus</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-2.0-or-later</project_license>
+  <name>Orcinus</name>
+  <summary>A personal file manager based on KDE Dolphin</summary>
+  <description>
+    <p>Orcinus is a customizable file manager based on KDE Dolphin. It preserves Dolphin's authorship, licensing, and integration with KDE Frameworks while developing an independent product identity and additional features.</p>
+  </description>
+  <launchable type="desktop-id">io.github.arkarit.orcinus.desktop</launchable>
+  <provides>
+    <binary>orcinus</binary>
+  </provides>
+  <url type="homepage">https://github.com/Arkarit/orcinus</url>
+  <url type="bugtracker">https://github.com/Arkarit/orcinus/issues</url>
+  <developer id="io.github.arkarit">
+    <name>Orcinus contributors</name>
+  </developer>
+  <content_rating type="oars-1.1"/>
+</component>

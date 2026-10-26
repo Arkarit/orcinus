@@ -44,7 +44,7 @@ Q_DECLARE_FLAGS(OpenNewWindowFlags, OpenNewWindowFlag)
  * of the view it pops out of (DolphinView::ownStyleData(), Base64url). The window opens with a
  * single view.
  */
-inline constexpr char ViewStyleOption[] = "whale-view-style";
+inline constexpr char ViewStyleOption[] = "view-style";
 
 /**
  * Opens a new Dolphin window

@@ -5,7 +5,7 @@
 
 """MCP server (stdio) for Whale's development automation.
 
-A thin adapter: every tool is one call of the D-Bus object /whale/DevAutomation
+A thin adapter: every tool is one call of the D-Bus object /orcinus/DevAutomation
 that a Whale built with WHALE_ENABLE_DEV_MCP offers when started with
 WHALE_DEV_MCP=1. The adapter holds no state and no logic of its own.
 
@@ -27,8 +27,8 @@ import sys
 
 import dbus
 
-OBJECT_PATH = "/whale/DevAutomation"
-INTERFACE = "io.github.arkarit.whale.DevAutomation"
+OBJECT_PATH = "/orcinus/DevAutomation"
+INTERFACE = "io.github.arkarit.orcinus.DevAutomation"
 PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"]
 
 PANE = {
@@ -597,7 +597,7 @@ def pane_index(value):
 
 def find_instance(bus, pid=None):
     """Returns the bus name of the Whale instance that offers the automation."""
-    names = [str(n) for n in bus.list_names() if str(n).startswith("io.github.arkarit.whale")]
+    names = [str(n) for n in bus.list_names() if str(n).startswith("io.github.arkarit.orcinus")]
     driver = bus.get_object("org.freedesktop.DBus", "/org/freedesktop/DBus")
     found = []
     for name in names:

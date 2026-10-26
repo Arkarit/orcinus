@@ -6,7 +6,7 @@
 """End-to-end check of styles (ST3, .privatedoc/whale-styles-plan.md) with the user's two
 styles, driven only through the dev MCP:
 
-  A  the styles of whalestylesrc: actions with their shortcuts, View > Styles
+  A  the styles of orcinusstylesrc: actions with their shortcuts, View > Styles
   B  "Schlicht": one Compact view, nothing but the status bar; Styles in the background menu (F5)
   C  "Bilder": Icons with previews, the Places and Information panels, all bars
   D  saving "Bilder" again keeps its id, shortcut and an element of a newer Whale
@@ -32,7 +32,7 @@ import tempfile
 sys.dont_write_bytecode = True  # no __pycache__ next to the sources
 from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
 
-# ViewProperties::toData() as KConfig writes it into whalestylesrc (newlines escaped).
+# ViewProperties::toData() as KConfig writes it into orcinusstylesrc (newlines escaped).
 COMPACT = r"[Dolphin]\nVersion=4\nViewMode=2\nPreviewsShown=false\n"
 ICONS_WITH_PREVIEWS = r"[Dolphin]\nVersion=4\nViewMode=0\nPreviewsShown=true\n"
 NO_PANELS = "places=false,folders=false,information=false,terminal=false"
@@ -165,7 +165,7 @@ def run(args, work):
         (folder / name).write_bytes(b"x")
     config = work / "profile" / "config"
     config.mkdir(parents=True)
-    styles_file = config / "whalestylesrc"
+    styles_file = config / "orcinusstylesrc"
     styles_file.write_text(STYLES)
 
     w = Session(args, work, folder)

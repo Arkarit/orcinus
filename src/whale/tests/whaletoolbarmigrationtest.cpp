@@ -120,7 +120,7 @@ QStringList savedLayout(const QString &file, const QString &toolBarName)
 QByteArray userMainFile(const QStringList &mainToolBar, const QMap<QString, QString> &iconTexts, const QString &version = {})
 {
     QDomDocument document;
-    document.setContent(contentOf(QStringLiteral(":/kxmlgui5/whale/dolphinui.rc")));
+    document.setContent(contentOf(QStringLiteral(":/kxmlgui5/orcinus/dolphinui.rc")));
     QDomElement gui = document.documentElement();
     if (!version.isEmpty()) {
         gui.setAttribute(QStringLiteral("version"), version);
@@ -349,7 +349,7 @@ void WhaleToolbarMigrationTest::cleanup()
     // next windows show the terminal panel, and Konsole is not part of these tests.
     GeneralSettings::self()->setVersion(0);
     GeneralSettings::self()->save();
-    QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/whalestaterc"));
+    QFile::remove(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/orcinusstaterc"));
     KSharedConfig::openStateConfig()->reparseConfiguration();
 }
 
@@ -590,7 +590,7 @@ void WhaleToolbarMigrationTest::testViewMenu()
     QVERIFY(action->isCheckable() && action->isChecked());
     QCOMPARE(KLocalizedString::removeAcceleratorMarker(action->text()), QStringLiteral("Show File View Toolbars"));
     // Not part of dolphinui.rc (the users' copies keep their menus) ...
-    QVERIFY(!contentOf(QStringLiteral(":/kxmlgui5/whale/dolphinui.rc")).contains(WhaleToolbarManager::showFileViewToolBarsActionName().toUtf8()));
+    QVERIFY(!contentOf(QStringLiteral(":/kxmlgui5/orcinus/dolphinui.rc")).contains(WhaleToolbarManager::showFileViewToolBarsActionName().toUtf8()));
 
     // ... but in the View menu, once, after "Location Bar"; also after the GUI was built again.
     const auto checkViewMenu = [this]() {
@@ -844,12 +844,12 @@ void WhaleToolbarMigrationTest::testTwoWindows()
 
 void WhaleToolbarMigrationTest::testPersistence()
 {
-    const QString configFile = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/whalerc");
+    const QString configFile = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/orcinusrc");
     m_mainWindow.reset(new DolphinMainWindow());
     QVERIFY(showWindow(m_mainWindow.data()));
     toggle(m_mainWindow.data())->trigger();
 
-    // Written at once, in the group "WhaleToolbars" of whalerc.
+    // Written at once, in the group "WhaleToolbars" of orcinusrc.
     {
         KConfig written(configFile, KConfig::SimpleConfig);
         QVERIFY(written.hasGroup(WhaleToolbarSettings::groupName()));

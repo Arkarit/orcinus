@@ -67,7 +67,7 @@ void ExpansionTintSettingsTest::cleanup()
 
 KSharedConfigPtr ExpansionTintSettingsTest::freshConfig() const
 {
-    return KSharedConfig::openConfig(m_dir->filePath(QStringLiteral("whalerc")), KConfig::SimpleConfig);
+    return KSharedConfig::openConfig(m_dir->filePath(QStringLiteral("orcinusrc")), KConfig::SimpleConfig);
 }
 
 KSharedConfigPtr ExpansionTintSettingsTest::reopenedConfig() const

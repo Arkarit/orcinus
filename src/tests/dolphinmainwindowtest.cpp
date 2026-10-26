@@ -182,7 +182,7 @@ void DolphinMainWindowTest::init()
 void DolphinMainWindowTest::testWhaleRuntimeIdentity()
 {
     QCOMPARE(Dolphin::currentInstanceServiceName(), QStringLiteral(WHALE_APP_ID "-%1").arg(QCoreApplication::applicationPid()));
-    QCOMPARE(Dolphin::mainWindowDbusPath(), QStringLiteral("/whale/Whale_1"));
+    QCOMPARE(Dolphin::mainWindowDbusPath(), QStringLiteral("/orcinus/Orcinus_1"));
     QCOMPARE(m_mainWindow->dbusName(), Dolphin::mainWindowDbusPath());
 }
 
@@ -197,13 +197,13 @@ void DolphinMainWindowTest::testSyncDesktopAndPhoneUi()
     std::unordered_set<QString> exceptions{{QStringLiteral("version"), QStringLiteral("ToolBar")}};
 
     QDomDocument desktopUi;
-    QFile desktopUiXmlFile(":/kxmlgui5/whale/dolphinui.rc");
+    QFile desktopUiXmlFile(":/kxmlgui5/orcinus/dolphinui.rc");
     QVERIFY2(desktopUiXmlFile.open(QIODevice::ReadOnly), qPrintable(QStringLiteral("couldn't open %1").arg(desktopUiXmlFile.fileName())));
     desktopUi.setContent(&desktopUiXmlFile);
     desktopUiXmlFile.close();
 
     QDomDocument phoneUi;
-    QFile phoneUiXmlFile(":/kxmlgui5/whale/dolphinuiforphones.rc");
+    QFile phoneUiXmlFile(":/kxmlgui5/orcinus/dolphinuiforphones.rc");
     QVERIFY2(phoneUiXmlFile.open(QIODevice::ReadOnly), qPrintable(QStringLiteral("couldn't open %1").arg(phoneUiXmlFile.fileName())));
     phoneUi.setContent(&phoneUiXmlFile);
     phoneUiXmlFile.close();

@@ -136,7 +136,7 @@ void WhaleViewPreferencesTest::cleanup()
 
 QString WhaleViewPreferencesTest::preferencesFile() const
 {
-    return QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/whaleviewpreferencesrc");
+    return QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation) + QStringLiteral("/orcinusviewpreferencesrc");
 }
 
 DolphinViewContainer *WhaleViewPreferencesTest::showMainWindow(const QUrl &url)

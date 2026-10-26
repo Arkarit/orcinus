@@ -123,7 +123,7 @@ def ids(items):
 
 
 def local_file(work, name):
-    return work / "profile" / "data" / "kxmlgui5" / "whale" / name
+    return work / "profile" / "data" / "kxmlgui5" / "orcinus" / name
 
 
 def run(args, work):
@@ -136,7 +136,7 @@ def run(args, work):
     a_sub, b_sub = (root / "a" / "sub").as_uri(), (root / "b" / "sub2").as_uri()
     # Independent view properties per folder: the two views must not share sorting.
     (work / "profile" / "config").mkdir(parents=True, exist_ok=True)
-    (work / "profile" / "config" / "whalerc").write_text("[General]\nGlobalViewProps=false\n")
+    (work / "profile" / "config" / "orcinusrc").write_text("[General]\nGlobalViewProps=false\n")
     file_view_rc = local_file(work, "whalefileviewtoolbarui.rc")
     main_rc = local_file(work, "dolphinui.rc")
 

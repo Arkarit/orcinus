@@ -28,7 +28,7 @@ class QAction;
  *   can place them and Configure Shortcuts keeps their shortcuts (setupActions()).
  * - "whale_style_<id>": one action per style with the style's shortcut, in the category
  *   "Styles" of Configure Shortcuts. They are created after setupGUI() (plugStyles()):
- *   XML GUI would otherwise give them shortcuts it saved itself. whalestylesrc is the only place
+ *   XML GUI would otherwise give them shortcuts it saved itself. orcinusstylesrc is the only place
  *   of these shortcuts; takeShortcuts() writes changes made in Configure Shortcuts back to it.
  *
  * Applying sets the enabled elements in the order of the registry (WhaleStyleElements); an

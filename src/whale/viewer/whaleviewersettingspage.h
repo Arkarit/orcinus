@@ -26,7 +26,7 @@ class QTreeWidgetItem;
  * Also whether paging goes round (wrap-around) whether small images are enlarged to the
  * screen (V2b), whether zoomed in pixels are smoothed (V2c) and, with videos, autoplay, sound
  * and loop (V3). The A/B switch for multiple selections stays
- * hidden in whalerc.
+ * hidden in orcinusrc.
  */
 class WhaleViewerSettingsPage : public SettingsPageBase
 {

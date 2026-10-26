@@ -282,7 +282,7 @@ void WhaleStyleManager::rebuildStyleActions()
         QAction *action = m_category->addAction(actionName(style.id));
         action->setText(QString(style.name).replace(u'&', QLatin1String("&&")));
         action->setToolTip(i18nc("@info:tooltip", "Apply the style \"%1\" to the window", style.name));
-        // No default shortcut: the style's one is the user's choice (whalestylesrc).
+        // No default shortcut: the style's one is the user's choice (orcinusstylesrc).
         action->setShortcut(style.shortcut);
         const QString id = style.id;
         connect(action, &QAction::triggered, this, [this, id]() {

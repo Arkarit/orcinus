@@ -78,7 +78,7 @@ QString localMainFile()
 /** The installed dolphinui.rc with the menu bar element at the start of the main toolbar, as the user would save it. */
 bool writeUserMainFile(bool atEnd)
 {
-    QFile installed(QStringLiteral(":/kxmlgui5/whale/dolphinui.rc"));
+    QFile installed(QStringLiteral(":/kxmlgui5/orcinus/dolphinui.rc"));
     if (!installed.open(QIODevice::ReadOnly)) {
         return false;
     }

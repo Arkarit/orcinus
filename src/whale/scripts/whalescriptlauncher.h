@@ -20,7 +20,7 @@ class QWidget;
  *
  * KIO knows "ask", "open" and "execute" for executable scripts (kiorc, [Executable scripts]
  * behaviourOnLaunch). Whale adds running them in the user's default terminal, stored in its own
- * whalerc ([Executable scripts] RunInTerminal), so other KDE applications never meet a value
+ * orcinusrc ([Executable scripts] RunInTerminal), so other KDE applications never meet a value
  * they do not know. While it is set, it wins over KIO's choice in Whale.
  *
  * The terminal starts in the script's folder. It either stays open after the script ended until
@@ -53,9 +53,9 @@ enum class WindowRequest {
     Raise, ///< show and activate it
 };
 
-/** @return The mode set in whalerc. */
+/** @return The mode set in orcinusrc. */
 Mode mode();
-/** Stores @p mode in whalerc. */
+/** Stores @p mode in orcinusrc. */
 void setMode(Mode mode);
 
 /** @return Whether @p item is a local executable script, as KIO's "Open or execute" sees it. */

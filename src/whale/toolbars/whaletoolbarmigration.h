@@ -18,7 +18,7 @@ class WhaleToolbarSettings;
  * Before TB7 the location bars were part of the main toolbar or above the views; now each
  * view has its own, in its File View Toolbar. Two kinds of users would lose it:
  *
- * - With a File View Toolbar layout of their own (kxmlgui5/whale/whalefileviewtoolbarui.rc
+ * - With a File View Toolbar layout of their own (kxmlgui5/orcinus/whalefileviewtoolbarui.rc
  *   without "whale_location_bar"): the location bar is inserted into that file, once. The
  *   original is kept as "<file>.pre-tb7" (only the first time; it is never overwritten).
  *   Nothing else in the file changes, byte for byte.

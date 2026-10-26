@@ -26,7 +26,7 @@ enum ScriptExecution {
     AlwaysAsk = 0,
     Open = 1,
     Execute = 2,
-    // Whale: in whalerc, see WhaleScriptLauncher
+    // Whale: in orcinusrc, see WhaleScriptLauncher
     ExecuteInTerminal = 3,
     ExecuteInTerminalAndClose = 4,
     ExecuteInTerminalMinimized = 5,

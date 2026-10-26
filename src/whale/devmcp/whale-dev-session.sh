@@ -67,5 +67,5 @@ if [ -n "$platform" ]; then
     export QT_QPA_PLATFORM=$platform
 fi
 
-"$build_dir/bin/whale" --new-window "${urls[@]}" > "$profile/whale.log" 2>&1 &
+"$build_dir/bin/orcinus" --new-window "${urls[@]}" > "$profile/whale.log" 2>&1 &
 echo $!

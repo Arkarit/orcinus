@@ -6,6 +6,8 @@
 
 #include "whalestylestore.h"
 
+#include "config-dolphin.h"
+
 #include <KConfigGroup>
 
 #include <algorithm>
@@ -74,7 +76,7 @@ int WhaleStyleStore::currentVersion()
 
 KSharedConfigPtr WhaleStyleStore::defaultConfig()
 {
-    return KSharedConfig::openConfig(QStringLiteral("whalestylesrc"));
+    return KSharedConfig::openConfig(QStringLiteral(WHALE_COMPONENT "stylesrc"));
 }
 
 QString WhaleStyleStore::idForName(const QString &name, const QStringList &takenIds)

@@ -23,7 +23,7 @@
 #include <QTest>
 
 /**
- * Executable scripts in a terminal: the mode in whalerc, which files count as scripts, the
+ * Executable scripts in a terminal: the mode in orcinusrc, which files count as scripts, the
  * command, and running it in a stand-in terminal that writes down what it got and runs it
  * without a window and without input (so the "Press Enter" wait ends at once).
  */
@@ -172,7 +172,7 @@ void WhaleScriptLauncherTest::testMode()
     WhaleScriptLauncher::setMode(Mode::Off);
     QCOMPARE(WhaleScriptLauncher::mode(), Mode::Off);
     QVERIFY(!group.hasKey("RunInTerminal"));
-    // Only in whalerc: KIO and other applications never see it.
+    // Only in orcinusrc: KIO and other applications never see it.
     QVERIFY(!KConfigGroup(KSharedConfig::openConfig(QStringLiteral("kiorc")), QStringLiteral("Executable scripts")).hasKey("RunInTerminal"));
 }
 
@@ -310,7 +310,7 @@ void WhaleScriptLauncherTest::testSettingsPage()
     kio.writeEntry("behaviourOnLaunch", "execute");
     kio.sync();
 
-    // The terminal choices are written to whalerc only; KIO's choice stays as it was.
+    // The terminal choices are written to orcinusrc only; KIO's choice stays as it was.
     for (const auto &[index, mode] : {std::pair{3, WhaleScriptLauncher::Mode::Terminal},
                                       std::pair{4, WhaleScriptLauncher::Mode::TerminalClose},
                                       std::pair{5, WhaleScriptLauncher::Mode::Minimized},

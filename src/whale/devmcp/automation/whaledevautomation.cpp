@@ -277,12 +277,12 @@ QJsonValue valueAt(const QJsonValue &root, const QString &path)
 
 QString WhaleDevAutomation::objectPath()
 {
-    return QStringLiteral("/whale/DevAutomation");
+    return QStringLiteral("/" WHALE_COMPONENT "/DevAutomation");
 }
 
 QString WhaleDevAutomation::interfaceName()
 {
-    return QStringLiteral("io.github.arkarit.whale.DevAutomation");
+    return QStringLiteral(WHALE_APP_ID ".DevAutomation");
 }
 
 bool WhaleDevAutomation::isRequested()

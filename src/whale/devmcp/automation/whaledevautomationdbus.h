@@ -21,7 +21,7 @@ class WhaleDevAutomation;
 class WhaleDevAutomationDBus : public QObject, protected QDBusContext
 {
     Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "io.github.arkarit.whale.DevAutomation")
+    Q_CLASSINFO("D-Bus Interface", "io.github.arkarit.orcinus.DevAutomation")
 
 public:
     explicit WhaleDevAutomationDBus(WhaleDevAutomation *automation);

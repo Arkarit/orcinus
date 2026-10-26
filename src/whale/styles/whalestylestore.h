@@ -15,7 +15,7 @@
 #include <QStringList>
 
 /**
- * @brief The user's styles in their order, stored in "whalestylesrc" (ST1).
+ * @brief The user's styles in their order, stored in "orcinusstylesrc" (ST1).
  *
  * Styles are settings of the user, so they live in a configuration file of their own, not in
  * the state. The file looks like this:
@@ -44,7 +44,7 @@ public:
     /** @return The version of the file format this Whale writes. */
     static int currentVersion();
 
-    /** @return The configuration "whalestylesrc". */
+    /** @return The configuration "orcinusstylesrc". */
     static KSharedConfigPtr defaultConfig();
 
     /**
