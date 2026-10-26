@@ -219,6 +219,25 @@ installs: `../build-whale-system/whale-uninstall-manifest.txt`. Uninstall with
 - `grep -ri whale` over the installed files: no hits, except texts that deliberately say
   "formerly Whale".
 
+Automated part done (2026-10-26), after the user ran the migration and the system switch:
+- Old Whale gone: no `*whale*` file left under `/usr` or `/etc`. Orcinus installed from
+  `../build-whale-system` (103 files, none named whale). The only "whale" in installed contents is
+  the C++ identifier `[WhaleViewDebug]` in `orcinus.categories` (internal, N1).
+- Dolphin: `dpkg -V dolphin` clean, `dolphin --version` 25.12.3; `dolphinrc`/`dolphinstaterc`
+  not touched.
+- Runtime (R4): bus name `io.github.arkarit.orcinus-<pid>`, object path `/orcinus/Orcinus_1`, no
+  whale bus name; the process maps only `liborcinusprivate`/`liborcinusviewapi`. Since its start
+  Orcinus wrote `orcinusstaterc` and no `whale*` file.
+- Migration: 66 styles in `orcinusstylesrc` (same as `whalestylesrc`), plugin IDs rewritten,
+  `orcinusrc` has the same groups as `whalerc`, kxmlgui files (toolbars, shortcuts) and view
+  properties identical, `xdg-mime query default inode/directory` = `io.github.arkarit.orcinus.desktop`.
+- Found on the way: `dolphin_smoketest` wrote into the developer's real configuration on every
+  test run; fixed in 024082d7b.
+
+Left for the user (needs the real desktop): R1–R3, R5, R7, R8, R9 (GUI), R10, R11, R12, R13, R14,
+R15 (session file `orcinus_*` appears only after a logout with Orcinus open).
+
+
 ## Risks
 
 | Risk | Mitigation |
