@@ -263,6 +263,26 @@ Findings:
 10. Upstream's CI files (`.gitlab-ci.yml`, `.kde-ci.yml`, `.flatpak-manifest.json`) stay for
     upstream merges; they do nothing on GitHub.
 
+#### Done (2026-10-26)
+
+- REUSE compliant (1046/1046); own documents CC-BY-SA-4.0; icon copyright of the change added.
+- `CLAUDE.md` paths relative; helper scripts described as developer tools.
+- Unofficial-fork disclaimer in README, About dialog and metainfo; `CONTRIBUTING.md`,
+  `SECURITY.md`, issue templates.
+- `.privatedoc` sorted: plans, UX diary and idea list condensed into `design-notes.md` (ideas
+  filed as issues #6–#12), dev MCP notes moved into its README, architecture notes translated;
+  everything in English.
+- Commit identity: all 323 own commits rewritten to `Arkarit <12444486+Arkarit@users.noreply.github.com>`
+  with `git filter-repo --mailmap … --refs <branches> ^refs/remotes/upstream/master` (only own
+  commits: a full run strips the SSH signatures of 46 upstream commits and changes the upstream
+  hashes). Hash references in commit messages, documents, issues and memories remapped; all
+  branches except `master` deleted locally and on GitHub; force-pushed. Backup:
+  `../orcinus-before-identity-rewrite-2026-10-26.bundle`.
+- Open for later steps: metainfo `<releases>` (RL3), screenshots (RL8), DrKonqi check (R10).
+- **For RL9:** GitHub keeps the old, now unreachable commits (with the old identity) fetchable by
+  hash until it garbage-collects them. Ask GitHub support to remove unreachable objects before
+  making the repository public (recreating the repository would lose the issues).
+
 ### RL2: String freeze and translation
 
 - Declare a string freeze on master. From here on, string changes only for real fixes and only
