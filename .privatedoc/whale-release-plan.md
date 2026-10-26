@@ -341,6 +341,26 @@ Findings:
 - FileManager1: decide whether the first release offers the opt-in from
   "Default file manager and Show in folder" in `design-notes.md` or leaves "Show in folder" with Dolphin.
 
+#### Done (2026-10-26)
+
+- Version scheme (user decision): Orcinus' own semantic version, `WHALE_VERSION` = 1.0.0; the
+  About dialog adds "Based on Dolphin <RELEASE_SERVICE_VERSION>". Dolphin's version still
+  versions the internal libraries.
+- Upstream strategy (user decision): follow Dolphin's `master`, merge every two to four weeks and
+  before every release, no stable branches, hotfix branches from tags only when needed;
+  documented in `docs/releasing.md` together with the release checklist.
+- FileManager1 (user decision): not in 1.0; "Show in folder" stays with Dolphin.
+- Migration path for `orcinusrc`: see B3 (revised).
+- `cmake/WhaleReleaseCheck.cmake` rejects development builds, the dev MCP, telemetry, a
+  non-optimized build type and binaries with the automation; run by the global install script
+  and in CI.
+- CI on GitHub Actions (`.github/workflows/ci.yml`): Arch Linux container (build, tests as a
+  normal user with fonts, Breeze and thumbnailers, release check, formatting of changed lines)
+  and a lint job (REUSE, XML, YAML, JSON, AppStream). Green since run 40325940554; two tests
+  are excluded until issue #14 (selection timing, a tint pixel with newer Breeze).
+- `CHANGELOG.md` with the 1.0.0 section. The metainfo `<release>` entry is added at release time
+  (checklist step 5).
+
 ### RL4: Test containers
 
 - Containers (Podman/Docker) for the most common distros with KDE Frameworks 6. Candidates:
@@ -415,7 +435,5 @@ Findings:
 
 ## Open questions (decided in the respective steps)
 
-- Version scheme (RL3).
-- FileManager1 opt-in in the first release (RL3).
 - Distro list (RL4) and package formats (RL5).
 - Announcement channels (RL10).
