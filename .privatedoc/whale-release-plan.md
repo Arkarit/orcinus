@@ -215,6 +215,54 @@ listed in the changelog draft.
 - Repo files: `CONTRIBUTING.md`, `SECURITY.md`, issue templates (bug / feature request) with
   guidance on what belongs to Whale and what belongs to Dolphin or KDE Frameworks.
 
+#### Audit findings (2026-10-26)
+
+Scope: 314 own commits on all 20 local and remote branches (everything not in `upstream/master`),
+their messages, every added line including files deleted later, binary files, the current tree.
+
+Clean:
+- No credentials, tokens, keys or passwords anywhere in the history.
+- No insults or inappropriate wording (only technical "dummy").
+- Personal data in contents: only local paths under `/home/user/…` (neutral user name), today
+  only in `CLAUDE.md`; nothing else (no real name, no private e-mail address).
+- REUSE: 1019 of 1046 files compliant, no bad, missing or unused licenses.
+- Crash reports: the bug address is `WHALE_BUG_URL` (GitHub issues), not bugs.kde.org; to be
+  confirmed with a real crash (isolation test R10).
+- `org.kde.dolphin.appdata.xml` is installed only with `WHALE_INSTALL_DOLPHIN_EXTRAS`.
+
+Findings:
+1. **Commit identity.** All 314 own commits have author and committer
+   `User <user@ryzen-kubuntu.fritz.box>` (host name and home network domain; GitHub links them to
+   no account). Changing it needs a history rewrite (all own hashes change, force push, hash
+   references in `.privatedoc`, issues and memories need updating). Decision D4 applies:
+   user decision.
+2. **REUSE: 27 files without license information:** 23 `.privatedoc/*.md`, `AGENTS.md`,
+   `CLAUDE.md`, `run-orcinus.sh`, `global-install-orcinus.sh`. Scripts: SPDX header
+   (GPL-2.0-or-later). Documents: license to choose (e.g. CC-BY-SA-4.0 like many KDE docs, or
+   CC0-1.0), via a `REUSE.toml` annotation.
+3. **Icon.** The Orcinus icon is derived from Dolphin's (same Breeze folder, the dolphin replaced
+   by an orca) and lives in Dolphin's file names `src/icons/*org.kde.dolphin*` and `logo.png`.
+   Its license LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL and Dolphin's authors must stay;
+   add the copyright line for the change ("2026 Orcinus contributors"). Optional: rename the
+   files to the app ID (an upstream icon change would then no longer merge into them).
+4. **No affiliation disclaimer.** README, metainfo and About dialog do not say that Orcinus is an
+   unofficial fork not affiliated with or endorsed by KDE. README's "Contributing" section is
+   upstream's text (KDE Invent, bugs.kde.org, "do not use the Issues tab") and contradicts
+   Orcinus' issue tracker.
+5. **Metainfo incomplete:** no `<releases>`, screenshots, OARS details (empty tag is fine for a
+   file manager), the summary says "personal".
+6. **Missing repo files:** `CONTRIBUTING.md`, `SECURITY.md`, issue templates.
+7. **`CLAUDE.md`/`AGENTS.md`:** absolute local paths (`/home/user/…`); otherwise nothing that must
+   not be public. They describe the local setup (build directories, private prefix).
+8. **Helper scripts:** `global-install-orcinus.sh` assumes Debian/Ubuntu (`dpkg`) and
+   `x86_64-linux-gnu`, `run-orcinus.sh` the local `../build-whale`; document them as developer
+   helpers for that setup.
+9. **`.privatedoc`:** 21 of 23 documents are German, about 95,000 words in total; the largest are
+   the plans of view plugins (23k), multi-toolbar (16k) and location bar (11k). Which ones are
+   obsolete and what gets translated is a user decision.
+10. Upstream's CI files (`.gitlab-ci.yml`, `.kde-ci.yml`, `.flatpak-manifest.json`) stay for
+    upstream merges; they do nothing on GitHub.
+
 ### RL2: String freeze and translation
 
 - Declare a string freeze on master. From here on, string changes only for real fixes and only
