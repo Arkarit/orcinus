@@ -1,0 +1,90 @@
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: CC0-1.0
+#
+# Continuous integration (release plan RL3). Builds and tests in an Arch Linux container, whose
+# KDE Frameworks and Qt are current enough for Dolphin's master; Ubuntu's runners are not.
+
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel git cmake ninja clang python python-dbus gettext dbus \
+            extra-cmake-modules qt6-base qt6-multimedia \
+            kcmutils knewstuff kcoreaddons ki18n kdbusaddons kbookmarks kconfig kio kparts \
+            solid kiconthemes kcompletion ktextwidgets knotifications kcrash kwindowsystem \
+            kwidgetsaddons kcodecs kguiaddons kcolorscheme kxmlgui kdoctools kfilemetadata \
+            baloo baloo-widgets packagekit-qt6 mpv breeze-icons
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: dbus-run-session -- ctest --test-dir build --output-on-failure -j "$(nproc)"
+
+      - name: Release configuration
+        run: cmake -DBUILD_DIR=build -P cmake/WhaleReleaseCheck.cmake
+
+      - name: Formatting of the changed lines
+        run: |
+          git config --global --add safe.directory "$PWD"
+          if [ "${{ github.event_name }}" = pull_request ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            base="$(git rev-parse HEAD~1)"
+          fi
+          diff="$(git clang-format --diff --extensions cpp,h "${base}" HEAD || true)"
+          if [ -n "${diff}" ] && ! echo "${diff}" | grep -qE '^(no modified files to format|clang-format did not modify any files)$'; then
+            echo "${diff}"
+            exit 1
+          fi
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils appstream python3-yaml
+          pip install --user reuse==5.0.2
+
+      - name: REUSE
+        run: ~/.local/bin/reuse lint
+
+      - name: XML
+        run: git ls-files '*.xml' '*.rc' '*.kcfg' '*.ui' '*.qrc' '*.svg' | grep -v '^po/' | xargs -r xmllint --noout
+
+      - name: YAML and JSON
+        run: |
+          git ls-files '*.yml' '*.yaml' | xargs -r -n1 python3 -c 'import sys, yaml; yaml.safe_load(open(sys.argv[1]))'
+          git ls-files '*.json' | xargs -r -n1 python3 -m json.tool > /dev/null
+
+      - name: AppStream metadata
+        run: appstreamcli validate --no-net --explain src/io.github.arkarit.orcinus.metainfo.xml
