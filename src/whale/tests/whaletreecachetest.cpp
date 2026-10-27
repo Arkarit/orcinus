@@ -559,8 +559,9 @@ void WhaleTreeCacheTest::testChangeRightAfterScan()
         QSignalSpy finished(&scanner, &WhaleTreeScanner::finished);
         const QString file = path(QStringLiteral("sub/round%1.txt").arg(round));
         QVERIFY(scanner.scan(QUrl::fromLocalFile(m_dir->path())));
-        // Wait for the worker, but not for its outcome to arrive.
-        QTRY_COMPARE(WhaleTreeScannerImpl::runningWorkers(), 0);
+        // Wait for the worker, but not for its outcome to arrive (generously: while many tests
+        // start in parallel, even this small scan took over 5 seconds).
+        QTRY_COMPARE_WITH_TIMEOUT(WhaleTreeScannerImpl::runningWorkers(), 0, 30000);
         writeFile(file, 1);
         QTRY_COMPARE(finished.count(), 1);
         QTest::qWait(20);

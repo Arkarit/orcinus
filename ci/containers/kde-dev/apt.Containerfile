@@ -37,3 +37,12 @@ RUN svg_plugins=qt6-svg-plugins \
       dbus-daemon dbus-x11 xauth \
       breeze breeze-icon-theme fonts-dejavu-core fonts-noto-core \
  && rm -rf /var/lib/apt/lists/*
+
+# KService 6.24 (Ubuntu 26.04) registers applications only through an XDG menu (6.29 no longer
+# needs one); desktops install it, a container lacks it: a minimal one that includes everything.
+RUN mkdir -p /etc/xdg/menus \
+ && [ -e /etc/xdg/menus/applications.menu ] \
+ || printf '%s\n' \
+      '<!DOCTYPE Menu PUBLIC "-//freedesktop//DTD Menu 1.0//EN" "http://www.freedesktop.org/standards/menu-spec/1.0/menu.dtd">' \
+      '<Menu><Name>Applications</Name><DefaultAppDirs/><DefaultDirectoryDirs/><Include><All/></Include></Menu>' \
+      > /etc/xdg/menus/applications.menu

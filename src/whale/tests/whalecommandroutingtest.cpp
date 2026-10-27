@@ -774,6 +774,9 @@ void WhaleCommandRoutingTest::testCopyCutPaste()
     left->setActive(true);
     QTRY_COMPARE(m_mainWindow->activeViewContainer(), left);
     QVERIFY(select(treemap, url(QStringLiteral("root/deep/move-me.txt"))));
+    // (The paste's job window can take the activation; offscreen nothing gives it back.)
+    m_mainWindow->QWidget::activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(m_mainWindow.data()));
     QTest::keySequence(canvasOf(treemap), QKeySequence::Cut);
     QVERIFY(KIO::isClipboardDataCut(QApplication::clipboard()->mimeData()));
     right->setActive(true);

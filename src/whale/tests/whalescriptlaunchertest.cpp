@@ -18,6 +18,7 @@
 #include <QComboBox>
 #include <QDir>
 #include <QFile>
+#include <QMimeDatabase>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -48,6 +49,10 @@ private Q_SLOTS:
 
 private:
     QString createScript(const QString &name, const QByteArray &body, bool executable = true);
+    // Whether the MIME database lets shell scripts inherit text/plain, which isScript() needs, as
+    // KIO does. Not so with Qt 6.11 and shared-mime-info 2.5 (Fedora 45): text/x-shellscript there
+    // has no explicit text/plain parent, and only later Qt versions add it implicitly.
+    static bool shellScriptsAreText();
     void setTerminal(const QString &terminalApplication, const QString &terminalService = QString());
     // Waits until the stand-in terminal has finished; returns its log.
     QString waitForTerminal();
@@ -122,6 +127,11 @@ QString WhaleScriptLauncherTest::createScript(const QString &name, const QByteAr
     return path;
 }
 
+bool WhaleScriptLauncherTest::shellScriptsAreText()
+{
+    return QMimeDatabase().mimeTypeForFile(QStringLiteral("run.sh"), QMimeDatabase::MatchExtension).inherits(QStringLiteral("text/plain"));
+}
+
 void WhaleScriptLauncherTest::setTerminal(const QString &terminalApplication, const QString &terminalService)
 {
     KSharedConfig::Ptr globals = KSharedConfig::openConfig(QStringLiteral("kdeglobals"), KConfig::SimpleConfig);
@@ -178,6 +188,9 @@ void WhaleScriptLauncherTest::testMode()
 
 void WhaleScriptLauncherTest::testIsScript()
 {
+    if (!shellScriptsAreText()) {
+        QSKIP("shell scripts are no text/plain in this MIME database, so KIO does not see them as scripts either");
+    }
     const QString script = createScript(QStringLiteral("run.sh"), QByteArrayLiteral("#!/bin/sh\necho hi\n"));
     const QString notExecutable = createScript(QStringLiteral("plain.sh"), QByteArrayLiteral("#!/bin/sh\necho hi\n"), false);
     const QString text = createScript(QStringLiteral("notes.txt"), QByteArrayLiteral("just text\n"));
@@ -255,6 +268,9 @@ void WhaleScriptLauncherTest::testRunInTerminal()
     QFETCH(WhaleScriptLauncher::Mode, mode);
     QFETCH(int, exitCode);
     QFETCH(bool, waits);
+    if (!shellScriptsAreText()) {
+        QSKIP("shell scripts are no text/plain in this MIME database, so KIO does not see them as scripts either");
+    }
 
     m_dir->createDir(QStringLiteral("sub dir"));
     const QString script =

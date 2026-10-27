@@ -14,7 +14,7 @@ They are reused for packaging (RL5) and the distribution tests (RL6).
 | `ubuntu-26.10` | Ubuntu 26.10 | 6.29 / 6.11 | |
 | `debian-testing` | Debian testing | 6.30 / 6.11 | |
 | `neon` | Ubuntu 24.04 + KDE neon | 6.31 / 6.11 | |
-| `fedora-45` | Fedora 45 | 6.31 / 6.12 | |
+| `fedora-45` | Fedora 45 | 6.31 / 6.11 | |
 | `opensuse-tumbleweed` | openSUSE Tumbleweed | 6.31 / 6.12 | |
 | `arch` | Arch Linux | 6.31 / 6.12 | same as the GitHub CI |
 
@@ -50,6 +50,16 @@ a fresh home directory, so nothing touches the real configuration.
 Each image needs about 2–4 GB, each Release build about 1 GB. `podman rmi` or
 `podman image prune` removes images; refresh them with `containers.sh images` (it pulls newer
 base images).
+
+## Known test results
+
+- Issue #14 (`whaleexpansiontinttest`, `whaleselectiontest`) fails everywhere, as in the GitHub
+  CI, which excludes both.
+- `ubuntu-26.10`: three tests crash in `KColorButton` (KDE Frameworks 6.29) on the offscreen
+  platform, which has no clipboard there. A limit of the test environment, not of Orcinus.
+- `fedora-45`: the script tests of `whalescriptlaunchertest` skip. With Qt 6.11 and
+  shared-mime-info 2.5 shell scripts do not inherit `text/plain`, so neither KIO nor Orcinus
+  treats them as scripts there.
 
 ## Own use of the images
 
