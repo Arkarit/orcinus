@@ -373,6 +373,33 @@ Findings:
   available and what does not build.
 - The containers are reused for packaging (RL5) and the distro tests (RL6).
 
+#### Done (2026-10-27)
+
+- Distro list (user decision), all built as Podman images in `ci/containers/` (see its
+  README): Ubuntu 26.04 LTS (KF 6.24 / Qt 6.10, at the minimum versions), Ubuntu 26.10,
+  Debian testing, KDE neon, Fedora 45, openSUSE Tumbleweed, Arch. Not supported: Debian 13
+  (KF 6.13). Two layers: a generic `kde-dev` image and an `orcinus-dev` image on top;
+  `containers.sh images|test|shell`. Orcinus builds with all optional features on all seven.
+- Test results: only issue #14 fails everywhere; Ubuntu 26.10 additionally three
+  `KColorButton` crashes of KF 6.29 on the offscreen platform (accepted as a limit of the
+  test environment); Fedora 45 skips the script tests (Qt 6.11 + shared-mime-info 2.5: shell
+  scripts are no `text/plain`, so KIO does not run them as scripts either).
+- Fixed on the way (dba73d309): the lost Ctrl+X in `whalecommandroutingtest` (window
+  activation offscreen), a longer wait in `whaletreecachetest`, all tests run with
+  `LANGUAGE=en_US` (22 failed under a German desktop), an XDG menu in the apt images for
+  KService 6.24.
+- Open: `folderspaneltest` fails rarely in full parallel runs (Ubuntu 26.04 once, locally
+  once); not reproducible alone, with 32 parallel copies or with churn in `/tmp`.
+- GitHub CI green for dba73d309 (run 40492029542). Note: `actions/checkout@v4` runs on
+  Node.js 20, which GitHub deprecates; update when the CI is touched next.
+
+#### Next: format decision
+
+- Proposal (not decided yet): AUR (`orcinus`, `orcinus-git`) plus Flatpak for 1.0; `.rpm` and
+  `.deb` later. Flathub reviews the first submission by hand (days to weeks, permissions such
+  as `--filesystem=host` must be justified), so submit early; a `.flatpak` bundle as a
+  release asset serves the beta (RL7) without review.
+
 ### RL5: Packaging
 
 - Choose the formats. Candidates: Flatpak (Flathub), AUR (`orcinus` / `orcinus-git`), `.deb` for
