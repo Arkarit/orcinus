@@ -17,7 +17,7 @@ project(Dolphin VERSION ${RELEASE_SERVICE_VERSION})
 # Orcinus' own version (semantic versioning, release plan RL3). RELEASE_SERVICE_VERSION above
 # stays Dolphin's version: the version of the Dolphin code Orcinus is based on, also used for
 # the internal libraries; the About dialog shows it as the base.
-set(WHALE_VERSION "1.0.0")
+set(WHALE_VERSION "0.1.0")
 set(WHALE_EXECUTABLE "orcinus")
 set(WHALE_COMPONENT "orcinus")
 set(WHALE_ORG_DOMAIN "arkarit.github.io")

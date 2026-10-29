@@ -14,6 +14,7 @@ are translated to English as part of RL1 (decision D3).
 | D2 | `.privatedoc/` in a public repo? | **Stays public.** Documents are deleted only when they become obsolete. |
 | D3 | Language of `.privatedoc/` | **English.** All remaining documents are translated before the repo goes public. |
 | D4 | History rewrite? | **Only for gross findings** in the audit: insults or personal data. Everything else stays in the history. |
+| D5 | Version of the first release? (2026-10-29) | **0.1.0, an alpha.** The user still sees rough edges (startup layout glitch, Styles data and naming, a mass-rename wish) that are no blockers for an alpha but need a decision before beta or 1.0. The B3 stability promises apply from **1.0**; in 0.x settings are still migrated where possible, action names and the plugin API may change. Open, decided in their steps: whether D1 (fixes only) still holds during 0.x, the role of RL7 (beta/RC on the way to 1.0), and the package formats for the alpha (RL5). |
 
 ## Blockers (handled first, before RL1)
 
@@ -343,7 +344,8 @@ Findings:
 
 #### Done (2026-10-26)
 
-- Version scheme (user decision): Orcinus' own semantic version, `WHALE_VERSION` = 1.0.0; the
+- Version scheme (user decision): Orcinus' own semantic version, `WHALE_VERSION` = 1.0.0 (changed
+  to 0.1.0 on 2026-10-29, see D5); the
   About dialog adds "Based on Dolphin <RELEASE_SERVICE_VERSION>". Dolphin's version still
   versions the internal libraries.
 - Upstream strategy (user decision): follow Dolphin's `master`, merge every two to four weeks and
@@ -358,7 +360,7 @@ Findings:
   normal user with fonts, Breeze and thumbnailers, release check, formatting of changed lines)
   and a lint job (REUSE, XML, YAML, JSON, AppStream). Green since run 40325940554; two tests
   are excluded until issue #14 (selection timing, a tint pixel with newer Breeze).
-- `CHANGELOG.md` with the 1.0.0 section. The metainfo `<release>` entry is added at release time
+- `CHANGELOG.md` with the 1.0.0 section (now 0.1.0, D5). The metainfo `<release>` entry is added at release time
   (checklist step 5).
 
 ### RL4: Test containers
