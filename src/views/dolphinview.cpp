@@ -1532,8 +1532,9 @@ void DolphinView::slotItemsActivated(const KItemSet &indexes)
     const auto modifiers = QGuiApplication::keyboardModifiers();
 
     // Whale: files the built-in viewer shows open in one window, so they do not count (V1b).
+    // With Shift they open in their applications instead (DolphinViewContainer).
     int openedCount = indexes.count();
-    if (shownInternallyCheck() && openedCount > 5) {
+    if (shownInternallyCheck() && openedCount > 5 && !(modifiers & Qt::ShiftModifier)) {
         for (int index : indexes) {
             if (shownInternallyCheck()(m_model->fileItem(index))) {
                 --openedCount;

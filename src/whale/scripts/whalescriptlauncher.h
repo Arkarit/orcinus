@@ -76,6 +76,8 @@ QString defaultTerminal();
  * @return Whether it was started; otherwise the caller opens @p item as usual.
  */
 bool launch(const KFileItem &item, QWidget *window);
+/** As launch(), but in @p mode instead of the one set in orcinusrc (Shift + double-click). */
+bool launch(const KFileItem &item, QWidget *window, Mode mode);
 
 /**
  * For tests: @p handler gets the requests for the terminal windows (by the terminal's process

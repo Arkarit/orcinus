@@ -114,6 +114,21 @@ matches Dolphin's behavior.
 <!-- TODO: setting in Interface → Folders & Tabs, default off; what changes in
      the location bar and context menu. -->
 
+### 5.3 Built-in image and video viewer
+<!-- TODO: opening images and videos shows them in a plain fullscreen viewer
+     instead of an external application; changing the image moves the current
+     item and selection in the view; multi-selection shows only the selected
+     files; zoom and pan keys; video playback (libmpv); settings page.
+     Shift+double-click (or Shift+Enter) skips the viewer and opens the file
+     in its preferred application. -->
+
+### 5.4 Running scripts in a terminal
+<!-- TODO: executable scripts run in the default terminal (Settings, default
+     off = KIO asks as in Dolphin): keep open, close on success, minimized
+     variants raised when the script fails; the terminal starts in the
+     script's folder. Shift+double-click (or Shift+Enter) always runs the
+     script in a terminal that stays open, whatever the setting. -->
+
 ## 6. Smaller differences
 
 <!-- TODO: About dialog credits Dolphin; Information panel available with

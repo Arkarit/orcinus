@@ -846,11 +846,19 @@ void DolphinViewContainer::slotItemActivated(const KFileItem &item)
         return;
     }
 
-    if (WhaleScriptLauncher::launch(item, this)) { // Whale: scripts in a terminal
-        return;
-    }
-    if (WhaleViewer::openItem(item, m_view, window())) { // Whale: the built-in viewer
-        return;
+    // Whale: with Shift, scripts always run in a terminal that stays open, and other files open
+    // in their preferred application instead of the built-in viewer.
+    if (QGuiApplication::keyboardModifiers() & Qt::ShiftModifier) {
+        if (WhaleScriptLauncher::launch(item, this, WhaleScriptLauncher::Mode::Terminal)) {
+            return;
+        }
+    } else {
+        if (WhaleScriptLauncher::launch(item, this)) { // Whale: scripts in a terminal
+            return;
+        }
+        if (WhaleViewer::openItem(item, m_view, window())) { // Whale: the built-in viewer
+            return;
+        }
     }
 
     KIO::OpenUrlJob *job = new KIO::OpenUrlJob(item.targetUrl(), item.mimetype());
@@ -911,15 +919,19 @@ void DolphinViewContainer::slotItemsActivated(const KFileItemList &items)
 {
     Q_ASSERT(items.count() >= 2);
 
-    // Whale: scripts in a terminal, each in its own.
+    // Whale: scripts in a terminal, each in its own. With Shift as in slotItemActivated().
+    const bool shift = QGuiApplication::keyboardModifiers() & Qt::ShiftModifier;
     KFileItemList others;
     for (const KFileItem &item : items) {
-        if (!WhaleScriptLauncher::launch(item, this)) {
+        const bool launched = shift ? WhaleScriptLauncher::launch(item, this, WhaleScriptLauncher::Mode::Terminal) : WhaleScriptLauncher::launch(item, this);
+        if (!launched) {
             others.append(item);
         }
     }
     // Whale: what the built-in viewer shows, all in one viewer.
-    others = WhaleViewer::openItems(others, m_view, window());
+    if (!shift) {
+        others = WhaleViewer::openItems(others, m_view, window());
+    }
     if (others.isEmpty()) {
         return;
     }

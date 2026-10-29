@@ -270,7 +270,11 @@ QString defaultTerminal()
 
 bool launch(const KFileItem &item, QWidget *window)
 {
-    const Mode current = mode();
+    return launch(item, window, mode());
+}
+
+bool launch(const KFileItem &item, QWidget *window, Mode current)
+{
     if (current == Mode::Off || !isScript(item) || !KAuthorized::authorize(QStringLiteral("shell_access"))) {
         return false;
     }
