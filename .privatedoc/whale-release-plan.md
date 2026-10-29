@@ -14,7 +14,7 @@ are translated to English as part of RL1 (decision D3).
 | D2 | `.privatedoc/` in a public repo? | **Stays public.** Documents are deleted only when they become obsolete. |
 | D3 | Language of `.privatedoc/` | **English.** All remaining documents are translated before the repo goes public. |
 | D4 | History rewrite? | **Only for gross findings** in the audit: insults or personal data. Everything else stays in the history. |
-| D5 | Version of the first release? (2026-10-29) | **0.1.0, an alpha.** The user still sees rough edges (startup layout glitch, Styles data and naming, a mass-rename wish) that are no blockers for an alpha but need a decision before beta or 1.0. The B3 stability promises apply from **1.0**; in 0.x settings are still migrated where possible, action names and the plugin API may change. Open, decided in their steps: whether D1 (fixes only) still holds during 0.x, the role of RL7 (beta/RC on the way to 1.0), and the package formats for the alpha (RL5). |
+| D5 | Version of the first release? (2026-10-29) | **0.1.0, an alpha.** The user still sees rough edges (startup layout glitch, Styles data and naming, a mass-rename wish) that are no blockers for an alpha but need a decision before beta or 1.0. The B3 stability promises apply from **1.0**; in 0.x settings are still migrated where possible, action names and the plugin API may change. Follow-ups (user decisions 2026-10-29): D1 applies only to the next release, so features may come between releases in 0.x; no beta, but a release candidate before 1.0 (RL7); package formats for the alpha see RL5. |
 
 ## Blockers (handled first, before RL1)
 
@@ -190,7 +190,7 @@ on its own.
 4. RL4 Test containers
 5. RL5 Packaging
 6. RL6 Automated tests across distros
-7. RL7 Beta/RC and fixes
+7. RL7 Release candidate and fixes (before 1.0; the 0.1.0 alpha ships without one)
 8. RL8 Website and documentation
 9. RL9 Making the repo public
 10. RL10 Announcement
@@ -395,18 +395,21 @@ Findings:
 - GitHub CI green for dba73d309 (run 40492029542). Note: `actions/checkout@v4` runs on
   Node.js 20, which GitHub deprecates; update when the CI is touched next.
 
-#### Next: format decision
+#### Format decision (2026-10-29, user decision)
 
-- Proposal (not decided yet): AUR (`orcinus`, `orcinus-git`) plus Flatpak for 1.0; `.rpm` and
-  `.deb` later. Flathub reviews the first submission by hand (days to weeks, permissions such
-  as `--filesystem=host` must be justified), so submit early; a `.flatpak` bundle as a
-  release asset serves the beta (RL7) without review.
+- Alpha 0.1.0: a GitHub pre-release with the source tarball (tag `v0.1.0`), AUR (`orcinus`,
+  `orcinus-git`) and an Ubuntu PPA for 26.04 and 26.10 (the maintainer's own system is
+  26.04). `global-install-orcinus.sh` stays the way to build from source.
+- Flatpak only for the RC/1.0: in the sandbox a file manager loses Baloo search, kio-admin,
+  the terminal panel with the host shell and the host's service menus and VCS plugins, which
+  would give the alpha a worse first impression; Flathub's manual review (days to weeks) also
+  starts then. Fedora (Copr) and openSUSE (OBS) when there is demand; the `debian/` directory
+  of the PPA can be reused for Debian testing.
 
 ### RL5: Packaging
 
-- Choose the formats. Candidates: Flatpak (Flathub), AUR (`orcinus` / `orcinus-git`), `.deb` for
-  Ubuntu/Debian (PPA or release asset), `.rpm` (Copr / OBS), AppImage. Decide which ones the
-  first release ships.
+- Formats for the alpha: GitHub source tarball, AUR, Ubuntu PPA (decided, see the end of
+  RL4). Flatpak follows for the RC.
 - Dependencies: libmpv2 runtime, Baloo; `dolphin-plugins` only as a recommendation (VCS
   emblems). The VCS library is bundled privately (B2); list
   `src/views/versioncontrol/kversioncontrolplugin.*` (LGPL-2.0-only) in each package's copyright
@@ -427,11 +430,12 @@ Findings:
 - Translation check: start with `LANGUAGE=de` and verify the German strings show up.
 - Keep the scripts in the repo so CI (RL3) can run them later.
 
-### RL7: Beta/RC and fixes
+### RL7: Release candidate and fixes
 
-- Beta: a small group of testers, a feedback channel (GitHub Discussions or issues with a
-  label), a defined test period.
-- Go/no-go criteria, defined before the beta starts. Proposal: no known crash, no data loss,
+No beta (user decision 2026-10-29); the alpha 0.1.0 itself ships without an RC, the RC phase
+belongs to the way to 1.0. Feedback channel (GitHub Discussions or issues with a label).
+
+- Go/no-go criteria, defined before the RC. Proposal: no known crash, no data loss,
   no open bug labeled `release-blocker`, all distros from RL4 build and pass RL6.
 - Fixes go to master, a new RC follows when needed. The fix phase ends with the final RC.
 
@@ -464,5 +468,5 @@ Findings:
 
 ## Open questions (decided in the respective steps)
 
-- Distro list (RL4) and package formats (RL5).
+- Distro list (RL4, decided) and package formats (RL5, decided for the alpha).
 - Announcement channels (RL10).
