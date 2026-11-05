@@ -24,6 +24,13 @@ public:
     DolphinBookmarkHandler(DolphinMainWindow *mainWindow, KActionCollection *collection, QMenu *menu, QObject *parent);
     ~DolphinBookmarkHandler() override;
 
+    /**
+     * Whale: the bookmarks file of the bookmarks menu. KDE's shared kfile/bookmarks.xml if it
+     * exists, otherwise Orcinus' own file in its data directory. On the first use of the own file,
+     * Dolphin's bookmarks are copied into it once; Dolphin's data is never written.
+     */
+    static QString bookmarksFile();
+
 private:
     QString currentTitle() const override;
     QUrl currentUrl() const override;
