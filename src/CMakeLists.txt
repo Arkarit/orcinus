@@ -261,15 +261,16 @@ if(HAVE_BALOO)
     )
 endif()
 
-# Whale (B2): finds the private libdolphinvcs, see above.
-whale_use_private_libdir(dolphinprivate "${KDE_INSTALL_FULL_LIBDIR}")
+# Whale (B2): liborcinusprivate is private as well and lives next to libdolphinvcs and
+# liborcinusviewapi in the private library directory, see the top-level CMakeLists.txt.
+whale_use_private_libdir(dolphinprivate "${CMAKE_INSTALL_PREFIX}/${WHALE_PRIVATE_LIBDIR}")
 set_target_properties(dolphinprivate PROPERTIES
     OUTPUT_NAME ${WHALE_COMPONENT}private
     VERSION ${DOLPHINPRIVATE_VERSION}
     SOVERSION ${DOLPHINPRIVATE_SOVERSION}
 )
 
-install(TARGETS dolphinprivate ${KDE_INSTALL_TARGETS_DEFAULT_ARGS} LIBRARY NAMELINK_SKIP)
+install(TARGETS dolphinprivate LIBRARY DESTINATION ${WHALE_PRIVATE_LIBDIR} NAMELINK_SKIP)
 
 ##########################################
 configure_file(dolphinpart.json.in ${CMAKE_CURRENT_BINARY_DIR}/dolphinpart.json @ONLY)
@@ -292,6 +293,7 @@ target_link_libraries(dolphinpart
 )
 
 if(WHALE_INSTALL_DOLPHIN_EXTRAS)
+    whale_use_private_libdir(dolphinpart "${KDE_INSTALL_FULL_PLUGINDIR}/kf6/parts")
     install(TARGETS dolphinpart DESTINATION ${KDE_INSTALL_PLUGINDIR}/kf6/parts)
     install(FILES dolphinpartactions.desktop DESTINATION "${KDE_INSTALL_DATADIR}/dolphin/")
 endif()
@@ -646,6 +648,8 @@ if(NOT WIN32)
 
     if(WHALE_INSTALL_DOLPHIN_EXTRAS)
         install(FILES org.kde.dolphin.appdata.xml DESTINATION ${KDE_INSTALL_METAINFODIR})
+        whale_use_private_libdir(kcm_dolphinviewmodes "${KDE_INSTALL_FULL_PLUGINDIR}/dolphin/kcms")
+        whale_use_private_libdir(kcm_dolphingeneral "${KDE_INSTALL_FULL_PLUGINDIR}/dolphin/kcms")
         install(TARGETS kcm_dolphinviewmodes DESTINATION ${KDE_INSTALL_PLUGINDIR}/dolphin/kcms)
         install(TARGETS kcm_dolphingeneral DESTINATION ${KDE_INSTALL_PLUGINDIR}/dolphin/kcms)
     endif()

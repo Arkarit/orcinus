@@ -432,9 +432,12 @@ State (2026-11-05):
   (resolute 26.04, stonking 26.10) build in clean Ubuntu containers with only the
   Build-Depends, install next to Dolphin without file conflicts, have only relative RUNPATHs and
   start (`orcinus --version`). Remaining lintian: no manual page, no watch file (accepted).
-- Open: Maintainer address in debian/control (currently the GitHub noreply address);
-  `liborcinusprivate` still lives in the public library directory (could move to
-  `lib/<arch>/orcinus` like the other private libraries).
+- Maintainer address: `orcinus-filemanager@online.de` (project address, user decision
+  2026-11-05). `liborcinusprivate` moved into `lib/<arch>/orcinus` like the other private
+  libraries, so the package installs no library into the public library directory.
+- Later (user decision 2026-11-05): a separate GPG key with only the Orcinus address for PPA
+  uploads (the current key's private address cannot be removed from keyserver.ubuntu.com);
+  `ORCINUS_SIGNING_KEY` selects the key in `ubuntu-ppa.sh upload`.
 
 ### RL6: Automated tests across distros
 

@@ -95,7 +95,7 @@ SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 # Debian packaging (release plan RL5) — control files without comment syntax.
 [[annotations]]
-path = ["packaging/debian/control", "packaging/debian/copyright", "packaging/debian/source/format", "packaging/debian/orcinus.lintian-overrides"]
+path = ["packaging/debian/control", "packaging/debian/copyright", "packaging/debian/source/format"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Orcinus contributors"
 SPDX-License-Identifier = "GPL-2.0-or-later"

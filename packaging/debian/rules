@@ -22,3 +22,8 @@ override_dh_auto_configure:
 
 override_dh_auto_test:
 	cmake -DBUILD_DIR=$(CURDIR)/obj-$(DEB_HOST_GNU_TYPE) -P cmake/WhaleReleaseCheck.cmake
+
+# All shared libraries live in the private directory /usr/lib/<arch>/orcinus: no ldconfig
+# trigger, no shlibs for other packages.
+override_dh_makeshlibs:
+	dh_makeshlibs --no-scripts

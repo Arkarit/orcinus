@@ -17,6 +17,7 @@
 # Package version: UPSTREAM-0ppaN~SERIES1 (N = $ORCINUS_PPA_REVISION, default 1).
 # Output: $ORCINUS_PACKAGE_ROOT/ubuntu, by default ../build-packages/ubuntu next to the checkout.
 # Changelog identity: $DEBFULLNAME / $DEBEMAIL, otherwise the Maintainer field of debian/control.
+# Signing key for upload: $ORCINUS_SIGNING_KEY (key ID or address), otherwise gpg's default key.
 
 set -euo pipefail
 
@@ -180,7 +181,7 @@ upload() {
     for series in "$@"; do
         changes="${out_root}/orcinus_${upstream}-0ppa${ppa_revision}~${series}1_source.changes"
         [ -f "${changes}" ] || die "missing ${changes}"
-        debsign "${changes}"
+        debsign ${ORCINUS_SIGNING_KEY:+-k"${ORCINUS_SIGNING_KEY}"} "${changes}"
         dput "${ppa}" "${changes}"
     done
 }
@@ -205,7 +206,7 @@ upload)
     upload "$@"
     ;;
 *)
-    sed -n '/^# Builds/,/^# Changelog/p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '/^# Builds the Ubuntu/,/^# Signing/p' "$0" | sed 's/^# \{0,1\}//'
     [ -z "${command}" ] || exit 1
     ;;
 esac

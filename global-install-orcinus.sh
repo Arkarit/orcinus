@@ -88,14 +88,14 @@ done < <(find "${stage_dir}" -type f \( -name '*.so*' -o -path '*/bin/*' \))
 # B2/B3: the private libraries must be there and be found by the binary and liborcinusprivate.
 private_dir="${stage_dir}${prefix}/lib/x86_64-linux-gnu/orcinus"
 view_api="$(readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -o 'liborcinusviewapi\.so\.[0-9]*')"
-for library in libdolphinvcs.so.6 "${view_api:-liborcinusviewapi}"; do
+for library in liborcinusprivate.so.6 libdolphinvcs.so.6 "${view_api:-liborcinusviewapi}"; do
     if [[ ! -e "${private_dir}/${library}" ]]; then
         echo "Check: the private library ${library} is missing in ${private_dir#"${stage_dir}"}." >&2
         collisions=1
     fi
 done
 if ! readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qF '[$ORIGIN/../lib/x86_64-linux-gnu/orcinus]' \
-    || ! readelf -d "${stage_dir}${prefix}/lib/x86_64-linux-gnu/liborcinusprivate.so.6" | grep -qF '[$ORIGIN/orcinus]'; then
+    || ! readelf -d "${private_dir}/liborcinusprivate.so.6" | grep -qF '[$ORIGIN]'; then
     echo "Check: the staged binary or liborcinusprivate does not find the private library directory." >&2
     collisions=1
 fi

@@ -1,7 +1,7 @@
 Source: orcinus
 Section: kde
 Priority: optional
-Maintainer: Arkarit <12444486+Arkarit@users.noreply.github.com>
+Maintainer: Arkarit <orcinus-filemanager@online.de>
 Build-Depends: debhelper-compat (= 13),
                cmake,
                ninja-build,
