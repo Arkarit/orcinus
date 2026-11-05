@@ -438,6 +438,12 @@ State (2026-11-05):
 - Later (user decision 2026-11-05): a separate GPG key with only the Orcinus address for PPA
   uploads (the current key's private address cannot be removed from keyserver.ubuntu.com);
   `ORCINUS_SIGNING_KEY` selects the key in `ubuntu-ppa.sh upload`.
+- AUR recipes done: `packaging/arch/orcinus` (release tarball from the GitHub release, checksum
+  set by `arch-aur.sh release`) and `packaging/arch/orcinus-git` (`provides`/`conflicts`
+  orcinus, pkgver `X.Y.Z.rN.gHASH`). `packaging/arch-aur.sh test` builds both in a clean Arch
+  container without network access to GitHub (local tarball / bare clone), runs namcap, installs
+  next to Dolphin and starts them: all pass; namcap only notes `qt6-svg` (needed as a Qt plugin).
+  Upload waits for AUR registration and RL9 (the recipes download from the public repository).
 
 ### RL6: Automated tests across distros
 

@@ -1,0 +1,59 @@
+# Maintainer: Arkarit <orcinus-filemanager at online dot de>
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+pkgname=orcinus-git
+pkgver=0.1.0.r0.g0000000
+pkgrel=1
+pkgdesc='File manager based on KDE Dolphin (development version)'
+arch=(x86_64 aarch64)
+url='https://github.com/Arkarit/orcinus'
+license=('GPL-2.0-or-later'
+         'LGPL-2.0-only'
+         'LGPL-2.0-or-later'
+         'LGPL-2.1-only OR LGPL-3.0-only OR LicenseRef-scancode-kde-accepted-lgpl'
+         'LGPL-3.0-only OR LicenseRef-scancode-kde-accepted-lgpl'
+         'BSD-2-Clause')
+depends=(baloo baloo-widgets glibc hicolor-icon-theme kbookmarks kcmutils kcodecs
+         kcolorscheme kcompletion kconfig kconfigwidgets kcoreaddons kcrash kdbusaddons
+         kfilemetadata kguiaddons ki18n kiconthemes kio kjobwidgets knewstuff knotifications
+         kparts kservice ktextwidgets kwidgetsaddons kwindowsystem kxmlgui libstdc++ mpv
+         qt6-base qt6-multimedia
+         qt6-svg # icons in SVG format (loaded as a Qt plugin, so namcap does not see it)
+         solid)
+makedepends=(extra-cmake-modules gettext git ninja)
+optdepends=('dolphin-plugins: version control emblems (Git, SVN, ...)'
+            'kio-extras: extra protocols and thumbnails'
+            'kdegraphics-thumbnailers: thumbnails for PDF and other documents'
+            'ffmpegthumbs: video thumbnails'
+            'konsole: terminal panel')
+provides=(orcinus)
+conflicts=(orcinus)
+source=("orcinus::git+https://github.com/Arkarit/orcinus.git")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd orcinus
+  printf '%s.r%s.g%s' \
+    "$(sed -n 's/^set(WHALE_VERSION "\(.*\)")$/\1/p' CMakeLists.txt)" \
+    "$(git rev-list --count HEAD)" \
+    "$(git rev-parse --short=9 HEAD)"
+}
+
+build() {
+  cmake -B build -S orcinus -G Ninja \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=None \
+    -DBUILD_TESTING=OFF \
+    -DWHALE_DEV_BUILD=OFF \
+    -DWHALE_ENABLE_DEV_MCP=OFF \
+    -DWHALE_PROVIDE_FILEMANAGER1=OFF \
+    -DWHALE_INSTALL_DOLPHIN_EXTRAS=OFF \
+    -Wno-dev
+  cmake --build build
+}
+
+package() {
+  DESTDIR="${pkgdir}" cmake --install build
+  install -Dm644 -t "${pkgdir}/usr/share/licenses/${pkgname}" orcinus/LICENSES/*
+}

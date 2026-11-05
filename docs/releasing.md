@@ -51,4 +51,8 @@ Upstream is merged every two to four weeks and always before a release:
    checksum (and signature) attached.
 10. **Packages:** Ubuntu PPA: `packaging/ubuntu-ppa.sh source vX.Y.Z`, `packaging/ubuntu-ppa.sh test`,
     then `packaging/ubuntu-ppa.sh upload ppa:arkarit/orcinus` (signs with debsign, uploads with dput).
+    AUR: `packaging/arch-aur.sh release orcinus-X.Y.Z.tar.xz` (pkgver and checksum),
+    `packaging/arch-aur.sh test`, `packaging/arch-aur.sh srcinfo`, then copy `PKGBUILD` and
+    `.SRCINFO` from `../build-packages/arch/aur/<package>` into the AUR repositories `orcinus`
+    and `orcinus-git` and push them.
 11. **After the release:** add a new "unreleased" section to `CHANGELOG.md`.
