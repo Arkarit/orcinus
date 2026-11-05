@@ -1,0 +1,66 @@
+Source: orcinus
+Section: kde
+Priority: optional
+Maintainer: Arkarit <12444486+Arkarit@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13),
+               cmake,
+               ninja-build,
+               pkgconf,
+               gettext,
+               extra-cmake-modules (>= 6.23.0),
+               qt6-base-dev,
+               qt6-base-private-dev,
+               qt6-multimedia-dev,
+               libkf6bookmarks-dev,
+               libkf6codecs-dev,
+               libkf6colorscheme-dev,
+               libkf6completion-dev,
+               libkf6config-dev,
+               libkf6coreaddons-dev,
+               libkf6crash-dev,
+               libkf6dbusaddons-dev,
+               libkf6filemetadata-dev,
+               libkf6guiaddons-dev,
+               libkf6i18n-dev,
+               libkf6iconthemes-dev,
+               libkf6kcmutils-dev,
+               libkf6kio-dev,
+               libkf6newstuff-dev,
+               libkf6notifications-dev,
+               libkf6parts-dev,
+               libkf6solid-dev,
+               libkf6textwidgets-dev,
+               libkf6widgetsaddons-dev,
+               libkf6windowsystem-dev,
+               libkf6xmlgui-dev,
+               libkf6baloo-dev,
+               libbaloowidgets-dev,
+               libmpv-dev,
+Standards-Version: 4.7.3
+Homepage: https://github.com/Arkarit/orcinus
+Vcs-Browser: https://github.com/Arkarit/orcinus
+Vcs-Git: https://github.com/Arkarit/orcinus.git
+Rules-Requires-Root: no
+
+Package: orcinus
+Architecture: any
+Depends: kio,
+         qt6-svg-plugins,
+         ${misc:Depends},
+         ${shlibs:Depends},
+Recommends: baloo6,
+            kio-extras,
+            kdegraphics-thumbnailers,
+            ffmpegthumbs,
+Suggests: dolphin-plugins,
+          konsole-kpart,
+Description: file manager based on KDE Dolphin
+ Orcinus is a file manager for KDE Plasma and other desktops, based on KDE
+ Dolphin. It adds, among other things, multiple toolbars, linked and locked
+ split views, view styles, expandable Compact view with colored subtrees, and
+ a built-in image and video viewer coupled to the selection.
+ .
+ Orcinus is installed next to Dolphin and does not share configuration with
+ it; installing it does not change the default file manager.
+ .
+ This is an alpha release.

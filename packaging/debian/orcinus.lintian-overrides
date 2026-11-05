@@ -1,0 +1,4 @@
+# liborcinusprivate is a private library of Orcinus (no headers, no development package);
+# it is not meant to be used by other packages.
+orcinus: package-name-doesnt-match-sonames liborcinusprivate6
+orcinus: no-symbols-control-file usr/lib/*/liborcinusprivate.so.*

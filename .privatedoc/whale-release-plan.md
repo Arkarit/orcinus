@@ -420,6 +420,22 @@ Findings:
   user's Dolphin settings (nothing).
 - The `global-install-orcinus.sh` collision check is a good model for a package file check.
 
+State (2026-11-05):
+
+- AUR registration is temporarily closed (spam wave), so the PPA comes first; the AUR recipes
+  follow and are uploaded once registration reopens.
+- Launchpad: user `arkarit`, PPAs `ppa:arkarit/orcinus` and `ppa:arkarit/orcinus-testing`
+  (both empty). An upload publishes the source, so the first upload waits for RL9 (user decision).
+- Ubuntu packaging done: `packaging/debian/` (single binary package `orcinus`, DEP-5 copyright
+  including the LGPL-2.0-only VCS library) and `packaging/ubuntu-ppa.sh` (source / test /
+  upload). Version scheme `X.Y.Z-0ppaN~SERIES1`, snapshots `X.Y.Z~gitDATE.HASH`. Both series
+  (resolute 26.04, stonking 26.10) build in clean Ubuntu containers with only the
+  Build-Depends, install next to Dolphin without file conflicts, have only relative RUNPATHs and
+  start (`orcinus --version`). Remaining lintian: no manual page, no watch file (accepted).
+- Open: Maintainer address in debian/control (currently the GitHub noreply address);
+  `liborcinusprivate` still lives in the public library directory (could move to
+  `lib/<arch>/orcinus` like the other private libraries).
+
 ### RL6: Automated tests across distros
 
 - In each container: build, ctest offscreen, install the package, start Whale headless,

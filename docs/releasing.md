@@ -49,5 +49,6 @@ Upstream is merged every two to four weeks and always before a release:
    (`gpg --armor --detach-sign`).
 9. **GitHub release:** create it from the tag with the changelog section as text and the tarball,
    checksum (and signature) attached.
-10. **Packages:** update the packaging recipes to the new version (see the packaging notes).
+10. **Packages:** Ubuntu PPA: `packaging/ubuntu-ppa.sh source vX.Y.Z`, `packaging/ubuntu-ppa.sh test`,
+    then `packaging/ubuntu-ppa.sh upload ppa:arkarit/orcinus` (signs with debsign, uploads with dput).
 11. **After the release:** add a new "unreleased" section to `CHANGELOG.md`.
