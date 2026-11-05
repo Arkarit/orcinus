@@ -10,6 +10,8 @@
 #   containers.sh list                  distributions and their images
 #   containers.sh images [DISTRO...]    build kde-dev:DISTRO and orcinus-dev:DISTRO
 #   containers.sh test [DISTRO...]      build this checkout and run its tests in orcinus-dev:DISTRO
+#   containers.sh release-test [DISTRO...]  release build installed into /usr next to Dolphin,
+#                                       then ci/release-test.sh as a new user (RL6)
 #   containers.sh shell DISTRO          interactive shell in orcinus-dev:DISTRO (copy of the tree in /src)
 #
 # Without DISTRO, images and test cover all distributions. Extra arguments after "--" go to
@@ -104,6 +106,19 @@ run_tests() {
     ' bash "$@"
 }
 
+# Release check (RL6): a release build installed into /usr of the container, next to the
+# distribution's Dolphin, then ci/release-test.sh as a new user. Runs as root in the container
+# (root of the rootless user namespace, so the files stay the calling user's).
+release_test() {
+    local name family base extra
+    IFS='|' read -r name family base extra <<< "$(lookup "$1")"
+    echo "=== ${name}: release build, installation and release test"
+    mkdir -p "${build_root}/${name}/src" "${build_root}/${name}/release"
+    rsync -a --delete --exclude=/.git --exclude='/build*/' "${source_dir}/" "${build_root}/${name}/src/"
+    podman run --rm -v "${build_root}/${name}/src:/src" -v "${build_root}/${name}/release:/build" \
+        -e FAMILY="${family}" "localhost/orcinus-dev:${name}" bash -c "$(cat "${here}/release-test-setup.sh")"
+}
+
 command="${1:-}"
 [ $# -gt 0 ] && shift
 
@@ -131,6 +146,16 @@ test)
     failed=()
     for name in "${names[@]}"; do
         run_tests "${name}" "$@" || failed+=("${name}")
+    done
+    if [ ${#failed[@]} -gt 0 ]; then
+        die "failed: ${failed[*]}"
+    fi
+    ;;
+release-test)
+    [ $# -gt 0 ] || set -- $(all_names)
+    failed=()
+    for name in "$@"; do
+        release_test "${name}" || failed+=("${name}")
     done
     if [ ${#failed[@]} -gt 0 ]; then
         die "failed: ${failed[*]}"

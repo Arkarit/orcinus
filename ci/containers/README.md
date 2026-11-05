@@ -38,6 +38,7 @@ distribution is chosen by the base image in `containers.sh`.
 ci/containers/containers.sh images                 # build all images (or name some)
 ci/containers/containers.sh test ubuntu-26.04      # build this checkout and run the tests
 ci/containers/containers.sh test arch -- -R kfileitemmodeltest
+ci/containers/containers.sh release-test           # release build into /usr next to Dolphin + release test
 ci/containers/containers.sh shell fedora-45        # interactive shell, checkout at /src
 ```
 
@@ -50,6 +51,18 @@ a fresh home directory, so nothing touches the real configuration.
 Each image needs about 2–4 GB, each Release build about 1 GB. `podman rmi` or
 `podman image prune` removes images; refresh them with `containers.sh images` (it pulls newer
 base images).
+
+## Release test (RL6)
+
+`containers.sh release-test` builds a release configuration (no tests, no development
+automation), checks that no file it installs belongs to a distribution package, installs it into
+`/usr` of the container next to the distribution's Dolphin and runs `ci/release-test.sh` as a new
+user: first start with a folder, clean quit, Dolphin's configuration, `mimeapps.list` and the
+default file manager unchanged, no Dolphin-named files, Dolphin still works, German translations.
+`ci/release-test-prepare.sh` prepares the container (Dolphin, xdg-utils, D-Bus tools, the
+`de_DE.UTF-8` locale, keeping translations that container images strip). The package tests
+`packaging/ubuntu-ppa.sh test` and `packaging/arch-aur.sh test` run the same release test on the
+installed packages.
 
 ## Known test results
 

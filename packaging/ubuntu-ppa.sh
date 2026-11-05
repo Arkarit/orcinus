@@ -9,7 +9,8 @@
 #
 #   ubuntu-ppa.sh source [REF]          source packages for all series from the Git REF (default HEAD)
 #   ubuntu-ppa.sh test [SERIES...]      build the binary package from the source package in a clean
-#                                       Ubuntu container, run lintian, install it next to Dolphin
+#                                       Ubuntu container, run lintian, install it next to Dolphin and
+#                                       run ci/release-test.sh
 #   ubuntu-ppa.sh upload PPA [SERIES...] sign and upload, e.g. PPA = ppa:arkarit/orcinus-testing
 #
 # REF is a release tag (vX.Y.Z) or any commit; a commit that is not the tag of WHALE_VERSION gets
@@ -132,11 +133,12 @@ test_series() {
     dsc="$(cd "${out_root}" && ls orcinus_"${upstream}"-0ppa*~"${series}"1.dsc)"
     echo "=== ${series}: binary build of ${dsc}"
     mkdir -p "${out_root}/test-${series}"
-    podman run --rm -v "${out_root}:/out" -w /tmp -e DSC="${dsc}" -e SERIES="${series}" \
+    podman run --rm -v "${out_root}:/out" -v "${source_dir}/ci:/ci:ro" -w /tmp -e DSC="${dsc}" -e SERIES="${series}" \
         "docker.io/library/ubuntu:${version}" bash -c '
             set -e
             export DEBIAN_FRONTEND=noninteractive
-            apt-get update -qq
+            # Dolphin, locale, test user; keeps the translations of the package installed below.
+            /ci/release-test-prepare.sh apt
             apt-get install -y -qq --no-install-recommends dpkg-dev lintian > /dev/null
             dpkg-source -x "/out/${DSC}" src > /dev/null
             cd src
@@ -150,7 +152,7 @@ test_series() {
             echo "--- contents"
             dpkg-deb -c ./orcinus_*.deb | grep -v /locale/ | awk "{print \$6, \$7, \$8}"
             echo "--- install next to Dolphin"
-            apt-get install -y -qq --no-install-recommends dolphin ./orcinus_*.deb > /out/test-${SERIES}/install.log 2>&1 \
+            apt-get install -y -qq --no-install-recommends ./orcinus_*.deb > /out/test-${SERIES}/install.log 2>&1 \
                 || { tail -30 /out/test-${SERIES}/install.log; exit 1; }
             echo "--- RUNPATHs"
             for f in $(dpkg -L orcinus); do
@@ -164,8 +166,8 @@ test_series() {
                 fi
             done
             [ "${missing}" = 0 ] && echo none
-            echo "--- smoke test"
-            QT_QPA_PLATFORM=offscreen orcinus --version
+            echo "--- release test (ci/release-test.sh)"
+            su tester -c /ci/release-test.sh || missing=1
             [ "${missing}" = 0 ]
         '
 }

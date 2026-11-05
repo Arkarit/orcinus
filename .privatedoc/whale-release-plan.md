@@ -455,6 +455,24 @@ State (2026-11-05):
 - Translation check: start with `LANGUAGE=de` and verify the German strings show up.
 - Keep the scripts in the repo so CI (RL3) can run them later.
 
+State (2026-11-05):
+
+- `ci/release-test.sh` checks an installed release build without the dev MCP, through the main
+  window's D-Bus interface (`isUrlOpen`, `isItemVisibleInAnyView`, `quit`): first start with a
+  folder, exit code 0, Dolphin's config/`mimeapps.list`/default file manager unchanged, own config
+  created, no Dolphin-named files, Dolphin still works, German strings (own and from Dolphin's
+  catalog). Translation needs a real `de_DE.UTF-8` locale (gettext ignores `LANGUAGE` under C).
+- Drivers: `containers.sh release-test` (all 7 distros, cmake install into `/usr` plus package
+  ownership collision check), `ubuntu-ppa.sh test`, `arch-aur.sh test`.
+- Finding fixed: the bookmarks menu used Dolphin's `<data>/dolphin/bookmarks.xml` and created
+  `~/.local/share/dolphin` on every start. Now Orcinus' own `<data>/orcinus/bookmarks.xml` with a
+  one-time import of Dolphin's file (user decision); KDE's shared `kfile/bookmarks.xml` still
+  wins if it exists. Test `whalebookmarkstest`.
+- Result: all 7 distros pass the release test.
+- Open: run the release test in GitHub CI (Arch job).
+- Observed once (2026-11-06, full ctest -j8): `whaletoolbarmigrationtest` hung in
+  `testExistingUser(changed)` until the 300 s timeout; not reproducible (full suite and 5 repeats pass).
+
 ### RL7: Release candidate and fixes
 
 No beta (user decision 2026-10-29); the alpha 0.1.0 itself ships without an RC, the RC phase

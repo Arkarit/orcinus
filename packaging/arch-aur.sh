@@ -7,7 +7,7 @@
 # plan RL5) and prepares them for the AUR. Needs Podman.
 #
 #   arch-aur.sh test [PACKAGE...]       build each recipe in a clean Arch container, run namcap,
-#                                       install it next to Dolphin and start it
+#                                       install it next to Dolphin and run ci/release-test.sh
 #   arch-aur.sh release TARBALL         set pkgver and sha256sums of orcinus to the release
 #                                       tarball orcinus-X.Y.Z.tar.xz (docs/releasing.md, step 8)
 #   arch-aur.sh srcinfo [PACKAGE...]    PKGBUILD plus generated .SRCINFO per package in OUTPUT/aur,
@@ -55,9 +55,11 @@ test_package() {
             "${work}/recipe/PKGBUILD"
         ;;
     esac
-    podman run --rm -v "${work}:/work" "${image}" bash -c '
+    podman run --rm -v "${work}:/work" -v "${source_dir}/ci:/ci:ro" "${image}" bash -c '
         set -e
-        pacman -Syu --noconfirm --needed base-devel namcap > /dev/null
+        # Dolphin, locale, test user; keeps the translations of the package installed below.
+        /ci/release-test-prepare.sh pacman
+        pacman -S --noconfirm --needed base-devel namcap > /dev/null
         useradd -m builder
         chown -R builder /work
         # Give everything back to the calling user (root in the rootless container).
@@ -73,8 +75,7 @@ test_package() {
         echo "--- contents"
         pacman -Qlp "${package_file}" | grep -v -e /locale/ -e /licenses/ -e "/$" | cut -d" " -f2
         echo "--- install next to Dolphin"
-        pacman -S --noconfirm --needed dolphin > /work/install.log 2>&1
-        pacman -U --noconfirm "${package_file}" >> /work/install.log 2>&1 \
+        pacman -U --noconfirm "${package_file}" > /work/install.log 2>&1 \
             || { tail -30 /work/install.log; exit 1; }
         echo "--- RUNPATHs"
         for f in $(pacman -Qlq "${pkgname}"); do
@@ -88,8 +89,8 @@ test_package() {
             fi
         done
         [ "${missing}" = 0 ] && echo none
-        echo "--- smoke test"
-        QT_QPA_PLATFORM=offscreen orcinus --version
+        echo "--- release test (ci/release-test.sh)"
+        su tester -c /ci/release-test.sh || missing=1
         [ "${missing}" = 0 ]
     '
 }
