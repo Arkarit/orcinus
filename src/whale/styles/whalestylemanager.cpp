@@ -88,18 +88,18 @@ void WhaleStyleManager::setupActions()
     }
     KActionCollection *collection = m_window->actionCollection();
 
-    m_menu = new KActionMenu(QIcon::fromTheme(QStringLiteral("preferences-desktop-theme-global")), i18nc("@action:inmenu View", "Styles"), m_window);
+    m_menu = new KActionMenu(QIcon::fromTheme(QStringLiteral("preferences-desktop-theme-global")), i18nc("@action:inmenu View", "Profiles"), m_window);
     m_menu->setPopupMode(QToolButton::InstantPopup);
     m_menu->setWhatsThis(i18nc("@info:whatsthis",
-                               "A style switches the whole look of the window at once: one or two views, their view "
-                               "modes, toolbars, panels and the status bar. Give a style a shortcut in "
+                               "A profile switches the whole look of the window at once: one or two views, their view "
+                               "modes, toolbars, panels and the status bar. Give a profile a shortcut in "
                                "<interface>Configure Keyboard Shortcuts</interface>."));
     collection->addAction(menuActionName(), m_menu);
     // Another process may have changed the styles.
     connect(m_menu->menu(), &QMenu::aboutToShow, WhaleStyles::self(), &WhaleStyles::reload);
 
     m_saveAction = collection->addAction(saveActionName());
-    m_saveAction->setText(i18nc("@action:inmenu Styles", "Save as Style…"));
+    m_saveAction->setText(i18nc("@action:inmenu Profiles", "Save as Profile…"));
     m_saveAction->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
     connect(m_saveAction, &QAction::triggered, this, &WhaleStyleManager::askAndSaveCurrentAsStyle);
 
@@ -108,7 +108,7 @@ void WhaleStyleManager::setupActions()
     connect(m_saveLastAction, &QAction::triggered, this, &WhaleStyleManager::saveLastStyle);
     updateSaveLastAction();
 
-    m_category = new KActionCategory(i18nc("@title:group of shortcuts", "Styles"), collection);
+    m_category = new KActionCategory(i18nc("@title:group of shortcuts", "Profiles"), collection);
     m_menu->addAction(m_saveLastAction);
     m_menu->addAction(m_saveAction);
 }
@@ -192,11 +192,11 @@ void WhaleStyleManager::updateSaveLastAction()
     const WhaleStyle *style = WhaleStyles::self()->store().style(m_lastStyleId);
     if (style) {
         m_saveLastAction->setText(
-            i18nc("@action:inmenu Styles, %1 the style applied last", "Save Style \"%1\"", QString(style->name).replace(u'&', QLatin1String("&&"))));
-        m_saveLastAction->setToolTip(i18nc("@info:tooltip", "Save the current state of the window as the style \"%1\"", style->name));
+            i18nc("@action:inmenu Profiles, %1 the profile applied last", "Save Profile \"%1\"", QString(style->name).replace(u'&', QLatin1String("&&"))));
+        m_saveLastAction->setToolTip(i18nc("@info:tooltip", "Save the current state of the window as the profile \"%1\"", style->name));
     } else {
-        m_saveLastAction->setText(i18nc("@action:inmenu Styles", "Save Style"));
-        m_saveLastAction->setToolTip(i18nc("@info:tooltip", "Apply a style first; this saves the current state of the window as that style"));
+        m_saveLastAction->setText(i18nc("@action:inmenu Profiles", "Save Profile"));
+        m_saveLastAction->setToolTip(i18nc("@info:tooltip", "Apply a profile first; this saves the current state of the window as that profile"));
     }
     m_saveLastAction->setEnabled(style);
 }
@@ -281,7 +281,7 @@ void WhaleStyleManager::rebuildStyleActions()
     for (const WhaleStyle &style : styles) {
         QAction *action = m_category->addAction(actionName(style.id));
         action->setText(QString(style.name).replace(u'&', QLatin1String("&&")));
-        action->setToolTip(i18nc("@info:tooltip", "Apply the style \"%1\" to the window", style.name));
+        action->setToolTip(i18nc("@info:tooltip", "Apply the profile \"%1\" to the window", style.name));
         // No default shortcut: the style's one is the user's choice (orcinusstylesrc).
         action->setShortcut(style.shortcut);
         const QString id = style.id;
@@ -304,8 +304,8 @@ void WhaleStyleManager::askAndSaveCurrentAsStyle()
 {
     bool accepted = false;
     const QString name = QInputDialog::getText(m_window,
-                                               i18nc("@title:window", "Save as Style"),
-                                               i18nc("@label:textbox", "Name of the style:"),
+                                               i18nc("@title:window", "Save as Profile"),
+                                               i18nc("@label:textbox", "Name of the profile:"),
                                                QLineEdit::Normal,
                                                QString(),
                                                &accepted)
@@ -318,8 +318,8 @@ void WhaleStyleManager::askAndSaveCurrentAsStyle()
         const QString shownName = WhaleStyles::self()->store().style(existing)->name;
         const auto answer = KMessageBox::questionTwoActions(
             m_window,
-            i18nc("@info", "There is already a style named \"%1\". Replace it with the current state of the window?", shownName),
-            i18nc("@title:window", "Replace Style"),
+            i18nc("@info", "There is already a profile named \"%1\". Replace it with the current state of the window?", shownName),
+            i18nc("@title:window", "Replace Profile"),
             KGuiItem(i18nc("@action:button", "Replace"), QStringLiteral("document-save-as")),
             KStandardGuiItem::cancel());
         if (answer != KMessageBox::PrimaryAction) {

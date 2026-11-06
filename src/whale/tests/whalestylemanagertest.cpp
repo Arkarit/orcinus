@@ -435,7 +435,7 @@ void WhaleStyleManagerTest::testSaveLastStyle()
     const QString schlicht = manager->saveCurrentAsStyle(QStringLiteral("Schlicht"));
     QVERIFY(saveLast->text().contains(QLatin1String("Schlicht")));
 
-    // Applying makes it the last one; "Save Style" captures it again.
+    // Applying makes it the last one; "Save Profile" captures it again.
     window->actionCollection()->action(WhaleStyleManager::actionName(bilder))->trigger();
     QCOMPARE(view->viewMode(), DolphinView::IconsView);
     QCOMPARE(manager->lastStyleId(), bilder);

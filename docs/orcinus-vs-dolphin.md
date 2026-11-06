@@ -41,20 +41,20 @@ matches Dolphin's behavior.
      Pop out Right View);
      search button for the File View Toolbar. -->
 
-### 2.4 Each view keeps its own style
+### 2.4 Each view keeps its own display style
 <!-- TODO: with "Use common display style for all folders", every view keeps
-     its own style (view mode, sorting, hidden files, preview, columns) when it
-     goes to another folder; Dolphin reads the common style again in every
-     folder, so a view took what another view changed last. Places with a style
+     its own display style (view mode, sorting, hidden files, preview, columns) when it
+     goes to another folder; Dolphin reads the common display style again in every
+     folder, so a view took what another view changed last. Places with a display style
      of their own (trash, search, recent files, downloads) still show it, and
-     leaving them gives the view its style back. A change is remembered for the
+     leaving them gives the view its display style back. A change is remembered for the
      view's side (left/right) and is what new windows, tabs and split views
-     start with. The view left when the split view closes keeps its style; a
+     start with. The view left when the split view closes keeps its display style; a
      view moved to a tab (Split View To Tabs) or popped out to a window takes
-     its style along. Settings > Folders & Tabs: "Split new windows and tabs"
+     its display style along. Settings > Folders & Tabs: "Split new windows and tabs"
      as last used / always / never (replaces "Open new windows in split view
      mode"). "Split View To Tabs" keeps the other view in any "close split
-     view" setting. With a style for each folder, nothing changes. -->
+     view" setting. With a display style for each folder, nothing changes. -->
 
 ## 3. Views
 

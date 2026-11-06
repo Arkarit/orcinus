@@ -52,7 +52,7 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
     auto listButtons = new QHBoxLayout();
     m_addButton = new QPushButton(QIcon::fromTheme(QStringLiteral("list-add")), i18nc("@action:button", "New from Window"), this);
     m_addButton->setObjectName(QStringLiteral("addStyle"));
-    m_addButton->setToolTip(i18nc("@info:tooltip", "Add a style with the current state of the window"));
+    m_addButton->setToolTip(i18nc("@info:tooltip", "Add a profile with the current state of the window"));
     m_removeButton = new QPushButton(QIcon::fromTheme(QStringLiteral("list-remove")), i18nc("@action:button", "Delete"), this);
     m_removeButton->setObjectName(QStringLiteral("removeStyle"));
     m_upButton = new QPushButton(QIcon::fromTheme(QStringLiteral("go-up")), QString(), this);
@@ -83,7 +83,7 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
     form->addRow(i18nc("@label", "Shortcut:"), m_shortcut);
     detailsLayout->addLayout(form);
 
-    auto elementsLabel = new QLabel(i18nc("@label", "The style sets:"), m_details);
+    auto elementsLabel = new QLabel(i18nc("@label", "The profile sets:"), m_details);
     detailsLayout->addWidget(elementsLabel);
     m_elements = new QTreeWidget(m_details);
     m_elements->setObjectName(QStringLiteral("styleElements"));
@@ -91,7 +91,7 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
     m_elements->setHeaderLabels({i18nc("@title:column", "Element"), i18nc("@title:column", "Value")});
     m_elements->setRootIsDecorated(false);
     m_elements->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    m_elements->setToolTip(i18nc("@info:tooltip", "An element without a check mark is left as it is when the style is applied."));
+    m_elements->setToolTip(i18nc("@info:tooltip", "An element without a check mark is left as it is when the profile is applied."));
     detailsLayout->addWidget(m_elements);
 
     auto detailButtons = new QHBoxLayout();
@@ -100,7 +100,7 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
     m_captureButton->setToolTip(i18nc("@info:tooltip", "Take the values from the current state of the window"));
     m_applyButton = new QPushButton(QIcon::fromTheme(QStringLiteral("dialog-ok-apply")), i18nc("@action:button", "Apply to Window"), m_details);
     m_applyButton->setObjectName(QStringLiteral("applyStyle"));
-    m_applyButton->setToolTip(i18nc("@info:tooltip", "Apply the style to the window now, as shown here"));
+    m_applyButton->setToolTip(i18nc("@info:tooltip", "Apply the profile to the window now, as shown here"));
     detailButtons->addWidget(m_captureButton);
     detailButtons->addStretch();
     detailButtons->addWidget(m_applyButton);
@@ -108,7 +108,7 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
 
     m_hint = new QLabel(m_details);
     m_hint->setWordWrap(true);
-    m_hint->setText(i18nc("@info", "Apply a style from View → Styles or by its shortcut."));
+    m_hint->setText(i18nc("@info", "Apply a profile from View → Profiles or by its shortcut."));
     detailsLayout->addWidget(m_hint);
     topLayout->addWidget(m_details, 3);
 
@@ -197,8 +197,8 @@ void WhaleStylesSettingsPage::showCurrentStyle()
                 item->setText(1, missing.isEmpty() ? i18nc("@item:intext style element", "Not captured") : element->describe(missing));
                 item->setFlags(Qt::ItemIsSelectable);
                 item->setToolTip(0,
-                                 missing.isEmpty() ? i18nc("@info:tooltip", "Not part of this style. Capture it again to add it.")
-                                                   : i18nc("@info:tooltip", "Not part of this style, so applied like this. Capture it again to change it."));
+                                 missing.isEmpty() ? i18nc("@info:tooltip", "Not part of this profile. Capture it again to add it.")
+                                                   : i18nc("@info:tooltip", "Not part of this profile, so applied like this. Capture it again to change it."));
                 continue;
             }
             item->setText(1, element->describe(it->value));
@@ -207,7 +207,7 @@ void WhaleStylesSettingsPage::showCurrentStyle()
             if (m_window && !element->isAvailable(m_window)) {
                 // F1: e.g. the style of a view with a style for each folder.
                 item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
-                item->setToolTip(0, i18nc("@info:tooltip", "Not applied in the current settings (only with one view style for all folders)."));
+                item->setToolTip(0, i18nc("@info:tooltip", "Not applied in the current settings (only with a common display style for all folders)."));
             }
         }
         for (auto it = style->elements.cbegin(); it != style->elements.cend(); ++it) {
@@ -275,9 +275,9 @@ void WhaleStylesSettingsPage::addFromWindow()
         names.append(style.name.toLower());
     }
     // A name of its own, to be changed right away.
-    QString name = i18nc("@item name of a new style", "New Style");
+    QString name = i18nc("@item name of a new profile", "New Profile");
     for (int i = 2; names.contains(name.toLower()); ++i) {
-        name = i18nc("@item name of a new style, %1 a number", "New Style %1", i);
+        name = i18nc("@item name of a new profile, %1 a number", "New Profile %1", i);
     }
 
     WhaleStyle style = WhaleStyleManager::ensure(m_window)->captureStyle();

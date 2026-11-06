@@ -322,7 +322,7 @@ target_include_directories(whalestylemanagertest PRIVATE ${CMAKE_SOURCE_DIR}/src
 target_compile_definitions(whalestylemanagertest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 add_dependencies(whalestylemanagertest orcinus_treemap)
 
-# The page "Styles" of the settings dialog (ST4).
+# The page "Profiles" of the settings dialog (ST4).
 ecm_add_test(whalestylessettingspagetest.cpp ../../tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
     TEST_NAME whalestylessettingspagetest
     LINK_LIBRARIES dolphinstatic Qt6::Test)

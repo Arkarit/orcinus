@@ -169,8 +169,8 @@ public:
     }
     QString title() const override
     {
-        return m_role == DolphinView::PanelRole::Left ? i18nc("@item:inlistbox style element", "Style of the left view")
-                                                      : i18nc("@item:inlistbox style element", "Style of the right view");
+        return m_role == DolphinView::PanelRole::Left ? i18nc("@item:inlistbox profile element", "Display style of the left view")
+                                                      : i18nc("@item:inlistbox profile element", "Display style of the right view");
     }
     // With a style for each folder, the style belongs to the folder, not to the view (F1).
     bool isAvailable(const DolphinMainWindow *window) const override

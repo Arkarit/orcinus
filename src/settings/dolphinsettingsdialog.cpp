@@ -57,7 +57,7 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
 
     // Whale: ST4, Styles; they capture from and apply to the window the dialog belongs to.
     auto stylesSettingsPage = new WhaleStylesSettingsPage(qobject_cast<DolphinMainWindow *>(parent), this);
-    KPageWidgetItem *stylesSettingsFrame = addPage(stylesSettingsPage, i18nc("@title:group", "Styles"));
+    KPageWidgetItem *stylesSettingsFrame = addPage(stylesSettingsPage, i18nc("@title:group", "Profiles"));
     stylesSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("preferences-desktop-theme-global")));
     connect(stylesSettingsPage, &WhaleStylesSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
 

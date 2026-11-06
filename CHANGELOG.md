@@ -47,10 +47,10 @@ possible). Compared to Dolphin 26.11 (development state), Orcinus adds:
 - Expandable folders in the Compact view, and Alt+click or `*` to expand a whole branch.
 - Colored backgrounds and folder names for expanded folders in the Compact and Details views.
 
-### Styles
+### Profiles
 
-- A style switches the whole look of a window at once: one or two views, view modes, toolbars,
-  panels, filter bars and the status bar. Styles are saved, given shortcuts and managed on a
+- A profile switches the whole look of a window at once: one or two views, view modes, toolbars,
+  panels, filter bars and the status bar. Profiles are saved, given shortcuts and managed on a
   settings page of their own.
 
 ### Viewer

@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 12:21+0100\n"
+"POT-Creation-Date: 2026-11-06 06:56+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -116,13 +116,13 @@ msgstr ""
 msgid "Running Orcinus as root can be dangerous. Please be careful."
 msgstr ""
 
-#: dolphinviewcontainer.cpp:1073
+#: dolphinviewcontainer.cpp:1085
 #, kde-format
 msgctxt "@info:status"
 msgid "Orcinus does not support web pages, the web browser has been launched"
 msgstr ""
 
-#: dolphinviewcontainer.cpp:1076
+#: dolphinviewcontainer.cpp:1088
 #, kde-format
 msgctxt "@info:status"
 msgid ""
@@ -188,7 +188,7 @@ msgstr ""
 #: settings/dolphinsettingsdialog.cpp:60
 #, kde-format
 msgctxt "@title:group"
-msgid "Styles"
+msgid "Profiles"
 msgstr ""
 
 #: settings/dolphinsettingsdialog.cpp:66
@@ -1275,14 +1275,14 @@ msgstr ""
 
 #: whale/styles/whalestyleelementtypes.cpp:172
 #, kde-format
-msgctxt "@item:inlistbox style element"
-msgid "Style of the left view"
+msgctxt "@item:inlistbox profile element"
+msgid "Display style of the left view"
 msgstr ""
 
 #: whale/styles/whalestyleelementtypes.cpp:173
 #, kde-format
-msgctxt "@item:inlistbox style element"
-msgid "Style of the right view"
+msgctxt "@item:inlistbox profile element"
+msgid "Display style of the right view"
 msgstr ""
 
 #: whale/styles/whalestyleelementtypes.cpp:224
@@ -1510,85 +1510,86 @@ msgstr ""
 #: whale/styles/whalestylemanager.cpp:91
 #, kde-format
 msgctxt "@action:inmenu View"
-msgid "Styles"
+msgid "Profiles"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:94
 #, kde-format
 msgctxt "@info:whatsthis"
 msgid ""
-"A style switches the whole look of the window at once: one or two views, "
-"their view modes, toolbars, panels and the status bar. Give a style a "
+"A profile switches the whole look of the window at once: one or two views, "
+"their view modes, toolbars, panels and the status bar. Give a profile a "
 "shortcut in <interface>Configure Keyboard Shortcuts</interface>."
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:102
 #, kde-format
-msgctxt "@action:inmenu Styles"
-msgid "Save as Style…"
+msgctxt "@action:inmenu Profiles"
+msgid "Save as Profile…"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:111
 #, kde-format
 msgctxt "@title:group of shortcuts"
-msgid "Styles"
+msgid "Profiles"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:195
 #, kde-format
-msgctxt "@action:inmenu Styles, %1 the style applied last"
-msgid "Save Style \"%1\""
+msgctxt "@action:inmenu Profiles, %1 the profile applied last"
+msgid "Save Profile \"%1\""
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:196
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Save the current state of the window as the style \"%1\""
+msgid "Save the current state of the window as the profile \"%1\""
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:198
 #, kde-format
-msgctxt "@action:inmenu Styles"
-msgid "Save Style"
+msgctxt "@action:inmenu Profiles"
+msgid "Save Profile"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:199
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Apply a style first; this saves the current state of the window as that style"
+"Apply a profile first; this saves the current state of the window as that "
+"profile"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:284
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Apply the style \"%1\" to the window"
+msgid "Apply the profile \"%1\" to the window"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:307
 #, kde-format
 msgctxt "@title:window"
-msgid "Save as Style"
+msgid "Save as Profile"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:308
 #, kde-format
 msgctxt "@label:textbox"
-msgid "Name of the style:"
+msgid "Name of the profile:"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:321
 #, kde-format
 msgctxt "@info"
 msgid ""
-"There is already a style named \"%1\". Replace it with the current state of "
-"the window?"
+"There is already a profile named \"%1\". Replace it with the current state "
+"of the window?"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:322
 #, kde-format
 msgctxt "@title:window"
-msgid "Replace Style"
+msgid "Replace Profile"
 msgstr ""
 
 #: whale/styles/whalestylemanager.cpp:323
@@ -1606,7 +1607,7 @@ msgstr ""
 #: whale/styles/whalestylessettingspage.cpp:55
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Add a style with the current state of the window"
+msgid "Add a profile with the current state of the window"
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:60
@@ -1630,7 +1631,7 @@ msgstr ""
 #: whale/styles/whalestylessettingspage.cpp:86
 #, kde-format
 msgctxt "@label"
-msgid "The style sets:"
+msgid "The profile sets:"
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:91
@@ -1649,7 +1650,7 @@ msgstr ""
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"An element without a check mark is left as it is when the style is applied."
+"An element without a check mark is left as it is when the profile is applied."
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:98
@@ -1673,13 +1674,13 @@ msgstr ""
 #: whale/styles/whalestylessettingspage.cpp:103
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Apply the style to the window now, as shown here"
+msgid "Apply the profile to the window now, as shown here"
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:111
 #, kde-format
 msgctxt "@info"
-msgid "Apply a style from View → Styles or by its shortcut."
+msgid "Apply a profile from View → Profiles or by its shortcut."
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:197
@@ -1691,22 +1692,23 @@ msgstr ""
 #: whale/styles/whalestylessettingspage.cpp:200
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Not part of this style. Capture it again to add it."
+msgid "Not part of this profile. Capture it again to add it."
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:201
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Not part of this style, so applied like this. Capture it again to change it."
+"Not part of this profile, so applied like this. Capture it again to change "
+"it."
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:210
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Not applied in the current settings (only with one view style for all "
-"folders)."
+"Not applied in the current settings (only with a common display style for "
+"all folders)."
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:220
@@ -1717,14 +1719,14 @@ msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:278
 #, kde-format
-msgctxt "@item name of a new style"
-msgid "New Style"
+msgctxt "@item name of a new profile"
+msgid "New Profile"
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:280
 #, kde-format
-msgctxt "@item name of a new style, %1 a number"
-msgid "New Style %1"
+msgctxt "@item name of a new profile, %1 a number"
+msgid "New Profile %1"
 msgstr ""
 
 #: whale/styles/whalestylessettingspage.cpp:367

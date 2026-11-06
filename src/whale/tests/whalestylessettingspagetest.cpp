@@ -30,7 +30,7 @@
 #include <QTreeWidget>
 
 /**
- * The page "Styles" of the settings dialog (ST4).
+ * The page "Profiles" of the settings dialog (ST4).
  */
 class WhaleStylesSettingsPageTest : public QObject
 {
@@ -178,24 +178,24 @@ void WhaleStylesSettingsPageTest::testListsStyles()
 
 void WhaleStylesSettingsPageTest::testAddFromWindow()
 {
-    saveStyle(QStringLiteral("New Style"));
+    saveStyle(QStringLiteral("New Profile"));
     openDialog();
     m_mainWindow->activeViewContainer()->view()->setViewMode(DolphinView::CompactView);
 
     child<QPushButton>("addStyle")->click();
-    QCOMPARE(listedNames(), (QStringList{QStringLiteral("New Style"), QStringLiteral("New Style 2")}));
-    QCOMPARE(child<QLineEdit>("styleName")->text(), QStringLiteral("New Style 2"));
+    QCOMPARE(listedNames(), (QStringList{QStringLiteral("New Profile"), QStringLiteral("New Profile 2")}));
+    QCOMPARE(child<QLineEdit>("styleName")->text(), QStringLiteral("New Profile 2"));
     QVERIFY(WhaleStyles::self()->store().ids().size() == 1);
 
     apply();
-    QCOMPARE(WhaleStyles::self()->store().ids(), (QStringList{QStringLiteral("new-style"), QStringLiteral("new-style-2")}));
+    QCOMPARE(WhaleStyles::self()->store().ids(), (QStringList{QStringLiteral("new-profile"), QStringLiteral("new-profile-2")}));
     QVERIFY(WhaleStyles::self()
                 ->store()
-                .style(QStringLiteral("new-style-2"))
+                .style(QStringLiteral("new-profile-2"))
                 ->elements.value(QStringLiteral("viewStyle.left"))
                 .value.contains(QLatin1String("ViewMode=2")));
     // The window's menu follows.
-    QVERIFY(m_mainWindow->actionCollection()->action(WhaleStyleManager::actionName(QStringLiteral("new-style-2"))));
+    QVERIFY(m_mainWindow->actionCollection()->action(WhaleStyleManager::actionName(QStringLiteral("new-profile-2"))));
 }
 
 void WhaleStylesSettingsPageTest::testRenameKeepsId()
@@ -347,7 +347,7 @@ void WhaleStylesSettingsPageTest::testApplyToWindowKeepsStatusBarOnOk()
     elementItem(QStringLiteral("panels"))->setCheckState(0, Qt::Unchecked);
     child<QPushButton>("applyStyle")->click();
     QCOMPARE(view->viewMode(), DolphinView::CompactView);
-    // "Save Style" saves it then.
+    // "Save Profile" saves it then.
     QCOMPARE(WhaleStyleManager::ensure(m_mainWindow.data())->lastStyleId(), QStringLiteral("schlicht"));
     QCOMPARE(GeneralSettings::showStatusBar(), GeneralSettings::EnumShowStatusBar::Disabled);
 

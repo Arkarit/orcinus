@@ -580,6 +580,12 @@ logic stays in one helper and a few hooks to keep upstream merges manageable.
 
 ## Styles (ST1–ST4, 2026-10-22, extended up to 2026-10-23)
 
+**Shown as "Profiles" (2026-11-06).** "Style" collided with Dolphin's "display style" (view mode,
+sorting, hidden files and so on of one view), so a style contained "Style of the left view". The
+UI now says "Profiles" (precedent: Konqueror's view profiles); "Layouts" stays free for a future
+arrangement of several windows (as in Directory Opus). Internal names keep "style": `Whale*Style*`
+classes, the `whale_styles` action names, `orcinusstylesrc` and its keys.
+
 **Goal.** One click or shortcut switches the whole look of a window, modeled on Directory Opus'
 lister styles. The maintainer's two daily styles: "Plain" (one view, Compact, no menu bar, no
 toolbars, no panels, only the status bar) and "Pictures" (one view, medium icons, previews, the
