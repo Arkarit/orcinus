@@ -58,6 +58,7 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString OpenContextMenu(int pane, const QString &url);
     Q_SCRIPTABLE QString ClosePopups();
     Q_SCRIPTABLE QString ScrollToItem(int pane, const QString &url);
+    Q_SCRIPTABLE QString SetExpanded(int pane, const QStringList &urls, bool expanded, bool recursive);
     Q_SCRIPTABLE QString Quit();
     Q_SCRIPTABLE QString RequestItemInfo(int pane, const QString &url);
     Q_SCRIPTABLE QString AnswerRenameDialog(const QString &newName);

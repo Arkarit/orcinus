@@ -158,6 +158,11 @@ QString WhaleDevAutomationDBus::ScrollToItem(int pane, const QString &url)
     return toJson(m_automation->scrollToItem(pane, url));
 }
 
+QString WhaleDevAutomationDBus::SetExpanded(int pane, const QStringList &urls, bool expanded, bool recursive)
+{
+    return toJson(m_automation->setExpanded(pane, urls, expanded, recursive));
+}
+
 QString WhaleDevAutomationDBus::Quit()
 {
     return toJson(m_automation->quit());

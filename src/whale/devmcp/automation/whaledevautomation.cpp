@@ -159,6 +159,8 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("view_icons"), QStringLiteral("icons")},
         {QStringLiteral("view_compact"), QStringLiteral("compact")},
         {QStringLiteral("view_details"), QStringLiteral("details")},
+        {QStringLiteral("zoom_in"), KStandardAction::name(KStandardAction::ZoomIn)},
+        {QStringLiteral("zoom_out"), KStandardAction::name(KStandardAction::ZoomOut)},
         // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
         {QStringLiteral("copy"), KStandardAction::name(KStandardAction::Copy)},
         {QStringLiteral("cut"), KStandardAction::name(KStandardAction::Cut)},
@@ -1556,6 +1558,39 @@ QJsonObject WhaleDevAutomation::scrollToItem(int paneIndexArg, const QString &ur
         }
     }
     return failure(QStringLiteral("\"%1\" is not shown in the pane").arg(url));
+}
+
+QJsonObject WhaleDevAutomation::setExpanded(int paneIndexArg, const QStringList &urls, bool expanded, bool recursive)
+{
+    QString error;
+    DolphinViewContainer *container = pane(paneIndexArg, &error);
+    if (!container) {
+        return failure(error);
+    }
+    if (!container->viewHost()->isDolphinViewShown()) {
+        return failure(QStringLiteral("the pane does not show the file list"));
+    }
+    auto model = qobject_cast<KFileItemModel *>(container->view()->itemListContainer()->controller()->model());
+    if (!model) {
+        return failure(QStringLiteral("the pane has no file item model"));
+    }
+    QJsonArray changed;
+    QJsonArray missing;
+    for (const QString &url : urls) {
+        const int index = model->index(QUrl::fromUserInput(url, QString(), QUrl::AssumeLocalFile));
+        if (index < 0 || !model->isExpandable(index)) {
+            missing.append(url);
+            continue;
+        }
+        // The same model calls as the expansion arrow (Alt+click or "*" for a whole branch).
+        if (recursive ? model->setExpandedRecursively(index, expanded) : model->setExpanded(index, expanded)) {
+            changed.append(url);
+        }
+    }
+    QJsonObject answer = ok();
+    answer.insert(QStringLiteral("changed"), changed);
+    answer.insert(QStringLiteral("missing"), missing);
+    return answer;
 }
 
 QJsonObject WhaleDevAutomation::quit()

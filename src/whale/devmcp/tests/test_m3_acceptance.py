@@ -63,7 +63,7 @@ def run(args, work):
         expected_tools = {"get_ui_state", "get_focus_state", "set_view", "activate_pane", "set_split_view",
                           "set_location", "set_filter_text", "clear_filter", "set_hidden_files", "set_content_scope", "set_sort",
                           "set_selection", "activate_items", "get_action_state", "open_context_menu", "close_popup",
-                          "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "quit",
+                          "request_item_info", "rename_dialog", "close_dialogs", "scroll_to_item", "set_expanded", "quit",
                           "trigger_action", "wait_for_state", "screenshot", "get_preview_state", "request_preview",
                           "perform_drag_drop", "choose_popup_entry", "set_split_ratio", "set_split_lock", "set_window_size",
                           "treemap_hover", "treemap_select", "treemap_activate", "treemap_zoom", "treemap_key",

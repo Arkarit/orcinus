@@ -137,6 +137,14 @@ public:
     QJsonObject scrollToItem(int pane, const QString &url);
 
     /**
+     * Expands or collapses folders of a pane's file list (Compact or Details) through the
+     * model, like the expansion arrow; @p recursive like Alt+click or "*" (CX2). Folders
+     * not (yet) in the listing are returned as "missing": expand their parents first and
+     * wait for them to load.
+     */
+    QJsonObject setExpanded(int pane, const QStringList &urls, bool expanded, bool recursive);
+
+    /**
      * Closes the main window as the user does, after answering: Whale saves its session
      * and quits. For restart tests.
      */

@@ -252,7 +252,7 @@ TOOLS = [
                              "invert_selection", "rename", "properties", "new_tab", "close_tab",
                              "whale_show_file_view_toolbars", "activate_next_tab",
                              "activate_prev_tab", "show_preview", "reload", "show_information_panel", "view_icons",
-                             "view_compact", "view_details", "copy", "cut",
+                             "view_compact", "view_details", "zoom_in", "zoom_out", "copy", "cut",
                              "paste", "trash", "delete", "duplicate", "copy_location", "copy_to_other_pane",
                              "move_to_other_pane"],
                 }
@@ -279,6 +279,22 @@ TOOLS = [
         "description": "Scrolls a plugin item view (e.g. whale_testlist) so that the item url is at its top; "
         "panes.N.pluginTopItem in get_ui_state shows it. A view state that the view saves and restores.",
         "inputSchema": {"type": "object", "properties": {"pane": PANE, "url": {"type": "string"}}, "required": ["url"]},
+    },
+    {
+        "name": "set_expanded",
+        "description": "Expands (or, with expanded false, collapses) folders of a pane's file list in Compact or "
+        "Details through the model, like the expansion arrow; recursive like Alt+click or '*' (whole branch). "
+        "Folders not in the listing yet come back as 'missing': expand their parent first and wait for it to load.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pane": PANE,
+                "urls": {"type": "array", "items": {"type": "string"}},
+                "expanded": {"type": "boolean", "default": True},
+                "recursive": {"type": "boolean", "default": False},
+            },
+            "required": ["urls"],
+        },
     },
     {
         "name": "quit",
@@ -697,6 +713,10 @@ class Whale:
             return result(iface.OpenContextMenu(pane, args.get("url", "")))
         if tool == "scroll_to_item":
             return result(iface.ScrollToItem(pane, args["url"]))
+        if tool == "set_expanded":
+            urls = dbus.Array([str(url) for url in args["urls"]], signature="s")
+            return result(iface.SetExpanded(pane, urls, bool(args.get("expanded", True)),
+                                            bool(args.get("recursive", False))))
         if tool == "quit":
             return result(iface.Quit())
         if tool == "close_popup":
