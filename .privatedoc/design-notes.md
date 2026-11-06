@@ -92,7 +92,7 @@ shortly after an item appears, like the icon, because the roles updater determin
 
 ## UX-003: About dialog with fork credits
 
-The About tab shows a tagline ("A Dolphin. Just bigger." — an orca is the largest dolphin),
+The About tab shows a tagline ("A Dolphin. Just a big one." — an orca is the largest dolphin),
 "File Manager", the Dolphin version the code is based on (Orcinus has its own version since
 RL3, `WHALE_VERSION`), then two separate blocks: Dolphin's copyright, repository and license, and the fork's
 credit, homepage and license; since 2026-10-26 also the line that Orcinus is unofficial and not

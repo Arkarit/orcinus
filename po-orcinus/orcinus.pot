@@ -59,7 +59,7 @@ msgstr ""
 #: dolphinmainwindow.cpp:3167
 #, kde-format
 msgctxt "@info about dialog tagline, second line"
-msgid "Just bigger."
+msgid "Just a big one."
 msgstr ""
 
 #: dolphinmainwindow.cpp:3171

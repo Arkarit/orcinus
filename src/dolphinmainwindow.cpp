@@ -3164,7 +3164,7 @@ void DolphinMainWindow::showAboutDialog()
 
     const QStringList lines = {
         QStringLiteral("<span style=\"font-size:large; font-weight:bold;\">%1<br />%2</span>")
-            .arg(i18nc("@info about dialog tagline, first line", "A Dolphin."), i18nc("@info about dialog tagline, second line", "Just bigger.")),
+            .arg(i18nc("@info about dialog tagline, first line", "A Dolphin."), i18nc("@info about dialog tagline, second line", "Just a big one.")),
         QString(),
         i18nc("@title", "File Manager"),
         QString(),
