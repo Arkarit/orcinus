@@ -11,132 +11,283 @@ listed here behaves as described in the
 *Help → Handbook* opens as well.
 
 Each section states what differs, where to find it, and whether the default
-matches Dolphin's behavior.
+matches Dolphin's behavior. As a rule, a new behavior that would change something Dolphin
+users rely on is off by default; additions are on.
 
-> Status: outline. Sections marked *TODO* still need their text.
+Settings are under *Settings → Configure Orcinus…*; this document names the page and the
+option, e.g. *View → Details → Dragging*.
 
-## 1. Application identity and coexistence
+## 1. Installing next to Dolphin
 
-<!-- TODO: own app id (io.github.arkarit.orcinus), binary `orcinus`, own D-Bus name and
-     configuration files, so Orcinus and Dolphin can be installed and run side by side;
-     Orcinus does not take over "Show in folder" (org.freedesktop.FileManager1);
-     settings are not shared with Dolphin; handbook, service menus and version
-     control plugins are Dolphin's. -->
+Orcinus installs and runs next to Dolphin without touching it:
 
-## 2. Toolbars and location bars
+- Its own application ID (`io.github.arkarit.orcinus`), executable (`orcinus`), D-Bus names,
+  icon and task bar entry. Starting `dolphin` opens Dolphin, starting `orcinus` opens Orcinus.
+- Its own configuration (`orcinusrc` and friends). Orcinus does not read `dolphinrc`; it
+  starts with Dolphin's defaults. Toolbars, shortcuts and sessions are separate as well.
+- Shared with Dolphin and all other KDE applications, as intended: places, trash, bookmarks
+  (`kfile/bookmarks.xml` when it exists), service menus, "Create New" templates, Baloo, the
+  thumbnail cache, and the display style saved for each folder.
+- Dolphin's version control plugins (from `dolphin-plugins`), its service menus and its
+  handbook are used when they are installed; Orcinus does not need a Dolphin package.
+- "Show in folder" from browsers and other applications (`org.freedesktop.FileManager1`)
+  stays with Dolphin in this release. Orcinus can be made the default file manager for
+  opening folders in *System Settings → Default Applications → File Manager*.
+- Crash reports go to Orcinus' issue tracker, never to bugs.kde.org.
+
+## 2. Toolbars
 
 ### 2.1 A toolbar for every file view
-<!-- TODO: File View Toolbar per view, its action set, Configure Toolbars,
-     slimmer main toolbar, showing/hiding, the way back to hidden toolbars
-     without the menu bar, migration of existing toolbars. -->
+
+Every file view (each half of a split view) has a *File View Toolbar* of its own, above
+the view. Its buttons act only on that view and show that view's state: Back and Forward
+(with their history menus), Up, Reload, the location bar, view mode, zoom, sorting,
+previews, hidden files, filter and search. Clicking a button makes its view the active one,
+so the next keyboard shortcut goes to the same view. Shortcuts themselves stay global and
+act on the active view, as in Dolphin.
+
+- *Settings → Configure Toolbars…* offers the File View Toolbar next to the Main Toolbar.
+  One layout is shared by all file view toolbars.
+- *View → Show File View Toolbars* shows or hides all of them, in all windows and tabs;
+  their context menu has *Hide File View Toolbars*.
+- New users get a short Main Toolbar (split, stash, search, menu button), because the
+  navigation buttons are in the file view toolbars. Existing toolbars are kept as they are.
 
 ### 2.2 A location bar for every file view
-<!-- TODO: each view has its own location bar; it wraps into a second row
-     instead of the overflow menu; Tab moves through each file view starting
-     at its toolbar. -->
+
+Each view has its own location bar, in its file view toolbar (default position after
+Reload). When the view is narrow, the location bar moves into a second row instead of
+disappearing into the toolbar's overflow menu; all views of a tab do this together, so
+their file lists start at the same height. Hiding the file view toolbars hides the location
+bars too. The location bar can be moved or removed like any toolbar element.
 
 ### 2.3 Split and search buttons
-<!-- TODO: split button ">>" at the end of the toolbar of the only view, "<<"
-     at the end of the right view's toolbar (right click: Split View To Tabs,
-     Pop out Right View);
-     search button for the File View Toolbar. -->
 
-### 2.4 Each view keeps its own display style
-<!-- TODO: with "Use common display style for all folders", every view keeps
-     its own display style (view mode, sorting, hidden files, preview, columns) when it
-     goes to another folder; Dolphin reads the common display style again in every
-     folder, so a view took what another view changed last. Places with a display style
-     of their own (trash, search, recent files, downloads) still show it, and
-     leaving them gives the view its display style back. A change is remembered for the
-     view's side (left/right) and is what new windows, tabs and split views
-     start with. The view left when the split view closes keeps its display style; a
-     view moved to a tab (Split View To Tabs) or popped out to a window takes
-     its display style along. Settings > Folders & Tabs: "Split new windows and tabs"
-     as last used / always / never (replaces "Open new windows in split view
-     mode"). "Split View To Tabs" keeps the other view in any "close split
-     view" setting. With a display style for each folder, nothing changes. -->
+- A `>>` button at the right end of the toolbar of the only view opens the split view. With
+  two views, a `<<` button at the end of the right view's toolbar closes the right view,
+  whatever "close split view" is set to. Right-clicking `<<` offers *Split View To Tabs*
+  and *Pop out Right View* (into a window of its own).
+- The search button of a file view toolbar opens the search bar of that view.
 
-## 3. Views
+### 2.4 The menu bar as a toolbar element
 
-### 3.1 View plugins and the view switcher
-<!-- TODO: views beyond Icons/Compact/Details provided by plugins; view modes
-     in one level of the View menu; reachable without the menu bar; the
-     preferred view is remembered per location; shown view is kept in history
-     and sessions. -->
+The menu bar can be placed in a window toolbar as the element *Menu Bar* (*Configure
+Toolbars*, not in the default). It shows all menu titles side by side and turns into a
+menu button when space runs out. It is independent of the classic menu bar, which *Ctrl+M*
+still shows and hides.
 
-### 3.2 Cushion Treemap
-<!-- TODO: what it shows, navigation and zoom, context menu, selection works
-     with the normal actions, rest cells, removal confirmation, nothing is
-     created in views without a destination folder. -->
+## 3. Split view
 
-### 3.3 Files below the location ("Show flat (no folders)")
-<!-- TODO: lists the files of all subfolders in one flat list; where to switch
-     it on; interaction with other views. -->
+### 3.1 Each view keeps its own display style
 
-### 3.4 Expandable folders in the Compact view
-<!-- TODO: expansion arrows in Compact view (setting, default), no tree lines;
-     Alt+click / "*" expands or collapses a whole branch (also in Details). -->
+With *View → General → Display style: Use common display style for all folders* (Dolphin's
+default), Dolphin keeps one display style (view mode, sorting, hidden files, previews,
+columns) for all folders *and both views*: the view changed last decides what the other one
+shows in the next folder, and after a restart both look the same.
 
-### 3.5 Colored backgrounds for expanded folders
-<!-- TODO: in the Compact view, the contents of expanded folders get a
-     background color by depth, so a subtree reads as one block even where it
-     wraps into the next column; colors repeat for deeper levels. An expanded
-     folder carries the color of its contents right of its arrow. Where there
-     is room, the names of the expanded folders are written vertically in the
-     indentation next to their contents, in every column again (option with
-     an opacity slider, on by default). The Details view does the same in
-     the Name column, with the row stripes running through the colors and
-     the names sticking to the top of the view; Compact and Details have
-     settings of their own (switch in the dialog). The tree lines of the
-     Details view are gone; the preset "Classic (tree lines)" brings back
-     Dolphin's look without colors and names. Settings >
-     View > Highlighting > Expanded Folders: Off, Printer paper, Grey,
-     Pastel (Subtle), Pastel (Vivid) (default), Custom (2 to 10 colors,
-     add/remove, preview). Presets adapt to
-     the color scheme, custom colors are used as chosen. Not in the Details
-     view. -->
+In Orcinus each view keeps its own display style when it goes to another folder. Places
+with a display style of their own (trash, search, recent files, downloads) still show it,
+and leaving them gives the view its own style back. A change is remembered for the view's
+side (left or right) and is what new windows, tabs and split views start with. A view moved
+to a tab (*Split View To Tabs*) or popped out to a window takes its style along.
 
-## 4. File name highlighting
+With *Remember display style for each folder*, nothing changes compared to Dolphin.
 
-<!-- TODO: Highlighting tab in the view settings; rules by type and file flags
-     (e.g. executable) and by name patterns (case sensitivity); rules apply to
-     files, folders or both; colors and font styles; the default rules;
-     why an empty-pattern rule cannot be saved; performance note. The tab
-     also holds the colors for expanded folders (see 3.5). -->
+### 3.2 Split view in new windows and tabs
 
-## 5. Behavior options
+*Interface → Folders & Tabs → Split new windows and tabs*: *As last used* (default),
+*Always* or *Never*. This replaces Dolphin's checkbox "Open new windows in split view mode"
+(when it was on, the setting becomes *Always*).
 
-### 5.1 Dragging from anywhere in a Details row
-<!-- TODO: setting in Details view settings, default off (Dolphin behavior),
-     how click and drag are told apart, modifier behavior. -->
+### 3.3 Linked views
 
-### 5.2 Always follow symbolic links to their target
-<!-- TODO: setting in Interface → Folders & Tabs, default off; what changes in
-     the location bar and context menu. -->
+The chain-link button at the left end of the right view's toolbar links the two views:
 
-### 5.3 Built-in image and video viewer
-<!-- TODO: opening images and videos shows them in a plain fullscreen viewer
-     instead of an external application; changing the image moves the current
-     item and selection in the view; multi-selection shows only the selected
-     files; zoom and pan keys; video playback (libmpv); settings page.
-     Shift+double-click (or Shift+Enter) skips the viewer and opens the file
-     in its preferred application. -->
+- Both go to the same folder, and the right view takes the location of the active one when
+  linking.
+- Selecting an item in one view selects it in the other. If the other view cannot show the
+  item where it is (for example because its folder is not expanded there), it goes into the
+  item's folder and back again when the selection returns.
+- While linked, more than one item can only be selected inside one folder: *Ctrl+click* in
+  another folder is refused, *Shift+click* and the selection rectangle stay in the folder,
+  *Select All* selects the folder of the current item. A short message says so.
+- Only local folders can be linked. Going to FTP, SMB, the trash or search results unlinks
+  the views with a message.
 
-### 5.4 Running scripts in a terminal
-<!-- TODO: executable scripts run in the default terminal (Settings, default
-     off = KIO asks as in Dolphin): keep open, close on success, minimized
-     variants raised when the script fails; the terminal starts in the
-     script's folder. Shift+double-click (or Shift+Enter) always runs the
-     script in a terminal that stays open, whatever the setting. -->
+The link belongs to the tab and is off after a restart (profiles can switch it on, see 5).
+A typical use: the Cushion Treemap on the left, the file list on the right.
 
-## 6. Smaller differences
+## 4. Views
 
-<!-- TODO: About dialog credits Dolphin; Information panel available with
-     older Baloo Widgets; "Orcinus-Dev" title for development builds (only
-     relevant for contributors, maybe move to a developer section). -->
+### 4.1 View plugins
 
-## 7. Known limitations
+Besides Icons, Compact and Details, Orcinus can show a folder with other views provided by
+plugins. Orcinus 0.1 comes with one, the Cushion Treemap. All views are listed together in
+the View menu and in the view mode button of the file view toolbar; with more than five,
+they move into a *View Modes* submenu. Options a view does not support stay visible but
+disabled.
 
-<!-- TODO: handbook and help links still describe Dolphin; translations of new
-     features are incomplete; Orcinus-specific settings are not available in
-     System Settings modules. -->
+The view chosen for a location is remembered for that location only (not for its
+subfolders), and in the history and the session. The display style saved for the folder is
+not touched, so Dolphin is not affected.
+
+### 4.2 Cushion Treemap
+
+Shows how the space below the location is used: every file is a rectangle sized by its
+size, folders are groups of rectangles. Hidden files count, because they take space too.
+
+- Colors by *File Types* or by *Top Folders*; *Names* writes the names into the cells.
+- Click selects, double click or *Enter* opens a file or goes into a folder. The arrow keys
+  move between neighbors and levels. Mouse wheel and `+`/`−` zoom inside the treemap without
+  changing the location.
+- The selection works with the normal actions (copy, cut, trash, delete, rename,
+  properties). The context menu adds *Show in Folder* and *Show in Parent Folder*.
+- Many small entries are merged into one cell ("…"); clicking it selects their folder.
+- Trash, delete and cut always ask and list the items, even when KDE's confirmations are
+  off, because a deep selection is not necessarily visible.
+- Only local folders, and the scan stays on one file system.
+
+### 4.3 Show flat (no folders)
+
+*View → Show flat (no folders)* lists the files of all subfolders of the location in one
+list, without the folders, with a *Relative Path* column available in Details. Sorting,
+filter, selection and previews work as usual. The setting is remembered per location.
+
+The treemap and the flat view show items of many folders, so nothing is created in them:
+*Create New*, *Paste*, *Duplicate* and dropping are disabled and say why. Moving, deleting,
+renaming and opening work.
+
+### 4.4 Expandable folders in the Compact view
+
+The Compact view can expand folders like the Details view (*View → Compact → Folders:
+Expandable*, on by default), with arrows and no tree lines.
+
+In Compact, Details and the Folders panel, *Alt+click* on an arrow or `*` expands or
+collapses a whole branch; `+` and `-` expand and collapse one level. Expanding a whole
+branch never follows symbolic links and stops after 10,000 items.
+
+### 4.5 Colored backgrounds and names for expanded folders
+
+In the Compact view an expanded folder can wrap into the next column, and it is unclear
+where its contents start and end. Orcinus colors the contents of expanded folders by depth,
+so a subfolder reads as one block; colors repeat for deeper levels. Where there is room, the
+names of the expanded folders are written vertically in the indentation next to their
+contents.
+
+The Details view does the same in the Name column; there the folder names stay at the top
+of the view while scrolling through a long folder. Details' tree lines are replaced by these
+colors.
+
+*View → Highlighting → Expanded Folders* has a setting for each of the two views:
+*Off*, *Printer paper*, *Grey*, *Pastel (Subtle)*, *Pastel (Vivid)* (default), *Custom* (2 to
+10 colors of your own), and for Details *Classic (tree lines)*, which brings back Dolphin's
+look. The presets adapt to light and dark color schemes. The folder names can be switched
+off and their opacity set.
+
+## 5. Profiles
+
+A profile switches the whole look of a window at once, for example "one view, Compact, no
+toolbars" for daily work and "one view, large icons, previews, Information panel" for
+pictures.
+
+- *View → Profiles → Save as Profile…* saves the current window as a profile. Applying one is
+  a click in *View → Profiles* or its keyboard shortcut.
+- A profile can set: split view, the display style and the view of each side, linked views,
+  zoom, the filter bar of each side, menu bar, toolbars, file view toolbars, status bar and
+  panels. Elements without a check mark are left as they are, so a profile can also change
+  only a few things.
+- *Save Profile "…"* updates the profile applied last with the current state of the window.
+- The *Profiles* settings page lists the profiles: order, name, shortcut, the elements and
+  their values, *New from Window*, *Capture Again* and *Apply to Window*.
+- An applied profile is also what new windows, tabs and split views start with.
+- While the file view toolbars are hidden, the profiles are also in the menu button and in
+  the context menu of the view background, so there is always a way back.
+
+The display styles in a profile are only applied with a common display style for all
+folders (see 3.1).
+
+## 6. Built-in image and video viewer
+
+Opening an image (and, if Orcinus was built with libmpv, a video) shows it in a full-screen
+viewer instead of an external application. Whatever is shown in the viewer is the current
+and selected item in the view, so *Esc* leaves you exactly at the file you were looking at.
+
+- Browsing: mouse wheel, arrow keys, *Page Up*/*Page Down*, *Backspace*, *Home*/*End*, or a
+  click on the left or right edge of the screen. The viewer goes through the displayable
+  files of the folder in the view's order, with its sorting and filter. If several files
+  were selected when opening, only through those.
+- Images: *Ctrl+wheel* or `+`/`-` zoom (up to 3200 %), `1` shows 100 %, `0` fits the screen,
+  the middle mouse button pans. EXIF rotation and color profiles are respected, animated
+  GIF and WebP play.
+- Videos: *Space* or a click plays and pauses, *Left*/*Right* seek 5 seconds, `M` mutes;
+  controls appear while the mouse moves.
+- *Shift+double-click* (or *Shift+Enter*) skips the viewer and opens the file in its
+  application.
+- The *Viewer* settings page selects the file types the viewer opens (images; videos with
+  libmpv) and has options for wrapping around at the end, enlarging small images, smoothing
+  when zoomed in, and video playback, sound and looping.
+
+## 7. File name highlighting
+
+File names can be colored, bold or italic by rules, like colored `ls` output in a terminal
+(*View → Highlighting → File Names*, off by default).
+
+- A rule matches executable files, symbolic links, MIME types (`image/*`, `text/x-python`)
+  or name patterns (`*.bak`, case-insensitive by default), and applies to files, folders or
+  both.
+- Rules are applied from top to bottom; for each of color, bold and italic the first rule
+  that sets it wins.
+- Colors can follow the color scheme or be chosen freely; chosen colors stay readable.
+- "Executable" means an executable bit on file systems where it means something (not on FAT,
+  exFAT or NTFS) or a `.exe` file.
+- Default rules: executable files, symbolic links (italic, as in Dolphin) and media files;
+  *Defaults* restores them.
+
+## 8. Filter bar
+
+- *Keep Filter When Changing Folders* is on by default and remembered (in Dolphin it is off
+  and the filter is cleared on every folder change). Closing the filter bar clears the text.
+- A new button chooses what the filter applies to: *Files* (default; folders stay shown, so
+  `*.jpg` no longer hides all folders), *Folders* or *Files and Folders* (Dolphin's behavior).
+
+## 9. Behavior options
+
+### 9.1 Dragging from anywhere in a Details row
+
+*View → Details → Dragging: Drag files and folders from anywhere on the row* (off by
+default). In Dolphin, dragging from the empty part of an unselected row starts a selection
+rectangle. With the option, it drags the item; *Shift* plus drag there starts a rectangle.
+
+### 9.2 Always follow symbolic links to their target
+
+*Interface → Folders & Tabs → Always follow symbolic links to their target* (off by
+default). A folder opened through a symbolic link is shown at its real location, so the
+location bar shows the target path instead of the path of the link.
+
+### 9.3 Running scripts in a terminal
+
+*Interface → Confirmations → When opening an executable file* has, besides Dolphin's
+*Always ask* (default), *Open in application* and *Run script*, four more choices: *Run
+script in terminal*, *… and close*, *Run script in minimized terminal* and *… and close*.
+The terminal starts in the script's folder and stays open on errors; a minimized terminal
+comes to the front when the script fails.
+
+*Shift+double-click* (or *Shift+Enter*) on a script always runs it in a terminal that stays
+open, whatever the setting.
+
+## 10. Smaller differences
+
+- *Help → About Orcinus* names the Dolphin version Orcinus is based on and credits Dolphin's
+  developers.
+- The Information panel also works with older versions of Baloo Widgets.
+
+## 11. Known limitations
+
+- The handbook and the help links describe Dolphin; the Orcinus features are only
+  described here.
+- Orcinus' own strings are translated into German, French, Spanish, Italian, Brazilian
+  Portuguese, Polish, Russian, Simplified Chinese and Japanese; apart from German these are
+  machine translations that have not been reviewed yet. Everything else uses Dolphin's
+  translations.
+- Orcinus' settings are not available in System Settings.
+- "Show in folder" from other applications opens Dolphin (see 1).
