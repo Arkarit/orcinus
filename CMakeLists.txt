@@ -24,7 +24,7 @@ set(WHALE_ORG_DOMAIN "arkarit.github.io")
 set(WHALE_APP_ID "io.github.arkarit.orcinus")
 set(WHALE_DISPLAY_NAME "Orcinus")
 set(WHALE_BUG_URL "https://github.com/Arkarit/orcinus/issues")
-set(WHALE_HOMEPAGE "https://github.com/Arkarit/orcinus")
+set(WHALE_HOMEPAGE "https://arkarit.github.io/orcinus/")
 
 option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Orcinus" OFF)
 option(WHALE_INSTALL_DOLPHIN_EXTRAS "Install Dolphin-named compatibility artifacts (may conflict with Dolphin)" OFF)

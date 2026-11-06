@@ -7,7 +7,7 @@ pkgver=0.1.0.r0.g0000000
 pkgrel=1
 pkgdesc='File manager based on KDE Dolphin (development version)'
 arch=(x86_64 aarch64)
-url='https://github.com/Arkarit/orcinus'
+url='https://arkarit.github.io/orcinus/'
 license=('GPL-2.0-or-later'
          'LGPL-2.0-only'
          'LGPL-2.0-or-later'

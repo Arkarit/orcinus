@@ -37,7 +37,7 @@ Build-Depends: debhelper-compat (= 13),
                libbaloowidgets-dev,
                libmpv-dev,
 Standards-Version: 4.7.3
-Homepage: https://github.com/Arkarit/orcinus
+Homepage: https://arkarit.github.io/orcinus/
 Vcs-Browser: https://github.com/Arkarit/orcinus
 Vcs-Git: https://github.com/Arkarit/orcinus.git
 Rules-Requires-Root: no
