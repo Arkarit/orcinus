@@ -17,6 +17,16 @@
   <provides>
     <binary>orcinus</binary>
   </provides>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Expanded folders in the Compact view, next to the Icons view</caption>
+      <image>https://arkarit.github.io/orcinus/images/screenshot-split-compact.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The Details view with expanded folders, next to the Cushion Treemap</caption>
+      <image>https://arkarit.github.io/orcinus/images/screenshot-details-treemap.png</image>
+    </screenshot>
+  </screenshots>
   <url type="homepage">https://arkarit.github.io/orcinus/</url>
   <url type="bugtracker">https://github.com/Arkarit/orcinus/issues</url>
   <url type="vcs-browser">https://github.com/Arkarit/orcinus</url>

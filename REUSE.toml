@@ -122,6 +122,14 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = ["2020 Ilya Bizyaev <bizyaev@zoho.com>", "2025 Jack Hill <jackhill3103@gmail.com>", "2026 Orcinus contributors"]
 SPDX-License-Identifier = "LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL"
 
+# Screenshots of Orcinus (Breeze Dark, Breeze icons) with demo files; the pictures in them are
+# crops of the banner background above.
+[[annotations]]
+path = "website/images/screenshot-*.png"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Orcinus contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
 # Copy of the banner font for the website (see artwork/banner).
 [[annotations]]
 path = "website/fonts/BowlbyOneSC-Regular.ttf"

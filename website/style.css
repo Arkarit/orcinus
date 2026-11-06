@@ -159,6 +159,28 @@ footer p {
   margin: 0.5rem auto;
 }
 
+/* Screenshots are wider than the text column, centered on it. */
+.screenshot {
+  width: min(64rem, calc(100vw - 2.5rem));
+  margin: 2rem 0 2rem 50%;
+  transform: translateX(-50%);
+}
+
+.screenshot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--surface);
+  border-radius: 6px;
+}
+
+.screenshot figcaption {
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
 @media (max-width: 600px) {
   h2 {
     font-size: 1.6rem;

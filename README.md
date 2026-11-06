@@ -32,6 +32,10 @@ and until 1.0 settings and internals may still change (settings are migrated whe
 - **File name highlighting** by rules, a filter that keeps its text and leaves folders alone,
   scripts that run in a terminal, and more.
 
+![Split view: on the left the Compact view with expanded folders, colored by depth and with their names written vertically; on the right the Icons view with previews.](website/images/screenshot-split-compact.png)
+
+![Split view: on the left the Details view with expanded folders; on the right the Cushion Treemap of the home folder.](website/images/screenshot-details-treemap.png)
+
 All differences, with their settings and defaults:
 [docs/orcinus-vs-dolphin.md](docs/orcinus-vs-dolphin.md). Changes per version:
 [CHANGELOG.md](CHANGELOG.md). Everything else works as described in the
