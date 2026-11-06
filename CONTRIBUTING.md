@@ -11,7 +11,7 @@ page explains where things belong and how changes are made.
 ## Where does my report belong?
 
 - **Orcinus:** anything that only happens in Orcinus, including its own features
-  (file view toolbars, styles, the built-in viewer, view plugins such as the
+  (file view toolbars, profiles, the built-in viewer, view plugins such as the
   treemap, linked split views, expansion tints) and its packaging.
   Use the [Orcinus issue tracker](https://github.com/Arkarit/orcinus/issues).
 - **Dolphin:** problems that also happen in an unmodified Dolphin of the same
@@ -41,6 +41,16 @@ If you are not sure, open an Orcinus issue; we sort it out together.
 - Internal names still use the working title "Whale" (`src/whale/`, `Whale*`
   classes, `WHALE_*` CMake variables). Keep them; everything installed or shown
   to users says Orcinus.
+
+## Contributions made with AI
+
+Orcinus is developed with the help of artificial intelligence, and contributions
+created partly or entirely with AI are explicitly welcome. What matters is not
+how a contribution was made, but what it delivers: AI-generated pull requests
+get the same careful review as any other, and functionality, code quality and
+a clean fit into the project are what count. You stay responsible for what you
+submit, so please read and test it before opening the pull request. If you
+prefer to write your code by hand, you are just as welcome.
 
 ## Building and testing
 

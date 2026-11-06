@@ -99,3 +99,25 @@ path = ["packaging/debian/control", "packaging/debian/copyright", "packaging/deb
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Orcinus contributors"
 SPDX-License-Identifier = "GPL-2.0-or-later"
+
+# Banner background — AI-generated image, no copyright claimed.
+[[annotations]]
+path = "artwork/banner/OrcinusBackground.png"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "NONE"
+SPDX-License-Identifier = "CC0-1.0"
+
+# Bowlby One SC by Vernon Adams, used for the banner text. OFL.txt next to it is the font's own
+# copyright notice and license, kept with the font as the OFL requires.
+[[annotations]]
+path = ["artwork/banner/BowlbyOneSC-Regular.ttf", "artwork/banner/OFL.txt"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2011 Vernon Adams <vern@newtypography.co.uk>"
+SPDX-License-Identifier = "OFL-1.1"
+
+# The banner: the background above, the Orcinus icon (see logo.png) and text.
+[[annotations]]
+path = "website/images/banner.jpg"
+precedence = "aggregate"
+SPDX-FileCopyrightText = ["2020 Ilya Bizyaev <bizyaev@zoho.com>", "2025 Jack Hill <jackhill3103@gmail.com>", "2026 Orcinus contributors"]
+SPDX-License-Identifier = "LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL"
