@@ -3163,8 +3163,8 @@ void DolphinMainWindow::showAboutDialog()
         link.arg(gplUrl, i18nc("@info:credit %1 is the name of a license", "License: %1", aboutData.licenses().constFirst().name(KAboutLicense::FullName)));
 
     const QStringList lines = {
-        QStringLiteral("<span style=\"font-size:large; font-weight:bold;\">%1<br />%2</span>")
-            .arg(i18nc("@info about dialog tagline, first line", "A Dolphin."), i18nc("@info about dialog tagline, second line", "Just a big one.")),
+        // The tagline is a pun and part of the branding: it is intentionally not translated.
+        QStringLiteral("<span style=\"font-size:large; font-weight:bold;\">A Dolphin.<br />Just a big one.</span>"),
         QString(),
         i18nc("@title", "File Manager"),
         QString(),

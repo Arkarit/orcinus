@@ -50,18 +50,6 @@ msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3167
-#, kde-format
-msgctxt "@info about dialog tagline, first line"
-msgid "A Dolphin."
-msgstr ""
-
-#: dolphinmainwindow.cpp:3167
-#, kde-format
-msgctxt "@info about dialog tagline, second line"
-msgid "Just a big one."
-msgstr ""
-
 #: dolphinmainwindow.cpp:3171
 #, kde-format
 msgctxt ""
