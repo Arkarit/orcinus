@@ -110,7 +110,7 @@ SPDX-License-Identifier = "CC0-1.0"
 # Bowlby One SC by Vernon Adams, used for the banner text. OFL.txt next to it is the font's own
 # copyright notice and license, kept with the font as the OFL requires.
 [[annotations]]
-path = ["artwork/banner/BowlbyOneSC-Regular.ttf", "artwork/banner/OFL.txt"]
+path = ["artwork/banner/BowlbyOneSC-Regular.ttf", "artwork/banner/OFL.txt", "website/fonts/OFL.txt"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2011 Vernon Adams <vern@newtypography.co.uk>"
 SPDX-License-Identifier = "OFL-1.1"
@@ -121,3 +121,10 @@ path = "website/images/banner.jpg"
 precedence = "aggregate"
 SPDX-FileCopyrightText = ["2020 Ilya Bizyaev <bizyaev@zoho.com>", "2025 Jack Hill <jackhill3103@gmail.com>", "2026 Orcinus contributors"]
 SPDX-License-Identifier = "LGPL-3.0-only OR LicenseRef-KDE-Accepted-LGPL"
+
+# Copy of the banner font for the website (see artwork/banner).
+[[annotations]]
+path = "website/fonts/BowlbyOneSC-Regular.ttf"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2011 Vernon Adams <vern@newtypography.co.uk>"
+SPDX-License-Identifier = "OFL-1.1"

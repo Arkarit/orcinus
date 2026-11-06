@@ -1,0 +1,170 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Orcinus contributors
+ * SPDX-License-Identifier: CC-BY-SA-4.0
+ */
+
+@font-face {
+  font-family: "Bowlby One SC";
+  src: url("fonts/BowlbyOneSC-Regular.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  --deep: #0b1724;
+  --sea: #12273b;
+  --surface: #183248;
+  --ice: #cfe9f7;
+  --text: #e6eef4;
+  --muted: #9fb3c3;
+  --accent: #6cc4ee;
+  --heading-font: "Bowlby One SC", "Arial Black", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  background: var(--deep);
+}
+
+body {
+  margin: 0;
+  background: linear-gradient(180deg, var(--sea) 0, var(--deep) 60rem) no-repeat;
+  color: var(--text);
+  font: 1.0625rem/1.65 system-ui, "Noto Sans", "Segoe UI", sans-serif;
+}
+
+a {
+  color: var(--accent);
+}
+
+a:hover {
+  color: var(--ice);
+}
+
+.hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 80vh;
+  object-fit: cover;
+}
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem 1.5rem;
+  padding: 0.75rem 1rem;
+  background: rgb(11 23 36 / 0.92);
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid var(--surface);
+}
+
+.topnav a {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.topnav a:hover {
+  color: var(--accent);
+}
+
+main {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+section {
+  scroll-margin-top: 4rem;
+  padding-top: 1.5rem;
+}
+
+h2,
+h3 {
+  font-family: var(--heading-font);
+  font-weight: normal;
+  letter-spacing: 0.01em;
+  color: var(--ice);
+}
+
+h2 {
+  font-size: 2rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+h3 {
+  font-size: 1.2rem;
+  margin: 1.75rem 0 0.5rem;
+}
+
+.status {
+  margin: 1.5rem 0 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: var(--surface);
+  border-radius: 4px;
+}
+
+.principle {
+  font-family: var(--heading-font);
+  font-size: 1.35rem;
+  line-height: 1.4;
+  color: var(--ice);
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.features {
+  padding-left: 1.25rem;
+}
+
+.features li {
+  margin-bottom: 0.6rem;
+}
+
+.features li::marker {
+  color: var(--accent);
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.85rem 1rem;
+  background: #07111b;
+  border: 1px solid var(--surface);
+  border-radius: 6px;
+}
+
+code {
+  font-family: "Hack", "JetBrains Mono", ui-monospace, monospace;
+  font-size: 0.92em;
+}
+
+footer {
+  border-top: 1px solid var(--surface);
+  color: var(--muted);
+  font-size: 0.9rem;
+  padding: 1.5rem 1.25rem 2.5rem;
+}
+
+footer p {
+  max-width: 46rem;
+  margin: 0.5rem auto;
+}
+
+@media (max-width: 600px) {
+  h2 {
+    font-size: 1.6rem;
+  }
+
+  .principle {
+    font-size: 1.1rem;
+  }
+}

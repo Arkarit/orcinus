@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!--
+SPDX-FileCopyrightText: 2026 Orcinus contributors
+SPDX-License-Identifier: CC-BY-SA-4.0
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orcinus – A Dolphin. Just a big one.</title>
+  <meta name="description" content="Orcinus is a file manager based on KDE Dolphin, made for power users.">
+  <meta property="og:title" content="Orcinus – A Dolphin. Just a big one.">
+  <meta property="og:description" content="A file manager based on KDE Dolphin, made for power users.">
+  <meta property="og:image" content="https://arkarit.github.io/orcinus/images/banner.jpg">
+  <link rel="icon" href="images/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <img src="images/banner.jpg" width="1772" height="768"
+         alt="An orca leaping out of a stormy sea in front of an iceberg. Orcinus: A Dolphin. Just a big one.">
+  </header>
+
+  <nav class="topnav">
+    <a href="#what">What is Orcinus?</a>
+    <a href="#features">Features</a>
+    <a href="#install">Install</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#contributing">Contributing</a>
+    <a href="https://github.com/Arkarit/orcinus">GitHub</a>
+  </nav>
+
+  <main>
+    <p class="status">Current version: <strong>0.1.0 alpha</strong>. Used every day, but rough edges remain.</p>
+
+    <section id="what">
+      <h2>What is Orcinus?</h2>
+      <p><em>Orcinus</em> is the scientific genus name of the orca – the largest living member of
+        the dolphin family. And that's exactly why we chose it.</p>
+      <p>Orcinus is a fork of <strong>Dolphin</strong>, KDE's well-established file manager. While
+        Dolphin is designed as a versatile file manager for a broad range of users, Orcinus is aimed
+        particularly at <strong>power users</strong> who place high demands on functionality,
+        configurability, and extensibility.</p>
+      <p>We follow a simple guiding principle:</p>
+      <p class="principle">Make the common case simple and excellent.<br>Make the uncommon case possible.</p>
+      <p>Frequently used features should be simple, intuitive, and exceptionally well implemented.
+        More specialized requirements should face as few artificial limitations as possible.</p>
+    </section>
+
+    <section id="features">
+      <h2>What does Orcinus offer?</h2>
+      <p>Orcinus builds directly on Dolphin. Its proven architecture, integration with KDE Plasma,
+        and familiar user experience remain intact. If you're familiar with Dolphin, you'll feel
+        right at home with Orcinus.</p>
+      <p>The differences lie in numerous extensions and improvements – ranging from small but
+        meaningful everyday refinements to substantial new features.</p>
+      <p>The goal isn't to cram in as many features as possible. We want to create a file manager
+        that remains practical, well-organized, and enjoyable to use, even for demanding tasks.</p>
+
+      <h3>Improvements include</h3>
+      <ul class="features">
+        <li><strong>A toolbar and a location bar for every view.</strong> Each half of a split view
+          has its own Back, Forward, view mode and location.</li>
+        <li><strong>Better split views.</strong> Each view keeps its own display style; views can be
+          linked to follow the same folder and selection, and moved to a tab or a window of their
+          own.</li>
+        <li><strong>Profiles.</strong> Switch the whole look of a window – views, toolbars, panels,
+          status bar – with one click or shortcut.</li>
+        <li><strong>A built-in image and video viewer.</strong> Full screen, fast, and coupled to the
+          view: press Esc and the picture you were looking at is selected.</li>
+        <li><strong>Cushion Treemap.</strong> See at a glance what takes up the space below a
+          folder, and clean it up right there.</li>
+        <li><strong>Show flat.</strong> The files of all subfolders in one list.</li>
+        <li><strong>Expandable folders in the Compact view</strong>, with colored backgrounds and
+          folder names that show where each folder's contents start and end.</li>
+        <li><strong>File name highlighting</strong> by rules: executables, links, file types, name
+          patterns.</li>
+        <li><strong>Smaller things that add up:</strong> a filter that keeps its text and leaves
+          folders alone, scripts that run in a terminal, dragging from anywhere in a Details row,
+          and more.</li>
+      </ul>
+      <p>For a detailed overview of the changes, please see
+        <a href="https://github.com/Arkarit/orcinus/blob/master/docs/orcinus-vs-dolphin.md">Orcinus compared to Dolphin</a>
+        and the <a href="https://github.com/Arkarit/orcinus/blob/master/CHANGELOG.md">changelog</a>.</p>
+    </section>
+
+    <section id="install">
+      <h2>Install</h2>
+      <p>Orcinus installs next to Dolphin and leaves it untouched: own program, own settings, own
+        menu entry. Dolphin's version control plugins and service menus are used when they are
+        installed.</p>
+
+      <h3>Ubuntu 26.04 and 26.10</h3>
+      <pre><code>sudo add-apt-repository ppa:arkarit/orcinus
+sudo apt install orcinus</code></pre>
+
+      <h3>Arch Linux</h3>
+      <p>From the AUR: <a href="https://aur.archlinux.org/packages/orcinus"><code>orcinus</code></a>
+        for the release, <a href="https://aur.archlinux.org/packages/orcinus-git"><code>orcinus-git</code></a>
+        for the development version.</p>
+      <pre><code>yay -S orcinus</code></pre>
+
+      <h3>Other distributions</h3>
+      <p>Build from source: see the
+        <a href="https://github.com/Arkarit/orcinus#building-from-source">README</a>. Orcinus needs
+        Qt 6 and KDE Frameworks 6.23 or newer.</p>
+    </section>
+
+    <section id="roadmap">
+      <h2>Development and Roadmap</h2>
+      <p>Orcinus is intended to remain closely connected to Dolphin in the long term.</p>
+      <p>The Orcinus repository is based directly on the Dolphin repository. Changes and
+        improvements from Dolphin's ongoing development will be regularly incorporated. This allows
+        Orcinus to continue benefiting from its proven foundation while we pursue our own ideas and
+        features.</p>
+      <p>And we have quite a few of those in mind.</p>
+      <p>Our plans range from small improvements that eliminate everyday annoyances – such as
+        automatically handling unwanted executable permissions when copying files from NTFS to
+        Linux file systems – to much larger extensions.</p>
+      <p>One long-term focus is the <strong>integration of artificial intelligence</strong>. Beyond
+        file management, Orcinus is intended to eventually assist with everyday tasks, as well as
+        operating system configuration, maintenance, and troubleshooting.</p>
+      <p>As always, new features should solve real problems and integrate naturally into the user
+        experience.</p>
+    </section>
+
+    <section id="contributing">
+      <h2>Contributing</h2>
+      <p>Orcinus is developed entirely with the assistance of artificial intelligence. Contributions
+        created partly or entirely using AI are therefore explicitly welcome.</p>
+      <p>What matters is not <strong>how</strong> a contribution was created, but
+        <strong>what it delivers</strong>.</p>
+      <p>Of course, AI-generated pull requests are subject to the same careful review as any other
+        contribution. Functionality, code quality, and proper integration into the existing project
+        are what count.</p>
+      <p>If you prefer to write your code by hand, you're naturally just as welcome.</p>
+      <p>We welcome good ideas, suggestions for improvements, bug reports, and contributions to the
+        continued development of Orcinus: see the
+        <a href="https://github.com/Arkarit/orcinus/issues">issue tracker</a> and the
+        <a href="https://github.com/Arkarit/orcinus/blob/master/CONTRIBUTING.md">contributing guide</a>.</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>Orcinus is an unofficial fork of <a href="https://apps.kde.org/dolphin/">KDE Dolphin</a>. It
+      is not affiliated with, endorsed by, or supported by KDE e.V. or the Dolphin developers.
+      Please report problems with Orcinus to the
+      <a href="https://github.com/Arkarit/orcinus/issues">Orcinus issue tracker</a>, not to KDE.
+      KDE® is a registered trademark of KDE e.V.</p>
+    <p>Orcinus is free software, licensed mainly under the GNU GPL 2.0 or later.
+      Banner font: Bowlby One SC by Vernon Adams (SIL Open Font License).</p>
+  </footer>
+</body>
+</html>
