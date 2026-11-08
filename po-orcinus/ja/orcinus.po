@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 11:46+0100\n"
+"POT-Creation-Date: 2026-11-08 20:37+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: ja\n"
@@ -180,7 +180,18 @@ msgctxt "@item:inmenu the filter applies to"
 msgid "Files and Folders"
 msgstr "ファイルとフォルダ"
 
-#: filterbar/filterbar.cpp:255
+#: filterbar/filterbar.cpp:103
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"* stands for any text and ? for one character. Several patterns separated by "
+"spaces, commas or semicolons show the items that match one of them, for "
+"example: *.jpg *.png"
+msgstr ""
+"* は任意の文字列、? は 1 文字を表します。スペース、カンマ、セミコロンで区切っ"
+"た複数のパターンは、そのいずれかに一致する項目を表示します。例: *.jpg *.png"
+
+#: filterbar/filterbar.cpp:261
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"

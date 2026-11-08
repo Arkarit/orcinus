@@ -249,6 +249,8 @@ File names can be colored, bold or italic by rules, like colored `ls` output in 
   and the filter is cleared on every folder change). Closing the filter bar clears the text.
 - A new button chooses what the filter applies to: *Files* (default; folders stay shown, so
   `*.jpg` no longer hides all folders), *Folders* or *Files and Folders* (Dolphin's behavior).
+- In *Glob Pattern* mode, spaces, commas and semicolons separate several patterns; an item is
+  shown if it matches one of them (`*.jpg *.png`). For a literal space, use `?`.
 
 ## 9. Behavior options
 

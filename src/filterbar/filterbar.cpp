@@ -97,6 +97,12 @@ FilterBar::FilterBar(QWidget *parent)
     m_filterModeComboBox->addItem(i18nc("@item:inlistbox", "Plain Text"), KFileItemModelFilter::FilterMode::PlainText);
     m_filterModeComboBox->addItem(i18nc("@item:inlistbox", "Glob Pattern"), KFileItemModelFilter::FilterMode::Glob);
     m_filterModeComboBox->addItem(i18nc("@item:inlistbox", "Regular Expression"), KFileItemModelFilter::FilterMode::Regex);
+    // Whale: several glob patterns
+    m_filterModeComboBox->setItemData(m_filterModeComboBox->findData(KFileItemModelFilter::FilterMode::Glob),
+                                      i18nc("@info:tooltip",
+                                            "* stands for any text and ? for one character. Several patterns separated by spaces, commas or semicolons "
+                                            "show the items that match one of them, for example: *.jpg *.png"),
+                                      Qt::ToolTipRole);
     connect(m_filterModeComboBox, &QComboBox::currentIndexChanged, this, [this](int index) {
         Q_EMIT filterModeChanged(m_filterModeComboBox->itemData(index).value<KFileItemModelFilter::FilterMode>());
     });
@@ -296,7 +302,7 @@ void FilterBar::updateInvalidPatternView()
             regExp.setPattern(pattern);
             regExp.setPatternOptions(options);
         } else if (current_filter_mode == KFileItemModelFilter::FilterMode::Glob) {
-            regExp.setPattern(QRegularExpression::wildcardToRegularExpression(pattern, QRegularExpression::UnanchoredWildcardConversion));
+            regExp.setPattern(KFileItemModelFilter::globToRegularExpression(pattern)); // Whale: several patterns
             regExp.setPatternOptions(options);
         }
 

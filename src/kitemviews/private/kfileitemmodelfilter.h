@@ -55,6 +55,12 @@ public:
     FilterMode filterMode() const;
 
     /**
+     * Whale: the regular expression of the glob pattern @p pattern. Spaces, commas and semicolons
+     * separate several patterns, of which a name has to match one ("*.jpg *.png").
+     */
+    static QString globToRegularExpression(const QString &pattern);
+
+    /**
      * Enable or disable the case sensitive filtering.
      */
     void setCaseSensitive(bool caseSensitive);

@@ -66,7 +66,7 @@ possible). Compared to Dolphin 27.03 (development state), Orcinus adds:
 ### Smaller changes
 
 - The filter keeps its text when changing folders by default, and can apply to files only,
-  folders only, or both.
+  folders only, or both. Glob patterns can list several patterns (`*.jpg *.png`).
 - Optional: drag files from anywhere in a Details row.
 - Optional: always follow symbolic links to their target.
 - Scripts can run in a terminal, also minimized.

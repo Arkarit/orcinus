@@ -3076,6 +3076,19 @@ void KFileItemModelTest::testFilterModesAndCaseSensitivity()
     m_model->setNameFilter("*a*c*");
     QCOMPARE(itemsInModel(), QStringList() << "1_abc.txt" << "2_aBc.txt" << "3_a[b]c.txt");
 
+    // Whale: several patterns, separated by spaces, commas or semicolons; a name matches one of them
+    m_model->setNameFilter("*.cpp 1_*");
+    QCOMPARE(itemsInModel(), QStringList() << "1_abc.txt" << "5_test.cpp");
+
+    m_model->setNameFilter("*.cpp, 2_*;3_*");
+    QCOMPARE(itemsInModel(), QStringList() << "2_aBc.txt" << "3_a[b]c.txt" << "5_test.cpp");
+
+    m_model->setNameFilter(" *.cpp  ");
+    QCOMPARE(itemsInModel(), QStringList() << "5_test.cpp");
+
+    m_model->setNameFilter("*.cpp a[");
+    QCOMPARE(itemsInModel(), QStringList());
+
     // Glob + case sensitive
     m_model->setFilterCaseSensitive(true);
 

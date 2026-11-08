@@ -87,9 +87,24 @@ void KFileItemModelFilter::updateFilter()
         m_regExp->setPattern(m_pattern);
         m_regExp->setPatternOptions(options);
     } else if (m_filterMode == Glob) {
-        m_regExp->setPattern(QRegularExpression::wildcardToRegularExpression(m_pattern, QRegularExpression::UnanchoredWildcardConversion));
+        m_regExp->setPattern(globToRegularExpression(m_pattern)); // Whale: several patterns
         m_regExp->setPatternOptions(options);
     }
+}
+
+QString KFileItemModelFilter::globToRegularExpression(const QString &pattern)
+{
+    static const QRegularExpression separators(QStringLiteral("[\\s,;]+"));
+    const QStringList globs = pattern.split(separators, Qt::SkipEmptyParts);
+    if (globs.size() <= 1) {
+        return QRegularExpression::wildcardToRegularExpression(globs.value(0), QRegularExpression::UnanchoredWildcardConversion);
+    }
+    QStringList alternatives;
+    for (const QString &glob : globs) {
+        alternatives.append(QLatin1String("(?:") + QRegularExpression::wildcardToRegularExpression(glob, QRegularExpression::UnanchoredWildcardConversion)
+                            + QLatin1Char(')'));
+    }
+    return alternatives.join(QLatin1Char('|'));
 }
 
 void KFileItemModelFilter::setMimeTypes(const QStringList &types)
