@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 12:21+0100\n"
+"POT-Creation-Date: 2026-11-08 11:46+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: de\n"
@@ -49,44 +49,32 @@ msgstr ""
 "können Sie Dateien als Administrator bearbeiten.</numbereditem></"
 "numberedlist></para>"
 
-#: dolphinmainwindow.cpp:1957
+#: dolphinmainwindow.cpp:1958
 #, kde-format
 msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "Ein neues Orcinus-Fenster öffnen"
 
-#: dolphinmainwindow.cpp:3163
+#: dolphinmainwindow.cpp:3164
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "Lizenz: %1"
 
-#: dolphinmainwindow.cpp:3167
-#, kde-format
-msgctxt "@info about dialog tagline, first line"
-msgid "A Dolphin."
-msgstr "Ein Delfin."
-
-#: dolphinmainwindow.cpp:3167
-#, kde-format
-msgctxt "@info about dialog tagline, second line"
-msgid "Just bigger."
-msgstr "Nur größer."
-
-#: dolphinmainwindow.cpp:3171
+#: dolphinmainwindow.cpp:3172
 #, kde-format
 msgctxt ""
 "@info:credit %1 is the version of Dolphin's code that Orcinus is based on"
 msgid "Based on Dolphin %1"
 msgstr "Basiert auf Dolphin %1"
 
-#: dolphinmainwindow.cpp:3176
+#: dolphinmainwindow.cpp:3177
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus: %1"
 
-#: dolphinmainwindow.cpp:3180
+#: dolphinmainwindow.cpp:3181
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -96,7 +84,7 @@ msgstr ""
 "Orcinus ist eine inoffizielle Abspaltung von Dolphin und ist weder mit KDE "
 "verbunden noch offiziell von KDE unterstützt."
 
-#: dolphinmainwindow.cpp:3249
+#: dolphinmainwindow.cpp:3250
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -115,7 +103,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3269
+#: dolphinmainwindow.cpp:3270
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -131,7 +119,7 @@ msgstr ""
 "userbase.kde.org/Dolphin/File_Management'>hier</link>. Damit öffnen Sie die "
 "Dolphin-Seite im KDE-UserBase-Wiki.</para>"
 
-#: dolphinmainwindow.cpp:3274
+#: dolphinmainwindow.cpp:3275
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -161,13 +149,13 @@ msgstr ""
 "Orcinus als Systemverwalter auszuführen, kann gefährlich sein. Bitte seien "
 "Sie vorsichtig."
 
-#: dolphinviewcontainer.cpp:1073
+#: dolphinviewcontainer.cpp:1085
 #, kde-format
 msgctxt "@info:status"
 msgid "Orcinus does not support web pages, the web browser has been launched"
 msgstr "Orcinus unterstützt keine Webseiten, der Webbrowser wurde gestartet"
 
-#: dolphinviewcontainer.cpp:1076
+#: dolphinviewcontainer.cpp:1088
 #, kde-format
 msgctxt "@info:status"
 msgid ""
@@ -211,25 +199,25 @@ msgstr ""
 "<command>sudo</command> auszuführen. Bitte führen Sie stattdessen <icode>%1</"
 "icode> aus."
 
-#: main.cpp:189
+#: main.cpp:190
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus wird mit geteilter Ansicht gestartet."
 
-#: main.cpp:190
+#: main.cpp:191
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus wird ausdrücklich in einem neuen Fenster geöffnet."
 
-#: main.cpp:199
+#: main.cpp:200
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "Orcinus für Verwaltungsaufgaben einrichten."
 
-#: main.cpp:202
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -238,8 +226,8 @@ msgstr "Orcinus-Dienst starten (nur für die D-Bus-Schnittstelle nötig)."
 #: settings/dolphinsettingsdialog.cpp:60
 #, kde-format
 msgctxt "@title:group"
-msgid "Styles"
-msgstr "Styles"
+msgid "Profiles"
+msgstr "Profile"
 
 #: settings/dolphinsettingsdialog.cpp:66
 #, kde-format
@@ -359,18 +347,6 @@ msgstr "Nie"
 msgctxt "@label:listbox"
 msgid "Split new windows and tabs"
 msgstr "Neue Fenster und Unterfenster teilen"
-
-#: settings/interface/panelsettingspage.cpp:64
-#, kde-format
-msgctxt "@option:check"
-msgid "Limit to home directory when inside it"
-msgstr "Innerhalb des persönlichen Ordners auf diesen beschränken"
-
-#: settings/interface/panelsettingspage.cpp:65
-#, kde-format
-msgctxt "@label:checkbox"
-msgid "Folders Panel:"
-msgstr "Ordner-Seitenleiste:"
 
 #: settings/interface/previewssettingspage.cpp:100
 #, kde-kuit-format
@@ -864,13 +840,13 @@ msgstr ""
 "Einige Schriftstile sind für Orcinus reserviert und werden eventuell "
 "überschrieben."
 
-#: settings/viewmodes/viewsettingstab.cpp:129
+#: settings/viewmodes/viewsettingstab.cpp:133
 #, kde-format
 msgctxt "@option:check"
 msgid "Drag files and folders from anywhere on the row"
 msgstr "Dateien und Ordner von überall in der Zeile ziehen"
 
-#: settings/viewmodes/viewsettingstab.cpp:131
+#: settings/viewmodes/viewsettingstab.cpp:135
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -880,7 +856,7 @@ msgstr ""
 "Halten Sie die Umschalttaste gedrückt, während Sie im leeren Teil einer "
 "Zeile ziehen, um stattdessen ein Auswahlrechteck zu beginnen."
 
-#: settings/viewmodes/viewsettingstab.cpp:132
+#: settings/viewmodes/viewsettingstab.cpp:136
 #, kde-format
 msgctxt "@label:checkbox"
 msgid "Dragging:"
@@ -892,7 +868,7 @@ msgctxt "description of kuserfeedback data source provided by Orcinus"
 msgid "A subset of Orcinus settings."
 msgstr "Ein Teil der Einstellungen von Orcinus."
 
-#: views/dolphinviewactionhandler.cpp:385
+#: views/dolphinviewactionhandler.cpp:386
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -915,7 +891,7 @@ msgstr ""
 "Sicherungsdateien, lassen sich ebenfalls verstecken, wenn Sie diese "
 "Einstellung unter Orcinus einrichten > Ansicht > Allgemein aktivieren.</para>"
 
-#: views/dolphinview.cpp:242
+#: views/dolphinview.cpp:264
 #, kde-format
 msgctxt "@info"
 msgid "Stopped expanding the folders: there are more than %1 items."
@@ -1412,15 +1388,15 @@ msgstr "Eine Ansicht"
 
 #: whale/styles/whalestyleelementtypes.cpp:172
 #, kde-format
-msgctxt "@item:inlistbox style element"
-msgid "Style of the left view"
-msgstr "Stil der linken Ansicht"
+msgctxt "@item:inlistbox profile element"
+msgid "Display style of the left view"
+msgstr "Anzeigestil der linken Ansicht"
 
 #: whale/styles/whalestyleelementtypes.cpp:173
 #, kde-format
-msgctxt "@item:inlistbox style element"
-msgid "Style of the right view"
-msgstr "Stil der rechten Ansicht"
+msgctxt "@item:inlistbox profile element"
+msgid "Display style of the right view"
+msgstr "Anzeigestil der rechten Ansicht"
 
 #: whale/styles/whalestyleelementtypes.cpp:224
 #, kde-format
@@ -1647,94 +1623,95 @@ msgstr "Angezeigt: %1"
 #: whale/styles/whalestylemanager.cpp:91
 #, kde-format
 msgctxt "@action:inmenu View"
-msgid "Styles"
-msgstr "Styles"
+msgid "Profiles"
+msgstr "Profile"
 
 #: whale/styles/whalestylemanager.cpp:94
 #, kde-format
 msgctxt "@info:whatsthis"
 msgid ""
-"A style switches the whole look of the window at once: one or two views, "
-"their view modes, toolbars, panels and the status bar. Give a style a "
+"A profile switches the whole look of the window at once: one or two views, "
+"their view modes, toolbars, panels and the status bar. Give a profile a "
 "shortcut in <interface>Configure Keyboard Shortcuts</interface>."
 msgstr ""
-"Ein Style schaltet das ganze Aussehen des Fensters auf einmal um: eine oder "
+"Ein Profil schaltet das ganze Aussehen des Fensters auf einmal um: eine oder "
 "zwei Ansichten, ihre Ansichtsmodi, Werkzeugleisten, Seitenleisten und die "
-"Statusleiste. Einem Style können Sie unter <interface>Kurzbefehle festlegen</"
-"interface> einen Kurzbefehl geben."
+"Statusleiste. Einem Profil können Sie unter <interface>Kurzbefehle "
+"festlegen</interface> einen Kurzbefehl geben."
 
 #: whale/styles/whalestylemanager.cpp:102
 #, kde-format
-msgctxt "@action:inmenu Styles"
-msgid "Save as Style…"
-msgstr "Als Style speichern …"
+msgctxt "@action:inmenu Profiles"
+msgid "Save as Profile…"
+msgstr "Als Profil speichern …"
 
 #: whale/styles/whalestylemanager.cpp:111
 #, kde-format
 msgctxt "@title:group of shortcuts"
-msgid "Styles"
-msgstr "Styles"
+msgid "Profiles"
+msgstr "Profile"
 
 #: whale/styles/whalestylemanager.cpp:195
 #, kde-format
-msgctxt "@action:inmenu Styles, %1 the style applied last"
-msgid "Save Style \"%1\""
-msgstr "Style „%1“ speichern"
+msgctxt "@action:inmenu Profiles, %1 the profile applied last"
+msgid "Save Profile \"%1\""
+msgstr "Profil „%1“ speichern"
 
 #: whale/styles/whalestylemanager.cpp:196
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Save the current state of the window as the style \"%1\""
-msgstr "Den aktuellen Zustand des Fensters als Style „%1“ speichern"
+msgid "Save the current state of the window as the profile \"%1\""
+msgstr "Den aktuellen Zustand des Fensters als Profil „%1“ speichern"
 
 #: whale/styles/whalestylemanager.cpp:198
 #, kde-format
-msgctxt "@action:inmenu Styles"
-msgid "Save Style"
-msgstr "Style speichern"
+msgctxt "@action:inmenu Profiles"
+msgid "Save Profile"
+msgstr "Profil speichern"
 
 #: whale/styles/whalestylemanager.cpp:199
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Apply a style first; this saves the current state of the window as that style"
+"Apply a profile first; this saves the current state of the window as that "
+"profile"
 msgstr ""
-"Wenden Sie zuerst einen Style an; dadurch wird der aktuelle Fensterzustand "
-"als dieser Style gespeichert"
+"Wenden Sie zuerst ein Profil an; dadurch wird der aktuelle Fensterzustand "
+"als dieses Profil gespeichert"
 
 #: whale/styles/whalestylemanager.cpp:284
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Apply the style \"%1\" to the window"
-msgstr "Den Style „%1“ auf das Fenster anwenden"
+msgid "Apply the profile \"%1\" to the window"
+msgstr "Das Profil „%1“ auf das Fenster anwenden"
 
 #: whale/styles/whalestylemanager.cpp:307
 #, kde-format
 msgctxt "@title:window"
-msgid "Save as Style"
-msgstr "Als Style speichern"
+msgid "Save as Profile"
+msgstr "Als Profil speichern"
 
 #: whale/styles/whalestylemanager.cpp:308
 #, kde-format
 msgctxt "@label:textbox"
-msgid "Name of the style:"
-msgstr "Name des Styles:"
+msgid "Name of the profile:"
+msgstr "Name des Profils:"
 
 #: whale/styles/whalestylemanager.cpp:321
 #, kde-format
 msgctxt "@info"
 msgid ""
-"There is already a style named \"%1\". Replace it with the current state of "
-"the window?"
+"There is already a profile named \"%1\". Replace it with the current state "
+"of the window?"
 msgstr ""
-"Es gibt bereits einen Style namens „%1“. Durch den aktuellen Zustand des "
+"Es gibt bereits ein Profil namens „%1“. Durch den aktuellen Zustand des "
 "Fensters ersetzen?"
 
 #: whale/styles/whalestylemanager.cpp:322
 #, kde-format
 msgctxt "@title:window"
-msgid "Replace Style"
-msgstr "Style ersetzen"
+msgid "Replace Profile"
+msgstr "Profil ersetzen"
 
 #: whale/styles/whalestylemanager.cpp:323
 #, kde-format
@@ -1751,8 +1728,8 @@ msgstr "Neu aus Fenster"
 #: whale/styles/whalestylessettingspage.cpp:55
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Add a style with the current state of the window"
-msgstr "Einen Style mit dem aktuellen Zustand des Fensters hinzufügen"
+msgid "Add a profile with the current state of the window"
+msgstr "Ein Profil mit dem aktuellen Zustand des Fensters hinzufügen"
 
 #: whale/styles/whalestylessettingspage.cpp:60
 #, kde-format
@@ -1775,8 +1752,8 @@ msgstr "Kurzbefehl:"
 #: whale/styles/whalestylessettingspage.cpp:86
 #, kde-format
 msgctxt "@label"
-msgid "The style sets:"
-msgstr "Der Style setzt:"
+msgid "The profile sets:"
+msgstr "Das Profil setzt:"
 
 #: whale/styles/whalestylessettingspage.cpp:91
 #, kde-format
@@ -1794,8 +1771,8 @@ msgstr "Wert"
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"An element without a check mark is left as it is when the style is applied."
-msgstr "Ein Element ohne Häkchen bleibt beim Anwenden des Styles, wie es ist."
+"An element without a check mark is left as it is when the profile is applied."
+msgstr "Ein Element ohne Häkchen bleibt beim Anwenden des Profils, wie es ist."
 
 #: whale/styles/whalestylessettingspage.cpp:98
 #, kde-format
@@ -1818,15 +1795,15 @@ msgstr "Auf Fenster anwenden"
 #: whale/styles/whalestylessettingspage.cpp:103
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Apply the style to the window now, as shown here"
-msgstr "Den Style jetzt so, wie hier gezeigt, auf das Fenster anwenden"
+msgid "Apply the profile to the window now, as shown here"
+msgstr "Das Profil jetzt so, wie hier gezeigt, auf das Fenster anwenden"
 
 #: whale/styles/whalestylessettingspage.cpp:111
 #, kde-format
 msgctxt "@info"
-msgid "Apply a style from View → Styles or by its shortcut."
+msgid "Apply a profile from View → Profiles or by its shortcut."
 msgstr ""
-"Wenden Sie einen Style über Ansicht → Styles oder mit dem zugehörigen "
+"Wenden Sie ein Profil über Ansicht → Profile oder mit dem zugehörigen "
 "Kurzbefehl an."
 
 #: whale/styles/whalestylessettingspage.cpp:197
@@ -1838,27 +1815,28 @@ msgstr "Nicht erfasst"
 #: whale/styles/whalestylessettingspage.cpp:200
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Not part of this style. Capture it again to add it."
-msgstr "Nicht Teil dieses Styles. Erfassen Sie ihn neu, um es hinzuzufügen."
+msgid "Not part of this profile. Capture it again to add it."
+msgstr "Nicht Teil dieses Profils. Erfassen Sie es neu, um es hinzuzufügen."
 
 #: whale/styles/whalestylessettingspage.cpp:201
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Not part of this style, so applied like this. Capture it again to change it."
+"Not part of this profile, so applied like this. Capture it again to change "
+"it."
 msgstr ""
-"Nicht Teil dieses Styles und daher so angewendet. Erfassen Sie ihn neu, um "
+"Nicht Teil dieses Profils und daher so angewendet. Erfassen Sie es neu, um "
 "es zu ändern."
 
 #: whale/styles/whalestylessettingspage.cpp:210
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Not applied in the current settings (only with one view style for all "
-"folders)."
+"Not applied in the current settings (only with a common display style for "
+"all folders)."
 msgstr ""
-"In den aktuellen Einstellungen nicht angewendet (nur mit einem Ansichtsstil "
-"für alle Ordner)."
+"In den aktuellen Einstellungen nicht angewendet (nur mit dem gleichen "
+"Anzeigestil für alle Ordner)."
 
 #: whale/styles/whalestylessettingspage.cpp:220
 #, kde-format
@@ -1868,15 +1846,15 @@ msgstr "Aus einer neueren Version von Orcinus"
 
 #: whale/styles/whalestylessettingspage.cpp:278
 #, kde-format
-msgctxt "@item name of a new style"
-msgid "New Style"
-msgstr "Neuer Style"
+msgctxt "@item name of a new profile"
+msgid "New Profile"
+msgstr "Neues Profil"
 
 #: whale/styles/whalestylessettingspage.cpp:280
 #, kde-format
-msgctxt "@item name of a new style, %1 a number"
-msgid "New Style %1"
-msgstr "Neuer Style %1"
+msgctxt "@item name of a new profile, %1 a number"
+msgid "New Profile %1"
+msgstr "Neues Profil %1"
 
 #: whale/styles/whalestylessettingspage.cpp:367
 #, kde-format
@@ -2083,3 +2061,181 @@ msgstr ""
 #, kde-format
 msgid "Whether new windows and tabs open with a split view"
 msgstr "Ob neue Fenster und Unterfenster mit geteilter Ansicht geöffnet werden"
+
+#, kde-format
+#~ msgctxt "@info about dialog tagline, first line"
+#~ msgid "A Dolphin."
+#~ msgstr "Ein Delfin."
+
+#, kde-format
+#~ msgctxt "@info about dialog tagline, second line"
+#~ msgid "Just bigger."
+#~ msgstr "Nur größer."
+
+#, kde-format
+#~ msgctxt "@title:group"
+#~ msgid "Styles"
+#~ msgstr "Styles"
+
+#, kde-format
+#~ msgctxt "@option:check"
+#~ msgid "Limit to home directory when inside it"
+#~ msgstr "Innerhalb des persönlichen Ordners auf diesen beschränken"
+
+#, kde-format
+#~ msgctxt "@label:checkbox"
+#~ msgid "Folders Panel:"
+#~ msgstr "Ordner-Seitenleiste:"
+
+#, kde-format
+#~ msgctxt "@item:inlistbox style element"
+#~ msgid "Style of the left view"
+#~ msgstr "Stil der linken Ansicht"
+
+#, kde-format
+#~ msgctxt "@item:inlistbox style element"
+#~ msgid "Style of the right view"
+#~ msgstr "Stil der rechten Ansicht"
+
+#, kde-format
+#~ msgctxt "@action:inmenu View"
+#~ msgid "Styles"
+#~ msgstr "Styles"
+
+#, kde-format
+#~ msgctxt "@info:whatsthis"
+#~ msgid ""
+#~ "A style switches the whole look of the window at once: one or two views, "
+#~ "their view modes, toolbars, panels and the status bar. Give a style a "
+#~ "shortcut in <interface>Configure Keyboard Shortcuts</interface>."
+#~ msgstr ""
+#~ "Ein Style schaltet das ganze Aussehen des Fensters auf einmal um: eine "
+#~ "oder zwei Ansichten, ihre Ansichtsmodi, Werkzeugleisten, Seitenleisten "
+#~ "und die Statusleiste. Einem Style können Sie unter <interface>Kurzbefehle "
+#~ "festlegen</interface> einen Kurzbefehl geben."
+
+#, kde-format
+#~ msgctxt "@action:inmenu Styles"
+#~ msgid "Save as Style…"
+#~ msgstr "Als Style speichern …"
+
+#, kde-format
+#~ msgctxt "@title:group of shortcuts"
+#~ msgid "Styles"
+#~ msgstr "Styles"
+
+#, kde-format
+#~ msgctxt "@action:inmenu Styles, %1 the style applied last"
+#~ msgid "Save Style \"%1\""
+#~ msgstr "Style „%1“ speichern"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Save the current state of the window as the style \"%1\""
+#~ msgstr "Den aktuellen Zustand des Fensters als Style „%1“ speichern"
+
+#, kde-format
+#~ msgctxt "@action:inmenu Styles"
+#~ msgid "Save Style"
+#~ msgstr "Style speichern"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "Apply a style first; this saves the current state of the window as that "
+#~ "style"
+#~ msgstr ""
+#~ "Wenden Sie zuerst einen Style an; dadurch wird der aktuelle "
+#~ "Fensterzustand als dieser Style gespeichert"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Apply the style \"%1\" to the window"
+#~ msgstr "Den Style „%1“ auf das Fenster anwenden"
+
+#, kde-format
+#~ msgctxt "@title:window"
+#~ msgid "Save as Style"
+#~ msgstr "Als Style speichern"
+
+#, kde-format
+#~ msgctxt "@label:textbox"
+#~ msgid "Name of the style:"
+#~ msgstr "Name des Styles:"
+
+#, kde-format
+#~ msgctxt "@info"
+#~ msgid ""
+#~ "There is already a style named \"%1\". Replace it with the current state "
+#~ "of the window?"
+#~ msgstr ""
+#~ "Es gibt bereits einen Style namens „%1“. Durch den aktuellen Zustand des "
+#~ "Fensters ersetzen?"
+
+#, kde-format
+#~ msgctxt "@title:window"
+#~ msgid "Replace Style"
+#~ msgstr "Style ersetzen"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Add a style with the current state of the window"
+#~ msgstr "Einen Style mit dem aktuellen Zustand des Fensters hinzufügen"
+
+#, kde-format
+#~ msgctxt "@label"
+#~ msgid "The style sets:"
+#~ msgstr "Der Style setzt:"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "An element without a check mark is left as it is when the style is "
+#~ "applied."
+#~ msgstr ""
+#~ "Ein Element ohne Häkchen bleibt beim Anwenden des Styles, wie es ist."
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Apply the style to the window now, as shown here"
+#~ msgstr "Den Style jetzt so, wie hier gezeigt, auf das Fenster anwenden"
+
+#, kde-format
+#~ msgctxt "@info"
+#~ msgid "Apply a style from View → Styles or by its shortcut."
+#~ msgstr ""
+#~ "Wenden Sie einen Style über Ansicht → Styles oder mit dem zugehörigen "
+#~ "Kurzbefehl an."
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Not part of this style. Capture it again to add it."
+#~ msgstr "Nicht Teil dieses Styles. Erfassen Sie ihn neu, um es hinzuzufügen."
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "Not part of this style, so applied like this. Capture it again to change "
+#~ "it."
+#~ msgstr ""
+#~ "Nicht Teil dieses Styles und daher so angewendet. Erfassen Sie ihn neu, "
+#~ "um es zu ändern."
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "Not applied in the current settings (only with one view style for all "
+#~ "folders)."
+#~ msgstr ""
+#~ "In den aktuellen Einstellungen nicht angewendet (nur mit einem "
+#~ "Ansichtsstil für alle Ordner)."
+
+#, kde-format
+#~ msgctxt "@item name of a new style"
+#~ msgid "New Style"
+#~ msgstr "Neuer Style"
+
+#, kde-format
+#~ msgctxt "@item name of a new style, %1 a number"
+#~ msgid "New Style %1"
+#~ msgstr "Neuer Style %1"

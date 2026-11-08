@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 06:56+0100\n"
+"POT-Creation-Date: 2026-11-08 11:47+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,32 +38,32 @@ msgid ""
 "administrator.</numbereditem></numberedlist></para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:1957
+#: dolphinmainwindow.cpp:1958
 #, kde-format
 msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3163
+#: dolphinmainwindow.cpp:3164
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3171
+#: dolphinmainwindow.cpp:3172
 #, kde-format
 msgctxt ""
 "@info:credit %1 is the version of Dolphin's code that Orcinus is based on"
 msgid "Based on Dolphin %1"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3176
+#: dolphinmainwindow.cpp:3177
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3180
+#: dolphinmainwindow.cpp:3181
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -71,7 +71,7 @@ msgid ""
 "KDE."
 msgstr ""
 
-#: dolphinmainwindow.cpp:3249
+#: dolphinmainwindow.cpp:3250
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -86,7 +86,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3269
+#: dolphinmainwindow.cpp:3270
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -97,7 +97,7 @@ msgid ""
 "dedicated Dolphin page in the KDE UserBase Wiki.</para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3274
+#: dolphinmainwindow.cpp:3275
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -161,25 +161,25 @@ msgid ""
 "discouraged. Please run <icode>%1</icode> instead."
 msgstr ""
 
-#: main.cpp:189
+#: main.cpp:190
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr ""
 
-#: main.cpp:190
+#: main.cpp:191
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr ""
 
-#: main.cpp:199
+#: main.cpp:200
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr ""
 
-#: main.cpp:202
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -297,18 +297,6 @@ msgstr ""
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Split new windows and tabs"
-msgstr ""
-
-#: settings/interface/panelsettingspage.cpp:64
-#, kde-format
-msgctxt "@option:check"
-msgid "Limit to home directory when inside it"
-msgstr ""
-
-#: settings/interface/panelsettingspage.cpp:65
-#, kde-format
-msgctxt "@label:checkbox"
-msgid "Folders Panel:"
 msgstr ""
 
 #: settings/interface/previewssettingspage.cpp:100
@@ -784,13 +772,13 @@ msgctxt "@info"
 msgid "Some font styles are reserved by Orcinus and may be overridden."
 msgstr ""
 
-#: settings/viewmodes/viewsettingstab.cpp:129
+#: settings/viewmodes/viewsettingstab.cpp:133
 #, kde-format
 msgctxt "@option:check"
 msgid "Drag files and folders from anywhere on the row"
 msgstr ""
 
-#: settings/viewmodes/viewsettingstab.cpp:131
+#: settings/viewmodes/viewsettingstab.cpp:135
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -798,7 +786,7 @@ msgid ""
 "rectangle instead."
 msgstr ""
 
-#: settings/viewmodes/viewsettingstab.cpp:132
+#: settings/viewmodes/viewsettingstab.cpp:136
 #, kde-format
 msgctxt "@label:checkbox"
 msgid "Dragging:"
@@ -810,7 +798,7 @@ msgctxt "description of kuserfeedback data source provided by Orcinus"
 msgid "A subset of Orcinus settings."
 msgstr ""
 
-#: views/dolphinviewactionhandler.cpp:385
+#: views/dolphinviewactionhandler.cpp:386
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -824,7 +812,7 @@ msgid ""
 "in Configure Orcinus > View > General.</para>"
 msgstr ""
 
-#: views/dolphinview.cpp:242
+#: views/dolphinview.cpp:264
 #, kde-format
 msgctxt "@info"
 msgid "Stopped expanding the folders: there are more than %1 items."

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-26 12:21+0100\n"
+"POT-Creation-Date: 2026-11-08 11:46+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: zh_CN\n"
@@ -47,44 +47,32 @@ msgstr ""
 "键：<shortcut>%2</shortcut></numbereditem><numbereditem>授权后即可以管理员身"
 "份管理文件。</numbereditem></numberedlist></para>"
 
-#: dolphinmainwindow.cpp:1957
+#: dolphinmainwindow.cpp:1958
 #, kde-format
 msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "打开新的 Orcinus 窗口"
 
-#: dolphinmainwindow.cpp:3163
+#: dolphinmainwindow.cpp:3164
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "许可证：%1"
 
-#: dolphinmainwindow.cpp:3167
-#, kde-format
-msgctxt "@info about dialog tagline, first line"
-msgid "A Dolphin."
-msgstr "一只海豚。"
-
-#: dolphinmainwindow.cpp:3167
-#, kde-format
-msgctxt "@info about dialog tagline, second line"
-msgid "Just bigger."
-msgstr "只是更大。"
-
-#: dolphinmainwindow.cpp:3171
+#: dolphinmainwindow.cpp:3172
 #, kde-format
 msgctxt ""
 "@info:credit %1 is the version of Dolphin's code that Orcinus is based on"
 msgid "Based on Dolphin %1"
 msgstr "基于 Dolphin %1"
 
-#: dolphinmainwindow.cpp:3176
+#: dolphinmainwindow.cpp:3177
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus：%1"
 
-#: dolphinmainwindow.cpp:3180
+#: dolphinmainwindow.cpp:3181
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -92,7 +80,7 @@ msgid ""
 "KDE."
 msgstr "Orcinus 是 Dolphin 的非官方分支，与 KDE 无关，也未获 KDE 认可。"
 
-#: dolphinmainwindow.cpp:3249
+#: dolphinmainwindow.cpp:3250
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -110,7 +98,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3269
+#: dolphinmainwindow.cpp:3270
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -125,7 +113,7 @@ msgstr ""
 "Dolphin/File_Management'>点击这里</link>。这将打开 KDE UserBase 维基中的 "
 "Dolphin 专页。</para>"
 
-#: dolphinmainwindow.cpp:3274
+#: dolphinmainwindow.cpp:3275
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -150,13 +138,13 @@ msgstr ""
 msgid "Running Orcinus as root can be dangerous. Please be careful."
 msgstr "以 root 身份运行 Orcinus 可能很危险。请务必小心。"
 
-#: dolphinviewcontainer.cpp:1073
+#: dolphinviewcontainer.cpp:1085
 #, kde-format
 msgctxt "@info:status"
 msgid "Orcinus does not support web pages, the web browser has been launched"
 msgstr "Orcinus 不支持网页，已启动网页浏览器"
 
-#: dolphinviewcontainer.cpp:1076
+#: dolphinviewcontainer.cpp:1088
 #, kde-format
 msgctxt "@info:status"
 msgid ""
@@ -197,25 +185,25 @@ msgstr ""
 "不建议使用 <command>sudo</command> 运行 <application>Orcinus</application>。"
 "请改为运行 <icode>%1</icode>。"
 
-#: main.cpp:189
+#: main.cpp:190
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus 将以拆分视图启动。"
 
-#: main.cpp:190
+#: main.cpp:191
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus 将明确在新窗口中打开。"
 
-#: main.cpp:199
+#: main.cpp:200
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "为管理任务设置 Orcinus。"
 
-#: main.cpp:202
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -224,8 +212,8 @@ msgstr "启动 Orcinus 守护进程（仅 D-Bus 接口需要）。"
 #: settings/dolphinsettingsdialog.cpp:60
 #, kde-format
 msgctxt "@title:group"
-msgid "Styles"
-msgstr "样式"
+msgid "Profiles"
+msgstr "配置方案"
 
 #: settings/dolphinsettingsdialog.cpp:66
 #, kde-format
@@ -339,18 +327,6 @@ msgstr "从不"
 msgctxt "@label:listbox"
 msgid "Split new windows and tabs"
 msgstr "拆分新窗口和标签页"
-
-#: settings/interface/panelsettingspage.cpp:64
-#, kde-format
-msgctxt "@option:check"
-msgid "Limit to home directory when inside it"
-msgstr "位于主文件夹内时限制在主文件夹中"
-
-#: settings/interface/panelsettingspage.cpp:65
-#, kde-format
-msgctxt "@label:checkbox"
-msgid "Folders Panel:"
-msgstr "文件夹面板："
 
 #: settings/interface/previewssettingspage.cpp:100
 #, kde-kuit-format
@@ -830,13 +806,13 @@ msgctxt "@info"
 msgid "Some font styles are reserved by Orcinus and may be overridden."
 msgstr "部分字体样式由 Orcinus 保留，可能会被覆盖。"
 
-#: settings/viewmodes/viewsettingstab.cpp:129
+#: settings/viewmodes/viewsettingstab.cpp:133
 #, kde-format
 msgctxt "@option:check"
 msgid "Drag files and folders from anywhere on the row"
 msgstr "从行的任意位置拖动文件和文件夹"
 
-#: settings/viewmodes/viewsettingstab.cpp:131
+#: settings/viewmodes/viewsettingstab.cpp:135
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -844,7 +820,7 @@ msgid ""
 "rectangle instead."
 msgstr "从行的空白部分拖动时按住 Shift，可改为开始框选。"
 
-#: settings/viewmodes/viewsettingstab.cpp:132
+#: settings/viewmodes/viewsettingstab.cpp:136
 #, kde-format
 msgctxt "@label:checkbox"
 msgid "Dragging:"
@@ -856,7 +832,7 @@ msgctxt "description of kuserfeedback data source provided by Orcinus"
 msgid "A subset of Orcinus settings."
 msgstr "Orcinus 的部分设置。"
 
-#: views/dolphinviewactionhandler.cpp:385
+#: views/dolphinviewactionhandler.cpp:386
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -875,7 +851,7 @@ msgstr ""
 "本文件中，项目也会被隐藏。MIME 类型为“application/x-trash”的文件（例如备份文"
 "件）也可以通过在“配置 Orcinus > 视图 > 常规”中启用该设置来隐藏。</para>"
 
-#: views/dolphinview.cpp:242
+#: views/dolphinview.cpp:264
 #, kde-format
 msgctxt "@info"
 msgid "Stopped expanding the folders: there are more than %1 items."
@@ -1349,15 +1325,15 @@ msgstr "一个视图"
 
 #: whale/styles/whalestyleelementtypes.cpp:172
 #, kde-format
-msgctxt "@item:inlistbox style element"
-msgid "Style of the left view"
-msgstr "左侧视图的样式"
+msgctxt "@item:inlistbox profile element"
+msgid "Display style of the left view"
+msgstr "左侧视图的显示样式"
 
 #: whale/styles/whalestyleelementtypes.cpp:173
 #, kde-format
-msgctxt "@item:inlistbox style element"
-msgid "Style of the right view"
-msgstr "右侧视图的样式"
+msgctxt "@item:inlistbox profile element"
+msgid "Display style of the right view"
+msgstr "右侧视图的显示样式"
 
 #: whale/styles/whalestyleelementtypes.cpp:224
 #, kde-format
@@ -1584,88 +1560,90 @@ msgstr "显示：%1"
 #: whale/styles/whalestylemanager.cpp:91
 #, kde-format
 msgctxt "@action:inmenu View"
-msgid "Styles"
-msgstr "样式"
+msgid "Profiles"
+msgstr "配置方案"
 
 #: whale/styles/whalestylemanager.cpp:94
 #, kde-format
 msgctxt "@info:whatsthis"
 msgid ""
-"A style switches the whole look of the window at once: one or two views, "
-"their view modes, toolbars, panels and the status bar. Give a style a "
+"A profile switches the whole look of the window at once: one or two views, "
+"their view modes, toolbars, panels and the status bar. Give a profile a "
 "shortcut in <interface>Configure Keyboard Shortcuts</interface>."
 msgstr ""
-"样式可一次性切换窗口的整体外观：一个或两个视图、它们的视图模式、工具栏、面板"
-"和状态栏。可在<interface>配置键盘快捷键</interface>中为样式指定快捷键。"
+"配置方案可一次性切换窗口的整体外观：一个或两个视图、它们的视图模式、工具栏、"
+"面板和状态栏。可在<interface>配置键盘快捷键</interface>中为配置方案指定快捷"
+"键。"
 
 #: whale/styles/whalestylemanager.cpp:102
 #, kde-format
-msgctxt "@action:inmenu Styles"
-msgid "Save as Style…"
-msgstr "另存为样式…"
+msgctxt "@action:inmenu Profiles"
+msgid "Save as Profile…"
+msgstr "另存为配置方案…"
 
 #: whale/styles/whalestylemanager.cpp:111
 #, kde-format
 msgctxt "@title:group of shortcuts"
-msgid "Styles"
-msgstr "样式"
+msgid "Profiles"
+msgstr "配置方案"
 
 #: whale/styles/whalestylemanager.cpp:195
 #, kde-format
-msgctxt "@action:inmenu Styles, %1 the style applied last"
-msgid "Save Style \"%1\""
-msgstr "保存样式“%1”"
+msgctxt "@action:inmenu Profiles, %1 the profile applied last"
+msgid "Save Profile \"%1\""
+msgstr "保存配置方案“%1”"
 
 #: whale/styles/whalestylemanager.cpp:196
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Save the current state of the window as the style \"%1\""
-msgstr "将窗口的当前状态保存为样式“%1”"
+msgid "Save the current state of the window as the profile \"%1\""
+msgstr "将窗口的当前状态保存为配置方案“%1”"
 
 #: whale/styles/whalestylemanager.cpp:198
 #, kde-format
-msgctxt "@action:inmenu Styles"
-msgid "Save Style"
-msgstr "保存样式"
+msgctxt "@action:inmenu Profiles"
+msgid "Save Profile"
+msgstr "保存配置方案"
 
 #: whale/styles/whalestylemanager.cpp:199
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Apply a style first; this saves the current state of the window as that style"
-msgstr "请先应用一个样式；之后此操作会将窗口的当前状态保存为该样式"
+"Apply a profile first; this saves the current state of the window as that "
+"profile"
+msgstr "请先应用一个配置方案；之后此操作会将窗口的当前状态保存为该配置方案"
 
 #: whale/styles/whalestylemanager.cpp:284
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Apply the style \"%1\" to the window"
-msgstr "将样式“%1”应用到窗口"
+msgid "Apply the profile \"%1\" to the window"
+msgstr "将配置方案“%1”应用到窗口"
 
 #: whale/styles/whalestylemanager.cpp:307
 #, kde-format
 msgctxt "@title:window"
-msgid "Save as Style"
-msgstr "另存为样式"
+msgid "Save as Profile"
+msgstr "另存为配置方案"
 
 #: whale/styles/whalestylemanager.cpp:308
 #, kde-format
 msgctxt "@label:textbox"
-msgid "Name of the style:"
-msgstr "样式名称："
+msgid "Name of the profile:"
+msgstr "配置方案名称："
 
 #: whale/styles/whalestylemanager.cpp:321
 #, kde-format
 msgctxt "@info"
 msgid ""
-"There is already a style named \"%1\". Replace it with the current state of "
-"the window?"
-msgstr "已存在名为“%1”的样式。要用窗口的当前状态替换它吗？"
+"There is already a profile named \"%1\". Replace it with the current state "
+"of the window?"
+msgstr "已存在名为“%1”的配置方案。要用窗口的当前状态替换它吗？"
 
 #: whale/styles/whalestylemanager.cpp:322
 #, kde-format
 msgctxt "@title:window"
-msgid "Replace Style"
-msgstr "替换样式"
+msgid "Replace Profile"
+msgstr "替换配置方案"
 
 #: whale/styles/whalestylemanager.cpp:323
 #, kde-format
@@ -1682,8 +1660,8 @@ msgstr "从窗口新建"
 #: whale/styles/whalestylessettingspage.cpp:55
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Add a style with the current state of the window"
-msgstr "使用窗口的当前状态添加一个样式"
+msgid "Add a profile with the current state of the window"
+msgstr "使用窗口的当前状态添加一个配置方案"
 
 #: whale/styles/whalestylessettingspage.cpp:60
 #, kde-format
@@ -1706,8 +1684,8 @@ msgstr "快捷键："
 #: whale/styles/whalestylessettingspage.cpp:86
 #, kde-format
 msgctxt "@label"
-msgid "The style sets:"
-msgstr "此样式设置："
+msgid "The profile sets:"
+msgstr "此配置方案设置："
 
 #: whale/styles/whalestylessettingspage.cpp:91
 #, kde-format
@@ -1725,8 +1703,8 @@ msgstr "值"
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"An element without a check mark is left as it is when the style is applied."
-msgstr "应用样式时，未勾选的元素保持不变。"
+"An element without a check mark is left as it is when the profile is applied."
+msgstr "应用配置方案时，未勾选的元素保持不变。"
 
 #: whale/styles/whalestylessettingspage.cpp:98
 #, kde-format
@@ -1749,14 +1727,14 @@ msgstr "应用到窗口"
 #: whale/styles/whalestylessettingspage.cpp:103
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Apply the style to the window now, as shown here"
-msgstr "立即按此处所示将样式应用到窗口"
+msgid "Apply the profile to the window now, as shown here"
+msgstr "立即按此处所示将配置方案应用到窗口"
 
 #: whale/styles/whalestylessettingspage.cpp:111
 #, kde-format
 msgctxt "@info"
-msgid "Apply a style from View → Styles or by its shortcut."
-msgstr "可通过“视图 → 样式”或其快捷键应用样式。"
+msgid "Apply a profile from View → Profiles or by its shortcut."
+msgstr "可通过“视图 → 配置方案”或其快捷键应用配置方案。"
 
 #: whale/styles/whalestylessettingspage.cpp:197
 #, kde-format
@@ -1767,23 +1745,24 @@ msgstr "未捕获"
 #: whale/styles/whalestylessettingspage.cpp:200
 #, kde-format
 msgctxt "@info:tooltip"
-msgid "Not part of this style. Capture it again to add it."
-msgstr "不属于此样式。重新捕获即可添加。"
+msgid "Not part of this profile. Capture it again to add it."
+msgstr "不属于此配置方案。重新捕获即可添加。"
 
 #: whale/styles/whalestylessettingspage.cpp:201
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Not part of this style, so applied like this. Capture it again to change it."
-msgstr "不属于此样式，因此按此方式应用。重新捕获即可更改。"
+"Not part of this profile, so applied like this. Capture it again to change "
+"it."
+msgstr "不属于此配置方案，因此按此方式应用。重新捕获即可更改。"
 
 #: whale/styles/whalestylessettingspage.cpp:210
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
-"Not applied in the current settings (only with one view style for all "
-"folders)."
-msgstr "在当前设置下不适用（仅当所有文件夹使用同一视图样式时适用）。"
+"Not applied in the current settings (only with a common display style for "
+"all folders)."
+msgstr "在当前设置下不适用（仅当所有文件夹使用相同的显示样式时适用）。"
 
 #: whale/styles/whalestylessettingspage.cpp:220
 #, kde-format
@@ -1793,15 +1772,15 @@ msgstr "来自更新版本的 Orcinus"
 
 #: whale/styles/whalestylessettingspage.cpp:278
 #, kde-format
-msgctxt "@item name of a new style"
-msgid "New Style"
-msgstr "新样式"
+msgctxt "@item name of a new profile"
+msgid "New Profile"
+msgstr "新配置方案"
 
 #: whale/styles/whalestylessettingspage.cpp:280
 #, kde-format
-msgctxt "@item name of a new style, %1 a number"
-msgid "New Style %1"
-msgstr "新样式 %1"
+msgctxt "@item name of a new profile, %1 a number"
+msgid "New Profile %1"
+msgstr "新配置方案 %1"
 
 #: whale/styles/whalestylessettingspage.cpp:367
 #, kde-format
@@ -2002,3 +1981,168 @@ msgstr ""
 #, kde-format
 msgid "Whether new windows and tabs open with a split view"
 msgstr "新窗口和标签页是否以拆分视图打开"
+
+#, kde-format
+#~ msgctxt "@info about dialog tagline, first line"
+#~ msgid "A Dolphin."
+#~ msgstr "一只海豚。"
+
+#, kde-format
+#~ msgctxt "@info about dialog tagline, second line"
+#~ msgid "Just bigger."
+#~ msgstr "只是更大。"
+
+#, kde-format
+#~ msgctxt "@title:group"
+#~ msgid "Styles"
+#~ msgstr "样式"
+
+#, kde-format
+#~ msgctxt "@option:check"
+#~ msgid "Limit to home directory when inside it"
+#~ msgstr "位于主文件夹内时限制在主文件夹中"
+
+#, kde-format
+#~ msgctxt "@label:checkbox"
+#~ msgid "Folders Panel:"
+#~ msgstr "文件夹面板："
+
+#, kde-format
+#~ msgctxt "@item:inlistbox style element"
+#~ msgid "Style of the left view"
+#~ msgstr "左侧视图的样式"
+
+#, kde-format
+#~ msgctxt "@item:inlistbox style element"
+#~ msgid "Style of the right view"
+#~ msgstr "右侧视图的样式"
+
+#, kde-format
+#~ msgctxt "@action:inmenu View"
+#~ msgid "Styles"
+#~ msgstr "样式"
+
+#, kde-format
+#~ msgctxt "@info:whatsthis"
+#~ msgid ""
+#~ "A style switches the whole look of the window at once: one or two views, "
+#~ "their view modes, toolbars, panels and the status bar. Give a style a "
+#~ "shortcut in <interface>Configure Keyboard Shortcuts</interface>."
+#~ msgstr ""
+#~ "样式可一次性切换窗口的整体外观：一个或两个视图、它们的视图模式、工具栏、面"
+#~ "板和状态栏。可在<interface>配置键盘快捷键</interface>中为样式指定快捷键。"
+
+#, kde-format
+#~ msgctxt "@action:inmenu Styles"
+#~ msgid "Save as Style…"
+#~ msgstr "另存为样式…"
+
+#, kde-format
+#~ msgctxt "@title:group of shortcuts"
+#~ msgid "Styles"
+#~ msgstr "样式"
+
+#, kde-format
+#~ msgctxt "@action:inmenu Styles, %1 the style applied last"
+#~ msgid "Save Style \"%1\""
+#~ msgstr "保存样式“%1”"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Save the current state of the window as the style \"%1\""
+#~ msgstr "将窗口的当前状态保存为样式“%1”"
+
+#, kde-format
+#~ msgctxt "@action:inmenu Styles"
+#~ msgid "Save Style"
+#~ msgstr "保存样式"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "Apply a style first; this saves the current state of the window as that "
+#~ "style"
+#~ msgstr "请先应用一个样式；之后此操作会将窗口的当前状态保存为该样式"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Apply the style \"%1\" to the window"
+#~ msgstr "将样式“%1”应用到窗口"
+
+#, kde-format
+#~ msgctxt "@title:window"
+#~ msgid "Save as Style"
+#~ msgstr "另存为样式"
+
+#, kde-format
+#~ msgctxt "@label:textbox"
+#~ msgid "Name of the style:"
+#~ msgstr "样式名称："
+
+#, kde-format
+#~ msgctxt "@info"
+#~ msgid ""
+#~ "There is already a style named \"%1\". Replace it with the current state "
+#~ "of the window?"
+#~ msgstr "已存在名为“%1”的样式。要用窗口的当前状态替换它吗？"
+
+#, kde-format
+#~ msgctxt "@title:window"
+#~ msgid "Replace Style"
+#~ msgstr "替换样式"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Add a style with the current state of the window"
+#~ msgstr "使用窗口的当前状态添加一个样式"
+
+#, kde-format
+#~ msgctxt "@label"
+#~ msgid "The style sets:"
+#~ msgstr "此样式设置："
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "An element without a check mark is left as it is when the style is "
+#~ "applied."
+#~ msgstr "应用样式时，未勾选的元素保持不变。"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Apply the style to the window now, as shown here"
+#~ msgstr "立即按此处所示将样式应用到窗口"
+
+#, kde-format
+#~ msgctxt "@info"
+#~ msgid "Apply a style from View → Styles or by its shortcut."
+#~ msgstr "可通过“视图 → 样式”或其快捷键应用样式。"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid "Not part of this style. Capture it again to add it."
+#~ msgstr "不属于此样式。重新捕获即可添加。"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "Not part of this style, so applied like this. Capture it again to change "
+#~ "it."
+#~ msgstr "不属于此样式，因此按此方式应用。重新捕获即可更改。"
+
+#, kde-format
+#~ msgctxt "@info:tooltip"
+#~ msgid ""
+#~ "Not applied in the current settings (only with one view style for all "
+#~ "folders)."
+#~ msgstr "在当前设置下不适用（仅当所有文件夹使用同一视图样式时适用）。"
+
+#, kde-format
+#~ msgctxt "@item name of a new style"
+#~ msgid "New Style"
+#~ msgstr "新样式"
+
+#, kde-format
+#~ msgctxt "@item name of a new style, %1 a number"
+#~ msgid "New Style %1"
+#~ msgstr "新样式 %1"
