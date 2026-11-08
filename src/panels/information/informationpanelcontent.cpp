@@ -80,7 +80,11 @@ InformationPanelContent::InformationPanelContent(QWidget *parent)
     m_nameLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
     m_nameLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_nameLabel->setFrameShape(QFrame::NoFrame);
-    updateNameLabelPalette();
+    auto nameLabelPalette = m_nameLabel->palette();
+    nameLabelPalette.setColor(QPalette::ColorGroup::Normal,
+                              QPalette::ColorRole::Base,
+                              nameLabelPalette.color(QPalette::ColorGroup::Normal, QPalette::ColorRole::Window));
+    m_nameLabel->setPalette(nameLabelPalette);
     m_nameLabel->setContentsMargins(0, 0, 0, 0);
     m_nameLabel->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_nameLabel->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -367,7 +371,6 @@ bool InformationPanelContent::event(QEvent *event)
 void InformationPanelContent::changeEvent(QEvent *event)
 {
     if (event->type() == QEvent::PaletteChange) {
-        updateNameLabelPalette();
         // Folder thumbnails & icons might need to be reset here,
         // given the icon used as background can be rendered based on the app color palette.
         if (m_item.isDir() && m_preview->isVisible()) {
@@ -376,18 +379,6 @@ void InformationPanelContent::changeEvent(QEvent *event)
     }
 
     QWidget::changeEvent(event);
-}
-
-void InformationPanelContent::updateNameLabelPalette()
-{
-    // The name label is a QTextEdit, which paints the base color, but should look like a label
-    // on the window color. The color is set explicitly, so it would keep the old one when the
-    // color scheme changes: take it again from the palette of the panel, which follows the scheme.
-    QPalette nameLabelPalette = m_nameLabel->palette();
-    nameLabelPalette.setColor(QPalette::ColorGroup::Normal,
-                              QPalette::ColorRole::Base,
-                              palette().color(QPalette::ColorGroup::Normal, QPalette::ColorRole::Window));
-    m_nameLabel->setPalette(nameLabelPalette);
 }
 
 bool InformationPanelContent::gestureEvent(QGestureEvent *event)

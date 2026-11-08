@@ -145,11 +145,6 @@ private:
      */
     void refreshPixmapViewForItsSize();
 
-    /**
-     * Gives the name label the window color of the current palette as its background.
-     */
-    void updateNameLabelPalette();
-
     bool gestureEvent(QGestureEvent *event);
 
 private:
