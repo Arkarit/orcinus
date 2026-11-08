@@ -12,6 +12,7 @@
 
 #include <KFileItem>
 
+#include <QApplication>
 #include <QDir>
 #include <QPainter>
 #include <QScopeGuard>
@@ -30,6 +31,7 @@ private Q_SLOTS:
     void initTestCase();
     void testThePreviewGrowsWithThePanel();
     void testAutoPlayFollowsTheSettings();
+    void testTheNameLabelFollowsTheColorScheme();
 
 private:
     QTemporaryDir m_dir;
@@ -121,6 +123,34 @@ void InformationPanelContentTest::testAutoPlayFollowsTheSettings()
         panel.readSettings();
         QCOMPARE(mediaWidget->autoPlay(), autoPlay);
     }
+}
+
+// The name label shows the name on the window color of the panel, also after the color scheme changed
+// at runtime, instead of keeping the window color of the scheme it was made with.
+void InformationPanelContentTest::testTheNameLabelFollowsTheColorScheme()
+{
+    const QPalette previousPalette = QApplication::palette();
+    const auto restore = qScopeGuard([previousPalette] {
+        QApplication::setPalette(previousPalette);
+    });
+
+    QPalette light = previousPalette;
+    light.setColor(QPalette::Window, QColor(239, 240, 241));
+    light.setColor(QPalette::Base, QColor(255, 255, 255));
+    QApplication::setPalette(light);
+
+    QWidget panel;
+    auto *content = new InformationPanelContent(&panel);
+    auto *nameLabel = content->findChild<QTextEdit *>();
+    QVERIFY(nameLabel);
+    QCOMPARE(nameLabel->palette().color(QPalette::Normal, QPalette::Base), QColor(239, 240, 241));
+
+    QPalette dark = previousPalette;
+    dark.setColor(QPalette::Window, QColor(32, 35, 38));
+    dark.setColor(QPalette::Base, QColor(20, 22, 24));
+    QApplication::setPalette(dark);
+
+    QTRY_COMPARE(nameLabel->palette().color(QPalette::Normal, QPalette::Base), QColor(32, 35, 38));
 }
 
 QTEST_MAIN(InformationPanelContentTest)
