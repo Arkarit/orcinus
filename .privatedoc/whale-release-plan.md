@@ -469,7 +469,8 @@ State (2026-11-05):
   one-time import of Dolphin's file (user decision); KDE's shared `kfile/bookmarks.xml` still
   wins if it exists. Test `whalebookmarkstest`.
 - Result: all 7 distros pass the release test.
-- Open: run the release test in GitHub CI (Arch job).
+- Done (2026-11-08): the GitHub CI job `release-test` runs `ci/containers/release-test-setup.sh`
+  in an Arch container (now configurable with `SRC_DIR`/`BUILD_DIR`).
 - Observed once (2026-11-06, full ctest -j8): `whaletoolbarmigrationtest` hung in
   `testExistingUser(changed)` until the 300 s timeout; not reproducible (full suite and 5 repeats pass).
 

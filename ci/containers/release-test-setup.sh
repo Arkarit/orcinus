@@ -1,18 +1,24 @@
 # SPDX-FileCopyrightText: 2026 Orcinus contributors
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# Runs in an orcinus-dev container as root (containers.sh release-test): release build of /src
-# into /build, check that no installed file belongs to a distribution package, install into
-# /usr, then ci/release-test.sh as the user "tester". FAMILY names the package manager.
+# Runs as root in an orcinus-dev container (containers.sh release-test) or in the CI's Arch
+# container: release build of SRC_DIR into BUILD_DIR, check that no installed file belongs to a
+# distribution package, install into /usr, then ci/release-test.sh as the user "tester".
+# FAMILY names the package manager; SRC_DIR and BUILD_DIR default to the container's /src and
+# /build. The user "tester" must be able to read SRC_DIR.
 
 set -euo pipefail
 
-/src/ci/release-test-prepare.sh "${FAMILY}"
+src="${SRC_DIR:-/src}"
+build="${BUILD_DIR:-/build}"
+mkdir -p "${build}"
 
-cmake -S /src -B /build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
-    -DBUILD_TESTING=OFF > /build/configure.log 2>&1 || { cat /build/configure.log; exit 1; }
-cmake --build /build > /build/build.log 2>&1 || { tail -50 /build/build.log; exit 1; }
-cmake -DBUILD_DIR=/build -P /src/cmake/WhaleReleaseCheck.cmake
+"${src}/ci/release-test-prepare.sh" "${FAMILY}"
+
+cmake -S "${src}" -B "${build}" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
+    -DBUILD_TESTING=OFF > "${build}/configure.log" 2>&1 || { cat "${build}/configure.log"; exit 1; }
+cmake --build "${build}" > "${build}/build.log" 2>&1 || { tail -50 "${build}/build.log"; exit 1; }
+cmake -DBUILD_DIR="${build}" -P "${src}/cmake/WhaleReleaseCheck.cmake"
 
 owner() {
     case "${FAMILY}" in
@@ -24,7 +30,7 @@ owner() {
 
 stage=/tmp/stage
 rm -rf "${stage}"
-DESTDIR="${stage}" cmake --install /build > /dev/null
+DESTDIR="${stage}" cmake --install "${build}" > /dev/null
 collisions=0
 while IFS= read -r file; do
     file="${file#.}"
@@ -40,5 +46,5 @@ done < <(cd "${stage}" && find . ! -type d)
 [ "${collisions}" = 0 ] || exit 1
 echo "PASS: no installed file collides with a distribution package"
 
-cmake --install /build > /dev/null
-su tester -c /src/ci/release-test.sh
+cmake --install "${build}" > /dev/null
+su tester -c "${src}/ci/release-test.sh"

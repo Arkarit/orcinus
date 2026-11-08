@@ -63,6 +63,8 @@ default file manager unchanged, no Dolphin-named files, Dolphin still works, Ger
 `de_DE.UTF-8` locale, keeping translations that container images strip). The package tests
 `packaging/ubuntu-ppa.sh test` and `packaging/arch-aur.sh test` run the same release test on the
 installed packages.
+The GitHub CI runs the same steps (`release-test-setup.sh`) for Arch in its job `release-test`,
+with `SRC_DIR` and `BUILD_DIR` pointing into the checkout.
 
 ## Known test results
 
