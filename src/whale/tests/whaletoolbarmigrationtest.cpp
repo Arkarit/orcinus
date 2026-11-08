@@ -791,22 +791,45 @@ void WhaleToolbarMigrationTest::testWaysBack()
     QVERIFY(!backgroundMenu().contains(action));
 }
 
+namespace
+{
+// Records the actions of the first menu shown while it exists and closes that menu. The actions
+// are taken when the menu is shown, after its aboutToShow handlers filled it, so the menu may
+// also close on its own before the event loop runs again (a timer polling for the active popup
+// then missed it: the menu of the main toolbar was gone before the first poll).
+class MenuRecorder : public QObject
+{
+public:
+    MenuRecorder()
+    {
+        QApplication::instance()->installEventFilter(this);
+    }
+
+    QList<QAction *> actions;
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        auto menu = qobject_cast<QMenu *>(watched);
+        if (menu && event->type() == QEvent::Show && !m_recorded) {
+            m_recorded = true;
+            actions = menu->actions();
+            QMetaObject::invokeMethod(menu, &QMenu::close, Qt::QueuedConnection);
+        }
+        return false;
+    }
+
+private:
+    bool m_recorded = false;
+};
+}
+
 QList<QAction *> WhaleToolbarMigrationTest::actionsOfMenu(const std::function<void()> &open)
 {
     // The actions of the menu that @p open shows with exec(); the menu is closed then.
-    QList<QAction *> actions;
-    QTimer timer;
-    timer.setInterval(10);
-    connect(&timer, &QTimer::timeout, [&actions, &timer]() {
-        if (auto menu = qobject_cast<QMenu *>(QApplication::activePopupWidget())) {
-            actions = menu->actions();
-            timer.stop();
-            menu->close();
-        }
-    });
-    timer.start();
+    MenuRecorder recorder;
     open();
-    return actions;
+    return recorder.actions;
 }
 
 void WhaleToolbarMigrationTest::testTwoWindows()

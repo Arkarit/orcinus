@@ -19,6 +19,7 @@
 #include "kitemviews/private/kitemlistviewanimation.h"
 
 #include <QGraphicsWidget>
+#include <QPointer>
 #include <QSet>
 #include <QVariant>
 
@@ -416,6 +417,7 @@ Q_SIGNALS:
 
 protected:
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     void setItemSize(const QSizeF &size);
     void setStyleOption(const KItemListStyleOption &option);
 
@@ -718,6 +720,13 @@ private:
     void updatePreferredColumnWidths(const KItemRangeList &itemRanges);
 
     /**
+     * @return The palette the items paint with: the palette of m_paletteWidget with the Base of
+     *         this view. A view sets its background color through Base on that widget, and
+     *         items only read Base to see whether the color scheme is light or dark.
+     */
+    QPalette itemPalette() const;
+
+    /**
      * Convenience method for
      * updatePreferredColumnWidths(KItemRangeList() << KItemRange(0, m_model->count()).
      */
@@ -866,6 +875,9 @@ private:
     qreal m_expansionNameOpacity;
     bool m_treeLinesShown;
     KItemListExpansionTintItem *m_expansionTintItem;
+
+    // The widget that shows the scene. The items paint with its palette, except for Base.
+    QPointer<QWidget> m_paletteWidget;
     bool m_supportsItemExpanding;
     bool m_supportsGroupCollapsing;
     bool m_editingRole;

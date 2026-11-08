@@ -305,6 +305,12 @@ private:
 
     void updateGroupByActions();
 
+    /**
+     * Enables the role actions that need the File Search index where the index has values for the current
+     * folder, and gives the others the reason as tooltip.
+     */
+    void updateIndexerRoleActions();
+
     KActionCollection *m_actionCollection;
     DolphinView *m_currentView;
     std::function<bool(DolphinView *, const QString &)> m_selectionCommandRouter; // Whale: view plugins
@@ -312,7 +318,10 @@ private:
 
     QHash<QByteArray, KToggleAction *> m_sortByActions;
     QHash<QByteArray, KToggleAction *> m_visibleRoles;
-    QHash<QByteArray, KToggleAction *> m_groupByActions;
+    // A role can appear in multiple submenus
+    QMultiHash<QByteArray, KToggleAction *> m_groupByActions;
+    /// The sort, group and visible role actions of the roles with requiresIndexer set.
+    QList<QAction *> m_indexerRoleActions;
 };
 
 #endif /* DOLPHINVIEWACTIONHANDLER_H */

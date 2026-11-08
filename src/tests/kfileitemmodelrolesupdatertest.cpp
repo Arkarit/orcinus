@@ -5,13 +5,17 @@
  */
 
 #include "kitemviews/kfileitemmodelrolesupdater.h"
+#include "dolphin_contentdisplaysettings.h"
 #include "kitemviews/kfileitemmodel.h"
 #include "testdir.h"
 
 #include <KIO/CopyJob>
+#include <KIO/PreviewJob>
 #include <KSambaShare>
 
 #include <QImage>
+#include <QScopeGuard>
+#include <QTimer>
 
 #include <QSignalSpy>
 #include <QTest>
@@ -27,6 +31,9 @@ private Q_SLOTS:
     void testDirectoryContentsCounterWorkerDoesNotChangeCwd();
     void testItemChangedWhilePausedGetsAPreview();
     void testOverlaysChangedKeepsThePreview();
+    void testAFileThatKeepsChangingGetsItsPreviewOnceItIsQuiet();
+    void testFolderItemCountFollowsHiddenFiles_data();
+    void testFolderItemCountFollowsHiddenFiles();
 };
 
 void KFileItemModelRolesUpdaterTest::testSharesChangedUpdatesOverlays()
@@ -58,6 +65,110 @@ void KFileItemModelRolesUpdaterTest::testSharesChangedUpdatesOverlays()
     KSambaShare *const shares = KSambaShare::instance();
     Q_EMIT shares->changed();
     QTRY_VERIFY(!model.data(0).value("iconOverlays").toStringList().contains(QStringLiteral("emblem-shared")));
+}
+
+void KFileItemModelRolesUpdaterTest::testAFileThatKeepsChangingGetsItsPreviewOnceItIsQuiet()
+{
+    // A file that is being downloaded changes about every 500 ms. Its preview used to be
+    // generated again for each change, which kept a worker busy for the whole download. Another
+    // file that changes once in the meantime still gets its preview at once.
+    TestDir testDir;
+    testDir.createFile(QStringLiteral("growing.txt"), "start\n");
+    testDir.createFile(QStringLiteral("other.txt"), "other\n");
+
+    KFileItemModel model;
+    model.setRoles({"text", "size"});
+    KFileItemModelRolesUpdater updater(&model);
+    updater.setEnabledPlugins(KIO::PreviewJob::availablePlugins());
+    updater.setIconSize(QSize(128, 128));
+    updater.setPreviewsShown(true);
+    QSignalSpy loadingCompletedSpy(&model, &KFileItemModel::directoryLoadingCompleted);
+    model.loadDirectory(testDir.url());
+    QVERIFY(loadingCompletedSpy.wait());
+    QCOMPARE(model.count(), 2);
+    updater.setVisibleIndexRange(0, model.count());
+    QTRY_VERIFY(model.data(model.index(QUrl::fromLocalFile(testDir.path() + QStringLiteral("/growing.txt")))).contains("iconPixmap"));
+    QTRY_VERIFY(model.data(model.index(QUrl::fromLocalFile(testDir.path() + QStringLiteral("/other.txt")))).contains("iconPixmap"));
+
+    QHash<QString, int> previews;
+    QHash<QString, int> sizeReports;
+    connect(&model, &KFileItemModel::itemsChanged, this, [&](const KItemRangeList &ranges, const QSet<QByteArray> &roles) {
+        for (const KItemRange &range : ranges) {
+            for (int i = range.index; i < range.index + range.count; ++i) {
+                if (roles.contains("iconPixmap")) {
+                    ++previews[model.fileItem(i).name()];
+                }
+                if (roles.contains("size")) {
+                    ++sizeReports[model.fileItem(i).name()];
+                }
+            }
+        }
+    });
+
+    QFile growing(testDir.path() + QStringLiteral("/growing.txt"));
+    QVERIFY(growing.open(QIODevice::Append));
+    QTimer writer;
+    writer.setInterval(100);
+    connect(&writer, &QTimer::timeout, this, [&growing]() {
+        growing.write("more data\n");
+        growing.flush();
+    });
+    writer.start();
+    QTRY_VERIFY_WITH_TIMEOUT(sizeReports.value(QStringLiteral("growing.txt")) >= 3, 10000);
+
+    QFile other(testDir.path() + QStringLiteral("/other.txt"));
+    QVERIFY(other.open(QIODevice::Append));
+    other.write("changed once\n");
+    other.close();
+    QTRY_COMPARE_WITH_TIMEOUT(previews.value(QStringLiteral("other.txt")), 1, 1500);
+
+    const int reportsBefore = sizeReports.value(QStringLiteral("growing.txt"));
+    QTRY_VERIFY_WITH_TIMEOUT(sizeReports.value(QStringLiteral("growing.txt")) >= reportsBefore + 3, 10000);
+    writer.stop();
+    // The first change is resolved at once, the others wait until the file is quiet.
+    QVERIFY2(previews.value(QStringLiteral("growing.txt")) <= 1, qPrintable(QString::number(previews.value(QStringLiteral("growing.txt")))));
+    const int whileWriting = previews.value(QStringLiteral("growing.txt"));
+    QTRY_COMPARE_WITH_TIMEOUT(previews.value(QStringLiteral("growing.txt")), whileWriting + 1, 5000);
+}
+
+void KFileItemModelRolesUpdaterTest::testFolderItemCountFollowsHiddenFiles_data()
+{
+    QTest::addColumn<bool>("showHiddenFiles");
+    QTest::addColumn<int>("expectedCount");
+
+    QTest::newRow("hidden files shown") << true << 3;
+    QTest::newRow("hidden files not shown") << false << 1;
+}
+
+void KFileItemModelRolesUpdaterTest::testFolderItemCountFollowsHiddenFiles()
+{
+    // With "Show number of items", a folder shows how many items it holds. The hidden items
+    // count only when the view shows hidden files, see BUG 528198.
+    QFETCH(bool, showHiddenFiles);
+    QFETCH(int, expectedCount);
+
+    const auto previousMode = ContentDisplaySettings::directorySizeMode();
+    ContentDisplaySettings::setDirectorySizeMode(ContentDisplaySettings::EnumDirectorySizeMode::ContentCount);
+    const auto restoreMode = qScopeGuard([previousMode] {
+        ContentDisplaySettings::setDirectorySizeMode(previousMode);
+    });
+
+    TestDir testDir;
+    testDir.createFile(QStringLiteral("folder/visible.txt"));
+    testDir.createFile(QStringLiteral("folder/.hidden.txt"));
+    testDir.createDir(QStringLiteral("folder/.hiddenfolder"));
+
+    KFileItemModel model;
+    model.setShowHiddenFiles(showHiddenFiles);
+    KFileItemModelRolesUpdater updater(&model);
+    updater.setRoles({"text", "size"});
+    QSignalSpy loadingCompletedSpy(&model, &KFileItemModel::directoryLoadingCompleted);
+    model.loadDirectory(testDir.url());
+    QVERIFY(loadingCompletedSpy.wait());
+    QCOMPARE(model.count(), 1);
+    updater.setVisibleIndexRange(0, 1);
+
+    QTRY_COMPARE(model.data(0).value("count").toInt(), expectedCount);
 }
 
 void KFileItemModelRolesUpdaterTest::testDirectoryContentsCounterWorkerDoesNotChangeCwd()

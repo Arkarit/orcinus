@@ -52,7 +52,10 @@ QString Dolphin::mainWindowDbusPath()
 
 void Dolphin::openNewWindow(const QList<QUrl> &urls, QWidget *window, const OpenNewWindowFlags &flags, const QByteArray &viewStyle)
 {
-    QString command = QStringLiteral(WHALE_EXECUTABLE " --new-window");
+    QString command = QStringLiteral(WHALE_EXECUTABLE);
+    if (window || !dolphinGuiInstances().isEmpty()) {
+        command.append(QLatin1String(" --new-window"));
+    }
 
     if (flags.testFlag(OpenNewWindowFlag::Select)) {
         command.append(QLatin1String(" --select"));

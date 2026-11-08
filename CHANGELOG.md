@@ -13,7 +13,7 @@ changes that come from Dolphin itself are not listed here. Versions follow
 
 The first release, an alpha: usable every day, but rough edges remain, and until 1.0 settings,
 action names and the internal plugin API may still change (settings are migrated where
-possible). Compared to Dolphin 26.11 (development state), Orcinus adds:
+possible). Compared to Dolphin 27.03 (development state), Orcinus adds:
 
 ### Identity
 

@@ -175,7 +175,10 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
     else:
         env.pop("WHALE_DEV_MCP", None)
     log = open(profile / "whale.log", "a")
-    args = [binary, "--new-window", *extra_args] + ([str(folder)] if folder else [])
+    # --new-window keeps a start with a folder from handing it to another Whale on the bus,
+    # but it also skips the session (upstream 04968fae6). A start without a folder restores
+    # the session and never attaches to another Whale, since Whale attaches only with urls.
+    args = [binary, *extra_args] + (["--new-window", str(folder)] if folder else [])
     return subprocess.Popen(args, env=env, stdout=log, stderr=subprocess.STDOUT)
 
 

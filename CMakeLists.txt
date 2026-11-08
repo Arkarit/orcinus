@@ -5,8 +5,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 # KDE Application Version, managed by release script
-set (RELEASE_SERVICE_VERSION_MAJOR "26")
-set (RELEASE_SERVICE_VERSION_MINOR "11")
+set (RELEASE_SERVICE_VERSION_MAJOR "27")
+set (RELEASE_SERVICE_VERSION_MINOR "03")
 set (RELEASE_SERVICE_VERSION_MICRO "70")
 set (RELEASE_SERVICE_VERSION "${RELEASE_SERVICE_VERSION_MAJOR}.${RELEASE_SERVICE_VERSION_MINOR}.${RELEASE_SERVICE_VERSION_MICRO}")
 project(Dolphin VERSION ${RELEASE_SERVICE_VERSION})
@@ -168,7 +168,7 @@ set_package_properties(KF6Baloo PROPERTIES DESCRIPTION "Baloo Core libraries"
                       )
 
 # Whale compatibility: build against the current Kubuntu/KDE release (25.12.3);
-# upstream/master already requires ${RELEASE_SERVICE_VERSION} (26.11.70).
+# upstream/master already requires ${RELEASE_SERVICE_VERSION}.
 find_package(KF6BalooWidgets 25.12.3)
 set_package_properties(KF6BalooWidgets PROPERTIES DESCRIPTION "Baloos Widgets"
                        URL "https://www.kde.org"
