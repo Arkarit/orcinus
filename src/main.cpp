@@ -23,6 +23,7 @@
 #endif
 
 #include <KAboutData>
+#include <KColorSchemeManager>
 #include <KConfigGui>
 #include <KCrash>
 #include <KDBusService>
@@ -177,6 +178,13 @@ int main(int argc, char **argv)
 
     KAboutData::setApplicationData(aboutData);
     KCrash::initialize();
+
+    // Apply the window color scheme chosen in the app (menu Window Color Scheme, stored in the
+    // app's config, hence after setApplicationData()) before any widget exists. Applied only
+    // later, when the main window creates its actions, it reaches the widgets of the first
+    // views after the item views had copied the system palette, which then stayed in
+    // their alternate row backgrounds and texts.
+    KColorSchemeManager::instance();
 
     QCommandLineParser parser;
     aboutData.setupCommandLine(&parser);
