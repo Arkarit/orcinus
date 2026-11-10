@@ -72,6 +72,8 @@ FilterBar::FilterBar(QWidget *parent)
     m_filterInput->setLayoutDirection(Qt::LeftToRight);
     m_filterInput->setClearButtonEnabled(true);
     m_filterInput->setPlaceholderText(i18n("Filter…"));
+    // Whale: reachable with Tab when the bar is shown at start; screen readers need a name.
+    m_filterInput->setAccessibleName(i18nc("@info accessible name of the filter text field", "Filter"));
     connect(m_filterInput, &QLineEdit::textChanged, this, &FilterBar::filterChanged);
     connect(m_filterInput, &QLineEdit::textChanged, this, &FilterBar::updateInvalidPatternView);
     setFocusProxy(m_filterInput);
@@ -141,6 +143,11 @@ FilterBar::FilterBar(QWidget *parent)
     hLayout->addWidget(m_filterModeComboBox);
     hLayout->addWidget(m_scopeButton); // Whale: FB2
     hLayout->addWidget(closeButton);
+
+    // Whale: the bar can be shown at start and reached with Tab; screen readers need names.
+    for (QToolButton *button : {m_lockButton, m_caseSensitiveButton, closeButton}) {
+        button->setAccessibleName(button->toolTip());
+    }
 
     setTabOrder({m_lockButton, m_caseSensitiveButton, m_filterModeComboBox, m_scopeButton, closeButton, m_filterInput});
 
@@ -259,6 +266,7 @@ void FilterBar::updateScopeButton()
         }
     }
     m_scopeButton->setToolTip(i18nc("@info:tooltip", "Filter Applies To: %1", scopeText(m_scope)));
+    m_scopeButton->setAccessibleName(m_scopeButton->toolTip()); // Whale
     const auto actions = m_scopeButton->menu()->actions();
     for (QAction *action : actions) {
         action->setChecked(static_cast<KFileItemModelFilter::Scope>(action->data().toInt()) == m_scope);

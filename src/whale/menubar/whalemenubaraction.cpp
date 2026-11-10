@@ -61,6 +61,9 @@ WhaleToolBarMenu::WhaleToolBarMenu(QMenuBar *source, QWidget *parent)
     , m_burgerMenu(new QMenu(this))
 {
     setObjectName(QStringLiteral("whaleToolBarMenu"));
+    // Reachable with Tab: screen readers need a name (the menu bar alone has none).
+    setAccessibleName(i18nc("@info accessible name of the menu bar in a toolbar", "Menu Bar"));
+    m_menuBar->setAccessibleName(accessibleName());
     // In the window, never exported as Plasma's global menu: the window's menu bar may be.
     m_menuBar->setNativeMenuBar(false);
     m_menuBar->setObjectName(QStringLiteral("whaleToolBarMenuBar"));
