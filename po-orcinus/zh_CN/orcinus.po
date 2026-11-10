@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 20:37+0100\n"
+"POT-Creation-Date: 2026-11-10 13:08+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: zh_CN\n"
@@ -169,7 +169,13 @@ msgctxt "@item:inmenu the filter applies to"
 msgid "Files and Folders"
 msgstr "文件和文件夹"
 
-#: filterbar/filterbar.cpp:103
+#: filterbar/filterbar.cpp:76
+#, kde-format
+msgctxt "@info accessible name of the filter text field"
+msgid "Filter"
+msgstr "过滤"
+
+#: filterbar/filterbar.cpp:105
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -180,13 +186,13 @@ msgstr ""
 "* 代表任意文本，? 代表一个字符。用空格、逗号或分号分隔的多个模式会显示与其中"
 "任一模式匹配的项目，例如：*.jpg *.png"
 
-#: filterbar/filterbar.cpp:261
+#: filterbar/filterbar.cpp:268
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"
 msgstr "过滤范围：%1"
 
-#: main.cpp:100
+#: main.cpp:103
 #, kde-kuit-format
 msgctxt "@info:shell %1 is a terminal command"
 msgid ""
@@ -196,25 +202,25 @@ msgstr ""
 "不建议使用 <command>sudo</command> 运行 <application>Orcinus</application>。"
 "请改为运行 <icode>%1</icode>。"
 
-#: main.cpp:190
+#: main.cpp:193
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus 将以拆分视图启动。"
 
-#: main.cpp:191
+#: main.cpp:194
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus 将明确在新窗口中打开。"
 
-#: main.cpp:200
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "为管理任务设置 Orcinus。"
 
-#: main.cpp:203
+#: main.cpp:206
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -1046,7 +1052,13 @@ msgctxt "@info:tooltip"
 msgid "The menus of the window"
 msgstr "窗口的菜单"
 
-#: whale/menubar/whalemenubaraction.cpp:74
+#: whale/menubar/whalemenubaraction.cpp:65
+#, kde-format
+msgctxt "@info accessible name of the menu bar in a toolbar"
+msgid "Menu Bar"
+msgstr "菜单栏"
+
+#: whale/menubar/whalemenubaraction.cpp:77
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Menu"
@@ -1297,6 +1309,42 @@ msgid ""
 msgstr ""
 "关闭右侧视图\n"
 "右键点击可将其移到新标签页或新窗口"
+
+#: whale/styles/whaledefaultstyles.cpp:68
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Images Only"
+msgstr "仅图像"
+
+#: whale/styles/whaledefaultstyles.cpp:79
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Locked Cushion Map"
+msgstr "关联的 Cushion 树图"
+
+#: whale/styles/whaledefaultstyles.cpp:86
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Compact"
+msgstr "紧凑"
+
+#: whale/styles/whaledefaultstyles.cpp:87
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Compact"
+msgstr "双栏紧凑"
+
+#: whale/styles/whaledefaultstyles.cpp:88
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Details"
+msgstr "详情"
+
+#: whale/styles/whaledefaultstyles.cpp:89
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Details"
+msgstr "双栏详情"
 
 #: whale/styles/whalestyleelementtypes.cpp:104
 #, kde-format

@@ -56,16 +56,14 @@ namespace
 {
 const QStringList fileViewDefault = {QStringLiteral("go_back"),
                                      QStringLiteral("go_forward"),
+                                     QStringLiteral("view_settings"),
+                                     QStringLiteral("-"),
                                      QStringLiteral("go_up"),
-                                     QStringLiteral("view_redisplay"),
                                      QStringLiteral("whale_location_bar"),
-                                     QStringLiteral("view_settings")};
+                                     QStringLiteral("toggle_filter"),
+                                     QStringLiteral("toggle_search")};
 // The main toolbar of dolphinui.rc for new users (multi-toolbar plan E6, location bar plan L8).
-const QStringList mainDefault = {QStringLiteral("|"),
-                                 QStringLiteral("split_view"),
-                                 QStringLiteral("split_stash"),
-                                 QStringLiteral("toggle_search"),
-                                 QStringLiteral("hamburger_menu")};
+const QStringList mainDefault = {QStringLiteral("whale_styles"), QStringLiteral("whale_menu_bar"), QStringLiteral("|"), QStringLiteral("hamburger_menu")};
 // ... before TB7 (with the global location bars) ...
 const QStringList mainBeforeTB7 = {QStringLiteral("url_navigators"),
                                    QStringLiteral("split_view"),
@@ -614,7 +612,7 @@ void WhaleToolbarMigrationTest::testViewMenu()
     const auto lists = dialog->findChildren<QListWidget *>();
     QListWidget *current = lists.value(1);
     QVERIFY(current);
-    const auto search = current->findItems(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("toggle_search"))->iconText()), Qt::MatchExactly);
+    const auto search = current->findItems(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText()), Qt::MatchExactly);
     QCOMPARE(search.count(), 1);
     current->setCurrentItem(search.first());
     Q_EMIT current->itemDoubleClicked(search.first());

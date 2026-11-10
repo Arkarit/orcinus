@@ -6,9 +6,11 @@
         <text context="@title:menu">File View Toolbar</text>
         <Action name="go_back" />
         <Action name="go_forward" />
-        <Action name="go_up" />
-        <Action name="view_redisplay" />
-        <Action name="whale_location_bar" />
         <Action name="view_settings" />
+        <Separator />
+        <Action name="go_up" />
+        <Action name="whale_location_bar" />
+        <Action name="toggle_filter" />
+        <Action name="toggle_search" />
     </ToolBar>
 </gui>

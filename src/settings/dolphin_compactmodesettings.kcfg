@@ -21,7 +21,8 @@
         </entry>
         <entry name="PreviewSize" type="Int">
             <label>Preview size</label>
-            <default code="true">KIconLoader::SizeLarge</default>
+            <!-- Whale: Orcinus' own default -->
+            <default code="true">KIconLoader::SizeSmall</default>
         </entry>
         <entry name="MaximumTextWidthIndex" type="Int">
             <label>Maximum text width index (0 means unlimited)</label>

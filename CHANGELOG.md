@@ -29,7 +29,8 @@ possible). Compared to Dolphin 27.03 (development state), Orcinus adds:
   acting only on its own view; configured in Configure Toolbars ("File View Toolbar").
 - A location bar for every file view, in its toolbar; it wraps into a second row when the view
   is narrow.
-- A shorter main toolbar for new users. Existing toolbars are kept as they are.
+- A shorter main toolbar for new users: profiles, menu bar and menu button. Existing toolbars
+  are kept as they are.
 - The menu bar can be placed in a toolbar and turns into a menu button when space runs out.
 
 ### Split view
@@ -52,6 +53,8 @@ possible). Compared to Dolphin 27.03 (development state), Orcinus adds:
 - A profile switches the whole look of a window at once: one or two views, view modes, toolbars,
   panels, filter bars and the status bar. Profiles are saved, given shortcuts and managed on a
   settings page of their own.
+- New users get six profiles (Compact, Dual Compact, Details, Dual Details, Images Only, Locked
+  Cushion Map) and start with Compact.
 
 ### Viewer
 
@@ -62,6 +65,11 @@ possible). Compared to Dolphin 27.03 (development state), Orcinus adds:
 
 - File names can be colored and styled by rules: executable files, symbolic links, MIME types
   and name patterns, for files, folders or both.
+
+### Defaults for new users
+
+- File name highlighting is on; the filter bar is shown, the status bar spans the full width
+  with the zoom slider. Existing settings are kept.
 
 ### Smaller changes
 

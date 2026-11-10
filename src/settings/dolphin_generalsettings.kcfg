@@ -94,7 +94,8 @@
         </entry>
         <entry name="FilterBar" type="Bool">
             <label>Should the filter bar be shown</label>
-            <default>false</default>
+            <!-- Whale: Orcinus' own default -->
+            <default>true</default>
         </entry>
         <entry name="GlobalViewProps" type="Bool">
             <label>Should the view properties be used for all folders</label>
@@ -155,12 +156,14 @@
                 <choice name="Disabled" />
             </choices>
             <label>Statusbar</label>
-            <default>0</default>
+            <!-- Whale: Orcinus' own default, FullWidth -->
+            <default>1</default>
             <emit signal="showStatusBarChanged" />
         </entry>
         <entry name="ShowZoomSlider" type="Bool">
             <label>Show zoom slider in the statusbar</label>
-            <default>false</default>
+            <!-- Whale: Orcinus' own default -->
+            <default>true</default>
         </entry>
         <entry name="LockPanels" type="Bool">
             <label>Lock the layout of the panels</label>

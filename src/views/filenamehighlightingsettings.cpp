@@ -55,7 +55,7 @@ std::optional<bool> readOptionalBool(const KConfigGroup &group, const char *key)
 FileNameHighlightingSettings FileNameHighlightingSettings::defaults()
 {
     FileNameHighlightingSettings settings;
-    settings.enabled = false;
+    settings.enabled = true; // Whale: on for new users
     settings.rules = defaultRules();
     return settings;
 }
@@ -90,7 +90,7 @@ FileNameHighlightingSettings FileNameHighlightingSettings::load(const KSharedCon
 
     const KConfigGroup group(config, groupName);
     FileNameHighlightingSettings settings;
-    settings.enabled = group.readEntry("Enabled", false);
+    settings.enabled = group.readEntry("Enabled", true);
 
     const int ruleCount = group.readEntry("RuleCount", 0);
     for (int i = 0; i < ruleCount; ++i) {

@@ -179,6 +179,9 @@ void WhaleSplitLockTest::initTestCase()
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
+    GeneralSettings::self()->setFilterBar(false); // Orcinus shows it by default
+    // The full-width status bar (Orcinus' default) grows when its space information arrives.
+    GeneralSettings::self()->setShowStatusBar(GeneralSettings::EnumShowStatusBar::Small);
     GeneralSettings::self()->save();
 }
 

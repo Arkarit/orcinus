@@ -75,8 +75,14 @@ QString localMainFile()
         + QStringLiteral("/dolphinui.rc");
 }
 
-/** The installed dolphinui.rc with the menu bar element at the start of the main toolbar, as the user would save it. */
-bool writeUserMainFile(bool atEnd)
+enum class ElementPlace {
+    Start,
+    End,
+    None,
+};
+
+/** The installed dolphinui.rc with the menu bar element at @p place of the main toolbar, as the user would save it. */
+bool writeUserMainFile(ElementPlace place)
 {
     QFile installed(QStringLiteral(":/kxmlgui5/orcinus/dolphinui.rc"));
     if (!installed.open(QIODevice::ReadOnly)) {
@@ -87,9 +93,11 @@ bool writeUserMainFile(bool atEnd)
     if (!content.contains(toolBarText)) {
         return false;
     }
-    if (atEnd) {
+    // The default main toolbar has the element (0.1.0); placed anew here.
+    content.replace("<Action name=\"whale_menu_bar\" />", "");
+    if (place == ElementPlace::End) {
         content.replace("<Action name=\"hamburger_menu\" />", "<Action name=\"hamburger_menu\" /><Action name=\"whale_menu_bar\" />");
-    } else {
+    } else if (place == ElementPlace::Start) {
         content.replace(toolBarText, QByteArray(toolBarText + "<Action name=\"whale_menu_bar\" />"));
     }
     QDir().mkpath(QFileInfo(localMainFile()).absolutePath());
@@ -129,7 +137,7 @@ void WhaleMenuBarTest::cleanup()
 
 WhaleToolBarMenu *WhaleMenuBarTest::showWithElement(bool atEnd)
 {
-    if (!writeUserMainFile(atEnd)) {
+    if (!writeUserMainFile(atEnd ? ElementPlace::End : ElementPlace::Start)) {
         return nullptr;
     }
     m_mainWindow.reset(new DolphinMainWindow());
@@ -161,8 +169,8 @@ void WhaleMenuBarTest::testOffered()
     QVERIFY(qobject_cast<WhaleMenuBarAction *>(action));
     QVERIFY(!action->text().isEmpty());
     QVERIFY(!action->icon().isNull());
-    // Not in the main toolbar by default (F3), and never in the File View Toolbars.
-    QVERIFY(!m_mainWindow->toolBar()->actions().contains(action));
+    // In the main toolbar by default (since 0.1.0; F3 had it left out), and never in the File View Toolbars.
+    QVERIFY(m_mainWindow->toolBar()->actions().contains(action));
     QVERIFY(!WhaleViewCommandScope::allowedActions().contains(WhaleMenuBarAction::actionName()));
 }
 
@@ -328,6 +336,7 @@ void WhaleMenuBarTest::testBurgerWhenVertical()
 void WhaleMenuBarTest::testHamburgerLeftOut()
 {
     // Without the element: the button of the hamburger menu as before.
+    QVERIFY(writeUserMainFile(ElementPlace::None));
     m_mainWindow.reset(new DolphinMainWindow());
     m_mainWindow->openDirectories({m_dir->url()}, false);
     m_mainWindow->resize(1200, 700);

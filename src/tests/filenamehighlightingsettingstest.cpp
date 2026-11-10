@@ -74,7 +74,7 @@ KSharedConfigPtr FileNameHighlightingSettingsTest::reopenedConfig() const
 void FileNameHighlightingSettingsTest::testMissingGroupGivesDefaults()
 {
     const FileNameHighlightingSettings settings = FileNameHighlightingSettings::load(freshConfig());
-    QVERIFY(!settings.enabled);
+    QVERIFY(settings.enabled); // Whale: on for new users
     QCOMPARE(settings.rules, FileNameHighlightingSettings::defaultRules());
     QCOMPARE(settings, FileNameHighlightingSettings::defaults());
 }

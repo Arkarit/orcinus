@@ -14,7 +14,10 @@
 #include "dolphinmainwindow.h"
 #include "dolphinviewcontainer.h"
 #include "global.h"
+#include "whaledefaultstyles.h" // Whale
 #include "whalesplitviewstartup.h" // Whale
+#include "whalestylemanager.h" // Whale
+#include "whalestyles.h" // Whale
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #endif
@@ -281,6 +284,18 @@ int main(int argc, char **argv)
         urls.append(urls.last());
     }
 
+    // Whale: a new user gets the shipped profiles once and starts with one of them. Read before
+    // the window is created; it writes the settings version.
+    const bool firstStart = GeneralSettings::version() < 200;
+    bool startWithStyle = false;
+    if (firstStart) {
+        WhaleStyles *styles = WhaleStyles::self();
+        if (WhaleDefaultStyles::seed(styles->editableStore())) {
+            styles->save();
+            startWithStyle = true;
+        }
+    }
+
     DolphinMainWindow *mainWindow = new DolphinMainWindow();
 
     if (openFiles) {
@@ -350,6 +365,10 @@ int main(int argc, char **argv)
         // A window of its own, whatever new windows open with otherwise.
         mainWindow->closeRightSplitView();
         mainWindow->activeViewContainer()->view()->setOwnStyleData(viewStyle);
+    }
+
+    if (startWithStyle && viewStyle.isEmpty()) {
+        WhaleStyleManager::ensure(mainWindow)->applyStyle(WhaleDefaultStyles::startStyleId()); // Whale
     }
 
     mainWindow->setSessionAutoSaveEnabled(GeneralSettings::rememberOpenedTabs());

@@ -65,10 +65,12 @@ namespace
 const QString treemapId = QStringLiteral("orcinus_treemap");
 const QStringList defaultLayout = {QStringLiteral("go_back"),
                                    QStringLiteral("go_forward"),
+                                   QStringLiteral("view_settings"),
+                                   QStringLiteral("-"),
                                    QStringLiteral("go_up"),
-                                   QStringLiteral("view_redisplay"),
                                    QStringLiteral("whale_location_bar"),
-                                   QStringLiteral("view_settings")};
+                                   QStringLiteral("toggle_filter"),
+                                   QStringLiteral("toggle_search")};
 
 // The actions on selected items that need a selection.
 const QStringList selectionActions = {QStringLiteral("renamefile"),
@@ -186,6 +188,8 @@ private:
     void clickLocal(DolphinViewContainer *container, const QString &name);
     QString path(const QString &relative) const;
     static QString localLayoutFile();
+    /** A user layout with a Reload button (not in the default since 0.1.0), for a new window. */
+    void useLayoutWithReload();
     void writeUserLayout(const QStringList &actions);
     static void select(DolphinViewContainer *container, const QStringList &paths);
     QWidget *showTreemap(DolphinViewContainer *container);
@@ -211,6 +215,7 @@ void WhaleFileViewToolBarTest::initTestCase()
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
+    GeneralSettings::self()->setFilterBar(false); // Orcinus shows it by default
     GeneralSettings::self()->save();
     // No questions when trashing or deleting.
     KConfigGroup confirmations(KSharedConfig::openConfig(QStringLiteral("kiorc"), KConfig::NoGlobals), QStringLiteral("Confirmations"));
@@ -243,6 +248,21 @@ void WhaleFileViewToolBarTest::cleanup()
     // A user layout of a test (also of a failed one) must not reach the next test.
     QFile::remove(localLayoutFile());
     GeneralSettings::self()->setGlobalViewProps(true);
+}
+
+void WhaleFileViewToolBarTest::useLayoutWithReload()
+{
+    const QString file = localLayoutFile();
+    QVERIFY(QDir().mkpath(QFileInfo(file).absolutePath()));
+    QFile local(file);
+    QVERIFY(local.open(QIODevice::WriteOnly));
+    local.write(
+        "<!DOCTYPE gui SYSTEM \"kpartgui.dtd\">\n<gui name=\"whale_fileview\" version=\"1\">"
+        "<ToolBar noMerge=\"1\" name=\"whaleFileViewToolBar\"><text>File View Toolbar</text>"
+        "<Action name=\"go_back\"/><Action name=\"go_forward\"/><Action name=\"go_up\"/><Action name=\"view_redisplay\"/>"
+        "<Action name=\"whale_location_bar\"/><Action name=\"view_settings\"/></ToolBar></gui>");
+    local.close();
+    m_mainWindow.reset(new DolphinMainWindow());
 }
 
 QString WhaleFileViewToolBarTest::localLayoutFile()
@@ -574,6 +594,7 @@ void WhaleFileViewToolBarTest::testActionIdentityAndShortcuts()
 
 void WhaleFileViewToolBarTest::testTargeting()
 {
+    useLayoutWithReload();
     showSplit();
     if (QTest::currentTestFailed()) {
         return; // no window to test with (e.g. not activated under Wayland)
@@ -1650,6 +1671,7 @@ void WhaleFileViewToolBarTest::testMiddleClickNavigation()
 
 void WhaleFileViewToolBarTest::testReloadAnnouncement()
 {
+    useLayoutWithReload();
     showSplit();
     if (QTest::currentTestFailed()) {
         return; // no window to test with (e.g. not activated under Wayland)

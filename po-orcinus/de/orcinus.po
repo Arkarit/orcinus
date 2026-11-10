@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 20:37+0100\n"
+"POT-Creation-Date: 2026-11-10 13:08+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: de\n"
@@ -182,7 +182,13 @@ msgctxt "@item:inmenu the filter applies to"
 msgid "Files and Folders"
 msgstr "Dateien und Ordner"
 
-#: filterbar/filterbar.cpp:103
+#: filterbar/filterbar.cpp:76
+#, kde-format
+msgctxt "@info accessible name of the filter text field"
+msgid "Filter"
+msgstr "Filter"
+
+#: filterbar/filterbar.cpp:105
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -194,13 +200,13 @@ msgstr ""
 "durch Leerzeichen, Kommas oder Semikolons, zeigen die Einträge, die auf "
 "eines davon passen, zum Beispiel: *.jpg *.png"
 
-#: filterbar/filterbar.cpp:261
+#: filterbar/filterbar.cpp:268
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"
 msgstr "Filter gilt für: %1"
 
-#: main.cpp:100
+#: main.cpp:103
 #, kde-kuit-format
 msgctxt "@info:shell %1 is a terminal command"
 msgid ""
@@ -211,25 +217,25 @@ msgstr ""
 "<command>sudo</command> auszuführen. Bitte führen Sie stattdessen <icode>%1</"
 "icode> aus."
 
-#: main.cpp:190
+#: main.cpp:193
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus wird mit geteilter Ansicht gestartet."
 
-#: main.cpp:191
+#: main.cpp:194
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus wird ausdrücklich in einem neuen Fenster geöffnet."
 
-#: main.cpp:200
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "Orcinus für Verwaltungsaufgaben einrichten."
 
-#: main.cpp:203
+#: main.cpp:206
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -1101,7 +1107,13 @@ msgctxt "@info:tooltip"
 msgid "The menus of the window"
 msgstr "Die Menüs des Fensters"
 
-#: whale/menubar/whalemenubaraction.cpp:74
+#: whale/menubar/whalemenubaraction.cpp:65
+#, kde-format
+msgctxt "@info accessible name of the menu bar in a toolbar"
+msgid "Menu Bar"
+msgstr "Menüleiste"
+
+#: whale/menubar/whalemenubaraction.cpp:77
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Menu"
@@ -1361,6 +1373,42 @@ msgid ""
 msgstr ""
 "Rechte Ansicht schließen\n"
 "Rechtsklick, um sie in ein neues Unterfenster oder Fenster zu verschieben"
+
+#: whale/styles/whaledefaultstyles.cpp:68
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Images Only"
+msgstr "Nur Bilder"
+
+#: whale/styles/whaledefaultstyles.cpp:79
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Locked Cushion Map"
+msgstr "Verknüpfte Cushion Map"
+
+#: whale/styles/whaledefaultstyles.cpp:86
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Compact"
+msgstr "Kompakt"
+
+#: whale/styles/whaledefaultstyles.cpp:87
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Compact"
+msgstr "Kompakt geteilt"
+
+#: whale/styles/whaledefaultstyles.cpp:88
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Details"
+msgstr "Details"
+
+#: whale/styles/whaledefaultstyles.cpp:89
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Details"
+msgstr "Details geteilt"
 
 #: whale/styles/whalestyleelementtypes.cpp:104
 #, kde-format

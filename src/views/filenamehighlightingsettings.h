@@ -22,11 +22,11 @@
  * of the rules is their priority.
  */
 struct DOLPHIN_EXPORT FileNameHighlightingSettings {
-    bool enabled = false;
+    bool enabled = true; // Whale: on for new users
     QList<FileNameHighlightRule> rules;
 
     /**
-     * @return The settings used if no configuration exists: disabled, with the default rules.
+     * @return The settings used if no configuration exists: enabled, with the default rules.
      */
     static FileNameHighlightingSettings defaults();
 

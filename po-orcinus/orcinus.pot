@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 20:37+0100\n"
+"POT-Creation-Date: 2026-11-10 13:08+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -147,7 +147,13 @@ msgctxt "@item:inmenu the filter applies to"
 msgid "Files and Folders"
 msgstr ""
 
-#: filterbar/filterbar.cpp:103
+#: filterbar/filterbar.cpp:76
+#, kde-format
+msgctxt "@info accessible name of the filter text field"
+msgid "Filter"
+msgstr ""
+
+#: filterbar/filterbar.cpp:105
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -156,13 +162,13 @@ msgid ""
 "example: *.jpg *.png"
 msgstr ""
 
-#: filterbar/filterbar.cpp:261
+#: filterbar/filterbar.cpp:268
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"
 msgstr ""
 
-#: main.cpp:100
+#: main.cpp:103
 #, kde-kuit-format
 msgctxt "@info:shell %1 is a terminal command"
 msgid ""
@@ -170,25 +176,25 @@ msgid ""
 "discouraged. Please run <icode>%1</icode> instead."
 msgstr ""
 
-#: main.cpp:190
+#: main.cpp:193
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr ""
 
-#: main.cpp:191
+#: main.cpp:194
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr ""
 
-#: main.cpp:200
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr ""
 
-#: main.cpp:203
+#: main.cpp:206
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -990,7 +996,13 @@ msgctxt "@info:tooltip"
 msgid "The menus of the window"
 msgstr ""
 
-#: whale/menubar/whalemenubaraction.cpp:74
+#: whale/menubar/whalemenubaraction.cpp:65
+#, kde-format
+msgctxt "@info accessible name of the menu bar in a toolbar"
+msgid "Menu Bar"
+msgstr ""
+
+#: whale/menubar/whalemenubaraction.cpp:77
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Menu"
@@ -1232,6 +1244,42 @@ msgctxt "@info:tooltip View refer here to split view"
 msgid ""
 "Close Right View\n"
 "Right-click to move it to a new tab or window"
+msgstr ""
+
+#: whale/styles/whaledefaultstyles.cpp:68
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Images Only"
+msgstr ""
+
+#: whale/styles/whaledefaultstyles.cpp:79
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Locked Cushion Map"
+msgstr ""
+
+#: whale/styles/whaledefaultstyles.cpp:86
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Compact"
+msgstr ""
+
+#: whale/styles/whaledefaultstyles.cpp:87
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Compact"
+msgstr ""
+
+#: whale/styles/whaledefaultstyles.cpp:88
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Details"
+msgstr ""
+
+#: whale/styles/whaledefaultstyles.cpp:89
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Details"
 msgstr ""
 
 #: whale/styles/whalestyleelementtypes.cpp:104

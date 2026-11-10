@@ -614,10 +614,12 @@ void WhaleDevAutomationTest::testToolbarState()
     QCOMPARE(strings(toolbar.value(QStringLiteral("layout"))),
              QStringList({QStringLiteral("go_back"),
                           QStringLiteral("go_forward"),
+                          QStringLiteral("view_settings"),
+                          QStringLiteral("-"),
                           QStringLiteral("go_up"),
-                          QStringLiteral("view_redisplay"),
                           QStringLiteral("whale_location_bar"),
-                          QStringLiteral("view_settings")}));
+                          QStringLiteral("toggle_filter"),
+                          QStringLiteral("toggle_search")}));
     // The same ID and the same objects as long as the view lives.
     const QJsonObject again = paneToolbar(m_automation->uiState(), 0);
     QCOMPARE(again.value(QStringLiteral("instanceId")).toString(), id);

@@ -141,6 +141,7 @@ void WhaleLocationBarTest::initTestCase()
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
+    GeneralSettings::self()->setFilterBar(false); // Orcinus shows it by default
     GeneralSettings::self()->save();
 }
 
@@ -716,12 +717,12 @@ void WhaleLocationBarTest::testFocusOrder()
     if (QTest::currentTestFailed()) {
         return;
     }
-    // Shift+Tab from a file list: into its own location bar, not into the one of the other view
-    // (the toolbars were created after the views).
+    // Shift+Tab from a file list: into its own toolbar (the last button of the default layout),
+    // not into the one of the other view (the toolbars were created after the views).
     m_right->setActive(true);
     QTRY_VERIFY(m_right->view()->isAncestorOf(QApplication::focusWidget()));
     QTest::keyClick(QApplication::focusWidget(), Qt::Key_Backtab, Qt::ShiftModifier);
-    QVERIFY(locationBar(m_right)->isAncestorOf(QApplication::focusWidget()));
+    QVERIFY(toolBar(m_right)->isAncestorOf(QApplication::focusWidget()));
     QVERIFY(m_right->isActive());
     checkTabCycle(true);
     checkTabCycle(false);

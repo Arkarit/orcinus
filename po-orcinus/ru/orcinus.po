@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-08 20:37+0100\n"
+"POT-Creation-Date: 2026-11-10 13:08+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: ru\n"
@@ -179,7 +179,13 @@ msgctxt "@item:inmenu the filter applies to"
 msgid "Files and Folders"
 msgstr "Файлы и папки"
 
-#: filterbar/filterbar.cpp:103
+#: filterbar/filterbar.cpp:76
+#, kde-format
+msgctxt "@info accessible name of the filter text field"
+msgid "Filter"
+msgstr "Фильтр"
+
+#: filterbar/filterbar.cpp:105
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -191,13 +197,13 @@ msgstr ""
 "пробелами, запятыми или точками с запятой, показывают элементы, подходящие "
 "под любой из них, например: *.jpg *.png"
 
-#: filterbar/filterbar.cpp:261
+#: filterbar/filterbar.cpp:268
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"
 msgstr "Фильтр применяется к: %1"
 
-#: main.cpp:100
+#: main.cpp:103
 #, kde-kuit-format
 msgctxt "@info:shell %1 is a terminal command"
 msgid ""
@@ -207,25 +213,25 @@ msgstr ""
 "Не рекомендуется запускать <application>Orcinus</application> с помощью "
 "<command>sudo</command>. Вместо этого выполните <icode>%1</icode>."
 
-#: main.cpp:190
+#: main.cpp:193
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus будет запущен с двумя панелями."
 
-#: main.cpp:191
+#: main.cpp:194
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus будет явно открыт в новом окне."
 
-#: main.cpp:200
+#: main.cpp:203
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "Настроить Orcinus для административных задач."
 
-#: main.cpp:203
+#: main.cpp:206
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
@@ -1084,7 +1090,13 @@ msgctxt "@info:tooltip"
 msgid "The menus of the window"
 msgstr "Меню окна"
 
-#: whale/menubar/whalemenubaraction.cpp:74
+#: whale/menubar/whalemenubaraction.cpp:65
+#, kde-format
+msgctxt "@info accessible name of the menu bar in a toolbar"
+msgid "Menu Bar"
+msgstr "Строка меню"
+
+#: whale/menubar/whalemenubaraction.cpp:77
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Menu"
@@ -1343,6 +1355,42 @@ msgid ""
 msgstr ""
 "Закрыть правую панель\n"
 "Щёлкните правой кнопкой, чтобы переместить её в новую вкладку или окно"
+
+#: whale/styles/whaledefaultstyles.cpp:68
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Images Only"
+msgstr "Только изображения"
+
+#: whale/styles/whaledefaultstyles.cpp:79
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Locked Cushion Map"
+msgstr "Связанная карта Cushion"
+
+#: whale/styles/whaledefaultstyles.cpp:86
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Compact"
+msgstr "Столбцы"
+
+#: whale/styles/whaledefaultstyles.cpp:87
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Compact"
+msgstr "Столбцы (две панели)"
+
+#: whale/styles/whaledefaultstyles.cpp:88
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Details"
+msgstr "Таблица"
+
+#: whale/styles/whaledefaultstyles.cpp:89
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "Dual Details"
+msgstr "Таблица (две панели)"
 
 #: whale/styles/whalestyleelementtypes.cpp:104
 #, kde-format

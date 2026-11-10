@@ -6,7 +6,7 @@
 """End-to-end check of the menu bar as an element of the main toolbar (TM3), driven only
 through the dev MCP:
 
-  A by default: no element, the hamburger menu's button as before
+  A by default: the element (since 0.1.0); removed: the hamburger menu's button as before
   B Configure Toolbars adds the element: all menus, the hamburger button without width (F2)
   C a narrow window: a single menu button, wide again: the menus (E3)
   D independent of "Show Menubar" (E1), switched by styles
@@ -109,11 +109,15 @@ def run(args, work):
         client.tool("set_window_size", width=1200, height=700)
 
         # A
-        s.expect("A: no element by default", {
+        s.expect("A: the element by default", {
             "panes.0.loading": False, "window.width": 1200, "styles.menuBarVisible": False,
-            "toolbars.global.menuBar": {"present": False},
+            "toolbars.global.menuBar.present": True, "toolbars.global.menuBar.hamburgerWidth": 0,
             "toolbars.global.layout": {"$contains": "hamburger_menu"}}, focus=False)
-        print("ok    A: by default")
+        configure(client, open=True, select="global", remove="whale_menu_bar", ok=True)
+        s.expect("A: without the element", {
+            "toolbarDialog.open": False, "toolbars.global.menuBar": {"present": False},
+            "toolbars.global.layout": {"$contains": "hamburger_menu"}}, focus=False)
+        print("ok    A: by default, and removed")
 
         # B
         configure(client, open=True, select="global", insert="whale_menu_bar", ok=True)

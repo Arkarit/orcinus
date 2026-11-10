@@ -120,14 +120,13 @@ def install_test_opener(profile, log):
     (profile / "config" / "mimeapps.list").write_text("[Default Applications]\ntext/plain=whale-test-opener.desktop\n")
 
 
-def keep_single_view_at_startup(config):
-    """New windows and tabs open with a single view, as before PI3, unless the test chose
-    otherwise: by default they open with the split view that was open last."""
+def set_general_entry_unless_chosen(config, key, value):
+    """Writes @p key=@p value into the group General of orcinusrc unless the test wrote the key."""
     orcinusrc = config / "orcinusrc"
     text = orcinusrc.read_text() if orcinusrc.exists() else ""
-    if "SplitViewAtStartup=" in text:
+    if f"{key}=" in text:
         return
-    entry = "SplitViewAtStartup=AlwaysSingle\n"
+    entry = f"{key}={value}\n"
     if "[General]\n" in text:
         text = text.replace("[General]\n", "[General]\n" + entry, 1)
     else:
@@ -135,8 +134,16 @@ def keep_single_view_at_startup(config):
     orcinusrc.write_text(text)
 
 
+def keep_single_view_at_startup(config):
+    """New windows and tabs open with a single view, as before PI3, unless the test chose
+    otherwise: by default they open with the split view that was open last. New views show
+    no filter bar, as before 0.1.0, unless the test chose otherwise."""
+    set_general_entry_unless_chosen(config, "SplitViewAtStartup", "AlwaysSingle")
+    set_general_entry_unless_chosen(config, "FilterBar", "false")
+
+
 def start_whale(binary, folder, profile, plugin_dir, platform, automation, opener_log=None, file_operations=False,
-                extra_plugin_dirs=(), confirm_delete=False, extra_args=()):
+                extra_plugin_dirs=(), confirm_delete=False, extra_args=(), first_start=False):
     """Starts Whale in @p profile (own XDG directories, so its trash is profile/data/Trash).
     Without @p folder Whale restores its session (if it is the only Whale on the bus).
     @p plugin_dir may be None: then Whale finds no plugins of the build tree. It may list
@@ -144,12 +151,14 @@ def start_whale(binary, folder, profile, plugin_dir, platform, automation, opene
     views Hello/Test List, which live in a test plugin directory of their own).
     With @p file_operations the dev MCP may change files and the clipboard, and deleting
     needs no confirmation (with @p confirm_delete it does, as KDE's default); only for
-    throwaway test folders. @p extra_args go to Whale's command line before the folder."""
+    throwaway test folders. @p extra_args go to Whale's command line before the folder. With
+    @p first_start the profile gets no settings of the tests: Whale starts as for a new user."""
     env = dict(os.environ)
     env.pop("WHALE_DEV_MCP_FILE_OPERATIONS", None)
     for name in ("config", "data", "cache", "state"):
         (profile / name).mkdir(parents=True, exist_ok=True)
-    keep_single_view_at_startup(profile / "config")
+    if not first_start:
+        keep_single_view_at_startup(profile / "config")
     if opener_log:
         install_test_opener(profile, opener_log)
     if file_operations:

@@ -36,8 +36,9 @@ sys.dont_write_bytecode = True  # no __pycache__ next to the sources
 from mcp_test_support import Failure, McpClient, Scenario, start_whale, wait_for_instance
 
 TREEMAP = "orcinus_treemap"
-MAIN_DEFAULT = ["|", "split_view", "split_stash", "toggle_search", "hamburger_menu"]
-FILE_VIEW_DEFAULT = ["go_back", "go_forward", "go_up", "view_redisplay", "whale_location_bar", "view_settings"]
+MAIN_DEFAULT = ["whale_styles", "whale_menu_bar", "|", "hamburger_menu"]
+FILE_VIEW_DEFAULT = ["go_back", "go_forward", "view_settings", "-", "go_up", "whale_location_bar", "toggle_filter",
+                     "toggle_search"]
 
 
 class Session:
@@ -152,11 +153,13 @@ def run(args, work):
         client.tool("set_location", pane=0, url=a)
         state = s.expect("A: one view at a", {"url": a, "panes.0.loading": False, "paneCount": 1,
                                               "toolbars.global.visible": True, "panes.0.toolbar.visible": True,
-                                              "panes.0.toolbar.initialized": True})
+                                              "panes.0.toolbar.initialized": True,
+                                              # wrapped while the window grew from its first size
+                                              "panes.0.toolbar.locationBar.wrapped": False})
         check(state["toolbars"]["global"]["layout"] == MAIN_DEFAULT, "A: main toolbar default", state["toolbars"]["global"]["layout"])
         tb_a = toolbar(state, 0)
-        check(tb_a["layout"] == FILE_VIEW_DEFAULT, "A: File View Toolbar default", tb_a["layout"])
-        check([x["id"] for x in tb_a["actions"]] == [x for x in FILE_VIEW_DEFAULT if x != "|"], "A: actions in layout order")
+        check(tb_a["layout"] == FILE_VIEW_DEFAULT, "A: File View Toolbar default", {k: v for k, v in tb_a.items() if k != "actions"})
+        check([x["id"] for x in tb_a["actions"]] == [x for x in FILE_VIEW_DEFAULT if x not in ("|", "-")], "A: actions in layout order")
         check(tb_a["ownerView"] == "dolphin" and tb_a["shown"], "A: owner view, shown", tb_a)
         check(all(x["shortcuts"] == [] for x in tb_a["actions"]), "A: no shortcuts on the view's actions", tb_a["actions"])
         check(state["toolbarDialog"] == {"open": False}, "A: no dialog")
@@ -279,7 +282,7 @@ def run(args, work):
               "G: available of the File View Toolbar", available)
         dialog = configure(client, select="global")
         check(dialog["selected"] == "global" and ids(dialog["current"]) == MAIN_DEFAULT + ["go_back"], "G: main toolbar", dialog)
-        check("split_view" not in ids(dialog["available"]), "G: available of the main toolbar")
+        check("whale_styles" not in ids(dialog["available"]), "G: available of the main toolbar")
         configure(client, select="file-view")
         before = file_view_rc.read_bytes()
         dialog = configure(client, insert="go_home", apply=True)

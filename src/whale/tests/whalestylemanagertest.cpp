@@ -14,6 +14,7 @@
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
+#include "whaledefaultstyles.h"
 #include "whalestyleelement.h"
 #include "whalestyleelements.h"
 #include "whalestyles.h"
@@ -56,6 +57,7 @@ private Q_SLOTS:
     void testAppliedStyleIsStartOfNextWindow();
     void testSaveLastStyle();
     void testStyleWithoutShownViews();
+    void testDefaultStyles();
 
 private:
     DolphinMainWindow *openWindow();
@@ -516,5 +518,64 @@ void WhaleStyleManagerTest::testStyleWithoutShownViews()
 }
 
 QTEST_MAIN(WhaleStyleManagerTest)
+
+void WhaleStyleManagerTest::testDefaultStyles()
+{
+    // The shipped profiles: fixed IDs, only known elements, each one applies.
+    const QList<WhaleStyle> styles = WhaleDefaultStyles::styles();
+    QStringList ids;
+    for (const WhaleStyle &style : styles) {
+        ids.append(style.id);
+        QVERIFY(!style.name.isEmpty());
+        for (auto it = style.elements.cbegin(); it != style.elements.cend(); ++it) {
+            QVERIFY2(WhaleStyleElements::self().element(it.key()), qPrintable(style.id + QLatin1Char(' ') + it.key()));
+            QVERIFY(it.value().enabled);
+        }
+    }
+    QCOMPARE(ids,
+             QStringList({QStringLiteral("compact"),
+                          QStringLiteral("dual-compact"),
+                          QStringLiteral("details"),
+                          QStringLiteral("dual-details"),
+                          QStringLiteral("images-only"),
+                          QStringLiteral("locked-cushion-map")}));
+    QVERIFY(ids.contains(WhaleDefaultStyles::startStyleId()));
+
+    // Put only into a store without profiles, and kept there with their IDs.
+    WhaleStyleStore &store = WhaleStyles::self()->editableStore();
+    QVERIFY(WhaleDefaultStyles::seed(store));
+    QCOMPARE(store.ids(), ids);
+    QVERIFY(!WhaleDefaultStyles::seed(store));
+    WhaleStyles::self()->save();
+    WhaleStyles::self()->reload();
+    QCOMPARE(WhaleStyles::self()->store().styles(), styles);
+
+    // Saved like in the application: elements that save the settings would otherwise announce
+    // init()'s unsaved start-up split as a change, and the window would follow it.
+    GeneralSettings::self()->save();
+    DolphinMainWindow *window = openWindow();
+    QVERIFY(window);
+    WhaleStyleManager *manager = WhaleStyleManager::ensure(window);
+    QVERIFY(manager->applyStyle(QStringLiteral("dual-details")));
+    QTRY_VERIFY(tabPage(window)->splitViewEnabled() && tabPage(window)->secondaryViewContainer());
+    QCOMPARE(tabPage(window)->primaryViewContainer()->view()->viewMode(), DolphinView::DetailsView);
+    QCOMPARE(tabPage(window)->secondaryViewContainer()->view()->viewMode(), DolphinView::DetailsView);
+
+    QVERIFY(manager->applyStyle(QStringLiteral("images-only")));
+    QTRY_VERIFY(!tabPage(window)->splitViewEnabled());
+    DolphinViewContainer *container = tabPage(window)->primaryViewContainer();
+    QCOMPARE(container->view()->viewMode(), DolphinView::IconsView);
+    QTRY_VERIFY(container->isFilterBarVisible());
+    QCOMPARE(container->view()->nameFilter(), QStringLiteral("*.png *.jpg *.jpeg *.gif *.bmp *.webp *.tif *.tiff *.svg *.ico *.avif *.heic *.heif"));
+    QCOMPARE(container->view()->itemsCount(), 0); // a.txt and b.txt
+    QVERIFY(dock(window, "placesDock")->isHidden());
+
+    QVERIFY(manager->applyStyle(WhaleDefaultStyles::startStyleId()));
+    container = tabPage(window)->primaryViewContainer();
+    QCOMPARE(container->view()->viewMode(), DolphinView::CompactView);
+    QTRY_VERIFY(!container->isFilterBarVisible());
+    QVERIFY(!dock(window, "placesDock")->isHidden());
+    QCOMPARE(manager->lastStyleId(), WhaleDefaultStyles::startStyleId());
+}
 
 #include "whalestylemanagertest.moc"

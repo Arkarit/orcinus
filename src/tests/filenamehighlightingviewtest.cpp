@@ -395,6 +395,10 @@ void FileNameHighlightingViewTest::testPermissionChange()
 
 void FileNameHighlightingViewTest::testReadSettings()
 {
+    FileNameHighlightingSettings disabled = FileNameHighlightingSettings::defaults();
+    disabled.enabled = false;
+    disabled.save();
+
     m_view->readSettings();
     TestWidget *script = widgetForName(QStringLiteral("script.sh"));
     QVERIFY(script);

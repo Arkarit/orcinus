@@ -11,8 +11,9 @@ listed here behaves as described in the
 *Help → Handbook* opens as well.
 
 Each section states what differs, where to find it, and whether the default
-matches Dolphin's behavior. As a rule, a new behavior that would change something Dolphin
-users rely on is off by default; additions are on.
+matches Dolphin's behavior. As a rule, a new behavior that would change something existing
+users rely on is off by default, and their settings and toolbars are kept; additions are on.
+New users start with Orcinus' own defaults, see [section 10](#10-defaults-for-new-users).
 
 Settings are under *Settings → Configure Orcinus…*; this document names the page and the
 option, e.g. *View → Details → Dragging*.
@@ -50,13 +51,13 @@ act on the active view, as in Dolphin.
   One layout is shared by all file view toolbars.
 - *View → Show File View Toolbars* shows or hides all of them, in all windows and tabs;
   their context menu has *Hide File View Toolbars*.
-- New users get a short Main Toolbar (split, stash, search, menu button), because the
+- New users get a short Main Toolbar (profiles, menu bar, menu button), because the
   navigation buttons are in the file view toolbars. Existing toolbars are kept as they are.
 
 ### 2.2 A location bar for every file view
 
 Each view has its own location bar, in its file view toolbar (default position after
-Reload). When the view is narrow, the location bar moves into a second row instead of
+Up). When the view is narrow, the location bar moves into a second row instead of
 disappearing into the toolbar's overflow menu; all views of a tab do this together, so
 their file lists start at the same height. Hiding the file view toolbars hides the location
 bars too. The location bar can be moved or removed like any toolbar element.
@@ -72,7 +73,7 @@ bars too. The location bar can be moved or removed like any toolbar element.
 ### 2.4 The menu bar as a toolbar element
 
 The menu bar can be placed in a window toolbar as the element *Menu Bar* (*Configure
-Toolbars*, not in the default). It shows all menu titles side by side and turns into a
+Toolbars*; in the Main Toolbar of new users). It shows all menu titles side by side and turns into a
 menu button when space runs out. It is independent of the classic menu bar, which *Ctrl+M*
 still shows and hides.
 
@@ -200,6 +201,10 @@ pictures.
 - The *Profiles* settings page lists the profiles: order, name, shortcut, the elements and
   their values, *New from Window*, *Capture Again* and *Apply to Window*.
 - An applied profile is also what new windows, tabs and split views start with.
+- New users get six profiles, applied from the main toolbar: *Compact* (applied on the first
+  start), *Dual Compact*, *Details*, *Dual Details*, *Images Only* (large icons, filtered to
+  image files, no panels) and *Locked Cushion Map* (Details and the Cushion Treemap, linked).
+  They are created once; profiles the user removes do not come back.
 - While the file view toolbars are hidden, the profiles are also in the menu button and in
   the context menu of the view background, so there is always a way back.
 
@@ -230,7 +235,7 @@ and selected item in the view, so *Esc* leaves you exactly at the file you were 
 ## 7. File name highlighting
 
 File names can be colored, bold or italic by rules, like colored `ls` output in a terminal
-(*View → Highlighting → File Names*, off by default).
+(*View → Highlighting → File Names*, on for new users).
 
 - A rule matches executable files, symbolic links, MIME types (`image/*`, `text/x-python`)
   or name patterns (`*.bak`, case-insensitive by default), and applies to files, folders or
@@ -277,13 +282,24 @@ comes to the front when the script fails.
 *Shift+double-click* (or *Shift+Enter*) on a script always runs it in a terminal that stays
 open, whatever the setting.
 
-## 10. Smaller differences
+## 10. Defaults for new users
+
+A new user (no Orcinus settings yet) starts with these differences from Dolphin's defaults:
+
+- Main Toolbar: *Profiles*, the *Menu Bar* element and the menu button (2.1, 2.4).
+- File View Toolbar: Back, Forward, view settings, Up, the location bar, filter and search.
+- The profiles of section 5, starting with *Compact*.
+- File name highlighting is on (7).
+- The filter bar is shown in new windows, the status bar spans the full width and has the
+  zoom slider; Compact view previews are 16 pixels.
+
+## 11. Smaller differences
 
 - *Help → About Orcinus* names the Dolphin version Orcinus is based on and credits Dolphin's
   developers.
 - The Information panel also works with older versions of Baloo Widgets.
 
-## 11. Known limitations
+## 12. Known limitations
 
 - The handbook and the help links describe Dolphin; the Orcinus features are only
   described here.

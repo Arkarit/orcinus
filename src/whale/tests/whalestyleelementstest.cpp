@@ -96,6 +96,7 @@ void WhaleStyleElementsTest::initTestCase()
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
     GeneralSettings::self()->setRememberOpenedTabs(false);
+    GeneralSettings::self()->setFilterBar(false); // Orcinus shows it by default
     GeneralSettings::self()->setGlobalViewProps(true);
     GeneralSettings::self()->save();
 }

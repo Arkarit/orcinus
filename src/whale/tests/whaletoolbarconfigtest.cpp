@@ -51,15 +51,13 @@ const QString separatorText = QStringLiteral("--- separator ---");
 const QString spacerText = QStringLiteral("--- expanding spacer ---");
 const QStringList defaultLayout = {QStringLiteral("go_back"),
                                    QStringLiteral("go_forward"),
+                                   QStringLiteral("view_settings"),
+                                   QStringLiteral("-"),
                                    QStringLiteral("go_up"),
-                                   QStringLiteral("view_redisplay"),
                                    QStringLiteral("whale_location_bar"),
-                                   QStringLiteral("view_settings")};
-const QStringList defaultMainLayout = {QStringLiteral("|"),
-                                       QStringLiteral("split_view"),
-                                       QStringLiteral("split_stash"),
-                                       QStringLiteral("toggle_search"),
-                                       QStringLiteral("hamburger_menu")};
+                                   QStringLiteral("toggle_filter"),
+                                   QStringLiteral("toggle_search")};
+const QStringList defaultMainLayout = {QStringLiteral("whale_styles"), QStringLiteral("whale_menu_bar"), QStringLiteral("|"), QStringLiteral("hamburger_menu")};
 
 QString localFile(const QString &name)
 {
@@ -554,9 +552,9 @@ void WhaleToolbarConfigTest::testDialogListsBothToolBars()
         QCOMPARE(editor.combo()->currentText(), fileViewName);
         // The texts are cosmetics; the list still chooses the toolbars.
         QVERIFY(editor.select(mainName));
-        QVERIFY(textsOf(editor.current()).contains(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("split_view"))->iconText())));
+        QVERIFY(textsOf(editor.current()).contains(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText())));
         QVERIFY(editor.select(fileViewName));
-        QVERIFY(!textsOf(editor.current()).contains(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("split_view"))->iconText())));
+        QVERIFY(!textsOf(editor.current()).contains(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText())));
 
         // Asking again while it is open: the same dialog, no second client.
         configurator->configure(WhaleToolbarDescriptor::globalId());
@@ -616,8 +614,8 @@ void WhaleToolbarConfigTest::testAvailableActions()
     // ... and the toolbar (the default layout).
     QStringList current = textsOf(editor.current());
     QCOMPARE(current.count(), defaultLayout.count());
-    QCOMPARE(current.value(4), QStringLiteral("Location Bar"));
-    QCOMPARE(available.count() + current.count(), allowed.count());
+    QCOMPARE(current.value(5), QStringLiteral("Location Bar"));
+    QCOMPARE(available.count() + current.count() - current.count(separatorText), allowed.count());
     QStringList shown = available;
     QStringList expected;
     for (const QAction *prototype : prototypeActions) {
@@ -658,7 +656,7 @@ void WhaleToolbarConfigTest::testAvailableActions()
     QCOMPARE(mainAvailable.value(0), separatorText);
     QCOMPARE(mainAvailable.value(1), spacerText);
     QCOMPARE(mainCurrent.count(), defaultMainLayout.count());
-    QCOMPARE(mainCurrent.value(0), spacerText);
+    QCOMPARE(mainCurrent.value(2), spacerText);
     QCOMPARE(mainAvailable.count() - 2 + mainCurrent.count() - 1, m_mainWindow->actionCollection()->count());
     for (const QString &name : excluded) {
         const QAction *action = global(name);
@@ -749,7 +747,7 @@ void WhaleToolbarConfigTest::testApplyBothToolBars()
     const Editor editor(dialog);
 
     // First the main toolbar, then the File View Toolbar, one Apply.
-    QVERIFY(editor.remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("toggle_search"))->iconText())));
+    QVERIFY(editor.remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText())));
     QVERIFY(editor.select(fileViewName));
     QVERIFY(editor.remove(prototypeText(m_mainWindow.data(), QStringLiteral("go_up"))));
     // The change of the main toolbar is still there.
@@ -760,7 +758,7 @@ void WhaleToolbarConfigTest::testApplyBothToolBars()
 
     editor.apply();
     QStringList expectedMain = defaultMainLayout;
-    expectedMain.removeOne(QStringLiteral("toggle_search"));
+    expectedMain.removeOne(QStringLiteral("whale_styles"));
     QStringList expected = defaultLayout;
     expected.removeOne(QStringLiteral("go_up"));
     QCOMPARE(savedMainLayout(), expectedMain);
@@ -834,7 +832,7 @@ void WhaleToolbarConfigTest::testCancel()
     KEditToolBar *dialog = configure(m_mainWindow.data(), WhaleToolbarDescriptor::globalId());
     QVERIFY(dialog);
     const Editor editor(dialog);
-    QVERIFY(editor.remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("toggle_search"))->iconText())));
+    QVERIFY(editor.remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText())));
     QVERIFY(editor.select(fileViewName));
     QVERIFY(editor.insert(prototypeText(m_mainWindow.data(), QStringLiteral("go_home"))));
     QSignalSpy changed(WhaleToolbarManager::of(m_mainWindow.data()), &WhaleToolbarManager::fileViewLayoutChanged);
@@ -870,7 +868,7 @@ void WhaleToolbarConfigTest::testApplyThenCancel()
 
     QVERIFY(editor.insert(prototypeText(m_mainWindow.data(), QStringLiteral("stop"))));
     QVERIFY(editor.select(mainName));
-    QVERIFY(editor.remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("toggle_search"))->iconText())));
+    QVERIFY(editor.remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText())));
     editor.cancel();
     // What was applied stays, the later changes are gone.
     QCOMPARE(savedFileViewLayout(), applied);
@@ -1148,7 +1146,7 @@ void WhaleToolbarConfigTest::testDefaults()
     QVERIFY(dialog);
     QVERIFY(Editor(dialog).insert(prototypeText(m_mainWindow.data(), QStringLiteral("go_home"))));
     QVERIFY(Editor(dialog).select(mainName));
-    QVERIFY(Editor(dialog).remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("toggle_search"))->iconText())));
+    QVERIFY(Editor(dialog).remove(KLocalizedString::removeAcceleratorMarker(global(QStringLiteral("whale_styles"))->iconText())));
     Editor(dialog).ok();
     QVERIFY(QFile::exists(localFileViewFile()));
     QVERIFY(QFile::exists(localMainFile()));
@@ -1499,7 +1497,7 @@ void WhaleToolbarConfigTest::testMainToolBarStillWorks()
     QCOMPARE(toolBar(m_first)->locationBar(), firstLocationBar.data());
     QVERIFY(firstLocationBar->isVisible());
     QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("hamburger_menu"))));
-    QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("split_view"))));
+    QVERIFY(mainToolBar->widgetForAction(global(QStringLiteral("whale_styles"))));
     // The view mode entries of the plugin views are in the View menu again.
     auto viewMenu = qobject_cast<QMenu *>(m_mainWindow->guiFactory()->container(QStringLiteral("view"), m_mainWindow.data()));
     QVERIFY(viewMenu);

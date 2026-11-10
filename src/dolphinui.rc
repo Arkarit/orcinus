@@ -111,10 +111,9 @@
     </State>
     <ToolBar noMerge="1" name="mainToolBar" >
         <text context="@title:menu">Main Toolbar</text>
+        <Action name="whale_styles" />
+        <Action name="whale_menu_bar" />
         <Spacer />
-        <Action name="split_view" />
-        <Action name="split_stash" />
-        <Action name="toggle_search" />
         <Action name="hamburger_menu" />
     </ToolBar>
     <ActionProperties scheme="Default">
