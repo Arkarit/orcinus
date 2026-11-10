@@ -823,6 +823,9 @@ void WhaleTreemapTest::testResize()
     const QRect before = cellRect(view, url(QStringLiteral("media/song.flac")));
     // Hovering another entry: it is described, not the deep selection.
     QSignalSpy info(m_mainWindow.data(), &DolphinMainWindow::requestItemInfo);
+    // From elsewhere first: an earlier test may have left the pointer on big.bin, and a move to
+    // where it already is delivers no event.
+    QTest::mouseMove(canvasOf(view), cellRect(view, url(QStringLiteral("docs/report.pdf"))).center());
     QTest::mouseMove(canvasOf(view), cellRect(view, url(QStringLiteral("big.bin"))).center());
     QTRY_COMPARE(describedUrl(info), url(QStringLiteral("big.bin")));
 
