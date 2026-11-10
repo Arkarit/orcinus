@@ -61,6 +61,12 @@ QRect cellRect(QWidget *view, const QUrl &url)
     return rect;
 }
 
+// The entry the last requestItemInfo() of a spy on the main window described, empty before the first.
+QUrl describedUrl(const QSignalSpy &info)
+{
+    return info.isEmpty() ? QUrl() : info.last().at(0).value<KFileItem>().url();
+}
+
 QUrl urlAt(QWidget *view, const QPoint &position)
 {
     QUrl url;
@@ -477,7 +483,7 @@ void WhaleTreemapTest::testSelection()
     // Away from the treemap, the information panel describes the deep selection.
     QEvent leave(QEvent::Leave);
     QApplication::sendEvent(canvasOf(view), &leave);
-    QTRY_COMPARE(info.last().at(0).value<KFileItem>().url(), deep);
+    QTRY_COMPARE(describedUrl(info), deep);
 
     // An entry of the listing (a folder, by going up): Whale's selection too.
     QVERIFY(select(view, url(QStringLiteral("docs"))));
@@ -818,17 +824,17 @@ void WhaleTreemapTest::testResize()
     // Hovering another entry: it is described, not the deep selection.
     QSignalSpy info(m_mainWindow.data(), &DolphinMainWindow::requestItemInfo);
     QTest::mouseMove(canvasOf(view), cellRect(view, url(QStringLiteral("big.bin"))).center());
-    QTRY_COMPARE(info.last().at(0).value<KFileItem>().url(), url(QStringLiteral("big.bin")));
+    QTRY_COMPARE(describedUrl(info), url(QStringLiteral("big.bin")));
 
     m_mainWindow->resize(1400, 900);
     QTRY_VERIFY(cellRect(view, url(QStringLiteral("media/song.flac"))) != before);
     // The hovered cell went with the old layout: the deep selection is described again, also
     // when the pointer then leaves.
     QVERIFY(treemapState(view).value(QStringLiteral("hovered")).toString().isEmpty());
-    QTRY_COMPARE(info.last().at(0).value<KFileItem>().url(), url(QStringLiteral("media/song.flac")));
+    QTRY_COMPARE(describedUrl(info), url(QStringLiteral("media/song.flac")));
     QEvent leave(QEvent::Leave);
     QApplication::sendEvent(canvasOf(view), &leave);
-    QCOMPARE(info.last().at(0).value<KFileItem>().url(), url(QStringLiteral("media/song.flac")));
+    QCOMPARE(describedUrl(info), url(QStringLiteral("media/song.flac")));
     const QVariantMap state = treemapState(view);
     QVERIFY(state.value(QStringLiteral("layoutCount")).toInt() > layouts);
     QCOMPARE(state.value(QStringLiteral("canvasWidth")).toInt(), canvasOf(view)->width());
