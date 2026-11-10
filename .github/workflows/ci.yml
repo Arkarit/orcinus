@@ -34,7 +34,7 @@ jobs:
           # The tests check permissions and show no root warning, so they run as a normal user.
           useradd --create-home tester
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -89,7 +89,7 @@ jobs:
             kwidgetsaddons kcodecs kguiaddons kcolorscheme kxmlgui kdoctools kfilemetadata \
             baloo baloo-widgets packagekit-qt6 mpv breeze-icons breeze ttf-dejavu
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Release build, installation and release test
         run: FAMILY=pacman SRC_DIR="$PWD" BUILD_DIR="$PWD/build-release" bash ci/containers/release-test-setup.sh
@@ -97,7 +97,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install tools
         run: |
