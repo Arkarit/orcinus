@@ -815,9 +815,20 @@ void WhaleTreemapTest::testResize()
     QVERIFY(select(view, url(QStringLiteral("media/song.flac"))));
     const int layouts = treemapState(view).value(QStringLiteral("layoutCount")).toInt();
     const QRect before = cellRect(view, url(QStringLiteral("media/song.flac")));
+    // Hovering another entry: it is described, not the deep selection.
+    QSignalSpy info(m_mainWindow.data(), &DolphinMainWindow::requestItemInfo);
+    QTest::mouseMove(canvasOf(view), cellRect(view, url(QStringLiteral("big.bin"))).center());
+    QTRY_COMPARE(info.last().at(0).value<KFileItem>().url(), url(QStringLiteral("big.bin")));
 
     m_mainWindow->resize(1400, 900);
     QTRY_VERIFY(cellRect(view, url(QStringLiteral("media/song.flac"))) != before);
+    // The hovered cell went with the old layout: the deep selection is described again, also
+    // when the pointer then leaves.
+    QVERIFY(treemapState(view).value(QStringLiteral("hovered")).toString().isEmpty());
+    QTRY_COMPARE(info.last().at(0).value<KFileItem>().url(), url(QStringLiteral("media/song.flac")));
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(canvasOf(view), &leave);
+    QCOMPARE(info.last().at(0).value<KFileItem>().url(), url(QStringLiteral("media/song.flac")));
     const QVariantMap state = treemapState(view);
     QVERIFY(state.value(QStringLiteral("layoutCount")).toInt() > layouts);
     QCOMPARE(state.value(QStringLiteral("canvasWidth")).toInt(), canvasOf(view)->width());

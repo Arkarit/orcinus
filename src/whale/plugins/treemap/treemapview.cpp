@@ -212,12 +212,13 @@ void TreemapCanvas::paintMessage(QPainter &painter, const QString &text)
 void TreemapCanvas::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    // The hovered cell is gone with the old layout; the selection is kept by URL.
-    const bool hovered = m_hoveredCell >= 0;
-    invalidateLayout();
-    if (hovered) {
+    // The hovered cell is gone with the old layout; the selection is kept by URL. Announced
+    // first: invalidateLayout() forgets the cell, after it hoverCell(-1) would change nothing,
+    // and the bar and the information panel would still describe the old cell.
+    if (m_hoveredCell >= 0) {
         m_view->hoverCell(-1);
     }
+    invalidateLayout();
 }
 
 void TreemapCanvas::mouseMoveEvent(QMouseEvent *event)
