@@ -202,6 +202,7 @@ private:
     DolphinViewContainer *showMainWindow();
     /// Split view: m_dir on the left, m_target on the right.
     std::pair<DolphinViewContainer *, DolphinViewContainer *> showSplitView();
+    static QString listingState(DolphinViewContainer *container);
     QListView *showTestList(DolphinViewContainer *container);
     QWidget *focusedPluginWidget() const;
     QUrl url(const QString &name) const;
@@ -212,6 +213,8 @@ private:
     QScopedPointer<TestDir> m_target;
     QScopedPointer<TestDir> m_external;
     QScopedPointer<DolphinMainWindow> m_mainWindow;
+    // Why showMainWindow() or showSplitView() gave up, with the state at that moment.
+    QString m_setupFailure;
     WhaleViewRegistry m_registry;
 };
 
@@ -261,6 +264,11 @@ DolphinViewContainer *WhaleDragDropTest::showMainWindow()
     m_mainWindow->resize(1000, 600);
     m_mainWindow->show();
     if (!QTest::qWaitForWindowActive(m_mainWindow.data())) {
+        const QWidget *active = QApplication::activeWindow();
+        m_setupFailure =
+            QStringLiteral("main window not active (visible %1, active window %2)")
+                .arg(m_mainWindow->isVisible())
+                .arg(active ? QString::fromLatin1(active->metaObject()->className()) + QLatin1Char(' ') + active->objectName() : QStringLiteral("none"));
         return nullptr;
     }
     DolphinViewContainer *container = m_mainWindow->activeViewContainer();
@@ -274,9 +282,23 @@ DolphinViewContainer *WhaleDragDropTest::showMainWindow()
                 return container->view()->itemsCount() == 4;
             },
             5000)) {
+        m_setupFailure = QStringLiteral("left view: ") + listingState(container);
         return nullptr;
     }
     return container;
+}
+
+QString WhaleDragDropTest::listingState(DolphinViewContainer *container)
+{
+    QStringList names;
+    const KFileItemList items = container->view()->items();
+    for (const KFileItem &item : items) {
+        names.append(item.name());
+    }
+    return QStringLiteral("%1 items [%2] in %3 (view at %4, name filter \"%5\", hidden files %6)")
+        .arg(container->view()->itemsCount())
+        .arg(names.join(QLatin1Char(',')), container->url().toDisplayString(), container->view()->url().toDisplayString(), container->view()->nameFilter())
+        .arg(container->view()->hiddenFilesShown());
 }
 
 std::pair<DolphinViewContainer *, DolphinViewContainer *> WhaleDragDropTest::showSplitView()
@@ -294,6 +316,7 @@ std::pair<DolphinViewContainer *, DolphinViewContainer *> WhaleDragDropTest::sho
                 return right->view()->itemsCount() == 1;
             },
             5000)) {
+        m_setupFailure = QStringLiteral("right view: ") + listingState(right);
         return {};
     }
     return {left, right};
@@ -321,7 +344,7 @@ QString WhaleDragDropTest::targetPath(const QString &name) const
 void WhaleDragDropTest::testDragDataOfOneItem()
 {
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     QListView *listView = showTestList(container);
     QVERIFY(listView);
     container->viewHost()->bridge()->setSelection(WhaleSelection({url(QStringLiteral("b.txt"))}, url(QStringLiteral("b.txt"))));
@@ -364,7 +387,7 @@ void WhaleDragDropTest::testDragDataOfOneItem()
 void WhaleDragDropTest::testDragDataOfSeveralItems()
 {
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     QListView *listView = showTestList(container);
     QVERIFY(listView);
     const QList<QUrl> selection = {url(QStringLiteral("c.txt")), url(QStringLiteral("sub")), url(QStringLiteral("a.txt"))};
@@ -393,7 +416,7 @@ void WhaleDragDropTest::testDragDataOfSeveralItems()
 void WhaleDragDropTest::testDropTargetRules()
 {
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     m_dir->createDir(QStringLiteral("readonly"));
     QFile::setPermissions(m_dir->path() + QStringLiteral("/readonly"), QFile::ReadOwner | QFile::ExeOwner);
     container->reload();
@@ -430,7 +453,7 @@ void WhaleDragDropTest::testDropTargetRules()
 void WhaleDragDropTest::testDropCopy()
 {
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     QListView *listView = showTestList(container);
     QVERIFY(listView);
 
@@ -449,7 +472,7 @@ void WhaleDragDropTest::testDropCopy()
 void WhaleDragDropTest::testDropMove()
 {
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     QListView *listView = showTestList(container);
     QVERIFY(listView);
 
@@ -465,7 +488,7 @@ void WhaleDragDropTest::testDropMove()
 void WhaleDragDropTest::testDropOntoFolder()
 {
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     QListView *listView = showTestList(container);
     QVERIFY(listView);
 
@@ -493,7 +516,7 @@ void WhaleDragDropTest::testDropMenu()
         QSKIP("Wayland shows popup menus only in answer to real input");
     }
     DolphinViewContainer *container = showMainWindow();
-    QVERIFY(container);
+    QVERIFY2(container, qPrintable(m_setupFailure));
     QListView *listView = showTestList(container);
     QVERIFY(listView);
 
@@ -529,7 +552,7 @@ void WhaleDragDropTest::testDropMenu()
 void WhaleDragDropTest::testSplitTestListToTestList()
 {
     auto [left, right] = showSplitView();
-    QVERIFY(left && right);
+    QVERIFY2(left && right, qPrintable(m_setupFailure));
     QListView *leftList = showTestList(left);
     QListView *rightList = showTestList(right);
     QVERIFY(leftList && rightList);
@@ -556,7 +579,7 @@ void WhaleDragDropTest::testSplitTestListToTestList()
 void WhaleDragDropTest::testSplitTestListToFileList()
 {
     auto [left, right] = showSplitView();
-    QVERIFY(left && right);
+    QVERIFY2(left && right, qPrintable(m_setupFailure));
     QListView *leftList = showTestList(left);
     QVERIFY(leftList);
     left->setActive(true);
@@ -585,7 +608,7 @@ void WhaleDragDropTest::testSplitTestListToFileList()
 void WhaleDragDropTest::testSplitFileListToTestList()
 {
     auto [left, right] = showSplitView();
-    QVERIFY(left && right);
+    QVERIFY2(left && right, qPrintable(m_setupFailure));
     QListView *rightList = showTestList(right);
     QVERIFY(rightList);
     left->setActive(true);
@@ -604,7 +627,7 @@ void WhaleDragDropTest::testSplitFileListToTestList()
 void WhaleDragDropTest::testSelectionAndFocusAfterDrop()
 {
     auto [left, right] = showSplitView();
-    QVERIFY(left && right);
+    QVERIFY2(left && right, qPrintable(m_setupFailure));
     QListView *leftList = showTestList(left);
     QListView *rightList = showTestList(right);
     QVERIFY(leftList && rightList);
