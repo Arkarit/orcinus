@@ -404,13 +404,25 @@ void WhaleMenuBarTest::testNoChangesOnHover()
     QAction *showMenuBar = m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::ShowMenubar));
     showMenuBar->trigger();
     QTRY_VERIFY(m_mainWindow->menuBar()->isVisible());
-    QTest::qWait(100);
 
     // Both menu bars show the same actions: hovering must not change them (it flickered when
     // KAcceleratorManager gave both the same title different accelerators, again and again).
     EventCounter source, toolBar;
     m_mainWindow->menuBar()->installEventFilter(&source);
     m_mainWindow->toolBar()->installEventFilter(&toolBar);
+    // Counted only once showing the menu bar has settled: under load the toolbar may still be
+    // laid out after a fixed wait.
+    const auto changes = [&] {
+        return source.counts.value(QEvent::ActionChanged) + toolBar.counts.value(QEvent::LayoutRequest);
+    };
+    bool settled = false;
+    for (int attempt = 0; attempt < 25 && !settled; ++attempt) {
+        source.counts.clear();
+        toolBar.counts.clear();
+        QTest::qWait(200);
+        settled = changes() == 0;
+    }
+    QVERIFY(settled);
     for (QMenuBar *bar : {element->menuBar(), m_mainWindow->menuBar()}) {
         const auto actions = bar->actions();
         for (QAction *action : actions) {
