@@ -287,9 +287,11 @@ Findings:
   branches except `master` deleted locally and on GitHub; force-pushed. Backup:
   `../orcinus-before-identity-rewrite-2026-10-26.bundle`.
 - Open for later steps: metainfo `<releases>` (RL3), screenshots (RL8), DrKonqi check (R10).
-- **For RL9:** GitHub keeps the old, now unreachable commits (with the old identity) fetchable by
-  hash until it garbage-collects them. Ask GitHub support to remove unreachable objects before
-  making the repository public (recreating the repository would lose the issues).
+- GitHub keeps the old, now unreachable commits fetchable by hash until it garbage-collects
+  them. Checked 2026-11-11 against the backup: their only own identity is a generic local one
+  (no name, no private address), their content matches today's history, and only one issue
+  timeline (#5) links an old hash, next to its rewritten counterpart. Decision: no request to
+  GitHub support before RL9.
 
 ### RL2: String freeze and translation
 
