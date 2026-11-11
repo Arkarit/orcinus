@@ -1,12 +1,17 @@
 # SPDX-FileCopyrightText: 2026 Orcinus contributors
 # SPDX-License-Identifier: CC0-1.0
 #
-# Publishes website/ to GitHub Pages (release plan RL8). Only started by hand until the repository
-# is public (RL9); then add a push trigger for changes below website/.
+# Publishes website/ to GitHub Pages (release plan RL8): on pushes to master that change
+# website/ or this workflow, or by hand.
 
 name: Website
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'website/**'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
 
 permissions:
