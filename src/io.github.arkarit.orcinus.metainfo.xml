@@ -35,4 +35,12 @@
     <name>Orcinus contributors</name>
   </developer>
   <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-11" type="development">
+      <description>
+        <p>The first release, an alpha: usable every day, but rough edges remain. Until 1.0, settings, action names and the internal plugin API may still change.</p>
+      </description>
+      <url>https://github.com/Arkarit/orcinus/releases/tag/v0.1.0</url>
+    </release>
+  </releases>
 </component>

@@ -9,7 +9,7 @@ All notable changes to Orcinus. Orcinus is based on KDE Dolphin and follows its 
 changes that come from Dolphin itself are not listed here. Versions follow
 [semantic versioning](https://semver.org/).
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-11-11)
 
 The first release, an alpha: usable every day, but rough edges remain, and until 1.0 settings,
 action names and the internal plugin API may still change (settings are migrated where

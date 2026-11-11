@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-10 13:08+0100\n"
+"POT-Creation-Date: 2026-11-11 10:24+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: pl\n"
@@ -1103,31 +1103,31 @@ msgctxt "@info:tooltip"
 msgid "Menu"
 msgstr "Menu"
 
-#: whale/plugins/treemap/treemapview.cpp:406
+#: whale/plugins/treemap/treemapview.cpp:407
 #, kde-format
 msgctxt "@option:check Treemap: show the names of entries"
 msgid "Names"
 msgstr "Nazwy"
 
-#: whale/plugins/treemap/treemapview.cpp:416
+#: whale/plugins/treemap/treemapview.cpp:417
 #, kde-format
 msgctxt "@info:tooltip Treemap"
 msgid "Zoom out to the folder above (wheel down, −)"
 msgstr "Pomniejsz do katalogu nadrzędnego (kółko w dół, −)"
 
-#: whale/plugins/treemap/treemapview.cpp:430
+#: whale/plugins/treemap/treemapview.cpp:431
 #, kde-format
 msgctxt "@item:inlistbox Treemap colors"
 msgid "File Types"
 msgstr "Typy plików"
 
-#: whale/plugins/treemap/treemapview.cpp:431
+#: whale/plugins/treemap/treemapview.cpp:432
 #, kde-format
 msgctxt "@item:inlistbox Treemap colors"
 msgid "Top Folders"
 msgstr "Katalogi najwyższego poziomu"
 
-#: whale/plugins/treemap/treemapview.cpp:432
+#: whale/plugins/treemap/treemapview.cpp:433
 #, kde-format
 msgctxt "@info:tooltip Treemap"
 msgid ""
@@ -1137,13 +1137,13 @@ msgstr ""
 "Kolory wpisów: według typu pliku albo według katalogu położenia, w którym "
 "się znajdują"
 
-#: whale/plugins/treemap/treemapview.cpp:545
+#: whale/plugins/treemap/treemapview.cpp:546
 #, kde-format
 msgctxt "@info Treemap"
 msgid "The treemap can only show local folders."
 msgstr "Mapa drzewa może pokazywać tylko lokalne katalogi."
 
-#: whale/plugins/treemap/treemapview.cpp:550
+#: whale/plugins/treemap/treemapview.cpp:551
 #, kde-format
 msgctxt "@info Treemap"
 msgid ""
@@ -1153,19 +1153,19 @@ msgstr ""
 "Przeszukiwanie %1…\n"
 "Dotąd %2 wpisów"
 
-#: whale/plugins/treemap/treemapview.cpp:551
+#: whale/plugins/treemap/treemapview.cpp:552
 #, kde-format
 msgctxt "@info Treemap"
 msgid "Scanning %1…"
 msgstr "Przeszukiwanie %1…"
 
-#: whale/plugins/treemap/treemapview.cpp:553
+#: whale/plugins/treemap/treemapview.cpp:554
 #, kde-format
 msgctxt "@info Treemap"
 msgid "Nothing in this folder takes up space."
 msgstr "Nic w tym katalogu nie zajmuje miejsca."
 
-#: whale/plugins/treemap/treemapview.cpp:555
+#: whale/plugins/treemap/treemapview.cpp:556
 #, kde-format
 msgctxt "@info Treemap: %1 is the reason"
 msgid ""
@@ -1179,19 +1179,19 @@ msgstr ""
 "\n"
 "Naciśnij F5, aby spróbować ponownie."
 
-#: whale/plugins/treemap/treemapview.cpp:868
+#: whale/plugins/treemap/treemapview.cpp:869
 #, kde-format
 msgctxt "@action:inmenu Treemap: open the file or enter the folder"
 msgid "Open"
 msgstr "Otwórz"
 
-#: whale/plugins/treemap/treemapview.cpp:876
+#: whale/plugins/treemap/treemapview.cpp:877
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Open With…"
 msgstr "Otwórz za pomocą…"
 
-#: whale/plugins/treemap/treemapview.cpp:884
+#: whale/plugins/treemap/treemapview.cpp:885
 #, kde-format
 msgctxt ""
 "@action:inmenu Treemap: go to the folder that contains this folder and "
@@ -1199,61 +1199,61 @@ msgctxt ""
 msgid "Show in Parent Folder"
 msgstr "Pokaż w katalogu nadrzędnym"
 
-#: whale/plugins/treemap/treemapview.cpp:885
+#: whale/plugins/treemap/treemapview.cpp:886
 #, kde-format
 msgctxt "@action:inmenu Treemap: go to the folder of this file and select it"
 msgid "Show in Folder"
 msgstr "Pokaż w katalogu"
 
-#: whale/plugins/treemap/treemapview.cpp:890
+#: whale/plugins/treemap/treemapview.cpp:891
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Copy"
 msgstr "Skopiuj"
 
-#: whale/plugins/treemap/treemapview.cpp:893
+#: whale/plugins/treemap/treemapview.cpp:894
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Cut"
 msgstr "Wytnij"
 
-#: whale/plugins/treemap/treemapview.cpp:899
+#: whale/plugins/treemap/treemapview.cpp:900
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Copy Location"
 msgstr "Skopiuj położenie"
 
-#: whale/plugins/treemap/treemapview.cpp:904
+#: whale/plugins/treemap/treemapview.cpp:905
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Rename…"
 msgstr "Zmień nazwę…"
 
-#: whale/plugins/treemap/treemapview.cpp:907
+#: whale/plugins/treemap/treemapview.cpp:908
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Move to Trash"
 msgstr "Wyrzuć do kosza"
 
-#: whale/plugins/treemap/treemapview.cpp:910
+#: whale/plugins/treemap/treemapview.cpp:911
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Delete"
 msgstr "Usuń"
 
-#: whale/plugins/treemap/treemapview.cpp:917
+#: whale/plugins/treemap/treemapview.cpp:918
 #, kde-format
 msgctxt "@action:inmenu Treemap"
 msgid "Properties"
 msgstr "Właściwości"
 
-#: whale/plugins/treemap/treemapview.cpp:1106
+#: whale/plugins/treemap/treemapview.cpp:1107
 #, kde-format
 msgctxt "@info Treemap: %1 is the folder, %2 its size"
 msgid "%1 — %2"
 msgstr "%1 — %2"
 
-#: whale/plugins/treemap/treemapview.cpp:1122
+#: whale/plugins/treemap/treemapview.cpp:1123
 #, kde-format
 msgctxt "@info Treemap"
 msgid "%1 small entry — %2"
@@ -1262,13 +1262,13 @@ msgstr[0] "%1 mały wpis — %2"
 msgstr[1] "%1 małe wpisy — %2"
 msgstr[2] "%1 małych wpisów — %2"
 
-#: whale/plugins/treemap/treemapview.cpp:1127
+#: whale/plugins/treemap/treemapview.cpp:1128
 #, kde-format
 msgctxt "@info Treemap: %1 folder, %2 size, %3 number of files"
 msgid "%1 — %2 in %3 files"
 msgstr "%1 — %2 w %3 plikach"
 
-#: whale/plugins/treemap/treemapview.cpp:1131
+#: whale/plugins/treemap/treemapview.cpp:1132
 #, kde-format
 msgctxt "@info Treemap: %1 file, %2 size"
 msgid "%1 — %2"
