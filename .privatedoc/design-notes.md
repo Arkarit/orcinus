@@ -9,8 +9,9 @@ so those references can still be looked up.
 
 General rules that apply to every feature:
 
-- **Dolphin-compatible defaults.** A new behavior that changes something Dolphin users rely on is
-  off by default, unless it only adds something.
+- **Defaults.** A new behavior that changes something existing users rely on is off by default,
+  unless it only adds something; their settings and toolbars are kept. New users get Orcinus' own
+  defaults (since 2026-11-10, listed in `docs/orcinus-vs-dolphin.md` section 10).
 - **Non-intrusive.** Following Dolphin's development philosophy, features must not clutter menus,
   context menus or toolbars for users who do not need them.
 - **Transferable core.** Narrow features and fixes are kept small, self-contained and free of
@@ -54,7 +55,9 @@ candidate.
 **Problem.** File managers show all names in the same text color; executable files (X bit) cannot
 be told apart without the Permissions column. Terminals have colored `ls` output for decades.
 
-**Decision.** Off by default (exactly Dolphin). When on, an ordered, editable list of rules styles
+**Decision.** On for new users since the default setup of 2026-11-10 (15793aee9; first designed as
+off by default, exactly Dolphin); a stored `Enabled=false` is kept. When on, an ordered,
+editable list of rules styles
 the file *name* only (color, bold, italic):
 
 - One condition kind per rule (Executable, Symbolic link, MIME type, name pattern), any number of
