@@ -138,6 +138,8 @@ Q_SIGNALS:
 protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void paintEvent(QPaintEvent *paintEvent) override;
+    /** Whale: follows the toolbar density (TD3). */
+    void changeEvent(QEvent *event) override;
 
 private Q_SLOTS:
     void showZoomSliderToolTip(int zoomLevel);
@@ -173,6 +175,12 @@ private:
 
     void updateContentsMargins();
 
+    /**
+     * Whale: the heights of the contents for the toolbar density (TD3): Dolphin's with Normal,
+     * from the size hints of the lowered contents otherwise.
+     */
+    void updateDensityHeights();
+
     /** @see AnimatedHeightWidget::preferredHeight() */
     int preferredHeight() const override;
 
@@ -202,6 +210,10 @@ private:
     QTimer *m_updateLabelTextTimer;
 
     QHBoxLayout *m_topLayout;
+
+    // Whale: Dolphin's heights of the contents, for the toolbar density Normal (TD3).
+    int m_normalContentHeight = 0;
+    int m_normalZoomSliderHeight = 0;
 };
 
 #endif

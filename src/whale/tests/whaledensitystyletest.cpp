@@ -5,6 +5,8 @@
  */
 
 #include "whaledensitystyle.h"
+#include "filterbar/filterbar.h"
+#include "statusbar/dolphinstatusbar.h"
 #include "whaletoolbarsettings.h"
 
 #include <KConfigGroup>
@@ -41,6 +43,7 @@ private Q_SLOTS:
     void testTheSettingIsFollowed();
     void testANewApplicationStyleIsWrappedAgain();
     void testCustomElementsOfTheStyleStayAvailable();
+    void testFilterBarAndStatusBarFollowTheDensity();
 
 private:
     struct Bar {
@@ -145,8 +148,8 @@ void WhaleDensityStyleTest::testOnlyToolBarsGetLower()
     QCOMPARE(bar.buttonOutside->sizeHint().height(), normalButton);
     QCOMPARE(bar.fieldOutside->sizeHint().height(), normalFieldOutside);
 
-    QVERIFY(WhaleDensityStyle::isInToolBar(bar.fieldInBar));
-    QVERIFY(!WhaleDensityStyle::isInToolBar(bar.fieldOutside));
+    QVERIFY(WhaleDensityStyle::isInBar(bar.fieldInBar));
+    QVERIFY(!WhaleDensityStyle::isInBar(bar.fieldOutside));
     QCOMPARE(QApplication::style()->pixelMetric(QStyle::PM_ToolBarItemMargin, nullptr, bar.toolBar), 1);
     QVERIFY(QApplication::style()->pixelMetric(QStyle::PM_ToolBarItemMargin, nullptr, bar.window.get()) >= 1);
 }
@@ -249,6 +252,43 @@ void WhaleDensityStyleTest::testCustomElementsOfTheStyleStayAvailable()
 
     WhaleDensityStyle::apply(Density::Normal);
     QApplication::setStyle(QStyleFactory::create(m_styleName));
+}
+
+/**
+ * The filter bar and the status bar get lower too, also while they are shown (TD3).
+ */
+void WhaleDensityStyleTest::testFilterBarAndStatusBarFollowTheDensity()
+{
+    QWidget window;
+    auto layout = new QVBoxLayout(&window);
+    auto filterBar = new FilterBar(&window);
+    auto statusBar = new DolphinStatusBar(&window);
+    layout->addWidget(filterBar);
+    layout->addWidget(statusBar);
+    window.resize(800, 300);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    filterBar->setVisible(true, WithoutAnimation);
+    statusBar->setVisible(true, WithoutAnimation);
+    QTRY_VERIFY(filterBar->height() > 0 && statusBar->height() > 0);
+    const int normalFilterBar = filterBar->maximumHeight();
+    const int normalStatusBar = statusBar->maximumHeight();
+
+    int previousFilterBar = normalFilterBar;
+    int previousStatusBar = normalStatusBar;
+    for (const Density density : {Density::Compact, Density::VeryCompact}) {
+        WhaleDensityStyle::apply(density);
+        QTRY_VERIFY(statusBar->maximumHeight() < previousStatusBar);
+        QTRY_VERIFY(filterBar->maximumHeight() <= previousFilterBar);
+        previousFilterBar = filterBar->maximumHeight();
+        previousStatusBar = statusBar->maximumHeight();
+    }
+    QVERIFY(filterBar->maximumHeight() < normalFilterBar);
+
+    // Back to Dolphin's heights.
+    WhaleDensityStyle::apply(Density::Normal);
+    QTRY_COMPARE(statusBar->maximumHeight(), normalStatusBar);
+    QTRY_COMPARE(filterBar->maximumHeight(), normalFilterBar);
 }
 
 QTEST_MAIN(WhaleDensityStyleTest)

@@ -72,10 +72,11 @@ WhaleToolbarSettings::Density WhaleDensityStyle::density() const
     return m_density;
 }
 
-bool WhaleDensityStyle::isInToolBar(const QWidget *widget)
+bool WhaleDensityStyle::isInBar(const QWidget *widget)
 {
     for (const QWidget *w = widget; w; w = w->parentWidget()) {
-        if (qobject_cast<const QToolBar *>(w)) {
+        // By class name: the bars live in the application, the style is used by everything.
+        if (qobject_cast<const QToolBar *>(w) || w->inherits("FilterBar") || w->inherits("DolphinStatusBar")) {
             return true;
         }
         if (w->isWindow()) {
@@ -85,10 +86,15 @@ bool WhaleDensityStyle::isInToolBar(const QWidget *widget)
     return false;
 }
 
+bool WhaleDensityStyle::isDense(const QWidget *widget)
+{
+    return qobject_cast<const WhaleDensityStyle *>(widget ? widget->style() : QApplication::style());
+}
+
 int WhaleDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *option, const QWidget *widget) const
 {
     const int value = QProxyStyle::pixelMetric(metric, option, widget);
-    if (metric == PM_ToolBarItemMargin && isInToolBar(widget)) {
+    if (metric == PM_ToolBarItemMargin && isInBar(widget)) {
         return m_density == WhaleToolbarSettings::Density::Compact ? value / 2 : qMin(value, 1);
     }
     return value;
@@ -97,7 +103,7 @@ int WhaleDensityStyle::pixelMetric(PixelMetric metric, const QStyleOption *optio
 QSize WhaleDensityStyle::sizeFromContents(ContentsType type, const QStyleOption *option, const QSize &size, const QWidget *widget) const
 {
     QSize result = QProxyStyle::sizeFromContents(type, option, size, widget);
-    if (!isInToolBar(widget)) {
+    if (!isInBar(widget)) {
         return result;
     }
     const bool veryCompact = m_density == WhaleToolbarSettings::Density::VeryCompact;

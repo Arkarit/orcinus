@@ -14,6 +14,7 @@
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QStyle>
+#include <QTimer>
 
 AnimatedHeightWidget::AnimatedHeightWidget(QWidget *parent)
     : QWidget{parent}
@@ -120,4 +121,18 @@ bool AnimatedHeightWidget::eventFilter(QObject *obj, QEvent *event)
         }
     }
     return QWidget::eventFilter(obj, event);
+}
+
+void AnimatedHeightWidget::changeEvent(QEvent *event)
+{
+    QWidget::changeEvent(event);
+    // Whale: the toolbar density (TD3) changes the application style at runtime. Queued: the
+    // contents work out their new heights in their own style change events.
+    if (event->type() == QEvent::StyleChange) {
+        QTimer::singleShot(0, this, [this]() {
+            if (isVisible() && !isAnimationRunning()) {
+                setMaximumHeight(preferredHeight());
+            }
+        });
+    }
 }

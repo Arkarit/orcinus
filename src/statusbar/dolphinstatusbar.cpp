@@ -5,6 +5,7 @@
  */
 
 #include "dolphinstatusbar.h"
+#include "whaledensitystyle.h" // Whale: TD3
 
 #include "dolphin_generalsettings.h"
 #include "statusbarspaceinfo.h"
@@ -138,6 +139,11 @@ DolphinStatusBar::DolphinStatusBar(QWidget *parent)
 
     m_progressBar->setFixedHeight(zoomSliderHeight);
     m_progressBar->setMaximumWidth(fontMetrics.averageCharWidth() * 20);
+
+    // Whale: the toolbar density lowers the status bar (TD3).
+    m_normalContentHeight = contentHeight;
+    m_normalZoomSliderHeight = zoomSliderHeight;
+    updateDensityHeights();
 
     m_topLayout = new QHBoxLayout(contentsContainer);
     updateContentsMargins();
@@ -472,6 +478,29 @@ void DolphinStatusBar::paintEvent(QPaintEvent *paintEvent)
     else {
         style()->drawPrimitive(QStyle::PE_PanelStatusBar, &opt, &p, this);
     }
+}
+
+void DolphinStatusBar::changeEvent(QEvent *event)
+{
+    AnimatedHeightWidget::changeEvent(event);
+    if (event->type() == QEvent::StyleChange && m_spaceInfo) {
+        updateDensityHeights();
+    }
+}
+
+void DolphinStatusBar::updateDensityHeights()
+{
+    int contentHeight = m_normalContentHeight;
+    int zoomSliderHeight = m_normalZoomSliderHeight;
+    if (WhaleDensityStyle::isDense(this)) {
+        // Dolphin takes the height of the stop button before it is laid out, i.e. Qt's default
+        // widget height; here its size hint, which the density lowers.
+        zoomSliderHeight = m_zoomSlider->minimumSizeHint().height();
+        contentHeight = std::max({QFontMetrics(m_label->font()).height(), zoomSliderHeight, m_stopButton->sizeHint().height()});
+    }
+    m_label->setFixedHeight(contentHeight);
+    m_spaceInfo->setFixedHeight(contentHeight);
+    m_progressBar->setFixedHeight(zoomSliderHeight);
 }
 
 int DolphinStatusBar::preferredHeight() const

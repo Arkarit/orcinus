@@ -14,8 +14,9 @@
 /**
  * @brief Makes the toolbars lower (toolbar density, TD1).
  *
- * Wraps the application style. Only widgets inside a QToolBar are affected (window toolbars,
- * the File View Toolbars with their location bars); dialogs, menus and the views keep the
+ * Wraps the application style. Only widgets inside a QToolBar (window toolbars, the File View
+ * Toolbars with their location bars), the filter bar and the status bar are affected (TD3);
+ * dialogs, menus and the views keep the
  * metrics of the application style. QWidget::setStyle() does not reach child widgets, hence
  * one proxy for the application rather than one per toolbar.
  *
@@ -53,9 +54,15 @@ public:
     static void follow();
 
     /**
-     * @return Whether @p widget is inside a toolbar, so that its metrics are changed.
+     * @return Whether @p widget is inside a bar whose metrics are changed: a toolbar, the
+     *         filter bar or the status bar (TD3).
      */
-    static bool isInToolBar(const QWidget *widget);
+    static bool isInBar(const QWidget *widget);
+
+    /**
+     * @return Whether @p widget is drawn with a lowered density (Compact or Very compact).
+     */
+    static bool isDense(const QWidget *widget);
 
 private:
     WhaleToolbarSettings::Density m_density;

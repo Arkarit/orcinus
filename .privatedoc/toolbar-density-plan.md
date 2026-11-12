@@ -86,6 +86,14 @@ constructor; recompute on density changes (Dolphin code, keep the change small a
 Find the cause of the smeared space info at lower heights. The filter bar follows the field
 rules of TD1/TD2.
 
+TD3 result (2026-11-12): the proxy also affects widgets inside `FilterBar` and
+`DolphinStatusBar` (by class name). Status bar 30 / 24 / 20 px, filter bar lower at Very compact
+(its field and combo box keep their height at Compact). Dolphin code touched, marked "Whale":
+`DolphinStatusBar::updateDensityHeights()` (Dolphin's heights kept for Normal; with a density the
+height comes from the stop button's size hint instead of Qt's default widget height) and
+`AnimatedHeightWidget::changeEvent()` (a shown bar takes its new preferred height after a style
+change). The space info was already fixed in TD1 (custom elements).
+
 **TD4 – Settings UI.** A combo box "Toolbar density:" on the settings page where it fits
 (Interface/General), with a tooltip.
 
