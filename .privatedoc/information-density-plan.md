@@ -67,7 +67,10 @@ originally planned `4 * padding` would give 0 and let a name run into the next c
 The layouter also uses the gap as the outer margin. Icons: no further change.
 
 **ID4 – Profiles.** New profile element `density` (one value per mode, like `zoom`), registered
-after `zoom`.
+after `zoom`. Value `Icons=Compact,2,100;Compact=Custom,3,80;Details=Normal,2,100` (density, custom
+padding, custom line height; the custom values are always kept). The shipped profiles do not set
+it: switching between them keeps the density the user chose; a profile saved from a window
+contains it.
 
 **ID5 – Documentation.** `docs/orcinus-vs-dolphin.md` (§4 Views, and §10 if the new-user default
 differs), design notes entry, user docs.

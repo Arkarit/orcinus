@@ -234,7 +234,7 @@ def run(args, work):
         check('"id":"zwei"' in reply[0]["text"].replace(" ", ""), "E: new id", reply)
         state = s.expect("E: three styles", {"styles.menu": {"$contains": "whale_style_zwei"}}, focus=False)
         zwei = state["styles"]["list"][2]
-        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 14, "E: all elements captured", zwei)
+        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 15, "E: all elements captured", zwei)
         check("[Style][zwei]" in styles_file.read_text(), "E: in the file")
         client.tool("apply_style", id="bilder")
         s.expect("E: Bilder closes the right view", BILDER, focus=False)

@@ -31,6 +31,7 @@
 #include <QApplication>
 #include <QDockWidget>
 #include <QMenuBar>
+#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QTest>
 
@@ -67,6 +68,7 @@ private Q_SLOTS:
     void testFilterBar();
     void testFilterBarRight();
     void testZoom();
+    void testDensity();
     void testMenuBar();
     void testToolBars();
     void testFileViewToolBars();
@@ -161,6 +163,7 @@ void WhaleStyleElementsTest::testOrder()
                           QStringLiteral("filterBar.left"),
                           QStringLiteral("filterBar.right"),
                           QStringLiteral("zoom"),
+                          QStringLiteral("density"),
                           QStringLiteral("menuBar"),
                           QStringLiteral("toolBars"),
                           QStringLiteral("fileViewToolBars"),
@@ -560,6 +563,71 @@ void WhaleStyleElementsTest::testWholeWindow()
     for (const WhaleStyleElement *e : elements) {
         QCOMPARE(e->capture(m_mainWindow.data()), bilder.value(e->key()));
     }
+}
+
+/**
+ * Whale: the information density of each view mode (ID4).
+ */
+void WhaleStyleElementsTest::testDensity()
+{
+    QVERIFY(showMainWindow());
+    const WhaleStyleElement *density = element("density");
+
+    // The tests share their settings file.
+    struct Saved {
+        DolphinView::Mode mode;
+        ViewModeSettings::Density density;
+        int padding;
+        int lineHeight;
+    };
+    QList<Saved> saved;
+    for (const DolphinView::Mode mode : {DolphinView::IconsView, DolphinView::CompactView, DolphinView::DetailsView}) {
+        const ViewModeSettings settings(mode);
+        saved.append({mode, settings.density(), settings.customPadding(), settings.customLineHeight()});
+    }
+    auto restore = qScopeGuard([saved] {
+        for (const Saved &s : saved) {
+            ViewModeSettings settings(s.mode);
+            settings.setDensity(s.density);
+            settings.setCustomPadding(s.padding);
+            settings.setCustomLineHeight(s.lineHeight);
+            settings.save();
+        }
+    });
+
+    ViewModeSettings compact(DolphinView::CompactView);
+    compact.setDensity(ViewModeSettings::Density::Custom);
+    compact.setCustomPadding(3);
+    compact.setCustomLineHeight(80);
+    compact.save();
+    ViewModeSettings details(DolphinView::DetailsView);
+    details.setDensity(ViewModeSettings::Density::VeryCompact);
+    details.save();
+
+    const QString captured = density->capture(m_mainWindow.data());
+    QVERIFY(captured.contains(QLatin1String("Compact=Custom,3,80")));
+    QVERIFY(captured.contains(QLatin1String("Details=VeryCompact,")));
+    QVERIFY(!density->describe(captured).isEmpty());
+
+    compact.setDensity(ViewModeSettings::Density::Normal);
+    compact.setCustomPadding(2);
+    compact.setCustomLineHeight(100);
+    compact.save();
+    details.setDensity(ViewModeSettings::Density::Normal);
+    details.save();
+
+    density->apply(m_mainWindow.data(), captured);
+    QCOMPARE(ViewModeSettings(DolphinView::CompactView).density(), ViewModeSettings::Density::Custom);
+    QCOMPARE(ViewModeSettings(DolphinView::CompactView).customPadding(), 3);
+    QCOMPARE(ViewModeSettings(DolphinView::CompactView).customLineHeight(), 80);
+    QCOMPARE(ViewModeSettings(DolphinView::DetailsView).density(), ViewModeSettings::Density::VeryCompact);
+    QCOMPARE(density->capture(m_mainWindow.data()), captured);
+
+    // Parts it cannot read are left out; out-of-range values are clamped.
+    density->apply(m_mainWindow.data(), QStringLiteral("Icons=Tiny,1,100;Nope=Compact,1,100;Details=Compact,x,100;Compact=Custom,99,10"));
+    QCOMPARE(ViewModeSettings(DolphinView::DetailsView).density(), ViewModeSettings::Density::VeryCompact);
+    QCOMPARE(ViewModeSettings(DolphinView::CompactView).customPadding(), 10);
+    QCOMPARE(ViewModeSettings(DolphinView::CompactView).customLineHeight(), 50);
 }
 
 QTEST_MAIN(WhaleStyleElementsTest)
