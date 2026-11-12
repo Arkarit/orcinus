@@ -56,6 +56,11 @@ KUrlNavigator's frame follows the same rule.
 maintainer's Wayland desktop (real Breeze, real scale); screenshots of all bars, compared with
 Directory Opus. Decide the shrink values from that.
 
+Result (2026-11-12, Wayland, scale 1, the dev profile of a new user): identical to the offscreen
+measurements, 94 / 74 / 62 px for the two top bars. The same defects: the filter field flat at
+levels 1 and 2, the location bar flat at level 2, the status bar's space info smeared at 1 and 2,
+the status bar itself unchanged at 30 px. Item rows 20 px (item density Compact) as expected.
+
 **TD1 – Setting and style.** `GeneralSettings` entry `ToolbarDensity` (enum, default Normal),
 new users Compact in `main.cpp`. `WhaleDensityStyle` installed after `KStyleManager::initStyle()`
 and re-installed when the application style changes at runtime (the style menu replaces it).
