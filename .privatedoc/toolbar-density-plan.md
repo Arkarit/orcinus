@@ -68,7 +68,15 @@ Changing the setting re-polishes the bars (no restart). Compact: smaller tool bu
 and toolbar margins; line edits and combo boxes keep their height. Unit tests: metrics inside
 and outside the bars, the main window's toolbars get lower, dialogs do not change.
 
-**TD2 – Low line edits (Very compact).** Lower line edits, combo boxes and the location bar
+TD1 result (2026-11-12): the setting lives in `WhaleToolbarSettings` (`[WhaleToolbars]
+ToolbarDensity`, no kcfg). Top bars Normal 94, Compact 78 (36 + 42; the location bar keeps 36),
+Very compact 61 px. The filter bar and the status bar are not affected yet (only widgets inside a
+`QToolBar`). The proxy needs `Q_CLASSINFO("X-KDE-CustomElements", "true")`: KStyleExtensions asks
+only styles with it for custom elements, and KCapacityBar (status bar space info) otherwise
+paints its old gradient; that was the "smeared" space info of the prototype.
+
+**TD2 – Low line edits (Very compact).** Dropped (2026-11-12): the maintainer likes the flat
+fields of Very compact; no font metrics trick. Original idea:** Lower line edits, combo boxes and the location bar
 while keeping Breeze's frame: when drawing their frame inside a bar, hand Breeze an option with
 the font metrics of a smaller font, so that its "too small for a frame" rule does not apply.
 Contained in the proxy; if it does not look right, Very compact keeps the fields at 31 px.

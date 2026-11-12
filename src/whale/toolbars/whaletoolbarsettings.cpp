@@ -11,6 +11,7 @@
 namespace
 {
 const char showFileViewToolBarsKey[] = "ShowFileViewToolBars";
+const char toolbarDensityKey[] = "ToolbarDensity";
 }
 
 WhaleToolbarSettings *WhaleToolbarSettings::self()
@@ -52,6 +53,49 @@ void WhaleToolbarSettings::setFileViewToolBarsVisible(bool visible)
     // At once: a window opened later in another process reads it.
     m_config->sync();
     Q_EMIT fileViewToolBarsVisibleChanged(visible);
+}
+
+WhaleToolbarSettings::Density WhaleToolbarSettings::toolbarDensity() const
+{
+    const QString value = m_config->group(groupName()).readEntry(toolbarDensityKey, QString());
+    if (value == QLatin1String("Compact")) {
+        return Density::Compact;
+    }
+    if (value == QLatin1String("VeryCompact")) {
+        return Density::VeryCompact;
+    }
+    return Density::Normal;
+}
+
+void WhaleToolbarSettings::setToolbarDensity(Density density)
+{
+    if (density == toolbarDensity() && hasToolbarDensity()) {
+        return;
+    }
+    const bool changed = density != toolbarDensity();
+    QString value;
+    switch (density) {
+    case Density::Normal:
+        value = QStringLiteral("Normal");
+        break;
+    case Density::Compact:
+        value = QStringLiteral("Compact");
+        break;
+    case Density::VeryCompact:
+        value = QStringLiteral("VeryCompact");
+        break;
+    }
+    KConfigGroup group = m_config->group(groupName());
+    group.writeEntry(toolbarDensityKey, value);
+    m_config->sync();
+    if (changed) {
+        Q_EMIT toolbarDensityChanged(density);
+    }
+}
+
+bool WhaleToolbarSettings::hasToolbarDensity() const
+{
+    return m_config->group(groupName()).hasKey(toolbarDensityKey);
 }
 
 #include "moc_whaletoolbarsettings.cpp"
