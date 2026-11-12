@@ -1,6 +1,6 @@
 # Toolbar density (TD0–TD6)
 
-Branch `toolbar-density`, from `information-density` (experimental), started 2026-11-12.
+Branch `toolbar-density`, from `information-density` (experimental), started 2026-11-12. Status: TD0, TD1, TD3–TD6 done, TD2 dropped (2026-11-12); the decisions are condensed in `design-notes.md`.
 
 ## Problem
 

@@ -77,6 +77,21 @@ Toolbars*; in the Main Toolbar of new users). It shows all menu titles side by s
 menu button when space runs out. It is independent of the classic menu bar, which *Ctrl+M*
 still shows and hides.
 
+### 2.5 Bar density
+
+*Interface → Status & Location bars → Bar density* makes the bars around the file views
+lower: the window toolbars, the file view toolbars with their location bars, the filter bar
+and the status bar. Dialogs, menus and the views themselves do not change.
+
+- *Normal*: Dolphin's look (default for existing users; *Defaults* restores it).
+- *Compact*: smaller margins and buttons; text fields keep their height and frame (default
+  for new users, see section 10). The two bars at the top take about 78 instead of 94 pixels.
+- *Very compact*: also lower text fields and combo boxes, drawn without a frame; about 61
+  pixels for the two top bars, a status bar of 20 instead of 30 pixels.
+
+The change applies at once. Toolbar icon sizes are set as before, per toolbar in its context
+menu.
+
 ## 3. Split view
 
 ### 3.1 Each view keeps its own display style
@@ -209,8 +224,8 @@ pictures.
 - *View → Profiles → Save as Profile…* saves the current window as a profile. Applying one is
   a click in *View → Profiles* or its keyboard shortcut.
 - A profile can set: split view, the display style and the view of each side, linked views,
-  zoom, the information density (4.6), the filter bar of each side, menu bar, toolbars, file
-  view toolbars, status bar and panels. Elements without a check mark are left as they are, so a profile can also change
+  zoom, the information density (4.6), the bar density (2.5), the filter bar of each side,
+  menu bar, toolbars, file view toolbars, status bar and panels. Elements without a check mark are left as they are, so a profile can also change
   only a few things.
 - *Save Profile "…"* updates the profile applied last with the current state of the window.
 - The *Profiles* settings page lists the profiles: order, name, shortcut, the elements and
@@ -307,7 +322,8 @@ A new user (no Orcinus settings yet) starts with these differences from Dolphin'
 - File name highlighting is on (7).
 - The filter bar is shown in new windows, the status bar spans the full width and has the
   zoom slider; Compact view previews are 16 pixels.
-- The information density is *Compact* in all three view modes (4.6).
+- The information density is *Compact* in all three view modes (4.6), and so is the bar
+  density (2.5).
 
 ## 11. Smaller differences
 
