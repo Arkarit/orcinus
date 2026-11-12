@@ -11,6 +11,7 @@
 
 class DolphinFontRequester;
 class QComboBox;
+class QFormLayout;
 class QCheckBox;
 class QSlider;
 class QSpinBox;
@@ -42,6 +43,7 @@ private Q_SLOTS:
     void slotDefaultSliderMoved(int value);
     void slotPreviewSliderMoved(int value);
     void checkFontStyle();
+    void updateCustomDensityRows(); // Whale: information density (ID2)
 
 private:
     void loadSettings();
@@ -61,6 +63,12 @@ private:
     QCheckBox *m_expandableFolders;
     QCheckBox *m_dragFromAnywhereOnRow;
     QLabel *m_fontWarningLabel;
+
+    // Whale: information density (ID2)
+    QFormLayout *m_layout = nullptr;
+    QComboBox *m_densityBox = nullptr;
+    QSpinBox *m_customPaddingBox = nullptr;
+    QSpinBox *m_customLineHeightBox = nullptr;
 };
 
 #endif
