@@ -15,6 +15,9 @@
 #include "viewmodes/viewsettingspage.h"
 #include "whalestylessettingspage.h"
 #include "whaleviewersettingspage.h"
+#if WHALE_ENABLE_AI
+#include "whaleaisettingspage.h"
+#endif
 #if HAVE_KUSERFEEDBACK
 #include "userfeedback/dolphinfeedbackprovider.h"
 #include "userfeedback/userfeedbacksettingspage.h"
@@ -67,6 +70,14 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     viewerSettingsFrame->setIcon(WhaleViewerSettingsPage::icon());
     connect(viewerSettingsPage, &WhaleViewerSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
 
+#if WHALE_ENABLE_AI
+    // Whale: AI2, the agents of the AI panel.
+    auto aiSettingsPage = new WhaleAiSettingsPage(this);
+    KPageWidgetItem *aiSettingsFrame = addPage(aiSettingsPage, i18nc("@title:group", "AI Agents"));
+    aiSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("dialog-messages")));
+    connect(aiSettingsPage, &WhaleAiSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
+#endif
+
     // Context Menu
     auto contextMenuSettingsPage = new ContextMenuSettingsPage(this,
                                                                actions,
@@ -111,6 +122,9 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     m_pages.append(viewSettingsPage);
     m_pages.append(stylesSettingsPage); // Whale: ST4
     m_pages.append(viewerSettingsPage); // Whale: V1c
+#if WHALE_ENABLE_AI
+    m_pages.append(aiSettingsPage); // Whale: AI2
+#endif
     m_pages.append(contextMenuSettingsPage);
     if (trashSettingsPage) {
         m_pages.append(trashSettingsPage);

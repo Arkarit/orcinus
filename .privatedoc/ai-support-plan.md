@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0, AI1 done (2026-11-12).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI2 done (2026-11-12).
 
 ## Problem
 
@@ -110,6 +110,24 @@ permission requests with paths, file write. In the manual modes the agents also 
 **AI2 – Agent configuration.** List of agents (name, command, arguments, environment), stored in
 `orcinusrc`; settings page "AI Agents" with add/edit/remove and a test button (runs `initialize`
 and shows name, version, auth state). Suggestions for known agents found in `PATH`.
+
+Details: `orcinusrc` `[AI]` `Agents` (ids in order), `DefaultAgent`; one subgroup per agent with
+`Name`, `Command` (one shell-quoted command line, split with `KShell`), `Environment`
+(`NAME=value` list) and `StartMode` (for AI5). Presets for the agents checked in AI0: Claude
+(`claude-agent-acp`), Codex (`codex-acp`), OpenCode (`opencode acp`); if the adapter is not in
+`PATH` but `npx` is, the preset runs it through `npx -y <package>` and says that this downloads it.
+The test starts the agent in an empty temporary folder, runs `initialize` and `session/new`
+without MCP servers and without a prompt (costs nothing), shows name, version, modes, model and,
+on failure, the login hints (`authMethods`) and the end of the agent's log. "Defaults" of the
+dialog leaves the agents alone (user data, like profiles). The page exists only with
+`WHALE_ENABLE_AI`.
+
+*AI2 result.* `WhaleAiAgents` (orcinusrc, presets), `WhaleAiAgentTest` (in `whaleai`, no
+widgets), `WhaleAiSettingsPage` and `WhaleAiAgentDialog` (in `dolphinstatic`, page "AI Agents"
+after "Viewer"). Tests: `whaleaiagentstest`, `whaleaisettingspagetest`. The test button was
+checked by hand against Claude Agent, Codex, OpenCode and the npx variant of Claude (which leaves
+the adapter in the npm cache, `~/.npm/_npx`). The agents start in Auto (Claude) / Auto review
+(Codex) / build (OpenCode): the result shows the current mode, choosing the start mode is AI5.
 
 **AI3 – Panel.** "AI Assistant" panel: agent selector, transcript (user/agent messages as
 Markdown via `QTextDocument`, streamed chunks, tool calls as compact collapsible rows with

@@ -1,0 +1,80 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Orcinus contributors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later
+ */
+
+#ifndef WHALEAIAGENTS_H
+#define WHALEAIAGENTS_H
+
+#include "whaleacpsession.h"
+
+#include <QList>
+#include <QString>
+#include <QStringList>
+
+/**
+ * @brief An AI agent the user set up: a program that speaks ACP on stdio.
+ */
+struct WhaleAiAgent {
+    QString id; ///< stable key in orcinusrc
+    QString name; ///< shown in the panel
+    QString commandLine; ///< program and arguments, quoted as in a shell
+    QStringList environment; ///< NAME=value, added to the environment of Orcinus
+    QString startMode; ///< value of the "mode" option set after the start (AI5); empty: the agent's
+
+    /**
+     * @return The program (found in PATH unless absolute), its arguments and the environment;
+     *         an empty program if the command line cannot be used, with the reason in @p error.
+     */
+    WhaleAcpSession::AgentCommand command(QString *error = nullptr) const;
+
+    bool operator==(const WhaleAiAgent &other) const = default;
+};
+
+/**
+ * @brief A known agent the settings page offers to add.
+ */
+struct WhaleAiAgentPreset {
+    QString id;
+    QString name;
+    QString commandLine; ///< what to run; empty if the agent was not found
+    QString description;
+    QString installHint; ///< how to get it, if it was not found
+    bool viaNpx = false; ///< the command line downloads the adapter through npx
+
+    bool isAvailable() const
+    {
+        return !commandLine.isEmpty();
+    }
+};
+
+/**
+ * @brief The agents in orcinusrc [AI], and the known ones to suggest.
+ *
+ * See .privatedoc/ai-support-plan.md (AI2).
+ */
+namespace WhaleAiAgents
+{
+QList<WhaleAiAgent> agents();
+/** Stores @p agents in this order; groups of agents that are gone are removed. */
+void setAgents(const QList<WhaleAiAgent> &agents);
+
+/** @return The id of the agent the panel starts with; the first agent if none is set. */
+QString defaultAgentId();
+void setDefaultAgentId(const QString &id);
+
+/** @return The agent with @p id, or one with an empty id. */
+WhaleAiAgent agent(const QString &id);
+
+/**
+ * @return The known agents (Claude, Codex, OpenCode), each with the command found in
+ *         @p searchPaths (empty: PATH).
+ */
+QList<WhaleAiAgentPreset> presets(const QStringList &searchPaths = {});
+
+/** @return An id based on @p base that none of @p agents has. */
+QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);
+}
+
+#endif
