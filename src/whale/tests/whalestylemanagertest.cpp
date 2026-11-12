@@ -231,7 +231,7 @@ void WhaleStyleManagerTest::testSaveAddsActionInAllWindows()
     WhaleStyleStore reread(WhaleStyleStore::defaultConfig());
     const WhaleStyle *style = reread.style(QStringLiteral("bilder-mehr"));
     QVERIFY(style);
-    QCOMPARE(style->elements.size(), 13);
+    QCOMPARE(style->elements.size(), 14);
     QVERIFY(!style->elements.contains(QStringLiteral("filterBar.right")));
     QVERIFY(!style->elements.contains(QStringLiteral("view.right")));
     for (const WhaleStyleElementState &state : style->elements) {

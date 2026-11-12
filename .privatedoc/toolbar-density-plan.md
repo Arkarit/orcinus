@@ -103,7 +103,8 @@ of Interface → Status & Location bars (it covers all bars). Applied at once on
 build (`#ifndef IS_KCM`, as in folderstabssettingspage.cpp).
 
 **TD5 – Profiles.** Profile element `toolbarDensity` (after `density`); the shipped profiles do
-not set it.
+not set it. Done 2026-11-12: value `Normal` / `Compact` / `VeryCompact`, applied through the
+setting (the whole application, like the setting itself); element count now 16.
 
 **TD6 – Documentation.** `docs/orcinus-vs-dolphin.md` (new section, §5, §10), changelog, design
 notes.

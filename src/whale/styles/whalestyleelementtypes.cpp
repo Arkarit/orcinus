@@ -777,6 +777,74 @@ public:
     }
 };
 
+// ---- toolbarDensity ----
+
+// Whale: the toolbar density (TD5), one value for all bars of the application.
+class ToolbarDensityElement : public WhaleStyleElement
+{
+public:
+    QString key() const override
+    {
+        return QStringLiteral("toolbarDensity");
+    }
+    QString title() const override
+    {
+        return i18nc("@item:inlistbox style element", "Bar density");
+    }
+    QString capture(const DolphinMainWindow *window) const override
+    {
+        Q_UNUSED(window)
+        return name(WhaleToolbarSettings::self()->toolbarDensity());
+    }
+    // For the whole application, like the setting; WhaleDensityStyle follows it.
+    void apply(DolphinMainWindow *window, const QString &value) const override
+    {
+        Q_UNUSED(window)
+        if (const std::optional<WhaleToolbarSettings::Density> density = from(value)) {
+            WhaleToolbarSettings::self()->setToolbarDensity(*density);
+        }
+    }
+    QString describe(const QString &value) const override
+    {
+        const std::optional<WhaleToolbarSettings::Density> density = from(value);
+        if (!density) {
+            return QString();
+        }
+        switch (*density) {
+        case WhaleToolbarSettings::Density::Normal:
+            return i18nc("@item:intext density of the bars", "Normal");
+        case WhaleToolbarSettings::Density::Compact:
+            return i18nc("@item:intext density of the bars", "Compact");
+        case WhaleToolbarSettings::Density::VeryCompact:
+            return i18nc("@item:intext density of the bars", "Very compact");
+        }
+        return QString();
+    }
+
+private:
+    static QString name(WhaleToolbarSettings::Density density)
+    {
+        switch (density) {
+        case WhaleToolbarSettings::Density::Normal:
+            break;
+        case WhaleToolbarSettings::Density::Compact:
+            return QStringLiteral("Compact");
+        case WhaleToolbarSettings::Density::VeryCompact:
+            return QStringLiteral("VeryCompact");
+        }
+        return QStringLiteral("Normal");
+    }
+    static std::optional<WhaleToolbarSettings::Density> from(const QString &value)
+    {
+        for (const auto density : {WhaleToolbarSettings::Density::Normal, WhaleToolbarSettings::Density::Compact, WhaleToolbarSettings::Density::VeryCompact}) {
+            if (value.trimmed() == name(density)) {
+                return density;
+            }
+        }
+        return std::nullopt;
+    }
+};
+
 // ---- menuBar ----
 
 class MenuBarElement : public WhaleStyleElement
@@ -1050,6 +1118,7 @@ void WhaleStyleElementTypes::addTo(WhaleStyleElements &elements)
     elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Right));
     elements.add(std::make_unique<ZoomElement>());
     elements.add(std::make_unique<DensityElement>()); // Whale: ID4
+    elements.add(std::make_unique<ToolbarDensityElement>()); // Whale: TD5
     elements.add(std::make_unique<MenuBarElement>());
     elements.add(std::make_unique<ToolBarsElement>());
     elements.add(std::make_unique<FileViewToolBarsElement>());
