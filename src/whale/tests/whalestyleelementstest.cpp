@@ -69,6 +69,7 @@ private Q_SLOTS:
     void testFilterBarRight();
     void testZoom();
     void testDensity();
+    void testToolbarDensity();
     void testMenuBar();
     void testToolBars();
     void testFileViewToolBars();
@@ -164,6 +165,7 @@ void WhaleStyleElementsTest::testOrder()
                           QStringLiteral("filterBar.right"),
                           QStringLiteral("zoom"),
                           QStringLiteral("density"),
+                          QStringLiteral("toolbarDensity"),
                           QStringLiteral("menuBar"),
                           QStringLiteral("toolBars"),
                           QStringLiteral("fileViewToolBars"),
@@ -628,6 +630,35 @@ void WhaleStyleElementsTest::testDensity()
     QCOMPARE(ViewModeSettings(DolphinView::DetailsView).density(), ViewModeSettings::Density::VeryCompact);
     QCOMPARE(ViewModeSettings(DolphinView::CompactView).customPadding(), 10);
     QCOMPARE(ViewModeSettings(DolphinView::CompactView).customLineHeight(), 50);
+}
+
+/**
+ * Whale: the toolbar density (TD5).
+ */
+void WhaleStyleElementsTest::testToolbarDensity()
+{
+    QVERIFY(showMainWindow());
+    const WhaleStyleElement *toolbarDensity = element("toolbarDensity");
+
+    // The tests share their settings file.
+    const WhaleToolbarSettings::Density saved = WhaleToolbarSettings::self()->toolbarDensity();
+    auto restore = qScopeGuard([saved] {
+        WhaleToolbarSettings::self()->setToolbarDensity(saved);
+    });
+
+    WhaleToolbarSettings::self()->setToolbarDensity(WhaleToolbarSettings::Density::VeryCompact);
+    const QString captured = toolbarDensity->capture(m_mainWindow.data());
+    QCOMPARE(captured, QStringLiteral("VeryCompact"));
+    QVERIFY(!toolbarDensity->describe(captured).isEmpty());
+
+    WhaleToolbarSettings::self()->setToolbarDensity(WhaleToolbarSettings::Density::Normal);
+    toolbarDensity->apply(m_mainWindow.data(), captured);
+    QCOMPARE(WhaleToolbarSettings::self()->toolbarDensity(), WhaleToolbarSettings::Density::VeryCompact);
+
+    // A value it cannot read is left alone.
+    toolbarDensity->apply(m_mainWindow.data(), QStringLiteral("Tiny"));
+    QCOMPARE(WhaleToolbarSettings::self()->toolbarDensity(), WhaleToolbarSettings::Density::VeryCompact);
+    QVERIFY(toolbarDensity->describe(QStringLiteral("Tiny")).isEmpty());
 }
 
 QTEST_MAIN(WhaleStyleElementsTest)

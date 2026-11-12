@@ -745,6 +745,44 @@ hard coded padding of 2 and Noto's line spacing of 18 px for a cap height of 9 p
 **Not done.** Window chrome (toolbar, location bar, filter bar, status bar) is the next
 candidate for density.
 
+## Bar density (TD0–TD5, 2026-11-12)
+
+**Goal.** Lower bars, as in Directory Opus (about 2/3 of the height). With Breeze a toolbar is 46 px:
+a 34 px tool button (22 px icon + 2 × `PM_ButtonMargin` 6) plus 2 × `PM_ToolBarItemMargin` 6.
+Smaller icons alone give only 43 px: line edits (31) and combo boxes (32) then set the height.
+
+**Decisions.**
+- One global setting (`[WhaleToolbars] ToolbarDensity`, `WhaleToolbarSettings`): Normal,
+  Compact, Very compact; no Custom. Normal is Dolphin's look; new users get Compact (first start).
+- The rows stay: merging the main toolbar and the file view toolbar into one row (as Directory
+  Opus does) was rejected by the maintainer; whoever does not want the file view toolbar hides it.
+- `WhaleDensityStyle`, a `QProxyStyle` around the application style, because
+  `QWidget::setStyle()` does not reach child widgets. It changes only widgets inside a
+  `QToolBar`, `FilterBar` or `DolphinStatusBar` (found by walking up the parents). With Normal no
+  proxy is installed at all. A new application style (Plasma settings) is wrapped again; a change
+  of the setting recreates the application style, so Qt re-polishes everything.
+- Compact halves the toolbar margin and lowers tool buttons by 4 px; fields keep their height.
+  Very compact: margin 1, buttons, fields, combo boxes and push buttons 8 px lower, never below
+  their contents. Breeze draws a line edit flat below 2 × 6 px + the font height (31 px); the
+  maintainer prefers the flat fields, so the planned font metrics trick (TD2) was dropped.
+- The proxy carries `Q_CLASSINFO("X-KDE-CustomElements", "true")` and the base style's object
+  name: KStyleExtensions asks only such styles for custom elements, and KCapacityBar (status bar
+  space info) otherwise paints its old gradient.
+- Dolphin code, marked: `DolphinStatusBar::updateDensityHeights()` (Dolphin takes the stop
+  button's height before layout, i.e. Qt's default 30 px; with a density its size hint) and
+  `AnimatedHeightWidget::changeEvent()` (a shown bar takes its new height after a style change).
+- KUrlNavigator sets its minimum height and that of its path buttons once, from its editor's
+  height; after a change at runtime the existing location bars stayed high (with their frame)
+  while new ones were low. `WhaleLocationBar::updateNavigatorHeights()` sets them again after a
+  style change.
+- Very compact closes the file view off with 1 px lines (`WhaleDensityLine`, an overlay child)
+  below the file view toolbar and above the filter bar, in Breeze's separator color (20 % text
+  in the window color, as the status bar separator), since the flat fields have no frame.
+- Setting: Interface → Status & Location bars → "Bar density" (there is no General page), not in
+  the KCM. Profile element `toolbarDensity` after `density`; the shipped profiles do not set it.
+
+**Result.** Top bars 94 → 78 (Compact) → 61 px (Very compact); status bar 30 → 24 → 20 px.
+
 ## Default file manager and "Show in folder" (plan from 2026-10-03, FileManager1 not implemented)
 
 **Opening folders** (`xdg-open`, KIO, "open folder" in other programs): Orcinus appears in System

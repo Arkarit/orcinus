@@ -94,6 +94,10 @@ ecm_add_test(whaletoolbarmigrationtest.cpp ../../tests/testdir.cpp ${CMAKE_SOURC
 target_include_directories(whaletoolbarmigrationtest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests)
 target_compile_definitions(whaletoolbarmigrationtest PRIVATE WHALE_TEST_PLUGIN_DIR="${WHALE_VIEW_PLUGIN_BUILD_DIR}")
 
+ecm_add_test(whaledensitystyletest.cpp
+    TEST_NAME whaledensitystyletest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+
 ecm_add_test(whalebookmarkstest.cpp
     TEST_NAME whalebookmarkstest
     LINK_LIBRARIES dolphinstatic Qt6::Test)

@@ -5,6 +5,7 @@
  */
 
 #include "dolphinviewcontainer.h"
+#include "whaledensityline.h" // Whale
 
 #include "admin/bar.h"
 #include "admin/workerintegration.h"
@@ -133,6 +134,7 @@ DolphinViewContainer::DolphinViewContainer(const QUrl &url, QWidget *parent, Dol
 
     // Initialize filter bar
     m_filterBar = new FilterBar(this);
+    WhaleDensityLine::attach(m_filterBar, Qt::TopEdge); // Whale: toolbar density Very compact
     m_filterBar->setVisible(GeneralSettings::filterBar(), WithoutAnimation);
 
     connect(m_filterBar, &FilterBar::filterChanged, this, &DolphinViewContainer::setNameFilter);

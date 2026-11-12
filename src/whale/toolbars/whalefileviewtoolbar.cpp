@@ -5,6 +5,7 @@
  */
 
 #include "whalefileviewtoolbar.h"
+#include "whaledensityline.h"
 
 #include "dolphintabpage.h"
 #include "dolphinviewcontainer.h"
@@ -37,6 +38,8 @@ WhaleFileViewToolBar::WhaleFileViewToolBar(DolphinViewContainer *container)
 {
     Q_ASSERT(container);
     setObjectName(QStringLiteral("whaleFileViewToolBar"));
+    // Closes the file view off with the flat location bar of Very compact (TD).
+    WhaleDensityLine::attach(this, Qt::BottomEdge);
     setMovable(false);
     // Small icons without text, as the user's settings of this toolbar (they stay when KDE's
     // toolbar style changes). Every File View Toolbar looks the same.

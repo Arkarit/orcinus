@@ -59,6 +59,12 @@ protected:
 private:
     void updateForLocation();
 
+    /**
+     * KUrlNavigator sets its minimum height and that of its path buttons once, from the height
+     * of its editor; a new application style (toolbar density, TD3) needs them again.
+     */
+    void updateNavigatorHeights();
+
     QPointer<DolphinViewContainer> m_container;
     DolphinUrlNavigator *m_urlNavigator;
     QPushButton *m_emptyTrashButton;

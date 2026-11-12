@@ -16,6 +16,7 @@
 #include "global.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "whaledefaultstyles.h" // Whale
+#include "whaledensitystyle.h" // Whale
 #include "whalesplitviewstartup.h" // Whale
 #include "whalestylemanager.h" // Whale
 #include "whalestyles.h" // Whale
@@ -307,6 +308,10 @@ int main(int argc, char **argv)
             settings.setDensity(ViewModeSettings::Density::Compact);
             settings.save();
         }
+        // Whale: and the compact toolbar density (TD1), unless one was chosen already.
+        if (!WhaleToolbarSettings::self()->hasToolbarDensity()) {
+            WhaleToolbarSettings::self()->setToolbarDensity(WhaleToolbarSettings::Density::Compact);
+        }
 
         WhaleStyles *styles = WhaleStyles::self();
         if (WhaleDefaultStyles::seed(styles->editableStore())) {
@@ -314,6 +319,9 @@ int main(int argc, char **argv)
             startWithStyle = true;
         }
     }
+
+    // Whale: the toolbar density wraps the application style before the first widget exists (TD1).
+    WhaleDensityStyle::follow();
 
     DolphinMainWindow *mainWindow = new DolphinMainWindow();
 

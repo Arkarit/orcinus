@@ -21,6 +21,9 @@
 #include <KNotificationJobUiDelegate>
 #include <KService>
 
+#include <KUrlComboBox>
+
+#include <QAbstractButton>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QPushButton>
@@ -186,6 +189,10 @@ QWidgetAction *WhaleLocationBar::action() const
 
 bool WhaleLocationBar::event(QEvent *event)
 {
+    if (event->type() == QEvent::StyleChange) {
+        // Queued: the navigator and its editor get the new style in their own events.
+        QMetaObject::invokeMethod(this, &WhaleLocationBar::updateNavigatorHeights, Qt::QueuedConnection);
+    }
     if (event->type() == QEvent::Show || event->type() == QEvent::Hide) {
         QWidget *window = this->window();
         if (window != this) {
@@ -218,6 +225,27 @@ void WhaleLocationBar::updateForLocation()
     // Looking up a service can be a bit slow: only when it is needed.
     m_networkFolderButton->setVisible(scheme == QLatin1String("remote") && KService::serviceByDesktopName(QStringLiteral("org.kde.knetattach")));
     m_kdeConnectButton->setVisible(scheme == QLatin1String("kdeconnect") && KService::serviceByDesktopName(QStringLiteral("org.kde.kdeconnect.app")));
+}
+
+void WhaleLocationBar::updateNavigatorHeights()
+{
+    KUrlComboBox *editor = m_urlNavigator->editor();
+    if (!editor) {
+        return;
+    }
+    const int height = editor->sizeHint().height();
+    if (height == m_urlNavigator->minimumHeight()) {
+        return;
+    }
+    m_urlNavigator->setMinimumHeight(height);
+    // The path buttons take the navigator's minimum height when they are created; buttons
+    // without one (e.g. the toggle button) keep it that way.
+    const auto buttons = m_urlNavigator->findChildren<QAbstractButton *>(Qt::FindDirectChildrenOnly);
+    for (QAbstractButton *button : buttons) {
+        if (button->minimumHeight() > 0) {
+            button->setMinimumHeight(height);
+        }
+    }
 }
 
 #include "moc_whalelocationbar.cpp"

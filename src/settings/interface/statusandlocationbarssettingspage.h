@@ -13,6 +13,7 @@
 #include <QUrl>
 
 class QCheckBox;
+class QComboBox;
 class QLineEdit;
 class QLabel;
 class QRadioButton;
@@ -53,6 +54,9 @@ private:
     QRadioButton *m_showStatusBarFullWidth;
     QCheckBox *m_showZoomSlider;
     QRadioButton *m_disableStatusBar;
+
+    // Whale: the toolbar density (TD4)
+    QComboBox *m_barDensity = nullptr;
 };
 
 #endif

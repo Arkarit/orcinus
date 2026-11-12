@@ -63,6 +63,9 @@ protected:
      */
     bool eventFilter(QObject *obj, QEvent *event) override;
 
+    /** Whale: a shown bar takes the height of a new style (toolbar density, TD3). */
+    void changeEvent(QEvent *event) override;
+
 private:
     using QWidget::hide; // Use QAbstractAnimation::setVisible() instead.
     using QWidget::setVisible; // Makes sure that the setVisible() declaration above doesn't fully hide the one from QWidget so we can still use it privately.

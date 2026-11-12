@@ -28,6 +28,17 @@ class WhaleToolbarSettings : public QObject
     Q_OBJECT
 
 public:
+    /**
+     * How much room the bars around the file views take (toolbar density, TD1). Normal is
+     * Dolphin's look.
+     */
+    enum class Density {
+        Normal,
+        Compact,
+        VeryCompact,
+    };
+    Q_ENUM(Density)
+
     static WhaleToolbarSettings *self();
 
     explicit WhaleToolbarSettings(KSharedConfigPtr config, QObject *parent = nullptr);
@@ -47,8 +58,20 @@ public:
     bool fileViewToolBarsVisible() const;
     void setFileViewToolBarsVisible(bool visible);
 
+    /**
+     * @return The toolbar density; Normal without a setting (TD1).
+     */
+    Density toolbarDensity() const;
+    void setToolbarDensity(Density density);
+
+    /**
+     * @return Whether a toolbar density was ever written, e.g. by the first start.
+     */
+    bool hasToolbarDensity() const;
+
 Q_SIGNALS:
     void fileViewToolBarsVisibleChanged(bool visible);
+    void toolbarDensityChanged(WhaleToolbarSettings::Density density);
 
 private:
     KSharedConfigPtr m_config;

@@ -12,12 +12,14 @@
 #include "dolphintabwidget.h"
 #include "dolphinviewbridge.h"
 #include "dolphinviewcontainer.h"
+#include "filterbar/filterbar.h"
 #include "global.h"
 #include "testdir.h"
 #include "testhelpers.h"
 #include "views/dolphinview.h"
 #include "whalecontainercommands.h"
 #include "whalecontentscope.h"
+#include "whaledensitystyle.h"
 #include "whalefileoperationsimpl.h"
 #include "whalefileviewtoolbarclient.h"
 #include "whalelocationbar.h"
@@ -48,6 +50,7 @@
 #include <QDockWidget>
 #include <QDomDocument>
 #include <QMenu>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QStandardPaths>
@@ -176,6 +179,7 @@ private Q_SLOTS:
     void testReloadAnnouncement();
     void testStopState();
     void testMenusArePopups();
+    void testDensityChangeAtRuntime();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -1785,6 +1789,53 @@ void WhaleFileViewToolBarTest::testMenusArePopups()
     second.reset();
     QVERIFY(!otherBar);
     QVERIFY(local(m_left, QStringLiteral("view_settings")));
+}
+
+/**
+ * Whale: a toolbar density chosen while the views exist lowers their toolbars as much as those
+ * of views created afterwards; KUrlNavigator keeps its first minimum height otherwise (TD3).
+ */
+void WhaleFileViewToolBarTest::testDensityChangeAtRuntime()
+{
+    showSplit();
+    auto restore = qScopeGuard([]() {
+        WhaleDensityStyle::apply(WhaleToolbarSettings::Density::Normal);
+    });
+    const int normalHeight = toolBar(m_left)->height();
+    // The separator lines of Very compact: below the file view toolbar, above the filter bar.
+    auto bottomLine = [](DolphinViewContainer *container) {
+        return toolBar(container)->findChild<QWidget *>(QStringLiteral("whaleDensityLineBottom"));
+    };
+    auto filterLine = [](DolphinViewContainer *container) {
+        return container->findChild<FilterBar *>()->findChild<QWidget *>(QStringLiteral("whaleDensityLineTop"));
+    };
+    QVERIFY(bottomLine(m_left) && filterLine(m_left));
+    QVERIFY(bottomLine(m_left)->isHidden() && filterLine(m_left)->isHidden());
+
+    WhaleDensityStyle::apply(WhaleToolbarSettings::Density::VeryCompact);
+    QTRY_VERIFY(toolBar(m_left)->height() < normalHeight);
+    QTRY_COMPARE(toolBar(m_right)->height(), toolBar(m_left)->height());
+    for (DolphinViewContainer *container : {m_left, m_right}) {
+        QTRY_VERIFY(!bottomLine(container)->isHidden());
+        QTRY_COMPARE(bottomLine(container)->geometry(), QRect(0, toolBar(container)->height() - 1, toolBar(container)->width(), 1));
+        QVERIFY(!filterLine(container)->isHidden());
+        QCOMPARE(filterLine(container)->geometry().top(), 0);
+    }
+
+    // A view created now.
+    global(QStringLiteral("new_tab"))->trigger();
+    DolphinViewContainer *fresh = m_mainWindow->activeViewContainer();
+    QVERIFY(fresh != m_left && fresh != m_right);
+    QTRY_VERIFY(toolBar(fresh)->isVisible() && toolBar(fresh)->locationBar()->isVisible());
+    QTest::qWait(200);
+    const int freshHeight = toolBar(fresh)->height();
+    global(QStringLiteral("activate_prev_tab"))->trigger();
+    QTRY_COMPARE(toolBar(m_left)->height(), freshHeight);
+    QTRY_COMPARE(toolBar(m_right)->height(), freshHeight);
+
+    // Compact draws the fields with frames, so no lines.
+    WhaleDensityStyle::apply(WhaleToolbarSettings::Density::Compact);
+    QTRY_VERIFY(bottomLine(m_left)->isHidden() && filterLine(m_left)->isHidden());
 }
 
 QTEST_MAIN(WhaleFileViewToolBarTest)

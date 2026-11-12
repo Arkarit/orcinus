@@ -17,6 +17,12 @@ changes that come from Dolphin itself are not listed here. Versions follow
   per view mode, Normal (Dolphin's), Compact, Very compact or Custom (padding and line height).
   New users start with Compact. Also an element of profiles.
 
+### Toolbars
+
+- Bar density: Normal (Dolphin's), Compact or Very compact for the toolbars, location bars,
+  filter bar and status bar; the two top bars shrink from 94 to 78 or 61 pixels. New users start
+  with Compact. Also an element of profiles.
+
 ## 0.1.0 (2026-11-11)
 
 The first release, an alpha: usable every day, but rough edges remain, and until 1.0 settings,
