@@ -27,3 +27,10 @@ ecm_add_test(whaleaisettingspagetest.cpp ${CMAKE_SOURCE_DIR}/src/tests/testdir.c
 target_include_directories(whaleaisettingspagetest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(whaleaisettingspagetest PRIVATE WHALE_ACP_FAKE_AGENT="$<TARGET_FILE:whaleacpfakeagent>")
 add_dependencies(whaleaisettingspagetest whaleacpfakeagent)
+
+ecm_add_test(whaleaipaneltest.cpp ${CMAKE_SOURCE_DIR}/src/tests/testdir.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+    TEST_NAME whaleaipaneltest
+    LINK_LIBRARIES dolphinstatic Qt6::Test)
+target_include_directories(whaleaipaneltest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
+target_compile_definitions(whaleaipaneltest PRIVATE WHALE_ACP_FAKE_AGENT="$<TARGET_FILE:whaleacpfakeagent>")
+add_dependencies(whaleaipaneltest whaleacpfakeagent)

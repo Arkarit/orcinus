@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI2 done (2026-11-12).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12).
 
 ## Problem
 
@@ -133,6 +133,27 @@ the adapter in the npm cache, `~/.npm/_npx`). The agents start in Auto (Claude) 
 Markdown via `QTextDocument`, streamed chunks, tool calls as compact collapsible rows with
 status), input field (Enter sends, Shift+Enter new line), stop button, new session. One agent
 process per panel, started on the first prompt, ended when the panel closes or the agent changes.
+
+Details: dock "AI Assistant" (`aiDock`, right area, hidden at creation so that it stays hidden for
+existing users whose saved window state does not know it), action `show_ai_panel` (F8, free in
+Orcinus) in the Panels menu only. The transcript is a scroll area with one widget per entry
+(user message, agent message as `QLabel` with `Qt::MarkdownText`, thought, tool call row,
+permission request, notice), so streamed text only re-renders its own entry and AI5 can put
+buttons into entries. A tool call ends the current agent message: text after it is a new entry,
+so the order on screen is the order of events. The minimal inline permission request (one button
+per option of the agent) is part of AI3, since without it an agent that asks would hang; AI5 adds
+the bar, the start mode and answering Orcinus' own tools. Hiding the dock keeps the session (F8
+twice must not lose the conversation); it ends with the window, on "New Conversation", or when
+another agent is chosen. The current model and mode are shown under the agent selector (privacy:
+the user sees where prompts go). Links in answers: http(s) open in the browser, local paths in
+Orcinus (folder: go there; file: its folder with the file selected). Without agents the panel
+shows "Set Up Agents…", which opens the settings on the "AI Agents" page.
+
+*AI3 result.* `WhaleAiPanel`, `WhaleAiTranscript` (in `dolphinstatic`), dock in
+`DolphinMainWindow::setupDockWidgets()`. Test `whaleaipaneltest` (fake agent, panel in the main
+window). If the agent cannot be started at all, the prompt stays in the input. Checked offscreen
+with the real Claude agent: tool calls, Markdown table, model/mode/context line. Claude in its
+default Auto mode asked no permission at all, which makes AI5 the next important step.
 
 **AI4 – Context.** Chips for folder / selection / other split view above the input, follow the
 active view, each removable for the next prompt. Drag and drop of files into the input adds them.

@@ -34,11 +34,13 @@ target_link_libraries(whaleai PUBLIC
     KF6::I18n
 )
 
-########### settings page (AI2), part of the application ###############
+########### settings page (AI2) and panel (AI3), part of the application ###############
 
 target_sources(dolphinstatic PRIVATE
     whaleaiagentdialog.cpp
+    whaleaipanel.cpp
     whaleaisettingspage.cpp
+    whaleaitranscript.cpp
 )
 target_link_libraries(dolphinstatic whaleai)
 

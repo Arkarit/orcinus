@@ -76,6 +76,7 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     KPageWidgetItem *aiSettingsFrame = addPage(aiSettingsPage, i18nc("@title:group", "AI Agents"));
     aiSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("dialog-messages")));
     connect(aiSettingsPage, &WhaleAiSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
+    aiAgentsSettings = aiSettingsFrame;
 #endif
 
     // Context Menu

@@ -28,6 +28,9 @@
 #include "panels/folders/folderspanel.h"
 #include "panels/places/placespanel.h"
 #include "panels/terminal/terminalpanel.h"
+#if WHALE_ENABLE_AI
+#include "whaleaipanel.h"
+#endif
 #include "search/dolphinquery.h"
 #include "selectionmode/actiontexthelper.h"
 #if KIO_VERSION >= QT_VERSION_CHECK(6, 24, 0)
@@ -2654,6 +2657,48 @@ void DolphinMainWindow::setupDockWidgets()
     } // endif "shell_access" allowed
 #endif // HAVE_TERMINAL
 
+#if WHALE_ENABLE_AI
+    // Whale: AI3, the AI panel; see .privatedoc/ai-support-plan.md.
+    DolphinDockWidget *aiDock = new DolphinDockWidget(i18nc("@title:window", "AI Assistant"));
+    aiDock->setLocked(lock);
+    aiDock->setObjectName(QStringLiteral("aiDock"));
+    auto *aiPanel = new WhaleAiPanel(aiDock);
+    aiPanel->setCustomContextMenuActions({lockLayoutAction});
+    aiDock->setWidget(aiPanel);
+    createPanelAction(QIcon::fromTheme(QStringLiteral("dialog-messages")), Qt::Key_F8, aiDock, QStringLiteral("show_ai_panel"));
+    addDockWidget(Qt::RightDockWidgetArea, aiDock);
+    // Hidden until the user opens it, also for users whose saved window state does not know it
+    // yet; a saved state that has it open shows it again.
+    aiDock->hide();
+    connect(this, &DolphinMainWindow::urlChanged, aiPanel, &WhaleAiPanel::setUrl);
+    connect(this, &DolphinMainWindow::settingsChanged, aiPanel, &WhaleAiPanel::readSettings);
+    connect(aiPanel, &WhaleAiPanel::configureRequested, this, [this] {
+        editSettings();
+        if (m_settingsDialog && m_settingsDialog->aiAgentsSettings) {
+            m_settingsDialog->setCurrentPage(m_settingsDialog->aiAgentsSettings);
+        }
+    });
+    connect(aiPanel, &WhaleAiPanel::localUrlActivated, this, [this](const QUrl &url) {
+        if (QFileInfo(url.toLocalFile()).isDir()) {
+            changeUrl(url);
+            return;
+        }
+        changeUrl(url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash));
+        m_activeViewContainer->view()->markUrlsAsSelected({url});
+        m_activeViewContainer->view()->markUrlAsCurrent(url);
+    });
+    actionCollection()
+        ->action(QStringLiteral("show_ai_panel"))
+        ->setWhatsThis(xi18nc("@info:whatsthis",
+                              "<para>This toggles the <emphasis>AI Assistant</emphasis> panel.</para>"
+                              "<para>It talks to an AI agent installed on this computer, such as Claude Code, Codex or "
+                              "OpenCode, set up in <interface>Configure Orcinus… > AI Agents</interface>.</para>"));
+    aiDock->setWhatsThis(xi18nc("@info:whatsthis",
+                                "<para>This is the <emphasis>AI Assistant</emphasis> panel. Write to the AI agent chosen at the top; "
+                                "it works in the folder shown when the conversation started.</para>")
+                         + panelWhatsThis);
+#endif
+
     if (GeneralSettings::version() < 200) {
         infoDock->hide();
         foldersDock->hide();
@@ -2743,6 +2788,9 @@ void DolphinMainWindow::setupDockWidgets()
 #endif
     panelsMenu->addAction(ac->action(QStringLiteral("show_folders_panel")));
     panelsMenu->addAction(ac->action(QStringLiteral("show_terminal_panel")));
+#if WHALE_ENABLE_AI
+    panelsMenu->addAction(ac->action(QStringLiteral("show_ai_panel")));
+#endif
     panelsMenu->addSeparator();
     panelsMenu->addAction(lockLayoutAction);
     panelsMenu->addSeparator();
