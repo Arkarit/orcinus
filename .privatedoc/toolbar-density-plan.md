@@ -97,6 +97,11 @@ change). The space info was already fixed in TD1 (custom elements).
 **TD4 – Settings UI.** A combo box "Toolbar density:" on the settings page where it fits
 (Interface/General), with a tooltip.
 
+TD4 result (2026-11-12): there is no "General" page; the combo box "Bar density:" is the first row
+of Interface → Status & Location bars (it covers all bars). Applied at once on OK/Apply;
+"Defaults" means Normal; a profile applied while the dialog is open updates it. Not in the KCM
+build (`#ifndef IS_KCM`, as in folderstabssettingspage.cpp).
+
 **TD5 – Profiles.** Profile element `toolbarDensity` (after `density`); the shipped profiles do
 not set it.
 

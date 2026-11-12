@@ -8,10 +8,14 @@
 #include "dolphinmainwindow.h"
 #include "dolphinviewcontainer.h"
 #include "settings/interface/folderstabssettingspage.h"
+#ifndef IS_KCM
+#include "whaletoolbarsettings.h" // Whale: TD4 (not in the KCM, which has no toolbars of Orcinus)
+#endif
 
 #include <KLocalizedString>
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QFormLayout>
 
 #include <QButtonGroup>
@@ -37,6 +41,21 @@ StatusAndLocationBarsSettingsPage::StatusAndLocationBarsSettingsPage(QWidget *pa
 
     QFormLayout *topLayout = new QFormLayout(this);
     topLayout->setFormAlignment(Qt::AlignHCenter);
+
+#ifndef IS_KCM
+    // Whale: the toolbar density (TD4). The order of the entries follows
+    // WhaleToolbarSettings::Density.
+    m_barDensity = new QComboBox(this);
+    m_barDensity->setObjectName(QStringLiteral("barDensity"));
+    m_barDensity->addItem(i18nc("@item:inlistbox Density of the bars", "Normal"));
+    m_barDensity->addItem(i18nc("@item:inlistbox Density of the bars", "Compact"));
+    m_barDensity->addItem(i18nc("@item:inlistbox Density of the bars", "Very compact"));
+    m_barDensity->setToolTip(i18nc("@info:tooltip",
+                                   "How much room the toolbars, the location bars, the filter bar and the status bar take. "
+                                   "Very compact draws text fields without a frame."));
+    topLayout->addRow(i18nc("@label:listbox", "Bar density:"), m_barDensity);
+    topLayout->addItem(new QSpacerItem(0, Dolphin::VERTICAL_SPACER_HEIGHT, QSizePolicy::Fixed, QSizePolicy::Fixed));
+#endif
 
     // Status bar
     m_statusBarButtonGroup = new QButtonGroup(this);
@@ -82,6 +101,13 @@ StatusAndLocationBarsSettingsPage::StatusAndLocationBarsSettingsPage(QWidget *pa
     connect(m_statusBarButtonGroup, &QButtonGroup::idClicked, this, &StatusAndLocationBarsSettingsPage::changed);
     connect(m_statusBarButtonGroup, &QButtonGroup::idClicked, this, &StatusAndLocationBarsSettingsPage::onShowStatusBarToggled);
     connect(m_showZoomSlider, &QCheckBox::toggled, this, &StatusAndLocationBarsSettingsPage::changed);
+#ifndef IS_KCM
+    connect(m_barDensity, &QComboBox::currentIndexChanged, this, &StatusAndLocationBarsSettingsPage::changed);
+    // Whale: a profile applied while the dialog is open sets the density; OK must keep it (TD5).
+    connect(WhaleToolbarSettings::self(), &WhaleToolbarSettings::toolbarDensityChanged, this, [this](WhaleToolbarSettings::Density density) {
+        m_barDensity->setCurrentIndex(static_cast<int>(density));
+    });
+#endif
     // Whale: ST4, a style applied while the dialog is open sets the status bar; OK must keep it.
     connect(GeneralSettings::self(), &GeneralSettings::showStatusBarChanged, this, [this]() {
         m_statusBarButtonGroup->button(GeneralSettings::showStatusBar())->setChecked(true);
@@ -102,6 +128,11 @@ void StatusAndLocationBarsSettingsPage::applySettings()
     settings->setShowZoomSlider(m_showZoomSlider->isChecked());
 
     settings->save();
+
+#ifndef IS_KCM
+    // Whale: applied at once by WhaleDensityStyle (TD4)
+    WhaleToolbarSettings::self()->setToolbarDensity(static_cast<WhaleToolbarSettings::Density>(m_barDensity->currentIndex()));
+#endif
 }
 
 void StatusAndLocationBarsSettingsPage::onShowStatusBarToggled()
@@ -116,6 +147,10 @@ void StatusAndLocationBarsSettingsPage::restoreDefaults()
     settings->useDefaults(true);
     loadSettings();
     settings->useDefaults(false);
+#ifndef IS_KCM
+    // Whale: not a kcfg setting; Normal is Dolphin's look (TD4).
+    m_barDensity->setCurrentIndex(static_cast<int>(WhaleToolbarSettings::Density::Normal));
+#endif
 }
 
 void StatusAndLocationBarsSettingsPage::locationSlotSettingsChanged()
@@ -142,6 +177,9 @@ void StatusAndLocationBarsSettingsPage::loadSettings()
     m_showFullPath->setChecked(GeneralSettings::showFullPath());
     m_statusBarButtonGroup->button(GeneralSettings::showStatusBar())->setChecked(true);
     m_showZoomSlider->setChecked(GeneralSettings::showZoomSlider());
+#ifndef IS_KCM
+    m_barDensity->setCurrentIndex(static_cast<int>(WhaleToolbarSettings::self()->toolbarDensity())); // Whale: TD4
+#endif
 
     onShowStatusBarToggled();
 }

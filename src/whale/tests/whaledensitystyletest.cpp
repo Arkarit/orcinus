@@ -6,6 +6,8 @@
 
 #include "whaledensitystyle.h"
 #include "filterbar/filterbar.h"
+#include "settings/interface/folderstabssettingspage.h"
+#include "settings/interface/statusandlocationbarssettingspage.h"
 #include "statusbar/dolphinstatusbar.h"
 #include "whaletoolbarsettings.h"
 
@@ -13,6 +15,7 @@
 #include <KStyleExtensions>
 
 #include <QApplication>
+#include <QComboBox>
 #include <QLineEdit>
 #include <QPixmap>
 #include <QStandardPaths>
@@ -44,6 +47,7 @@ private Q_SLOTS:
     void testANewApplicationStyleIsWrappedAgain();
     void testCustomElementsOfTheStyleStayAvailable();
     void testFilterBarAndStatusBarFollowTheDensity();
+    void testSettingsPage();
 
 private:
     struct Bar {
@@ -289,6 +293,40 @@ void WhaleDensityStyleTest::testFilterBarAndStatusBarFollowTheDensity()
     WhaleDensityStyle::apply(Density::Normal);
     QTRY_COMPARE(statusBar->maximumHeight(), normalStatusBar);
     QTRY_COMPARE(filterBar->maximumHeight(), normalFilterBar);
+}
+
+/**
+ * Interface → Status & Location bars → Bar density (TD4).
+ */
+void WhaleDensityStyleTest::testSettingsPage()
+{
+    WhaleToolbarSettings::self()->setToolbarDensity(Density::Compact);
+    WhaleDensityStyle::follow();
+
+    FoldersTabsSettingsPage foldersPage(nullptr);
+    StatusAndLocationBarsSettingsPage page(nullptr, &foldersPage);
+    auto box = page.findChild<QComboBox *>(QStringLiteral("barDensity"));
+    QVERIFY(box);
+    QCOMPARE(box->count(), 3);
+    QCOMPARE(box->currentIndex(), static_cast<int>(Density::Compact));
+
+    box->setCurrentIndex(static_cast<int>(Density::VeryCompact));
+    page.applySettings();
+    QCOMPARE(WhaleToolbarSettings::self()->toolbarDensity(), Density::VeryCompact);
+    auto style = dynamic_cast<WhaleDensityStyle *>(QApplication::style());
+    QVERIFY(style);
+    QCOMPARE(style->density(), Density::VeryCompact);
+
+    // "Defaults" means Dolphin's look.
+    page.restoreDefaults();
+    QCOMPARE(box->currentIndex(), static_cast<int>(Density::Normal));
+
+    // A profile applied while the dialog is open (TD5): the page shows it, OK keeps it.
+    WhaleToolbarSettings::self()->setToolbarDensity(Density::Compact);
+    QCOMPARE(box->currentIndex(), static_cast<int>(Density::Compact));
+
+    WhaleToolbarSettings::self()->setToolbarDensity(Density::Normal);
+    QVERIFY(!dynamic_cast<WhaleDensityStyle *>(QApplication::style()));
 }
 
 QTEST_MAIN(WhaleDensityStyleTest)
