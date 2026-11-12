@@ -775,6 +775,9 @@ Smaller icons alone give only 43 px: line edits (31) and combo boxes (32) then s
   height; after a change at runtime the existing location bars stayed high (with their frame)
   while new ones were low. `WhaleLocationBar::updateNavigatorHeights()` sets them again after a
   style change.
+- Very compact closes the file view off with 1 px lines (`WhaleDensityLine`, an overlay child)
+  below the file view toolbar and above the filter bar, in Breeze's separator color (20 % text
+  in the window color, as the status bar separator), since the flat fields have no frame.
 - Setting: Interface → Status & Location bars → "Bar density" (there is no General page), not in
   the KCM. Profile element `toolbarDensity` after `density`; the shipped profiles do not set it.
 

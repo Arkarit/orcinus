@@ -87,7 +87,8 @@ and the status bar. Dialogs, menus and the views themselves do not change.
 - *Compact*: smaller margins and buttons; text fields keep their height and frame (default
   for new users, see section 10). The two bars at the top take about 78 instead of 94 pixels.
 - *Very compact*: also lower text fields and combo boxes, drawn without a frame; about 61
-  pixels for the two top bars, a status bar of 20 instead of 30 pixels.
+  pixels for the two top bars, a status bar of 20 instead of 30 pixels. Thin lines separate
+  the file view from the file view toolbar and the filter bar.
 
 The change applies at once. Toolbar icon sizes are set as before, per toolbar in its context
 menu.

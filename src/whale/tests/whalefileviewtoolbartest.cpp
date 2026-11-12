@@ -12,6 +12,7 @@
 #include "dolphintabwidget.h"
 #include "dolphinviewbridge.h"
 #include "dolphinviewcontainer.h"
+#include "filterbar/filterbar.h"
 #include "global.h"
 #include "testdir.h"
 #include "testhelpers.h"
@@ -1801,10 +1802,25 @@ void WhaleFileViewToolBarTest::testDensityChangeAtRuntime()
         WhaleDensityStyle::apply(WhaleToolbarSettings::Density::Normal);
     });
     const int normalHeight = toolBar(m_left)->height();
+    // The separator lines of Very compact: below the file view toolbar, above the filter bar.
+    auto bottomLine = [](DolphinViewContainer *container) {
+        return toolBar(container)->findChild<QWidget *>(QStringLiteral("whaleDensityLineBottom"));
+    };
+    auto filterLine = [](DolphinViewContainer *container) {
+        return container->findChild<FilterBar *>()->findChild<QWidget *>(QStringLiteral("whaleDensityLineTop"));
+    };
+    QVERIFY(bottomLine(m_left) && filterLine(m_left));
+    QVERIFY(bottomLine(m_left)->isHidden() && filterLine(m_left)->isHidden());
 
     WhaleDensityStyle::apply(WhaleToolbarSettings::Density::VeryCompact);
     QTRY_VERIFY(toolBar(m_left)->height() < normalHeight);
     QTRY_COMPARE(toolBar(m_right)->height(), toolBar(m_left)->height());
+    for (DolphinViewContainer *container : {m_left, m_right}) {
+        QTRY_VERIFY(!bottomLine(container)->isHidden());
+        QTRY_COMPARE(bottomLine(container)->geometry(), QRect(0, toolBar(container)->height() - 1, toolBar(container)->width(), 1));
+        QVERIFY(!filterLine(container)->isHidden());
+        QCOMPARE(filterLine(container)->geometry().top(), 0);
+    }
 
     // A view created now.
     global(QStringLiteral("new_tab"))->trigger();
@@ -1816,6 +1832,10 @@ void WhaleFileViewToolBarTest::testDensityChangeAtRuntime()
     global(QStringLiteral("activate_prev_tab"))->trigger();
     QTRY_COMPARE(toolBar(m_left)->height(), freshHeight);
     QTRY_COMPARE(toolBar(m_right)->height(), freshHeight);
+
+    // Compact draws the fields with frames, so no lines.
+    WhaleDensityStyle::apply(WhaleToolbarSettings::Density::Compact);
+    QTRY_VERIFY(bottomLine(m_left)->isHidden() && filterLine(m_left)->isHidden());
 }
 
 QTEST_MAIN(WhaleFileViewToolBarTest)

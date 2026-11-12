@@ -114,6 +114,7 @@ target_link_libraries(whaleviewhost PUBLIC
 # See .privatedoc/design-notes.md.
 target_sources(dolphinstatic PRIVATE
     toolbars/whalecontainercommands.cpp
+    toolbars/whaledensityline.cpp
     toolbars/whaledensitystyle.cpp
     toolbars/whalefileviewtoolbar.cpp
     toolbars/whalefileviewtoolbarclient.cpp
