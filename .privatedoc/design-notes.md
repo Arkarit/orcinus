@@ -718,6 +718,33 @@ fifths still browse. Videos are not cached or preloaded; one player for all.
 **Open.** Opening from plugin views and coupling to their selection; decoder crashes (RAW, HEIF)
 would hit the Orcinus process and might need isolation later.
 
+## Information density (ID1–ID4, 2026-11-12)
+
+**Goal.** More items per screen, as in Directory Opus (18 px rows against Dolphin's 22 px at 16 px
+icons and Noto Sans 10pt). The row height is `2 * padding + max(iconSize, lineSpacing)` with a
+hard coded padding of 2 and Noto's line spacing of 18 px for a cap height of 9 px.
+
+**Decisions.**
+- Per view mode, in the `*ModeSettings` (`Density`, `CustomPadding`, `CustomLineHeight`):
+  Normal 2 px, Compact 1 px, Very compact 0 px, Custom 0–10 px plus a line height of 50–150 % in
+  Compact and Details. A tighter line height was rejected as a preset (descenders and accents
+  touch the selection or the next row) but is offered under Custom.
+- Only the *vertical* padding: `KItemListStyleOption::verticalPadding` (-1 = `padding`) and
+  `lineHeightPercent`, used for row heights (informant size hints, `updateGridSize()`) and the
+  vertical positions in the widget. `padding` stays 2 for everything horizontal; with 0 the name
+  would touch the icon and the Details columns each other. Icons ignores the line height (names
+  wrap over several `QTextLayout` lines). A Details row lower than the font centers its text.
+- Compact column gap `4 + 2 * verticalPadding` (8/6/4); `4 * padding` would reach 0.
+- kcfg default Normal (existing users keep Dolphin's look, "Defaults" means Normal); `main.cpp`
+  writes Compact on the first start unless a `Density` key exists (until the first window is
+  closed normally every start counts as the first).
+- Upstream's Icons option "Spacing: Compact" (gap between items) stays separate.
+- Profile element `density` after `zoom`; the shipped profiles do not set it, so switching
+  between them keeps the user's density.
+
+**Not done.** Window chrome (toolbar, location bar, filter bar, status bar) is the next
+candidate for density.
+
 ## Default file manager and "Show in folder" (plan from 2026-10-03, FileManager1 not implemented)
 
 **Opening folders** (`xdg-open`, KIO, "open folder" in other programs): Orcinus appears in System

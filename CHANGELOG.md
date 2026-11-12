@@ -9,6 +9,14 @@ All notable changes to Orcinus. Orcinus is based on KDE Dolphin and follows its 
 changes that come from Dolphin itself are not listed here. Versions follow
 [semantic versioning](https://semver.org/).
 
+## Unreleased
+
+### Views
+
+- Information density: the space above and below the items (and between the Compact columns)
+  per view mode, Normal (Dolphin's), Compact, Very compact or Custom (padding and line height).
+  New users start with Compact. Also an element of profiles.
+
 ## 0.1.0 (2026-11-11)
 
 The first release, an alpha: usable every day, but rough edges remain, and until 1.0 settings,

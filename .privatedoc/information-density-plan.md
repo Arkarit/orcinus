@@ -1,6 +1,6 @@
 # Information density (ID1–ID5)
 
-Branch `information-density`, started 2026-11-12.
+Branch `information-density`, started 2026-11-12. Status: ID1–ID5 done (2026-11-12); the decisions are condensed in `design-notes.md`.
 
 ## Problem
 
