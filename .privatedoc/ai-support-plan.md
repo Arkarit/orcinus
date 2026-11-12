@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0 done (2026-11-12).
+Branch `ai-support`, started 2026-11-12. Status: AI0, AI1 done (2026-11-12).
 
 ## Problem
 
@@ -98,6 +98,15 @@ ids, notifications, errors, cancel), `AcpSession` (initialize, `session/new`, `s
 Client capabilities: none of `fs/*` or `terminal/*` in the first version (the agent uses its own
 tools). Unit tests against a fake agent (small script that replays recorded traffic from AI0).
 
+*AI1 result.* `src/whale/ai/` (static library `whaleai`, Qt Core only, behind the CMake option
+`WHALE_ENABLE_AI`, not linked into the application yet): `WhaleAcpConnection` (process, JSON-RPC
+lines, timeouts, stderr tail), `WhaleAcpSession` (start, prompt, cancel, permissions, config
+options with a `modes` fallback), `whaleacptypes.h`. `whaleacpsessiontest` runs against
+`whaleacpfakeagent` (scenarios basic, modes, crash, garbage, oldprotocol, auth, hang). Checked by
+hand against Claude Agent and Codex in their manual modes: mode switch, MCP back channel,
+permission requests with paths, file write. In the manual modes the agents also ask before calling
+*our* MCP tools; see AI5.
+
 **AI2 – Agent configuration.** List of agents (name, command, arguments, environment), stored in
 `orcinusrc`; settings page "AI Agents" with add/edit/remove and a test button (runs `initialize`
 and shows name, version, auth state). Suggestions for known agents found in `PATH`.
@@ -112,7 +121,9 @@ active view, each removable for the next prompt. Drag and drop of files into the
 Large selections are capped (count, with a "+N more" note).
 
 **AI5 – Permissions.** Inline permission requests; permission bar with the agent's modes; remember
-"always" per session only in the first version. Settings dialog with details only after we have
+"always" per session only in the first version. Calls of Orcinus' own harmless MCP tools (show a
+folder, select) should not need a click each time: answer those requests directly, recognised
+reliably (not by the tool title, which differs per agent; e.g. `orcinus-mcp` announces the call). Settings dialog with details only after we have
 tried it.
 
 **AI6 – Back channel.** `orcinus-mcp` and the D-Bus interface on the window. First tools:

@@ -184,6 +184,13 @@ if(HAVE_MPV)
     target_link_libraries(dolphinstatic PkgConfig::MPV Qt6::OpenGLWidgets)
 endif()
 
+########### AI support ###############
+
+# See .privatedoc/ai-support-plan.md.
+if(WHALE_ENABLE_AI)
+    add_subdirectory(ai)
+endif()
+
 ########### plugins ###############
 
 # The test views (Hello, Test List) are test fixtures: they are built with the tests into a
