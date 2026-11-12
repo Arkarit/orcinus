@@ -41,6 +41,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
 {
     QFormLayout *topLayout = new QFormLayout(this);
     topLayout->setFormAlignment(Qt::AlignHCenter);
+    m_layout = topLayout;
 
     // Create "Icon Size" section
     const int minRange = ZoomLevelInfo::minimumLevel();
@@ -76,6 +77,35 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
     QPalette palette = m_fontWarningLabel->palette();
     palette.setColor(QPalette::WindowText, scheme.foreground(KColorScheme::InactiveText).color());
     m_fontWarningLabel->setPalette(palette);
+
+    // Whale: information density (ID2). The order of the entries follows ViewModeSettings::Density.
+    m_densityBox = new QComboBox();
+    m_densityBox->setObjectName(QStringLiteral("density"));
+    m_densityBox->addItem(i18nc("@item:inlistbox Information density", "Normal"));
+    m_densityBox->addItem(i18nc("@item:inlistbox Information density", "Compact"));
+    m_densityBox->addItem(i18nc("@item:inlistbox Information density", "Very compact"));
+    m_densityBox->addItem(i18nc("@item:inlistbox Information density", "Custom"));
+    m_densityBox->setToolTip(i18nc("@info:tooltip", "The space above and below each item. Less space shows more items at once."));
+    topLayout->addRow(i18nc("@label:listbox", "Density:"), m_densityBox);
+
+    m_customPaddingBox = new QSpinBox();
+    m_customPaddingBox->setObjectName(QStringLiteral("customPadding"));
+    m_customPaddingBox->setRange(0, 10);
+    m_customPaddingBox->setSuffix(i18nc("@item:valuesuffix pixels", " px"));
+    m_customPaddingBox->setToolTip(i18nc("@info:tooltip", "The space above and below each item."));
+    topLayout->addRow(i18nc("@label:spinbox", "Padding:"), m_customPaddingBox);
+
+    if (m_mode != IconsMode) {
+        // In the icons view the names wrap over several lines; there only the padding is offered.
+        m_customLineHeightBox = new QSpinBox();
+        m_customLineHeightBox->setObjectName(QStringLiteral("customLineHeight"));
+        m_customLineHeightBox->setRange(50, 150);
+        m_customLineHeightBox->setSingleStep(5);
+        m_customLineHeightBox->setSuffix(i18nc("@item:valuesuffix percent", " %"));
+        m_customLineHeightBox->setToolTip(
+            i18nc("@info:tooltip", "The height of a text line in percent of the font's line height. Below 100 % letters may touch the next row."));
+        topLayout->addRow(i18nc("@label:spinbox", "Line height:"), m_customLineHeightBox);
+    }
 
     switch (m_mode) {
     case IconsMode: {
@@ -138,6 +168,14 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
     }
 
     loadSettings();
+
+    // Whale: information density (ID2)
+    connect(m_densityBox, &QComboBox::currentIndexChanged, this, &ViewSettingsTab::updateCustomDensityRows);
+    connect(m_densityBox, &QComboBox::currentIndexChanged, this, &ViewSettingsTab::changed);
+    connect(m_customPaddingBox, &QSpinBox::valueChanged, this, &ViewSettingsTab::changed);
+    if (m_customLineHeightBox) {
+        connect(m_customLineHeightBox, &QSpinBox::valueChanged, this, &ViewSettingsTab::changed);
+    }
 
     connect(m_defaultSizeSlider, &QSlider::valueChanged, this, &ViewSettingsTab::changed);
     connect(m_previewSizeSlider, &QSlider::valueChanged, this, &ViewSettingsTab::changed);
@@ -237,7 +275,23 @@ void ViewSettingsTab::applySettings()
 
     settings.setUseSystemFont(useSystemFont);
     settings.setViewFont(font);
+
+    // Whale: information density (ID2)
+    settings.setDensity(static_cast<ViewModeSettings::Density>(m_densityBox->currentIndex()));
+    settings.setCustomPadding(m_customPaddingBox->value());
+    if (m_customLineHeightBox) {
+        settings.setCustomLineHeight(m_customLineHeightBox->value());
+    }
     settings.save();
+}
+
+void ViewSettingsTab::updateCustomDensityRows()
+{
+    const bool custom = m_densityBox->currentIndex() == static_cast<int>(ViewModeSettings::Density::Custom);
+    m_layout->setRowVisible(m_customPaddingBox, custom);
+    if (m_customLineHeightBox) {
+        m_layout->setRowVisible(m_customLineHeightBox, custom);
+    }
 }
 
 void ViewSettingsTab::restoreDefaults()
@@ -282,6 +336,14 @@ void ViewSettingsTab::loadSettings()
 
     QFont font(settings.viewFont());
     m_fontRequester->setCustomFont(font);
+
+    // Whale: information density (ID2)
+    m_densityBox->setCurrentIndex(static_cast<int>(settings.density()));
+    m_customPaddingBox->setValue(settings.customPadding());
+    if (m_customLineHeightBox) {
+        m_customLineHeightBox->setValue(settings.customLineHeight());
+    }
+    updateCustomDensityRows();
 }
 
 void ViewSettingsTab::slotDefaultSliderMoved(int value)

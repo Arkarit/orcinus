@@ -36,6 +36,7 @@
 #include <QMenuBar>
 #include <QPointer>
 
+#include <algorithm>
 #include <array>
 
 namespace
@@ -654,6 +655,128 @@ public:
     }
 };
 
+// ---- density ----
+
+// Whale: information density (ID4). The names follow the choices of the kcfg entry Density.
+constexpr std::array<QLatin1String, 4> densityNames{{
+    QLatin1String("Normal"),
+    QLatin1String("Compact"),
+    QLatin1String("VeryCompact"),
+    QLatin1String("Custom"),
+}};
+
+struct ModeDensity {
+    DolphinView::Mode mode;
+    ViewModeSettings::Density density;
+    int customPadding;
+    int customLineHeight;
+};
+
+// The densities of the modes in @p value ("Icons=Compact,2,100;..."); parts that cannot be read
+// are left out.
+QList<ModeDensity> densitiesFrom(const QString &value)
+{
+    QList<ModeDensity> result;
+    const QStringList parts = value.split(u';', Qt::SkipEmptyParts);
+    for (const QString &part : parts) {
+        const QString name = part.section(u'=', 0, 0).trimmed();
+        const QStringList fields = part.section(u'=', 1).split(u',');
+        if (fields.size() != 3) {
+            continue;
+        }
+        const auto density = std::find(densityNames.begin(), densityNames.end(), fields.at(0).trimmed());
+        bool paddingOk = false;
+        bool lineHeightOk = false;
+        const int padding = fields.at(1).toInt(&paddingOk);
+        const int lineHeight = fields.at(2).toInt(&lineHeightOk);
+        if (density == densityNames.end() || !paddingOk || !lineHeightOk) {
+            continue;
+        }
+        for (const ZoomMode &mode : zoomModes) {
+            if (name == mode.name) {
+                result.append({mode.mode, static_cast<ViewModeSettings::Density>(density - densityNames.begin()), padding, lineHeight});
+            }
+        }
+    }
+    return result;
+}
+
+class DensityElement : public WhaleStyleElement
+{
+public:
+    QString key() const override
+    {
+        return QStringLiteral("density");
+    }
+    QString title() const override
+    {
+        return i18nc("@item:inlistbox style element", "Density");
+    }
+    QString capture(const DolphinMainWindow *window) const override
+    {
+        Q_UNUSED(window)
+        QStringList parts;
+        for (const ZoomMode &mode : zoomModes) {
+            const ViewModeSettings settings(mode.mode);
+            parts.append(mode.name + u'=' + densityNames.at(static_cast<int>(settings.density())) + u',' + QString::number(settings.customPadding()) + u','
+                         + QString::number(settings.customLineHeight()));
+        }
+        return parts.join(u';');
+    }
+    // One density for each view mode, for all views, like the zoom.
+    void apply(DolphinMainWindow *window, const QString &value) const override
+    {
+        bool changed = false;
+        const auto densities = densitiesFrom(value);
+        for (const ModeDensity &wanted : densities) {
+            ViewModeSettings settings(wanted.mode);
+            if (settings.density() == wanted.density && settings.customPadding() == wanted.customPadding
+                && settings.customLineHeight() == wanted.customLineHeight) {
+                continue;
+            }
+            // The settings clamp the custom values to their ranges.
+            settings.setDensity(wanted.density);
+            settings.setCustomPadding(wanted.customPadding);
+            settings.setCustomLineHeight(wanted.customLineHeight);
+            // The views read the settings from the file again.
+            settings.save();
+            changed = true;
+        }
+        if (changed) {
+            refreshViews(window);
+        }
+    }
+    QString describe(const QString &value) const override
+    {
+        QStringList parts;
+        const auto densities = densitiesFrom(value);
+        for (const ModeDensity &density : densities) {
+            QString text;
+            switch (density.density) {
+            case ViewModeSettings::Density::Normal:
+                text = i18nc("@item:intext information density", "Normal");
+                break;
+            case ViewModeSettings::Density::Compact:
+                text = i18nc("@item:intext information density", "Compact");
+                break;
+            case ViewModeSettings::Density::VeryCompact:
+                text = i18nc("@item:intext information density", "Very compact");
+                break;
+            case ViewModeSettings::Density::Custom:
+                text = density.mode == DolphinView::IconsView
+                    ? i18nc("@item:intext information density, padding in pixels", "Custom (%1 px)", density.customPadding)
+                    : i18nc("@item:intext information density, padding in pixels, line height in percent",
+                            "Custom (%1 px, %2 %)",
+                            density.customPadding,
+                            density.customLineHeight);
+                break;
+            }
+            parts.append(i18nc("@item:intext view mode, information density", "%1 %2", modeName(density.mode), text));
+        }
+        return parts.join(i18nc("@item:intext separator of a list", ", "));
+    }
+};
+
 // ---- menuBar ----
 
 class MenuBarElement : public WhaleStyleElement
@@ -926,6 +1049,7 @@ void WhaleStyleElementTypes::addTo(WhaleStyleElements &elements)
     elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Left));
     elements.add(std::make_unique<FilterBarElement>(DolphinView::PanelRole::Right));
     elements.add(std::make_unique<ZoomElement>());
+    elements.add(std::make_unique<DensityElement>()); // Whale: ID4
     elements.add(std::make_unique<MenuBarElement>());
     elements.add(std::make_unique<ToolBarsElement>());
     elements.add(std::make_unique<FileViewToolBarsElement>());

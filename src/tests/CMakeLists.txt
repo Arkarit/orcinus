@@ -64,6 +64,11 @@ ecm_add_test(dolphinitemlistviewtest.cpp testdir.cpp
 TEST_NAME dolphinitemlistviewtest
 LINK_LIBRARIES dolphinprivate Qt6::Test)
 
+# ViewSettingsTabTest (Whale: information density, ID2)
+ecm_add_test(viewsettingstabtest.cpp
+TEST_NAME viewsettingstabtest
+LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
+
 # DolphinViewTest
 ecm_add_test(dolphinviewtest.cpp testdir.cpp
 TEST_NAME dolphinviewtest

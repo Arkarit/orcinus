@@ -173,6 +173,84 @@ QFont ViewModeSettings::viewFont() const
         m_viewModeSettingsVariant);
 }
 
+void ViewModeSettings::setDensity(Density density)
+{
+    std::visit(
+        [density](auto &&v) {
+            v->setDensity(static_cast<int>(density));
+        },
+        m_viewModeSettingsVariant);
+}
+
+ViewModeSettings::Density ViewModeSettings::density() const
+{
+    const int value = std::visit(
+        [](auto &&v) {
+            return static_cast<int>(v->density());
+        },
+        m_viewModeSettingsVariant);
+    if (value < static_cast<int>(Density::Normal) || value > static_cast<int>(Density::Custom)) {
+        return Density::Normal;
+    }
+    return static_cast<Density>(value);
+}
+
+void ViewModeSettings::setCustomPadding(int padding)
+{
+    std::visit(
+        [padding](auto &&v) {
+            v->setCustomPadding(padding);
+        },
+        m_viewModeSettingsVariant);
+}
+
+int ViewModeSettings::customPadding() const
+{
+    return std::visit(
+        [](auto &&v) {
+            return v->customPadding();
+        },
+        m_viewModeSettingsVariant);
+}
+
+void ViewModeSettings::setCustomLineHeight(int percent)
+{
+    std::visit(
+        [percent](auto &&v) {
+            v->setCustomLineHeight(percent);
+        },
+        m_viewModeSettingsVariant);
+}
+
+int ViewModeSettings::customLineHeight() const
+{
+    return std::visit(
+        [](auto &&v) {
+            return v->customLineHeight();
+        },
+        m_viewModeSettingsVariant);
+}
+
+int ViewModeSettings::verticalPadding() const
+{
+    switch (density()) {
+    case Density::Normal:
+        return 2;
+    case Density::Compact:
+        return 1;
+    case Density::VeryCompact:
+        return 0;
+    case Density::Custom:
+        return customPadding();
+    }
+    return 2;
+}
+
+int ViewModeSettings::lineHeightPercent() const
+{
+    return density() == Density::Custom ? customLineHeight() : 100;
+}
+
 void ViewModeSettings::useDefaults(bool useDefaults)
 {
     std::visit(

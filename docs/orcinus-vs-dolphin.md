@@ -185,6 +185,21 @@ colors.
 look. The presets adapt to light and dark color schemes. The folder names can be switched
 off and their opacity set.
 
+### 4.6 Information density
+
+Dolphin leaves 2 pixels above and below every item. *View → Icons / Compact / Details →
+Density* sets this space for each view mode:
+
+- *Normal*: 2 pixels, Dolphin's look (default for existing users; *Defaults* restores it).
+- *Compact*: 1 pixel (default for new users, see section 10).
+- *Very compact*: no space; with 16 pixel icons and the usual system font a row is about
+  18 pixels high instead of 22.
+- *Custom*: the space in pixels (0 to 10) and, in Compact and Details, the height of a text
+  line in percent of the font's (50 to 150 %). Below 100 % letters may touch the next row.
+
+In the Compact view the gap between the columns shrinks with the density as well (8, 6 and
+4 pixels). The space to the left and right of icon and name does not change.
+
 ## 5. Profiles
 
 A profile switches the whole look of a window at once, for example "one view, Compact, no
@@ -194,8 +209,8 @@ pictures.
 - *View → Profiles → Save as Profile…* saves the current window as a profile. Applying one is
   a click in *View → Profiles* or its keyboard shortcut.
 - A profile can set: split view, the display style and the view of each side, linked views,
-  zoom, the filter bar of each side, menu bar, toolbars, file view toolbars, status bar and
-  panels. Elements without a check mark are left as they are, so a profile can also change
+  zoom, the information density (4.6), the filter bar of each side, menu bar, toolbars, file
+  view toolbars, status bar and panels. Elements without a check mark are left as they are, so a profile can also change
   only a few things.
 - *Save Profile "…"* updates the profile applied last with the current state of the window.
 - The *Profiles* settings page lists the profiles: order, name, shortcut, the elements and
@@ -292,6 +307,7 @@ A new user (no Orcinus settings yet) starts with these differences from Dolphin'
 - File name highlighting is on (7).
 - The filter bar is shown in new windows, the status bar spans the full width and has the
   zoom slider; Compact view previews are 16 pixels.
+- The information density is *Compact* in all three view modes (4.6).
 
 ## 11. Smaller differences
 
