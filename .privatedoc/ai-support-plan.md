@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: plan, not reviewed yet.
+Branch `ai-support`, started 2026-11-12. Status: AI0 done (2026-11-12).
 
 ## Problem
 
@@ -50,6 +50,47 @@ in the scratchpad, with Claude Agent ACP, Gemini CLI and one local setup (Goose 
 Ollama). Questions: which session modes they report, whether they connect a stdio MCP server
 passed by the client, how they report tool calls and file changes, startup time, auth flow.
 Result: a short note here; adjust the plan.
+
+*AI0 result (2026-11-12).* Throw-away Python client plus a fake stdio MCP server (tools
+`get_location`, `set_location`, `select_items`), one prompt with a `resource_link` to a test folder
+("list the image sizes, show `out` in Orcinus, select the images that are not 4:3"), then a write
+task in a manual mode. Agents:
+
+| Agent | Command | Modes (`modes` / `configOptions` category `mode`) | Other config options |
+| --- | --- | --- | --- |
+| Claude Agent 0.106 | `claude-agent-acp` (npm `@agentclientprotocol/claude-agent-acp`) | default (Manual), acceptEdits, plan, auto, bypassPermissions; starts in **auto** | model |
+| Codex 2.6 | `codex-acp` (npm `@agentclientprotocol/codex-acp`; `@zed-industries/codex-acp` is deprecated) | read-only, workspace-write, agent (Auto review), agent-full-access; starts in **agent** | collaboration mode, model, reasoning effort, fast mode |
+| OpenCode 1.19 | `opencode acp` | build, plan (config options only) | model |
+
+OpenCode ran with LM Studio (OpenAI-compatible, `http://127.0.0.1:1234/v1`) and `qwen3.8-27b`
+(32k context): all three MCP tools called correctly, ~25 s per prompt. Findings:
+
+- Startup is fast: `initialize` 0.3–0.6 s, `session/new` 0.6–1.3 s. No login flow needed when the
+  CLI is logged in already. `authMethods` differ (Codex: API key / ChatGPT; OpenCode: "run
+  `opencode auth login` in a terminal"); the AI2 test button has to show them.
+- All three connect the stdio MCP server from `session/new` and call its tools. The server gets no
+  defined working directory: absolute paths only. The tool names the agents report differ
+  (`mcp__orcinus__set_location`, `mcp.orcinus.set_location`, `orcinus_set_location`); the panel
+  should learn about our tool calls from `orcinus-mcp` itself, not by parsing names.
+- Permission requests work as specified: title, `kind` (execute/edit), `locations`, `rawInput`,
+  for edits a diff, options with `kind` allow_once / allow_always / reject_once.
+- **Agents start in a permissive mode** (Claude auto, Codex auto review, OpenCode allows everything
+  unless its config says `ask`). Orcinus has to set the mode explicitly after `session/new`
+  (remembered per agent).
+- **Modes are not strict.** Claude in Manual ran `cp` without asking, but asked for `rm` and a
+  file write. Orcinus can only answer what it is asked; the UI must not promise more. For OpenCode
+  the permission level lives in its own config, not in a mode.
+- Updates seen: `agent_message_chunk`, `agent_thought_chunk`, `tool_call` / `tool_call_update`,
+  `usage_update`, `available_commands_update` (slash commands), `session_info_update`,
+  `config_option_update`, `current_mode_update`. Unknown kinds must be ignored.
+- No agent used `fs/*` or `terminal/*` of the client (none advertised): keep them out of v1.
+- Privacy: a Claude session brings the skills and connectors of the claude.ai account. OpenCode
+  fetches a model catalog from the net and offers free *cloud* models next to the local ones. The
+  panel shows the current model (config option `model`) so the user sees where prompts go.
+- Context: the agent missed the empty `out` folder (`find -type f`); the context text should name
+  the subfolders too.
+- The recorded traffic contains account data (skill lists etc.): not committed; the AI1 fake
+  agent replays synthetic traffic modelled on it.
 
 **AI1 – ACP client core.** `AcpConnection` (QProcess, newline-delimited JSON-RPC, requests with
 ids, notifications, errors, cancel), `AcpSession` (initialize, `session/new`, `session/prompt`,
