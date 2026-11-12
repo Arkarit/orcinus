@@ -58,6 +58,7 @@ private Q_SLOTS:
     void testCustomLineHeightScalesTheRows();
     void testCustomLineHeightLeavesTheIconsLayoutAlone();
     void testCustomDensityIsClamped();
+    void testDensitySetsTheCompactColumnGap();
 
     void testTheFilesOnScreenStayOnScreenWhenTheViewGetsNarrower();
     void testTheViewComesBackToWhereItWasWhenTheWidthDoes();
@@ -881,6 +882,28 @@ void DolphinItemListViewTest::testCustomDensityIsClamped()
     m_view->readSettings();
     QCOMPARE(m_view->styleOption().verticalPadding, 0);
     QCOMPARE(m_view->styleOption().lineHeightPercent, 150);
+}
+
+/**
+ * The gap between the Compact columns follows the density: 8 px at Normal (Dolphin's), 6 at
+ * Compact, 4 at Very compact, 4 + 2 * padding with the custom density (ID3).
+ */
+void DolphinItemListViewTest::testDensitySetsTheCompactColumnGap()
+{
+    DensityGuard guard;
+    m_view->setItemLayout(KStandardItemListView::CompactLayout);
+
+    const std::pair<Density, int> expectations[] = {{Density::Normal, 8}, {Density::Compact, 6}, {Density::VeryCompact, 4}};
+    for (const auto &[density, gap] : expectations) {
+        setDensity(KStandardItemListView::CompactLayout, density);
+        m_view->readSettings();
+        QCOMPARE(m_view->styleOption().horizontalMargin, gap);
+        QCOMPARE(m_view->styleOption().verticalMargin, 0);
+    }
+
+    setDensity(KStandardItemListView::CompactLayout, Density::Custom, 7);
+    m_view->readSettings();
+    QCOMPARE(m_view->styleOption().horizontalMargin, 18);
 }
 
 QTEST_MAIN(DolphinItemListViewTest)

@@ -351,7 +351,10 @@ void DolphinItemListView::updateGridSize()
             maxTextWidth = option.fontMetrics.height() * 10 * CompactModeSettings::maximumTextWidthIndex();
         }
 
-        horizontalMargin = 8;
+        // Whale: information density (ID3). The gap between the columns shrinks with the
+        // vertical padding: 8 px at Normal as in Dolphin, 6 at Compact, 4 at Very compact. It
+        // never gets lower, so that a name does not run into the icon of the next column.
+        horizontalMargin = 4 + 2 * verticalPadding;
         break;
     }
     case KFileItemListView::DetailsLayout: {

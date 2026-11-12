@@ -61,8 +61,10 @@ height, clamping. Tests isolate the shared settings (see the ED lesson about `~/
 "Custom" shows two spin boxes (padding in px, line height in %). Live preview through the existing
 apply path.
 
-**ID3 – Compact columns.** Couple the Compact column gap to the padding (`4 * padding`, i.e. 8 px
-at Normal as today). Icons: no further change (already derived from padding).
+**ID3 – Compact columns.** Couple the Compact column gap to the vertical padding:
+`4 + 2 * verticalPadding`, i.e. 8 px at Normal as today, 6 at Compact, 4 at Very compact (the
+originally planned `4 * padding` would give 0 and let a name run into the next column's icon).
+The layouter also uses the gap as the outer margin. Icons: no further change.
 
 **ID4 – Profiles.** New profile element `density` (one value per mode, like `zoom`), registered
 after `zoom`.
