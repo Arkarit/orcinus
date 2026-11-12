@@ -52,6 +52,13 @@ private Q_SLOTS:
 
     void testCompactSpacingFitsTheItemsCloser();
 
+    void testDensitySetsTheVerticalPadding_data();
+    void testDensitySetsTheVerticalPadding();
+    void testCustomLineHeightScalesTheRows_data();
+    void testCustomLineHeightScalesTheRows();
+    void testCustomLineHeightLeavesTheIconsLayoutAlone();
+    void testCustomDensityIsClamped();
+
     void testTheFilesOnScreenStayOnScreenWhenTheViewGetsNarrower();
     void testTheViewComesBackToWhereItWasWhenTheWidthDoes();
     void testTheLastRowStaysClearOfTheStatusBarWhenTheViewGetsWider();
@@ -206,6 +213,76 @@ void DolphinItemListViewTest::testCompactSpacingFitsTheItemsCloser()
     QVERIFY(m_view->styleOption().horizontalMargin < normalOption.horizontalMargin);
     QVERIFY(m_view->styleOption().verticalMargin < normalOption.verticalMargin);
 }
+
+// Whale: information density (ID1). ViewModeSettings is not exported, so the tests use the
+// generated settings classes; their Density enum has the choices Normal, Compact, VeryCompact,
+// Custom.
+enum class Density {
+    Normal,
+    Compact,
+    VeryCompact,
+    Custom,
+};
+
+template<typename Settings>
+static void writeDensity(Density density, int customPadding, int customLineHeight)
+{
+    Settings::setDensity(static_cast<int>(density));
+    Settings::setCustomPadding(customPadding);
+    Settings::setCustomLineHeight(customLineHeight);
+    Settings::self()->save();
+}
+
+static void setDensity(KStandardItemListView::ItemLayout layout, Density density, int customPadding = 2, int customLineHeight = 100)
+{
+    switch (layout) {
+    case KStandardItemListView::IconsLayout:
+        writeDensity<IconsModeSettings>(density, customPadding, customLineHeight);
+        return;
+    case KStandardItemListView::CompactLayout:
+        writeDensity<CompactModeSettings>(density, customPadding, customLineHeight);
+        return;
+    case KStandardItemListView::DetailsLayout:
+        writeDensity<DetailsModeSettings>(density, customPadding, customLineHeight);
+        return;
+    }
+}
+
+/**
+ * Restores the density settings of all view modes when it goes out of scope: the tests share
+ * their settings file (ID1).
+ */
+class DensityGuard
+{
+public:
+    DensityGuard()
+        : m_icons(save<IconsModeSettings>())
+        , m_compact(save<CompactModeSettings>())
+        , m_details(save<DetailsModeSettings>())
+    {
+    }
+    ~DensityGuard()
+    {
+        writeDensity<IconsModeSettings>(m_icons.density, m_icons.padding, m_icons.lineHeight);
+        writeDensity<CompactModeSettings>(m_compact.density, m_compact.padding, m_compact.lineHeight);
+        writeDensity<DetailsModeSettings>(m_details.density, m_details.padding, m_details.lineHeight);
+    }
+
+private:
+    struct Saved {
+        Density density;
+        int padding;
+        int lineHeight;
+    };
+    template<typename Settings>
+    static Saved save()
+    {
+        return {static_cast<Density>(Settings::density()), Settings::customPadding(), Settings::customLineHeight()};
+    }
+    Saved m_icons;
+    Saved m_compact;
+    Saved m_details;
+};
 
 static void addLayoutRows()
 {
@@ -697,6 +774,113 @@ void DolphinItemListViewTest::testTheViewKeepsUpWithChangesBetweenResizes()
                  qPrintable(
                      QStringLiteral("item %1 spans %2 to %3 in a view %4 high").arg(selected).arg(rect.top()).arg(rect.bottom()).arg(m_view->size().height())));
     }
+}
+
+void DolphinItemListViewTest::testDensitySetsTheVerticalPadding_data()
+{
+    addLayoutRows();
+}
+
+/**
+ * Each step of the information density takes one pixel from above and below the items; the
+ * horizontal padding stays (ID1). The icons layout has the padding three times in its height.
+ */
+void DolphinItemListViewTest::testDensitySetsTheVerticalPadding()
+{
+    QFETCH(KStandardItemListView::ItemLayout, layout);
+    DensityGuard guard;
+
+    QVERIFY(showViewWithFiles(layout, QSize(800, 600)));
+
+    const int paddingsPerItem = layout == KStandardItemListView::IconsLayout ? 3 : 2;
+    qreal previousHeight = 0;
+    int expectedPadding = 2;
+    for (const auto density : {Density::Normal, Density::Compact, Density::VeryCompact}) {
+        setDensity(layout, density);
+        m_view->readSettings();
+
+        QCOMPARE(m_view->styleOption().verticalPadding, expectedPadding);
+        QCOMPARE(m_view->styleOption().padding, 2);
+        QCOMPARE(m_view->styleOption().lineHeightPercent, 100);
+
+        const qreal height = m_view->itemRect(0).height();
+        if (previousHeight > 0) {
+            QCOMPARE(previousHeight - height, qreal(paddingsPerItem));
+        }
+        previousHeight = height;
+        --expectedPadding;
+    }
+}
+
+void DolphinItemListViewTest::testCustomLineHeightScalesTheRows_data()
+{
+    QTest::addColumn<KStandardItemListView::ItemLayout>("layout");
+    QTest::newRow("compact") << KStandardItemListView::CompactLayout;
+    QTest::newRow("details") << KStandardItemListView::DetailsLayout;
+}
+
+/**
+ * The custom density sets the padding and the height of a text line in percent of the font's
+ * line height (ID1).
+ */
+void DolphinItemListViewTest::testCustomLineHeightScalesTheRows()
+{
+    QFETCH(KStandardItemListView::ItemLayout, layout);
+    DensityGuard guard;
+
+    QVERIFY(showViewWithFiles(layout, QSize(800, 600)));
+    setDensity(layout, Density::Custom, 3, 150);
+    m_view->readSettings();
+
+    const KItemListStyleOption &option = m_view->styleOption();
+    QCOMPARE(option.verticalPadding, 3);
+    QCOMPARE(option.lineHeightPercent, 150);
+
+    // Compact rows are based on the line spacing, Details rows on the font height.
+    const int fontLineHeight = layout == KStandardItemListView::CompactLayout ? option.fontMetrics.lineSpacing() : option.fontMetrics.height();
+    const qreal expected = 2 * 3 + qMax(option.iconSize, qRound(fontLineHeight * 1.5));
+    QCOMPARE(m_view->itemRect(0).height(), expected);
+
+    // Below 100 % the rows get lower than the font, but not lower than the icon.
+    setDensity(layout, Density::Custom, 0, 50);
+    m_view->readSettings();
+    QCOMPARE(m_view->itemRect(0).height(), qreal(qMax(m_view->styleOption().iconSize, qRound(fontLineHeight * 0.5))));
+}
+
+/**
+ * The custom line height applies to the Compact and Details layouts only; in the icons layout
+ * the names may wrap over several lines (ID1).
+ */
+void DolphinItemListViewTest::testCustomLineHeightLeavesTheIconsLayoutAlone()
+{
+    DensityGuard guard;
+
+    setDensity(KStandardItemListView::IconsLayout, Density::Custom, 4, 60);
+    m_view->setItemLayout(KStandardItemListView::IconsLayout);
+    m_view->readSettings();
+
+    QCOMPARE(m_view->styleOption().verticalPadding, 4);
+    QCOMPARE(m_view->styleOption().lineHeightPercent, 100);
+}
+
+/**
+ * Custom values outside the offered range are clamped to it (ID1).
+ */
+void DolphinItemListViewTest::testCustomDensityIsClamped()
+{
+    DensityGuard guard;
+
+    setDensity(KStandardItemListView::DetailsLayout, Density::Custom, 99, 10);
+    QCOMPARE(DetailsModeSettings::customPadding(), 10);
+    QCOMPARE(DetailsModeSettings::customLineHeight(), 50);
+
+    setDensity(KStandardItemListView::DetailsLayout, Density::Custom, -5, 400);
+    QCOMPARE(DetailsModeSettings::customPadding(), 0);
+    QCOMPARE(DetailsModeSettings::customLineHeight(), 150);
+
+    m_view->readSettings();
+    QCOMPARE(m_view->styleOption().verticalPadding, 0);
+    QCOMPARE(m_view->styleOption().lineHeightPercent, 150);
 }
 
 QTEST_MAIN(DolphinItemListViewTest)

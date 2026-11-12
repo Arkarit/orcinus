@@ -31,6 +31,22 @@ public:
     bool extendedSelectionRegion;
     int maxTextLines;
     int maxTextWidth;
+    // Whale: information density (ID1). The space above and below the content of an item; -1 means
+    // the same as padding, which stays the horizontal padding.
+    int verticalPadding;
+    // Whale: information density (ID1). The height of a text line of the Compact and Details
+    // layouts in percent of the font's line height.
+    int lineHeightPercent;
+
+    /**
+     * Whale: the space above and below the content of an item (ID1).
+     */
+    int effectiveVerticalPadding() const;
+
+    /**
+     * Whale: @p fontLineHeight scaled by lineHeightPercent, at least 1 (ID1).
+     */
+    int scaledLineHeight(int fontLineHeight) const;
 
     bool operator==(const KItemListStyleOption &other) const;
     bool operator!=(const KItemListStyleOption &other) const;

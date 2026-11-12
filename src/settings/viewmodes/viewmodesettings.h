@@ -24,6 +24,17 @@ class IconsModeSettings;
 class ViewModeSettings
 {
 public:
+    /**
+     * Whale: information density of a view mode (ID1). The values are the choices of the
+     * kcfg entry Density.
+     */
+    enum class Density {
+        Normal,
+        Compact,
+        VeryCompact,
+        Custom,
+    };
+
     explicit ViewModeSettings(DolphinView::Mode mode);
     explicit ViewModeSettings(ViewSettingsTab::Mode mode);
     explicit ViewModeSettings(KStandardItemListView::ItemLayout itemLayout);
@@ -39,6 +50,26 @@ public:
 
     void setViewFont(const QFont &font);
     QFont viewFont() const;
+
+    // Whale: information density (ID1)
+    void setDensity(Density density);
+    Density density() const;
+    void setCustomPadding(int padding);
+    int customPadding() const;
+    void setCustomLineHeight(int percent);
+    int customLineHeight() const;
+
+    /**
+     * Whale: the space above and below each item for @p density (ID1): Normal 2, Compact 1,
+     * VeryCompact 0, Custom customPadding().
+     */
+    int verticalPadding() const;
+
+    /**
+     * Whale: the height of a text line in percent of the font's line height (ID1): 100 except
+     * with the custom density.
+     */
+    int lineHeightPercent() const;
 
     void useDefaults(bool useDefaults);
 

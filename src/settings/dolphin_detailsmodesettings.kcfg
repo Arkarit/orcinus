@@ -47,5 +47,29 @@
             <label>Expandable folders</label>
             <default>true</default>
         </entry>
+        <!-- Whale: information density (ID1). Normal is Dolphin's look; new users get Compact
+             (written on the first start in main.cpp). -->
+        <entry name="Density" type="Enum">
+            <label>Information density</label>
+            <choices>
+                <choice name="Normal"/>
+                <choice name="Compact"/>
+                <choice name="VeryCompact"/>
+                <choice name="Custom"/>
+            </choices>
+            <default>Normal</default>
+        </entry>
+        <entry name="CustomPadding" type="Int">
+            <label>Space above and below each item with the custom density, in pixels</label>
+            <default>2</default>
+            <min>0</min>
+            <max>10</max>
+        </entry>
+        <entry name="CustomLineHeight" type="Int">
+            <label>Height of a text line with the custom density, in percent of the font's line height</label>
+            <default>100</default>
+            <min>50</min>
+            <max>150</max>
+        </entry>
     </group>
 </kcfg>

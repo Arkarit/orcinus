@@ -14,6 +14,7 @@
 #include "dolphinmainwindow.h"
 #include "dolphinviewcontainer.h"
 #include "global.h"
+#include "settings/viewmodes/viewmodesettings.h"
 #include "whaledefaultstyles.h" // Whale
 #include "whalesplitviewstartup.h" // Whale
 #include "whalestylemanager.h" // Whale
@@ -32,6 +33,7 @@
 #include <KIO/PreviewJob>
 #include <KIconTheme>
 #include <KLocalizedString>
+#include <KSharedConfig>
 #include <KWindowSystem>
 
 #define HAVE_STYLE_MANAGER __has_include(<KStyleManager>)
@@ -289,6 +291,23 @@ int main(int argc, char **argv)
     const bool firstStart = GeneralSettings::version() < 200;
     bool startWithStyle = false;
     if (firstStart) {
+        // Whale: a new user gets the compact information density in every view mode (ID1); the
+        // kcfg default stays Normal, Dolphin's look, for existing users. Until the first window
+        // is closed normally every start counts as the first one, so a density already chosen
+        // is kept.
+        const KSharedConfig::Ptr config = KSharedConfig::openConfig();
+        const std::pair<DolphinView::Mode, const char *> modes[] = {{DolphinView::IconsView, "IconsMode"},
+                                                                    {DolphinView::CompactView, "CompactMode"},
+                                                                    {DolphinView::DetailsView, "DetailsMode"}};
+        for (const auto &[mode, group] : modes) {
+            if (config->group(QLatin1String(group)).hasKey("Density")) {
+                continue;
+            }
+            ViewModeSettings settings(mode);
+            settings.setDensity(ViewModeSettings::Density::Compact);
+            settings.save();
+        }
+
         WhaleStyles *styles = WhaleStyles::self();
         if (WhaleDefaultStyles::seed(styles->editableStore())) {
             styles->save();

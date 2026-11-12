@@ -302,6 +302,12 @@ void DolphinItemListView::updateGridSize()
     KItemListStyleOption option = styleOption();
 
     const int padding = 2;
+    // Whale: information density (ID1). The density changes only the vertical padding; the custom
+    // line height applies to the Compact and Details layouts.
+    const int verticalPadding = settings.verticalPadding();
+    const int lineHeightPercent = itemLayout() == KFileItemListView::IconsLayout ? 100 : settings.lineHeightPercent();
+    option.verticalPadding = verticalPadding;
+    option.lineHeightPercent = lineHeightPercent;
     int horizontalMargin = 0;
     int verticalMargin = 0;
 
@@ -325,7 +331,7 @@ void DolphinItemListView::updateGridSize()
             itemWidth = iconSize + padding * 2 * zoomFactor;
         }
 
-        itemHeight = padding * 3 + iconSize + option.fontMetrics.lineSpacing();
+        itemHeight = verticalPadding * 3 + iconSize + option.fontMetrics.lineSpacing();
 
         // Compact spacing keeps the room for the names and narrows the gap between items.
         const auto margin = IconsModeSettings::compactSpacing() ? padding * 2 : style()->pixelMetric(QStyle::PM_SizeGripSize);
@@ -337,7 +343,7 @@ void DolphinItemListView::updateGridSize()
     case KFileItemListView::CompactLayout: {
         itemWidth = padding * 4 + iconSize + option.fontMetrics.height() * 5;
         const int textLinesCount = visibleRoles().count();
-        itemHeight = padding * 2 + qMax(iconSize, textLinesCount * option.fontMetrics.lineSpacing());
+        itemHeight = verticalPadding * 2 + qMax(iconSize, textLinesCount * option.scaledLineHeight(option.fontMetrics.lineSpacing()));
 
         if (CompactModeSettings::maximumTextWidthIndex() > 0) {
             // A restriction is given for the maximum width of the text (0 means
@@ -350,7 +356,7 @@ void DolphinItemListView::updateGridSize()
     }
     case KFileItemListView::DetailsLayout: {
         itemWidth = -1;
-        itemHeight = padding * 2 + qMax(iconSize, option.fontMetrics.lineSpacing());
+        itemHeight = verticalPadding * 2 + qMax(iconSize, option.scaledLineHeight(option.fontMetrics.lineSpacing()));
         break;
     }
     default:

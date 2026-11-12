@@ -82,7 +82,8 @@ qreal KStandardItemListWidgetInformant::preferredRoleColumnWidth(const QByteArra
             if (view->supportsItemExpanding()) {
                 // Increase the width by the expansion-toggle and the current expansion level
                 const int expandedParentsCount = values.value("expandedParentsCount", 0).toInt();
-                const qreal height = option.padding * 2 + qMax(option.iconSize, fontMetrics.height());
+                // Whale: vertical padding and line height of the information density (ID1)
+                const qreal height = option.effectiveVerticalPadding() * 2 + qMax(option.iconSize, option.scaledLineHeight(fontMetrics.height()));
                 width += (expandedParentsCount + 1) * height;
             }
 
@@ -145,7 +146,7 @@ void KStandardItemListWidgetInformant::calculateIconsLayoutItemSizeHints(QVector
     const qreal itemWidth = view->itemSize().width();
     const qreal maxWidth = itemWidth - 2 * option.padding;
     const qreal additionalRolesSpacing = additionalRolesCount * option.fontMetrics.lineSpacing();
-    const qreal spacingAndIconHeight = option.iconSize + option.padding * 3;
+    const qreal spacingAndIconHeight = option.iconSize + option.effectiveVerticalPadding() * 3; // Whale: ID1
 
     QTextOption textOption(Qt::AlignHCenter);
     textOption.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
@@ -205,7 +206,9 @@ void KStandardItemListWidgetInformant::calculateCompactLayoutItemSizeHints(QVect
     const bool showOnlyTextRole = (visibleRoles.count() == 1) && (visibleRoles.first() == "text");
     const qreal maxWidth = option.maxTextWidth;
     const qreal paddingAndIconWidth = option.padding * 4 + option.iconSize;
-    const qreal height = option.padding * 2 + qMax(option.iconSize, (1 + additionalRolesCount) * normalFontMetrics.lineSpacing());
+    // Whale: vertical padding and line height of the information density (ID1)
+    const qreal height =
+        option.effectiveVerticalPadding() * 2 + qMax(option.iconSize, (1 + additionalRolesCount) * option.scaledLineHeight(normalFontMetrics.lineSpacing()));
 
     // Only a few customized fonts are used, e.g. for links. Reuse their metrics.
     QList<std::pair<QFont, QFontMetrics>> customizedFontMetrics;
@@ -267,7 +270,8 @@ void KStandardItemListWidgetInformant::calculateDetailsLayoutItemSizeHints(QVect
                                                                            const KItemListView *view) const
 {
     const KItemListStyleOption &option = view->styleOption();
-    const qreal height = option.padding * 2 + qMax(option.iconSize, option.fontMetrics.height());
+    // Whale: vertical padding and line height of the information density (ID1)
+    const qreal height = option.effectiveVerticalPadding() * 2 + qMax(option.iconSize, option.scaledLineHeight(option.fontMetrics.height()));
     logicalHeightHints.fill(std::make_pair(height, false));
     logicalWidthHint = -1.0;
 }
@@ -1144,6 +1148,7 @@ void KStandardItemListWidget::updatePixmapCache()
     const bool iconOnTop = (m_layout == IconsLayout);
     const KItemListStyleOption &option = styleOption();
     const qreal padding = option.padding;
+    const qreal verticalPadding = option.effectiveVerticalPadding(); // Whale: information density (ID1)
     const qreal dpr = KItemViewsUtils::devicePixelRatio(this);
 
     const int widgetIconSize = option.iconSize;
@@ -1224,11 +1229,11 @@ void KStandardItemListWidget::updatePixmapCache()
     int scaledIconSize = 0;
     if (iconOnTop) {
         const TextInfo *textInfo = m_textInfo.value("text");
-        scaledIconSize = static_cast<int>(textInfo->pos.y() - 2 * padding);
+        scaledIconSize = static_cast<int>(textInfo->pos.y() - 2 * verticalPadding);
     } else {
         const int textRowsCount = (m_layout == CompactLayout) ? visibleRoles().count() : 1;
         const qreal requiredTextHeight = textRowsCount * m_customizedFontMetrics.height();
-        scaledIconSize = (requiredTextHeight < maxIconHeight) ? widgetSize.height() - 2 * padding : maxIconHeight;
+        scaledIconSize = (requiredTextHeight < maxIconHeight) ? widgetSize.height() - 2 * verticalPadding : maxIconHeight;
     }
 
     const int maxScaledIconWidth = iconOnTop ? widgetSize.width() - 2 * padding : scaledIconSize;
@@ -1241,7 +1246,7 @@ void KStandardItemListWidget::updatePixmapCache()
     if (iconOnTop) {
         // Center horizontally and align on bottom within the icon-area
         m_pixmapPos.setX((widgetSize.width() - m_scaledPixmapSize.width()) / 2.0);
-        m_pixmapPos.setY(padding + scaledIconSize - m_scaledPixmapSize.height());
+        m_pixmapPos.setY(verticalPadding + scaledIconSize - m_scaledPixmapSize.height());
     } else {
         // Center horizontally and vertically within the icon-area
         const TextInfo *textInfo = m_textInfo.value("text");
@@ -1390,6 +1395,7 @@ void KStandardItemListWidget::updateIconsLayoutTextCache()
 
     const KItemListStyleOption &option = styleOption();
     const qreal padding = option.padding;
+    const qreal verticalPadding = option.effectiveVerticalPadding(); // Whale: information density (ID1)
     const qreal maxWidth = size().width() - 2 * padding;
     const qreal lineSpacing = m_customizedFontMetrics.lineSpacing();
 
@@ -1447,7 +1453,7 @@ void KStandardItemListWidget::updateIconsLayoutTextCache()
 
     // Use one line for each additional information
     nameTextInfo->staticText.setTextWidth(maxWidth);
-    nameTextInfo->pos = QPointF(padding, styleOption().iconSize + 2 * padding);
+    nameTextInfo->pos = QPointF(padding, styleOption().iconSize + 2 * verticalPadding);
     m_textRect = QRectF(padding + (maxWidth - nameWidth) / 2, nameTextInfo->pos.y(), nameWidth, nameHeight);
 
     // Calculate the position for each additional information
@@ -1498,7 +1504,7 @@ void KStandardItemListWidget::updateIconsLayoutTextCache()
     }
 
     // Add a padding to the text rectangle
-    m_textRect.adjust(-padding, -padding, padding, padding);
+    m_textRect.adjust(-padding, -verticalPadding, padding, verticalPadding);
 }
 
 void KStandardItemListWidget::updateCompactLayoutTextCache()
@@ -1511,7 +1517,7 @@ void KStandardItemListWidget::updateCompactLayoutTextCache()
 
     const KItemListStyleOption &option = styleOption();
     const qreal widgetHeight = size().height();
-    const qreal lineSpacing = m_customizedFontMetrics.lineSpacing();
+    const qreal lineSpacing = option.scaledLineHeight(m_customizedFontMetrics.lineSpacing()); // Whale: information density (ID1)
     const qreal textLinesHeight = qMax(visibleRoles().count(), 1) * lineSpacing;
 
     // Whale: expandable folders in the compact view (CX1). The expansion toggle and the
@@ -1582,7 +1588,10 @@ void KStandardItemListWidget::updateDetailsLayoutTextCache()
     }
 
     qreal x = firstColumnInc;
-    const qreal standardY = qMax(qreal(option.padding), (widgetHeight - fontHeight) / 2.0);
+    // Whale: information density (ID1). A row lower than the font (custom line height below 100 %)
+    // centers the text, so that it overflows evenly above and below.
+    const qreal centeredY = (widgetHeight - fontHeight) / 2.0;
+    const qreal standardY = option.lineHeightPercent < 100 ? centeredY : qMax(qreal(option.effectiveVerticalPadding()), centeredY);
 
     for (const QByteArray &role : std::as_const(m_sortedVisibleRoles)) {
         QString text = roleText(role, values);

@@ -45,9 +45,16 @@ itemHeight = padding * 2 + qMax(iconSize, textLines * fontMetrics.lineSpacing())
 **ID1 – Model and layout.** kcfg entries `Density` (enum Normal/Compact/VeryCompact/Custom),
 `CustomPadding` (int), `CustomLineHeight` (int, percent) in all three mode settings; accessors in
 `ViewModeSettings`. `updateGridSize()` takes padding and line height from there instead of the
-constant. First start writes Compact (see Decisions). Check every user of `option.padding` (widget layout, selection rect, preview size in
-`KFileItemListView`, rubber band, expansion tints/labels in Compact and Details) for assumptions
-of `padding > 0`. Unit tests in `dolphinitemlistviewtest`: row height per level, custom line
+constant. First start writes Compact (see Decisions).
+
+Implemented as a *vertical* padding: `KItemListStyleOption` got `verticalPadding` (-1 = same as
+`padding`) and `lineHeightPercent`, used where the row height and the vertical positions are
+computed (size hints of the informant, `updateGridSize()`, the text and pixmap layout of the
+widget). `padding` stays 2 and keeps everything horizontal (gap between icon and text, column
+padding, selection rect): with 0 the text would touch the icon and the Details columns each
+other. The custom line height applies to Compact and Details only; Icons names wrap over several
+`QTextLayout` lines, so Icons offers only the custom padding. A Details row lower than the font
+centers its text. Unit tests in `dolphinitemlistviewtest`: row height per level, custom line
 height, clamping. Tests isolate the shared settings (see the ED lesson about `~/.qttest`).
 
 **ID2 – Settings UI.** In `ViewSettingsTab` per mode: combobox "Density:" with the four levels;
