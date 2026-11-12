@@ -771,6 +771,10 @@ Smaller icons alone give only 43 px: line edits (31) and combo boxes (32) then s
 - Dolphin code, marked: `DolphinStatusBar::updateDensityHeights()` (Dolphin takes the stop
   button's height before layout, i.e. Qt's default 30 px; with a density its size hint) and
   `AnimatedHeightWidget::changeEvent()` (a shown bar takes its new height after a style change).
+- KUrlNavigator sets its minimum height and that of its path buttons once, from its editor's
+  height; after a change at runtime the existing location bars stayed high (with their frame)
+  while new ones were low. `WhaleLocationBar::updateNavigatorHeights()` sets them again after a
+  style change.
 - Setting: Interface → Status & Location bars → "Bar density" (there is no General page), not in
   the KCM. Profile element `toolbarDensity` after `density`; the shipped profiles do not set it.
 

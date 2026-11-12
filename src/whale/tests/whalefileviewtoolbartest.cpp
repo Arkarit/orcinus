@@ -18,6 +18,7 @@
 #include "views/dolphinview.h"
 #include "whalecontainercommands.h"
 #include "whalecontentscope.h"
+#include "whaledensitystyle.h"
 #include "whalefileoperationsimpl.h"
 #include "whalefileviewtoolbarclient.h"
 #include "whalelocationbar.h"
@@ -48,6 +49,7 @@
 #include <QDockWidget>
 #include <QDomDocument>
 #include <QMenu>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QStandardPaths>
@@ -176,6 +178,7 @@ private Q_SLOTS:
     void testReloadAnnouncement();
     void testStopState();
     void testMenusArePopups();
+    void testDensityChangeAtRuntime();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -1785,6 +1788,34 @@ void WhaleFileViewToolBarTest::testMenusArePopups()
     second.reset();
     QVERIFY(!otherBar);
     QVERIFY(local(m_left, QStringLiteral("view_settings")));
+}
+
+/**
+ * Whale: a toolbar density chosen while the views exist lowers their toolbars as much as those
+ * of views created afterwards; KUrlNavigator keeps its first minimum height otherwise (TD3).
+ */
+void WhaleFileViewToolBarTest::testDensityChangeAtRuntime()
+{
+    showSplit();
+    auto restore = qScopeGuard([]() {
+        WhaleDensityStyle::apply(WhaleToolbarSettings::Density::Normal);
+    });
+    const int normalHeight = toolBar(m_left)->height();
+
+    WhaleDensityStyle::apply(WhaleToolbarSettings::Density::VeryCompact);
+    QTRY_VERIFY(toolBar(m_left)->height() < normalHeight);
+    QTRY_COMPARE(toolBar(m_right)->height(), toolBar(m_left)->height());
+
+    // A view created now.
+    global(QStringLiteral("new_tab"))->trigger();
+    DolphinViewContainer *fresh = m_mainWindow->activeViewContainer();
+    QVERIFY(fresh != m_left && fresh != m_right);
+    QTRY_VERIFY(toolBar(fresh)->isVisible() && toolBar(fresh)->locationBar()->isVisible());
+    QTest::qWait(200);
+    const int freshHeight = toolBar(fresh)->height();
+    global(QStringLiteral("activate_prev_tab"))->trigger();
+    QTRY_COMPARE(toolBar(m_left)->height(), freshHeight);
+    QTRY_COMPARE(toolBar(m_right)->height(), freshHeight);
 }
 
 QTEST_MAIN(WhaleFileViewToolBarTest)
