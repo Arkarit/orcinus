@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); next AI6 (back channel).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); next AI5d (folder access, planned 2026-11-13), then AI6 (back channel).
 
 ## Problem
 
@@ -259,6 +259,48 @@ Details (planned 2026-11-13, AI5 before AI4):
   window is flagged with `QApplication::alert()`. Fake agent prompts `askexecute`, `askdiff`.
 - *Own MCP tools* need `orcinus-mcp`, which is AI6: answering their requests directly moves to
   AI6, where the bridge announces each call to the panel before the agent asks.
+
+**AI5d – Folder access (sandbox).** Planned 2026-11-13 after a test: the user gave Codex (mode
+"Read-only") a folder outside the current one to delete; Codex asked, but nothing *kept* it from
+the folder. The modes are promises of the agent; it reads anywhere in every mode. By default the
+agent must reach only the current folder and its subfolders, reading and writing; everything
+else of the user's data is not there for it.
+
+- *Enforced by the system, not the agent.* Orcinus starts the agent inside a bubblewrap
+  (`bwrap`) sandbox: the system read-only (`/usr`, `/etc`, … — the agent must run), the agent's
+  own settings and login (e.g. `~/.codex`, `~/.claude`, `~/.config/opencode`; the exact list per
+  agent comes from step 1), the shared folders read-write at their real paths; the rest of
+  `$HOME` and the data mounts (`/media`, `/mnt`, `/run/media`) are not visible. No root needed
+  (checked in the VM).
+- *Access setting* "Access:" next to "Mode:" in the permission bar, two levels: "This folder and
+  subfolders" (default) and "All folders" (no sandbox, as before AI5d). "Only this folder" was
+  dropped (user, 2026-11-13): file systems share whole trees, so folders the agent creates itself
+  would escape it. Stored per agent like `StartMode`.
+- *Folders added while the agent runs* (user: restarting the agent on each folder change would
+  be too disruptive). Checked in the VM: an outer user + mount namespace (sees the host) holds a
+  shared tmpfs as the agent's view of `$HOME`; `bwrap` runs inside it (capabilities dropped, else
+  it refuses) and binds that tmpfs. A bind mount the outer namespace adds later shows up in the
+  sandbox at once, read and write; unmounting removes it. A small helper in the outer namespace
+  takes "add / remove folder" from Orcinus. Parent folders of a shared folder appear empty.
+- *UI.* The panel lists the shared folders of the conversation. The folder chip of a folder
+  outside them says so ("no access") with "Give Access"; never automatic ("*you* are
+  responsible"). Dropping a file from outside onto the input asks whether to share its folder.
+  Shares last for the conversation; a new one starts with the current folder only.
+- *Second line:* permission requests whose paths are all outside the shared folders are answered
+  "reject" by Orcinus, with a note in the transcript (paths in shell commands are not reliable,
+  hence only a second line).
+- *Without `bwrap`* (or when the sandbox fails) the agent does not start with "This folder and
+  subfolders": a clear message, no silent fallback to "All folders".
+
+Steps:
+
+- *AI5d1 – Spike.* Claude Agent ACP, Codex ACP (its own `bwrap` sandbox nested in ours) and
+  OpenCode inside the sandbox: what they need beyond their settings (npm/npx caches, node, git
+  and SSH settings, `/tmp`, D-Bus, keyring for logins), network, startup time. Note here; adjust.
+- *AI5d2 – Sandbox with fixed folders.* Start the agent in the sandbox with the current folder;
+  "Access:" setting; the message without `bwrap`; the reject of requests outside.
+- *AI5d3 – Add and remove folders.* Helper in the outer namespace, list of shared folders, "Give
+  Access" on the chip, the question on dropped files.
 
 **AI6 – Back channel.** `orcinus-mcp` and the D-Bus interface on the window. First tools:
 `get_location`, `set_location` (go to a folder, in the active view), `get_selection`,
