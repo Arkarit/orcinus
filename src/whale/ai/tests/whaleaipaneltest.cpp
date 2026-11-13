@@ -595,6 +595,17 @@ void WhaleAiPanelTest::requestDetails()
     QCOMPARE(permission->findChild<QLabel *>(QStringLiteral("kind"))->text(), QStringLiteral("Change files"));
     QCOMPARE(permission->findChild<QLabel *>(QStringLiteral("paths"))->text(), m_work.path() + QStringLiteral("/note.txt"));
     QVERIFY(!permission->findChild<QLabel *>(QStringLiteral("command")));
+    // The options one below the other, a long one elided: they never widen the panel.
+    panel->resize(300, 600);
+    panel->show();
+    QVERIFY(QTest::qWaitForWindowExposed(panel.get()));
+    const auto options = permission->findChild<QWidget *>(QStringLiteral("buttons"))->findChildren<QPushButton *>();
+    QCOMPARE(options.size(), 3);
+    QVERIFY(options.at(1)->y() > options.at(0)->y());
+    QVERIFY(options.at(1)->width() < 300);
+    QVERIFY(options.at(1)->toolTip().startsWith(QLatin1String("Always, and do not ask again")));
+    QVERIFY(options.at(0)->toolTip().isEmpty());
+    QVERIFY(permission->width() <= 300);
     QWidget *details = permission->findChild<QWidget *>(QStringLiteral("details"));
     QVERIFY(details);
     QVERIFY(details->findChild<QLabel *>()->text().contains(QLatin1String("\"content\": \"hi\"")));

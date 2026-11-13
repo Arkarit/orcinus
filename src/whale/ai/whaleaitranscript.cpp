@@ -16,15 +16,62 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QPainter>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QStyle>
+#include <QStyleOptionButton>
 #include <QToolButton>
 #include <QVBoxLayout>
 
 namespace
 {
 const char KindProperty[] = "entryKind";
+
+/**
+ * A push button that never widens its parent: a text that does not fit ends in "…", and the full
+ * text is its tooltip.
+ */
+class ElidedButton : public QPushButton
+{
+public:
+    using QPushButton::QPushButton;
+
+    QSize minimumSizeHint() const override
+    {
+        QSize size = QPushButton::minimumSizeHint();
+        size.setWidth(std::min(size.width(), fontMetrics().horizontalAdvance(QStringLiteral("MMM…")) + iconSize().width()));
+        return size;
+    }
+
+    bool isElided() const
+    {
+        return width() < sizeHint().width();
+    }
+
+protected:
+    void resizeEvent(QResizeEvent *event) override
+    {
+        QPushButton::resizeEvent(event);
+        setToolTip(isElided() ? text() : QString());
+    }
+
+    void paintEvent(QPaintEvent *) override
+    {
+        QStyleOptionButton option;
+        initStyleOption(&option);
+        if (isElided()) {
+            const QRect contents = style()->subElementRect(QStyle::SE_PushButtonContents, &option, this);
+            int room = contents.width() - fontMetrics().horizontalAdvance(QLatin1Char(' '));
+            if (!option.icon.isNull()) {
+                room -= option.iconSize.width() + 4;
+            }
+            option.text = fontMetrics().elidedText(option.text, Qt::ElideRight, std::max(room, 0));
+        }
+        QPainter painter(this);
+        style()->drawControl(QStyle::CE_PushButton, &option, &painter, this);
+    }
+};
 
 QString statusIconName(WhaleAcpToolCall::Status status)
 {
@@ -443,7 +490,9 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
 
     auto *buttons = new QWidget(frame);
     buttons->setObjectName(QStringLiteral("buttons"));
-    auto *buttonLayout = new QHBoxLayout(buttons);
+    // One below the other: options can be long ("Yes, and don't ask again for commands that start
+    // with …"), and the panel is narrow.
+    auto *buttonLayout = new QVBoxLayout(buttons);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
     QLabel *answer = createTextLabel(Qt::PlainText);
     answer->setParent(frame);
@@ -451,7 +500,7 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
     answer->hide();
 
     for (const WhaleAcpPermissionRequest::Option &option : request.options) {
-        auto *button = new QPushButton(option.name, buttons);
+        auto *button = new ElidedButton(option.name, buttons);
         button->setObjectName(QStringLiteral("option-") + option.id);
         button->setProperty("optionKind", option.kind);
         if (option.kind.startsWith(QLatin1String("allow"))) {
@@ -459,6 +508,8 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
         } else if (option.kind.startsWith(QLatin1String("reject"))) {
             button->setIcon(QIcon::fromTheme(QStringLiteral("dialog-cancel")));
         }
+        // As wide as its text, at most the panel (an alignment would make the text a minimum).
+        button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
         buttonLayout->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, key = request.key, option, buttons, answer] {
             buttons->hide();
@@ -468,7 +519,6 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
             Q_EMIT permissionAnswered(key, option.id);
         });
     }
-    buttonLayout->addStretch();
     layout->addWidget(buttons);
     layout->addWidget(answer);
 
