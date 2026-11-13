@@ -64,12 +64,16 @@ private Q_SLOTS:
     void agentSwitchesMode();
     void stopWhileWaitingForMode();
     void permissionBar();
+    void requestDetails();
+    void requestFocus();
+    void requestShowsHiddenPanel();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
     static QList<WhaleAiTranscript::Kind> kinds(WhaleAiPanel &panel);
     static QString texts(WhaleAiPanel &panel);
     static bool waitForReady(WhaleAiPanel &panel);
+    static QWidget *waitForPermission(WhaleAiPanel &panel);
     static WhaleAiPanel *panelWith(const QString &scenario, const QString &startMode, const QString &workPath);
 
     QTemporaryDir m_home;
@@ -365,6 +369,16 @@ void WhaleAiPanelTest::panelInMainWindow()
     // A file in an answer: its folder with the file selected.
     Q_EMIT panel->localUrlActivated(QUrl::fromLocalFile(dir.path() + QStringLiteral("/a.txt")));
     QTRY_COMPARE(mainWindow.activeViewContainer()->view()->selectedItems().count(), 1);
+
+    // The user gives a task and closes the panel; the agent asks: the panel comes back.
+    QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
+    action->trigger();
+    QVERIFY(!dock->isVisible());
+    QVERIFY(waitForPermission(*panel));
+    QTRY_VERIFY(dock->isVisible());
+    QVERIFY(action->isChecked());
+    panel->findChild<QPushButton *>(QStringLiteral("option-no"))->click();
+    QVERIFY(waitForReady(*panel));
 }
 
 WhaleAiPanel *WhaleAiPanelTest::panelWith(const QString &scenario, const QString &startMode, const QString &workPath)
@@ -542,6 +556,104 @@ void WhaleAiPanelTest::permissionBar()
     auto *otherModes = other->findChild<QComboBox *>(QStringLiteral("modes"));
     QCOMPARE(otherModes->count(), 3);
     QCOMPARE(otherModes->currentData().toString(), QStringLiteral("plan"));
+}
+
+QWidget *WhaleAiPanelTest::waitForPermission(WhaleAiPanel &panel)
+{
+    QWidget *permission = nullptr;
+    QTest::qWaitFor(
+        [&] {
+            permission = panel.transcript()->findChild<QWidget *>(QStringLiteral("permission-n7"));
+            return permission != nullptr;
+        },
+        10000);
+    return permission;
+}
+
+void WhaleAiPanelTest::requestDetails()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    // An edit: kind, path, the agent's input to unfold.
+    QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
+    QWidget *permission = waitForPermission(*panel);
+    QVERIFY(permission);
+    QCOMPARE(permission->findChild<QLabel *>(QStringLiteral("kind"))->text(), QStringLiteral("Change files"));
+    QCOMPARE(permission->findChild<QLabel *>(QStringLiteral("paths"))->text(), m_work.path() + QStringLiteral("/note.txt"));
+    QVERIFY(!permission->findChild<QLabel *>(QStringLiteral("command")));
+    QWidget *details = permission->findChild<QWidget *>(QStringLiteral("details"));
+    QVERIFY(details);
+    QVERIFY(details->findChild<QLabel *>()->text().contains(QLatin1String("\"content\": \"hi\"")));
+    permission->findChild<QPushButton *>(QStringLiteral("option-no"))->click();
+    QVERIFY(waitForReady(*panel));
+
+    // A command: in sight, not folded.
+    QVERIFY(panel->sendPrompt(QStringLiteral("askexecute")));
+    permission = nullptr;
+    QVERIFY(QTest::qWaitFor(
+        [&] {
+            const auto frames = panel->transcript()->findChildren<QWidget *>(QStringLiteral("permission-n7"));
+            permission = frames.size() == 2 ? frames.last() : nullptr;
+            return permission != nullptr;
+        },
+        10000));
+    QCOMPARE(permission->findChild<QLabel *>(QStringLiteral("kind"))->text(), QStringLiteral("Run a command"));
+    QLabel *command = permission->findChild<QLabel *>(QStringLiteral("command"));
+    QVERIFY(command);
+    QCOMPARE(command->text(), QStringLiteral("rm -r out"));
+    QVERIFY(command->isVisibleTo(permission));
+    QVERIFY(texts(*panel).contains(QLatin1String("The agent asks for permission: Remove out")));
+    permission->findChild<QPushButton *>(QStringLiteral("option-no"))->click();
+    QVERIFY(waitForReady(*panel));
+
+    // A change: the diff to unfold.
+    QVERIFY(panel->sendPrompt(QStringLiteral("askdiff")));
+    QVERIFY(QTest::qWaitFor(
+        [&] {
+            const auto frames = panel->transcript()->findChildren<QWidget *>(QStringLiteral("permission-n7"));
+            permission = frames.size() == 3 ? frames.last() : nullptr;
+            return permission != nullptr;
+        },
+        10000));
+    QWidget *changes = permission->findChild<QWidget *>(QStringLiteral("changes"));
+    QVERIFY(changes);
+    QVERIFY(!permission->findChild<QWidget *>(QStringLiteral("details")));
+    QLabel *diff = changes->findChild<QLabel *>();
+    QVERIFY(!diff->isVisibleTo(changes));
+    QCOMPARE(diff->text(), QStringLiteral("%1/note.txt\n- old line\n+ new line\n+ second").arg(m_work.path()));
+    changes->findChild<QToolButton *>(QStringLiteral("toggle"))->click();
+    QVERIFY(diff->isVisibleTo(changes));
+    permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
+    QVERIFY(waitForReady(*panel));
+}
+
+void WhaleAiPanelTest::requestFocus()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    panel->show();
+    QVERIFY(QTest::qWaitForWindowActive(panel.get()));
+    auto *input = panel->findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    input->setFocus();
+    QTest::keyClicks(input, QStringLiteral("hello"));
+    QTest::keyClick(input, Qt::Key_Return);
+    QWidget *permission = waitForPermission(*panel);
+    QVERIFY(permission);
+    // The first "allow" option: Space answers it.
+    auto *yes = permission->findChild<QPushButton *>(QStringLiteral("option-yes"));
+    QTRY_VERIFY(yes->hasFocus());
+    QTest::keyClick(yes, Qt::Key_Space);
+    QVERIFY(waitForReady(*panel));
+    QVERIFY(texts(*panel).contains(QLatin1String("permission=yes")));
+}
+
+void WhaleAiPanelTest::requestShowsHiddenPanel()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    QSignalSpy attention(panel.get(), &WhaleAiPanel::attentionRequested);
+    // Never shown, like a closed dock.
+    QVERIFY(!panel->isVisible());
+    QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
+    QVERIFY(waitForPermission(*panel));
+    QCOMPARE(attention.count(), 1);
 }
 
 QTEST_MAIN(WhaleAiPanelTest)

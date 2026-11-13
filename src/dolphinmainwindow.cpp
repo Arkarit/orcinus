@@ -2678,6 +2678,10 @@ void DolphinMainWindow::setupDockWidgets()
             m_settingsDialog->setCurrentPage(m_settingsDialog->aiAgentsSettings);
         }
     });
+    connect(aiPanel, &WhaleAiPanel::attentionRequested, aiDock, [aiDock] {
+        aiDock->show();
+        aiDock->raise();
+    });
     connect(aiPanel, &WhaleAiPanel::localUrlActivated, this, [this](const QUrl &url) {
         if (QFileInfo(url.toLocalFile()).isDir()) {
             changeUrl(url);

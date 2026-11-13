@@ -22,6 +22,8 @@
  *   hang         never answers
  *
  * What the client sent comes back as text in agent_message_chunk, so the tests can check it.
+ * A prompt with "nopermission" asks nothing; with "askexecute" it asks to run a command, with
+ * "askdiff" to make a change shown as a diff.
  */
 
 #include <QJsonArray>
@@ -273,13 +275,27 @@ void handlePrompt(const QJsonObject &message)
 
     QString permission = QStringLiteral("none");
     if (!text.contains(QLatin1String("nopermission"))) {
+        QJsonObject requestedCall{{QStringLiteral("toolCallId"), QStringLiteral("t1")},
+                                  {QStringLiteral("rawInput"), QJsonObject{{QStringLiteral("content"), QStringLiteral("hi")}}}};
+        if (text.contains(QLatin1String("askexecute"))) {
+            // As Claude Agent asks for a shell command.
+            requestedCall.insert(QStringLiteral("kind"), QStringLiteral("execute"));
+            requestedCall.insert(QStringLiteral("title"), QStringLiteral("Remove out"));
+            requestedCall.insert(
+                QStringLiteral("rawInput"),
+                QJsonObject{{QStringLiteral("command"), QStringLiteral("rm -r out")}, {QStringLiteral("description"), QStringLiteral("Remove")}});
+        } else if (text.contains(QLatin1String("askdiff"))) {
+            requestedCall.insert(QStringLiteral("content"),
+                                 QJsonArray{QJsonObject{{QStringLiteral("type"), QStringLiteral("diff")},
+                                                        {QStringLiteral("path"), QString(sessionCwd + QStringLiteral("/note.txt"))},
+                                                        {QStringLiteral("oldText"), QStringLiteral("old line")},
+                                                        {QStringLiteral("newText"), QStringLiteral("new line\nsecond")}}});
+        }
         send({{QStringLiteral("id"), 7},
               {QStringLiteral("method"), QStringLiteral("session/request_permission")},
               {QStringLiteral("params"),
                QJsonObject{{QStringLiteral("sessionId"), QStringLiteral("s1")},
-                           {QStringLiteral("toolCall"),
-                            QJsonObject{{QStringLiteral("toolCallId"), QStringLiteral("t1")},
-                                        {QStringLiteral("rawInput"), QJsonObject{{QStringLiteral("content"), QStringLiteral("hi")}}}}},
+                           {QStringLiteral("toolCall"), requestedCall},
                            {QStringLiteral("options"),
                             QJsonArray{QJsonObject{{QStringLiteral("optionId"), QStringLiteral("yes")},
                                                    {QStringLiteral("name"), QStringLiteral("Yes")},

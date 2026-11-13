@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 next (planned 2026-11-13, before AI4).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 done (2026-11-13, before AI4); next AI4.
 
 ## Problem
 
@@ -215,6 +215,14 @@ Details (planned 2026-11-13, AI5 before AI4):
   A request that arrives while the dock is hidden (the user gave a task and closed the panel
   while the agent works) shows the dock again (an agent that waits unseen looks hung; user
   agreed 2026-11-13, "for now").
+  *AI5c result (2026-11-13).* The request entry shows an icon and a line for the kind (read,
+  change, delete, move, search, run a command, fetch, change its mode), the command of an
+  `execute` call in a fixed font and always visible (`rawInput.command`, string or word list),
+  the paths, and folded "Changes" (the `diff` items of `content`: path, `-` / `+` lines, at most
+  200) or else "Details" (`rawInput` as JSON). The first allow option gets the focus when the
+  request arrives while the focus is in the panel. A request while the panel is hidden emits
+  `WhaleAiPanel::attentionRequested()`, and the window shows and raises the dock; an inactive
+  window is flagged with `QApplication::alert()`. Fake agent prompts `askexecute`, `askdiff`.
 - *Own MCP tools* need `orcinus-mcp`, which is AI6: answering their requests directly moves to
   AI6, where the bridge announces each call to the panel before the agent asks.
 

@@ -11,6 +11,7 @@
 
 #include <KLocalizedString>
 
+#include <QApplication>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
@@ -294,7 +295,18 @@ bool WhaleAiPanel::startSession()
     connect(session, &WhaleAcpSession::agentMessageChunk, m_transcript, &WhaleAiTranscript::appendAgentText);
     connect(session, &WhaleAcpSession::agentThoughtChunk, m_transcript, &WhaleAiTranscript::appendThought);
     connect(session, &WhaleAcpSession::toolCallChanged, m_transcript, &WhaleAiTranscript::updateToolCall);
-    connect(session, &WhaleAcpSession::permissionRequested, m_transcript, &WhaleAiTranscript::addPermissionRequest);
+    connect(session, &WhaleAcpSession::permissionRequested, this, [this](const WhaleAcpPermissionRequest &request) {
+        m_transcript->addPermissionRequest(request);
+        if (!isVisible()) {
+            Q_EMIT attentionRequested();
+        } else if (isAncestorOf(QApplication::focusWidget())) {
+            // The user is in the panel: answering with the keyboard is one key away.
+            m_transcript->focusPermissionRequest(request.key);
+        }
+        if (!window()->isActiveWindow()) {
+            QApplication::alert(window());
+        }
+    });
     connect(session, &WhaleAcpSession::permissionWithdrawn, m_transcript, &WhaleAiTranscript::withdrawPermissionRequest);
     connect(session, &WhaleAcpSession::configOptionsChanged, this, [this, session] {
         if (const WhaleAcpConfigOption *mode = session->configOption(QStringLiteral("mode"))) {

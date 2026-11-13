@@ -19,8 +19,9 @@ class QVBoxLayout;
  * @brief The conversation of the AI panel (AI3): one widget per entry, newest at the bottom.
  *
  * Entries: the user's messages, the agent's answers (Markdown, streamed), its thoughts
- * (collapsed), its tool calls (a row with status, details on click), permission requests (one
- * button per option) and notices of the panel. Text the agent streams after a tool call starts
+ * (collapsed), its tool calls (a row with status, details on click), permission requests (what
+ * kind of thing the agent wants to do, the command or the paths, the changes or the tool input
+ * to unfold, one button per option) and notices of the panel. Text the agent streams after a tool call starts
  * a new answer entry, so the entries are in the order things happened.
  *
  * The view follows new entries while it is scrolled to the bottom; scrolled up, it stays.
@@ -54,6 +55,11 @@ public:
     void updateToolCall(const WhaleAcpToolCall &toolCall);
     /** Adds the request; permissionAnswered() follows when the user picks an option. */
     void addPermissionRequest(const WhaleAcpPermissionRequest &request);
+    /**
+     * Gives the keyboard focus to the first "allow" button of the request @p key.
+     * @return False if there is no such request.
+     */
+    bool focusPermissionRequest(const QString &key);
     /** The request @p key needs no answer any more: its buttons go. */
     void withdrawPermissionRequest(const QString &key);
     /** A message of the panel; @p details (plain text) can be unfolded. */

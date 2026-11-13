@@ -79,6 +79,11 @@ public:
 Q_SIGNALS:
     /** The user wants to set up agents. */
     void configureRequested();
+    /**
+     * The agent asks for permission while the panel is hidden: an agent that waits unseen
+     * looks hung, so the window shows the panel again.
+     */
+    void attentionRequested();
     /** A local file or folder in an answer was clicked. */
     void localUrlActivated(const QUrl &url);
 

@@ -12,6 +12,7 @@
 #include <QFontDatabase>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QIcon>
 #include <QJsonDocument>
 #include <QLabel>
@@ -74,6 +75,104 @@ QString jsonText(const QJsonValue &value)
         return QString::fromUtf8(QJsonDocument(value.toArray()).toJson(QJsonDocument::Indented)).trimmed();
     }
     return value.toVariant().toString();
+}
+
+QString kindIconName(const QString &kind)
+{
+    static const QHash<QString, QString> icons{
+        {QStringLiteral("read"), QStringLiteral("document-open")},
+        {QStringLiteral("edit"), QStringLiteral("document-edit")},
+        {QStringLiteral("delete"), QStringLiteral("edit-delete")},
+        {QStringLiteral("move"), QStringLiteral("edit-move")},
+        {QStringLiteral("search"), QStringLiteral("edit-find")},
+        {QStringLiteral("execute"), QStringLiteral("utilities-terminal")},
+        {QStringLiteral("fetch"), QStringLiteral("internet-services")},
+        {QStringLiteral("switch_mode"), QStringLiteral("security-medium")},
+    };
+    return icons.value(kind, QStringLiteral("dialog-question"));
+}
+
+QString kindText(const QString &kind)
+{
+    if (kind == QLatin1String("read")) {
+        return i18nc("@info what an AI agent wants to do", "Read files");
+    }
+    if (kind == QLatin1String("edit")) {
+        return i18nc("@info what an AI agent wants to do", "Change files");
+    }
+    if (kind == QLatin1String("delete")) {
+        return i18nc("@info what an AI agent wants to do", "Delete files");
+    }
+    if (kind == QLatin1String("move")) {
+        return i18nc("@info what an AI agent wants to do", "Move or rename files");
+    }
+    if (kind == QLatin1String("search")) {
+        return i18nc("@info what an AI agent wants to do", "Search");
+    }
+    if (kind == QLatin1String("execute")) {
+        return i18nc("@info what an AI agent wants to do", "Run a command");
+    }
+    if (kind == QLatin1String("fetch")) {
+        return i18nc("@info what an AI agent wants to do", "Fetch from the internet");
+    }
+    if (kind == QLatin1String("switch_mode")) {
+        return i18nc("@info what an AI agent wants to do", "Change its mode");
+    }
+    return QString();
+}
+
+/** @return The command line of an `execute` call, as the agents put it into rawInput. */
+QString commandOf(const WhaleAcpToolCall &toolCall)
+{
+    const QJsonValue command = toolCall.rawInput.toObject().value(QLatin1String("command"));
+    if (command.isString()) {
+        return command.toString();
+    }
+    if (command.isArray()) {
+        QStringList words;
+        const QJsonArray array = command.toArray();
+        for (const QJsonValue &word : array) {
+            words.append(word.toString());
+        }
+        return words.join(QLatin1Char(' '));
+    }
+    return QString();
+}
+
+/** @return The `diff` items of the tool call's content as text: the path, removed and added lines. */
+QString diffText(const WhaleAcpToolCall &toolCall)
+{
+    constexpr int MaxLines = 200;
+    QStringList lines;
+    for (const QJsonValue &item : toolCall.content) {
+        const QJsonObject diff = item.toObject();
+        if (diff.value(QLatin1String("type")).toString() != QLatin1String("diff")) {
+            continue;
+        }
+        if (!lines.isEmpty()) {
+            lines.append(QString());
+        }
+        const QJsonValue oldText = diff.value(QLatin1String("oldText"));
+        lines.append(oldText.isString() && !oldText.toString().isEmpty()
+                         ? diff.value(QLatin1String("path")).toString()
+                         : i18nc("@info %1 is a path", "%1 (new file)", diff.value(QLatin1String("path")).toString()));
+        if (oldText.isString() && !oldText.toString().isEmpty()) {
+            const QStringList removed = oldText.toString().split(QLatin1Char('\n'));
+            for (const QString &line : removed) {
+                lines.append(QStringLiteral("- ") + line);
+            }
+        }
+        const QStringList added = diff.value(QLatin1String("newText")).toString().split(QLatin1Char('\n'));
+        for (const QString &line : added) {
+            lines.append(QStringLiteral("+ ") + line);
+        }
+    }
+    if (lines.size() > MaxLines) {
+        const int more = lines.size() - MaxLines;
+        lines = lines.mid(0, MaxLines);
+        lines.append(i18ncp("@info", "… and one more line", "… and %1 more lines", more));
+    }
+    return lines.join(QLatin1Char('\n'));
 }
 
 QString toolCallDetails(const WhaleAcpToolCall &toolCall)
@@ -265,20 +364,70 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
     frame->setFrameShape(QFrame::StyledPanel);
     auto *layout = new QVBoxLayout(frame);
 
+    const WhaleAcpToolCall &toolCall = request.toolCall;
+    const QFont mono = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+
+    // What kind of thing it wants to do, with an icon, then the agent's own title.
+    auto *head = new QHBoxLayout;
+    auto *icon = new QLabel(frame);
+    icon->setObjectName(QStringLiteral("kindIcon"));
+    const int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize);
+    icon->setPixmap(QIcon::fromTheme(kindIconName(toolCall.kind)).pixmap(iconSize));
+    icon->setAlignment(Qt::AlignTop);
+    head->addWidget(icon);
     QLabel *question = createTextLabel(Qt::PlainText);
     question->setParent(frame);
-    const QString title = request.toolCall.title.isEmpty() ? request.toolCall.kind : request.toolCall.title;
+    const QString title = toolCall.title.isEmpty() ? toolCall.kind : toolCall.title;
     question->setText(i18nc("@info %1 describes what an AI agent wants to do", "The agent asks for permission: %1", title));
     QFont bold = question->font();
     bold.setBold(true);
     question->setFont(bold);
-    layout->addWidget(question);
+    head->addWidget(question, 1);
+    layout->addLayout(head);
 
-    if (!request.toolCall.locations.isEmpty()) {
+    const QString kind = kindText(toolCall.kind);
+    if (!kind.isEmpty()) {
+        QLabel *kindLabel = createTextLabel(Qt::PlainText);
+        kindLabel->setParent(frame);
+        kindLabel->setObjectName(QStringLiteral("kind"));
+        kindLabel->setText(kind);
+        kindLabel->setForegroundRole(QPalette::PlaceholderText);
+        layout->addWidget(kindLabel);
+    }
+
+    // The command decides it: always in sight.
+    const QString command = toolCall.kind == QLatin1String("execute") ? commandOf(toolCall) : QString();
+    if (!command.isEmpty()) {
+        QLabel *commandLabel = createTextLabel(Qt::PlainText);
+        commandLabel->setParent(frame);
+        commandLabel->setObjectName(QStringLiteral("command"));
+        commandLabel->setFont(mono);
+        commandLabel->setText(command);
+        layout->addWidget(commandLabel);
+    }
+
+    if (!toolCall.locations.isEmpty()) {
         QLabel *paths = createTextLabel(Qt::PlainText);
         paths->setParent(frame);
-        paths->setText(request.toolCall.locations.join(QLatin1Char('\n')));
+        paths->setObjectName(QStringLiteral("paths"));
+        paths->setText(toolCall.locations.join(QLatin1Char('\n')));
         layout->addWidget(paths);
+    }
+
+    // The changes, else what the agent passed to its tool.
+    const QString diff = diffText(toolCall);
+    const QString input = diff.isEmpty() ? jsonText(toolCall.rawInput) : QString();
+    if (!diff.isEmpty() || !input.isEmpty()) {
+        QLabel *body = createTextLabel(Qt::PlainText);
+        body->setFont(mono);
+        body->setText(diff.isEmpty() ? input : diff);
+        QWidget *foldable = createFoldable(diff.isEmpty() ? i18nc("@action:button unfolds technical details", "Details")
+                                                          : i18nc("@action:button unfolds the changes an AI agent wants to make", "Changes"),
+                                           body,
+                                           false);
+        foldable->setObjectName(diff.isEmpty() ? QStringLiteral("details") : QStringLiteral("changes"));
+        foldable->setParent(frame);
+        layout->addWidget(foldable);
     }
 
     auto *buttons = new QWidget(frame);
@@ -293,6 +442,7 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
     for (const WhaleAcpPermissionRequest::Option &option : request.options) {
         auto *button = new QPushButton(option.name, buttons);
         button->setObjectName(QStringLiteral("option-") + option.id);
+        button->setProperty("optionKind", option.kind);
         if (option.kind.startsWith(QLatin1String("allow"))) {
             button->setIcon(QIcon::fromTheme(QStringLiteral("dialog-ok-apply")));
         } else if (option.kind.startsWith(QLatin1String("reject"))) {
@@ -316,6 +466,26 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
     // A question must be seen.
     m_followBottom = true;
     scrollToBottomLater();
+}
+
+bool WhaleAiTranscript::focusPermissionRequest(const QString &key)
+{
+    QWidget *frame = m_permissions.value(key);
+    if (!frame) {
+        return false;
+    }
+    const auto buttons = frame->findChild<QWidget *>(QStringLiteral("buttons"))->findChildren<QPushButton *>();
+    for (QPushButton *button : buttons) {
+        if (button->property("optionKind").toString().startsWith(QLatin1String("allow"))) {
+            button->setFocus(Qt::OtherFocusReason);
+            return true;
+        }
+    }
+    if (!buttons.isEmpty()) {
+        buttons.first()->setFocus(Qt::OtherFocusReason);
+        return true;
+    }
+    return false;
 }
 
 void WhaleAiTranscript::withdrawPermissionRequest(const QString &key)
