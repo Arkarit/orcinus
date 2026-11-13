@@ -297,6 +297,38 @@ Steps:
 - *AI5d1 – Spike.* Claude Agent ACP, Codex ACP (its own `bwrap` sandbox nested in ours) and
   OpenCode inside the sandbox: what they need beyond their settings (npm/npx caches, node, git
   and SSH settings, `/tmp`, D-Bus, keyring for logins), network, startup time. Note here; adjust.
+
+  *AI5d1 result (2026-11-13).* Throw-away ACP client plus two sandbox scripts in the scratchpad;
+  prompt: list the folder, write a file, read a file outside, `git --version`, `curl`.
+  - *All three agents run* in a `bwrap` sandbox (system read-only, private `/tmp` and PID
+    namespace, `$HOME` a tmpfs) with only: `~/.local/bin`, `~/.local/lib` (npm global, read-only),
+    `~/.local/share/claude` (read-only), `~/.claude`, `~/.claude.json`, `~/.codex`, OpenCode's
+    `~/.config|.local/share|.local/state|.cache/opencode`, `~/.npm`, and the folder. Logins work
+    from these files (no keyring, no D-Bus needed). Write in the folder, git and network work;
+    the file outside "does not exist" for each of them. No startup delay worth noting.
+  - *Escape found: the session D-Bus.* With `/run/user/<uid>` visible, `systemd-run --user
+    --pipe cat <file outside>` read the file (the user's systemd runs it outside). Hiding
+    `/run/user` closes it (also Wayland, PipeWire, the keyring); the agents need none of it. The
+    AI6 back channel then needs its own socket or a filtering proxy (`xdg-dbus-proxy`), never the
+    bus itself. Other ways out checked: `/proc/<pid>/root` of host processes is denied (other user
+    namespace; a PID namespace hides them anyway); X11's abstract socket is reachable (shared
+    network namespace, the agents need the network) but Xwayland refuses without the cookie.
+  - *Codex' own sandbox fails inside `bwrap`* on Ubuntu: AppArmor's `bwrap-userns-restrict` puts
+    every child of `bwrap` into `unpriv_bwrap` (no capabilities), so Codex' nested `bwrap`
+    cannot create its namespaces. Codex then runs each command outside its sandbox after an
+    approval (in mode "agent" its "Guardian" auto-approves) — still inside ours, but its own
+    read-only and no-network limits are gone. With our own namespaces instead of `bwrap`
+    (`unshare --user --mount`, mounts by hand, capabilities dropped before the agent) Codex'
+    sandbox works inside (its `curl` was blocked again).
+  - *But the VM is not a normal Ubuntu:* `/etc/sysctl.d/20-apparmor.conf` (live-ISO leftover)
+    sets `kernel.apparmor_restrict_unprivileged_userns = 0`; Ubuntu's default is 1. With 1, an
+    unconfined `unshare` gets a user namespace without capabilities, so our own namespaces
+    (needed for adding folders live as well) need an AppArmor profile for the helper (installed
+    with the package, like `bwrap`'s), children unconfined so nested `bwrap` keeps its own
+    profile. Not tried yet (needs root in the VM). Other distributions have no such restriction.
+  - *Open for AI5d2:* where agents live elsewhere (nvm, bun, `/opt`): bind the resolved package
+    of the agent command read-only, plus a per-agent list of extra folders in the settings.
+    `~/.gitconfig` read-only (commits need the identity); SSH keys not by default.
 - *AI5d2 – Sandbox with fixed folders.* Start the agent in the sandbox with the current folder;
   "Access:" setting; the message without `bwrap`; the reject of requests outside.
 - *AI5d3 – Add and remove folders.* Helper in the outer namespace, list of shared folders, "Give
