@@ -46,8 +46,11 @@ public:
     /** For tests: how long the test waits for the agent. */
     void setTestTimeout(int milliseconds);
 
-    /** @return The text of a test result, as the page shows it (rich text). */
-    static QString resultText(const WhaleAiAgentTest::Result &result);
+    /**
+     * @return The text of a test result, as the page shows it (rich text). A valid @p loginHint
+     *         replaces the agent's own ways to log in.
+     */
+    static QString resultText(const WhaleAiAgentTest::Result &result, const WhaleAiLoginHint &loginHint = {});
 
 private:
     void fillList(const QString &currentId);
@@ -60,6 +63,7 @@ private:
     void removeCurrent();
     void makeCurrentDefault();
     void testCurrent();
+    void logInInTerminal();
     void setAgentsChanged();
 
     QList<WhaleAiAgent> m_agents;
@@ -72,6 +76,9 @@ private:
     QPushButton *m_default = nullptr;
     QPushButton *m_test = nullptr;
     QLabel *m_result = nullptr;
+    QPushButton *m_logIn = nullptr;
+    WhaleAiAgent m_testedAgent;
+    QString m_loginCommand;
     WhaleAiAgentTest *m_tester = nullptr;
     QStringList m_presetSearchPaths;
     int m_testTimeout = 30000;

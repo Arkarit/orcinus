@@ -48,6 +48,7 @@ private Q_SLOTS:
     void removeAndDefault();
     void testReady();
     void testNeedsLogin();
+    void loginHintText();
     void defaultsKeepAgents();
     void pageInDialog();
 
@@ -261,6 +262,28 @@ void WhaleAiSettingsPageTest::testNeedsLogin()
     QVERIFY2(text.contains(QLatin1String("needs a login")), qPrintable(text));
     QVERIFY2(text.contains(QLatin1String("Login: Run `fake login` in a terminal")), qPrintable(text));
     QVERIFY2(text.contains(QLatin1String("fake agent started")), qPrintable(text));
+    // Not a known agent: nothing to run.
+    QVERIFY(!child<QPushButton>(page, QStringLiteral("logIn"))->isVisible());
+}
+
+void WhaleAiSettingsPageTest::loginHintText()
+{
+    WhaleAiAgentTest::Result result;
+    result.error = QStringLiteral("The agent needs a login first.");
+    result.needsLogin = true;
+    result.agentInfo.authMethods = {{QStringLiteral("chat-gpt"), QStringLiteral("ChatGPT"), QStringLiteral("Use ChatGPT to authenticate")}};
+    WhaleAiLoginHint hint;
+    hint.text = QStringLiteral("Run codex login & so on");
+    hint.command = QStringLiteral("codex login");
+    hint.url = QUrl(QStringLiteral("https://github.com/openai/codex"));
+
+    const QString text = WhaleAiSettingsPage::resultText(result, hint);
+    QVERIFY2(text.contains(QLatin1String("Run codex login &amp; so on")), qPrintable(text));
+    QVERIFY2(text.contains(QLatin1String("<a href=\"https://github.com/openai/codex\">")), qPrintable(text));
+    // The agent's own ways, which Orcinus cannot run, are left out.
+    QVERIFY(!text.contains(QLatin1String("ChatGPT")));
+    // Without a hint, they are shown.
+    QVERIFY(WhaleAiSettingsPage::resultText(result).contains(QLatin1String("ChatGPT: Use ChatGPT to authenticate")));
 }
 
 void WhaleAiSettingsPageTest::defaultsKeepAgents()

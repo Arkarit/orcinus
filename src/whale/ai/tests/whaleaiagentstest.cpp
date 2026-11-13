@@ -39,6 +39,7 @@ private Q_SLOTS:
     void startMode();
     void restrictiveMode();
     void knownModes();
+    void loginHints();
     void testReady();
     void testNeedsLogin();
     void testMissingProgram();
@@ -271,6 +272,39 @@ void WhaleAiAgentsTest::knownModes()
     // Saving the agents (the settings page) keeps them.
     WhaleAiAgents::setAgents(WhaleAiAgents::agents());
     QCOMPARE(WhaleAiAgents::knownModes(QStringLiteral("a")).choices.size(), 2);
+}
+
+void WhaleAiAgentsTest::loginHints()
+{
+    auto agentWith = [](const QString &commandLine) {
+        WhaleAiAgent agent;
+        agent.commandLine = commandLine;
+        return agent;
+    };
+    const QString bin = fakeBin({QStringLiteral("codex"), QStringLiteral("opencode")});
+
+    // Codex: its own "ChatGPT" method needs a client that runs the login; the CLI does it.
+    WhaleAiLoginHint hint = WhaleAiAgents::loginHint(agentWith(QStringLiteral("codex-acp")), {bin});
+    QVERIFY(hint.isValid());
+    QVERIFY(hint.text.contains(QLatin1String("codex login")));
+    QVERIFY(hint.text.contains(QLatin1String("OPENAI_API_KEY")));
+    QCOMPARE(hint.command, QStringLiteral("codex login"));
+    QCOMPARE(hint.url, QUrl(QStringLiteral("https://github.com/openai/codex")));
+    // Through npx, and without the CLI installed: the CLI through npx too.
+    hint = WhaleAiAgents::loginHint(agentWith(QStringLiteral("npx -y @agentclientprotocol/codex-acp")), {m_home.path()});
+    QCOMPARE(hint.command, QStringLiteral("npx -y @openai/codex login"));
+    hint = WhaleAiAgents::loginHint(agentWith(QStringLiteral("/opt/x/bin/codex-acp --flag")), {bin});
+    QCOMPARE(hint.command, QStringLiteral("codex login"));
+
+    hint = WhaleAiAgents::loginHint(agentWith(QStringLiteral("npx -y @agentclientprotocol/claude-agent-acp")), {m_home.path()});
+    QVERIFY(hint.text.contains(QLatin1String("Claude Code")));
+    QCOMPARE(hint.command, QStringLiteral("npx -y @anthropic-ai/claude-code"));
+
+    hint = WhaleAiAgents::loginHint(agentWith(QStringLiteral("opencode acp")), {bin});
+    QCOMPARE(hint.command, QStringLiteral("opencode auth login"));
+
+    QVERIFY(!WhaleAiAgents::loginHint(agentWith(QStringLiteral("my-agent --acp")), {bin}).isValid());
+    QVERIFY(!WhaleAiAgents::loginHint(agentWith(QStringLiteral("codex-acp-fork")), {bin}).isValid());
 }
 
 void WhaleAiAgentsTest::uniqueId()

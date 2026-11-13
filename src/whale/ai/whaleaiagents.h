@@ -12,6 +12,7 @@
 #include <QList>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
 
 /**
  * @brief An AI agent the user set up: a program that speaks ACP on stdio.
@@ -46,6 +47,21 @@ struct WhaleAiAgentPreset {
     bool isAvailable() const
     {
         return !commandLine.isEmpty();
+    }
+};
+
+/**
+ * @brief How to log in to a known agent. The agents' own `authMethods` are written for clients
+ *        that run the login themselves (e.g. Codex: "Use ChatGPT"), which Orcinus does not.
+ */
+struct WhaleAiLoginHint {
+    QString text; ///< translated, plain text
+    QString command; ///< what to run in a terminal to log in; empty if there is nothing to run
+    QUrl url; ///< where to read about the agent and get it
+
+    bool isValid() const
+    {
+        return !text.isEmpty();
     }
 };
 
@@ -91,6 +107,13 @@ void setKnownModes(const QString &id, const WhaleAcpConfigOption &modes);
  *         @p searchPaths (empty: PATH).
  */
 QList<WhaleAiAgentPreset> presets(const QStringList &searchPaths = {});
+
+/**
+ * @return How to log in to @p agent if it is one of the known agents (recognised by its
+ *         command line, also through npx), with the login command found in @p searchPaths
+ *         (empty: PATH) or run through npx; an invalid hint otherwise.
+ */
+WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchPaths = {});
 
 /** @return An id based on @p base that none of @p agents has. */
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);

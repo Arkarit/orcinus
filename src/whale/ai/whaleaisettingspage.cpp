@@ -8,7 +8,9 @@
 #include "whaleaiagentdialog.h"
 
 #include <KLocalizedString>
+#include <KTerminalLauncherJob>
 
+#include <QDir>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -68,17 +70,27 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     m_result->setObjectName(QStringLiteral("testResult"));
     m_result->setWordWrap(true);
     m_result->setTextFormat(Qt::RichText);
-    m_result->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    m_result->setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::LinksAccessibleByMouse);
+    m_result->setOpenExternalLinks(true);
     m_result->setAlignment(Qt::AlignTop | Qt::AlignLeft);
+
+    m_logIn = new QPushButton(QIcon::fromTheme(QStringLiteral("utilities-terminal")), i18nc("@action:button", "Log In in a Terminal…"), this);
+    m_logIn->setObjectName(QStringLiteral("logIn"));
+    m_logIn->hide();
 
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(intro);
     layout->addLayout(listRow, 1);
     layout->addWidget(m_result);
+    layout->addWidget(m_logIn, 0, Qt::AlignLeft);
 
     m_tester = new WhaleAiAgentTest(this);
     connect(m_tester, &WhaleAiAgentTest::finished, this, [this](const WhaleAiAgentTest::Result &result) {
-        m_result->setText(resultText(result));
+        const WhaleAiLoginHint hint = WhaleAiAgents::loginHint(m_testedAgent, m_presetSearchPaths);
+        m_result->setText(resultText(result, hint));
+        m_loginCommand = result.needsLogin ? hint.command : QString();
+        m_logIn->setToolTip(i18nc("@info:tooltip %1 is a command line", "Runs “%1” in a terminal.", m_loginCommand));
+        m_logIn->setVisible(!m_loginCommand.isEmpty());
         updateButtons();
     });
 
@@ -88,6 +100,7 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     connect(m_remove, &QPushButton::clicked, this, &WhaleAiSettingsPage::removeCurrent);
     connect(m_default, &QPushButton::clicked, this, &WhaleAiSettingsPage::makeCurrentDefault);
     connect(m_test, &QPushButton::clicked, this, &WhaleAiSettingsPage::testCurrent);
+    connect(m_logIn, &QPushButton::clicked, this, &WhaleAiSettingsPage::logInInTerminal);
 
     m_agents = WhaleAiAgents::agents();
     m_defaultId = WhaleAiAgents::defaultAgentId();
@@ -276,17 +289,30 @@ void WhaleAiSettingsPage::testCurrent()
         return;
     }
     m_result->setText(i18nc("@info", "Starting %1…", m_agents.at(row).name.toHtmlEscaped()));
+    m_logIn->hide();
+    m_testedAgent = m_agents.at(row);
     m_tester->run(m_agents.at(row), m_testTimeout);
     updateButtons();
+}
+
+void WhaleAiSettingsPage::logInInTerminal()
+{
+    if (m_loginCommand.isEmpty()) {
+        return;
+    }
+    auto *job = new KTerminalLauncherJob(m_loginCommand, this);
+    job->setWorkingDirectory(QDir::homePath());
+    job->start();
 }
 
 void WhaleAiSettingsPage::setAgentsChanged()
 {
     m_result->clear();
+    m_logIn->hide();
     Q_EMIT changed();
 }
 
-QString WhaleAiSettingsPage::resultText(const WhaleAiAgentTest::Result &result)
+QString WhaleAiSettingsPage::resultText(const WhaleAiAgentTest::Result &result, const WhaleAiLoginHint &loginHint)
 {
     QString text;
     const QString name = result.agentInfo.displayName().toHtmlEscaped();
@@ -323,7 +349,16 @@ QString WhaleAiSettingsPage::resultText(const WhaleAiAgentTest::Result &result)
     if (!result.detail.isEmpty() && !result.needsLogin) {
         text += QStringLiteral("<br>") + result.detail.toHtmlEscaped();
     }
-    if (!result.agentInfo.authMethods.isEmpty() && (result.needsLogin || !result.ok)) {
+    if (result.needsLogin && loginHint.isValid()) {
+        text += QStringLiteral("<br>") + loginHint.text.toHtmlEscaped();
+        if (loginHint.url.isValid()) {
+            text += QStringLiteral("<br>")
+                + i18nc("@info %1 is a link",
+                        "Download and documentation: %1",
+                        QStringLiteral("<a href=\"%1\">%2</a>")
+                            .arg(loginHint.url.toString(QUrl::FullyEncoded).toHtmlEscaped(), loginHint.url.toDisplayString().toHtmlEscaped()));
+        }
+    } else if (!result.agentInfo.authMethods.isEmpty() && (result.needsLogin || !result.ok)) {
         QStringList methods;
         for (const WhaleAcpAgentInfo::AuthMethod &method : result.agentInfo.authMethods) {
             methods.append(method.description.isEmpty() ? method.name.toHtmlEscaped()

@@ -295,6 +295,46 @@ QList<WhaleAiAgentPreset> presets(const QStringList &searchPaths)
     return list;
 }
 
+WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchPaths)
+{
+    const QStringList words = KShell::splitArgs(agent.commandLine);
+    auto uses = [&words](const QString &name) {
+        for (const QString &word : words) {
+            if (QFileInfo(word).fileName() == name || word.endsWith(QLatin1Char('/') + name)) {
+                return true;
+            }
+        }
+        return false;
+    };
+    // The CLI that logs in, or npx with its package if it is not installed.
+    auto loginCommand = [&searchPaths](const QString &program, const QString &npmPackage, const QStringList &arguments) {
+        if (!findExecutable(program, searchPaths).isEmpty()) {
+            return KShell::joinArgs(QStringList{program} + arguments);
+        }
+        return KShell::joinArgs(QStringList{QStringLiteral("npx"), QStringLiteral("-y"), npmPackage} + arguments);
+    };
+
+    WhaleAiLoginHint hint;
+    if (uses(QStringLiteral("codex-acp"))) {
+        hint.text = i18nc("@info",
+                          "Codex uses the login of the Codex CLI: run “codex login” in a terminal once. "
+                          "With an API key instead, set OPENAI_API_KEY or CODEX_API_KEY in the agent's environment (Edit…).");
+        hint.command = loginCommand(QStringLiteral("codex"), QStringLiteral("@openai/codex"), {QStringLiteral("login")});
+        hint.url = QUrl(QStringLiteral("https://github.com/openai/codex"));
+    } else if (uses(QStringLiteral("claude-agent-acp"))) {
+        hint.text = i18nc("@info", "Claude uses the login of Claude Code: start “claude” in a terminal once and log in there.");
+        hint.command = loginCommand(QStringLiteral("claude"), QStringLiteral("@anthropic-ai/claude-code"), {});
+        hint.url = QUrl(QStringLiteral("https://github.com/anthropics/claude-code"));
+    } else if (uses(QStringLiteral("opencode")) || uses(QStringLiteral("opencode-ai"))) {
+        hint.text = i18nc("@info",
+                          "OpenCode keeps its providers in its own configuration: run “opencode auth login” in a terminal, "
+                          "or set up a local model there.");
+        hint.command = loginCommand(QStringLiteral("opencode"), QStringLiteral("opencode-ai"), {QStringLiteral("auth"), QStringLiteral("login")});
+        hint.url = QUrl(QStringLiteral("https://opencode.ai"));
+    }
+    return hint;
+}
+
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents)
 {
     QString stem = base.toLower();
