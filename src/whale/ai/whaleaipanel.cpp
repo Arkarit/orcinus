@@ -8,6 +8,7 @@
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
+#include "whaleaisandbox.h"
 #include "whaleaitranscript.h"
 
 #include <KLocalizedString>
@@ -18,6 +19,7 @@
 #include <QDir>
 #include <QDropEvent>
 #include <QFileInfo>
+#include <QGridLayout>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
@@ -73,9 +75,27 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_modes->setMinimumContentsLength(8);
     auto *modesLabel = new QLabel(i18nc("@label:listbox what an AI agent may do on its own", "Mode:"), chat);
     modesLabel->setBuddy(m_modes);
-    auto *modesRow = new QHBoxLayout;
-    modesRow->addWidget(modesLabel);
-    modesRow->addWidget(m_modes, 1);
+    // What the agent may reach (AI5d): enforced by the sandbox, not by the agent.
+    m_access = new QComboBox(chat);
+    m_access->setObjectName(QStringLiteral("access"));
+    m_access->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_access->setMinimumContentsLength(8);
+    m_access->addItem(QIcon::fromTheme(QStringLiteral("folder")), i18nc("@item:inlistbox what an AI agent may reach", "This folder and subfolders"), false);
+    m_access->setItemData(0,
+                          i18nc("@info:tooltip",
+                                "The agent sees only the folder it works in and its subfolders, besides its own settings and the system "
+                                "(read-only). Orcinus' sandbox enforces this, not the agent."),
+                          Qt::ToolTipRole);
+    m_access->addItem(QIcon::fromTheme(QStringLiteral("drive-harddisk")), i18nc("@item:inlistbox what an AI agent may reach", "All folders"), true);
+    m_access->setItemData(1, i18nc("@info:tooltip", "The agent can reach all your files, as far as its mode lets it."), Qt::ToolTipRole);
+    auto *accessLabel = new QLabel(i18nc("@label:listbox which folders an AI agent may reach", "Access:"), chat);
+    accessLabel->setBuddy(m_access);
+    auto *modesRow = new QGridLayout;
+    modesRow->addWidget(modesLabel, 0, 0);
+    modesRow->addWidget(m_modes, 0, 1);
+    modesRow->addWidget(accessLabel, 1, 0);
+    modesRow->addWidget(m_access, 1, 1);
+    modesRow->setColumnStretch(1, 1);
 
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
@@ -136,6 +156,9 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     connect(m_agents, &QComboBox::activated, this, &WhaleAiPanel::agentChosen);
     connect(m_modes, &QComboBox::activated, this, [this](int index) {
         chooseMode(m_modes->itemData(index).toString());
+    });
+    connect(m_access, &QComboBox::activated, this, [this](int index) {
+        chooseAccess(m_access->itemData(index).toBool());
     });
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
     connect(m_send, &QToolButton::clicked, this, [this] {
@@ -297,17 +320,63 @@ bool WhaleAiPanel::startSession()
     }
 
     QString directory = QDir::homePath();
+    QStringList shared;
     if (url().isLocalFile() && QFileInfo(url().toLocalFile()).isDir()) {
-        directory = url().toLocalFile();
+        directory = QDir::cleanPath(url().toLocalFile());
+        shared.append(directory);
+    }
+
+    WhaleAcpSession::AgentCommand run = command;
+    QStringList reach;
+    if (!agent.allFolders) {
+        const QString helper = WhaleAiSandbox::helper();
+        const QString problem = WhaleAiSandbox::check(helper);
+        if (!problem.isEmpty()) {
+            QString details = problem;
+            // The build tree has a profile for its own helper (src/whale/ai/sandbox/CMakeLists.txt).
+            const QString profile = QFileInfo(helper).absolutePath() + QStringLiteral("/../orcinus-sandbox.apparmor");
+            if (!helper.isEmpty() && QFileInfo::exists(profile)) {
+                details += QStringLiteral("\n\n")
+                    + i18nc("@info %1 is a command",
+                            "For this build, load its AppArmor profile once: %1",
+                            QStringLiteral("sudo apparmor_parser -r ") + QDir::cleanPath(profile));
+            }
+            m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent",
+                                          "%1 was not started: it may only reach this folder, and the sandbox for that does not work here. "
+                                          "Choose “All folders” under Access to start it without the sandbox.",
+                                          agent.name),
+                                    WhaleAiTranscript::Kind::Error,
+                                    details);
+            return false;
+        }
+        const WhaleAiSandbox::Paths paths = WhaleAiSandbox::agentPaths(agent, command.program);
+        for (const QString &path : paths.create) {
+            QDir().mkpath(path);
+        }
+        run = WhaleAiSandbox::wrap(command, helper, shared, paths, directory);
+        reach = shared + paths.readWrite + paths.readOnly;
     }
 
     m_sessionAgentId = agent.id;
+    m_sessionAllFolders = agent.allFolders;
+    m_sessionReach = reach;
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     m_shownMode.clear();
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
-    m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2.", agent.name, directory));
+    if (agent.allFolders) {
+        m_transcript->addNotice(
+            i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2 and can reach all your folders.", agent.name, directory));
+    } else if (shared.isEmpty()) {
+        m_transcript->addNotice(
+            i18nc("@info %1 is the name of an AI agent", "%1 works in an empty folder of its sandbox: this location is not a local folder.", agent.name));
+    } else {
+        m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder",
+                                      "%1 works in %2 and can reach only this folder and its subfolders.",
+                                      agent.name,
+                                      directory));
+    }
 
     WhaleAcpSession *session = m_session;
     connect(session, &WhaleAcpSession::stateChanged, this, [this, session](WhaleAcpSession::State state) {
@@ -338,6 +407,9 @@ bool WhaleAiPanel::startSession()
     connect(session, &WhaleAcpSession::agentThoughtChunk, m_transcript, &WhaleAiTranscript::appendThought);
     connect(session, &WhaleAcpSession::toolCallChanged, m_transcript, &WhaleAiTranscript::updateToolCall);
     connect(session, &WhaleAcpSession::permissionRequested, this, [this](const WhaleAcpPermissionRequest &request) {
+        if (answerOutsideRequest(request)) {
+            return;
+        }
         m_transcript->addPermissionRequest(request);
         if (!isVisible()) {
             Q_EMIT attentionRequested();
@@ -380,7 +452,7 @@ bool WhaleAiPanel::startSession()
         updateState();
     });
 
-    m_session->start(command, directory);
+    m_session->start(run, directory);
     m_sessionInfo->setProperty("usage", -1);
     return m_session != nullptr;
 }
@@ -590,6 +662,7 @@ void WhaleAiPanel::updateState()
 void WhaleAiPanel::updateSessionInfo()
 {
     updateModes();
+    updateAccess();
     if (!m_session) {
         m_sessionInfo->setText(i18nc("@info", "Starts with your first message."));
         return;
@@ -611,6 +684,59 @@ void WhaleAiPanel::updateSessionInfo()
         parts.append(i18nc("@info how much of the context window is used", "Context: %1 %", usage));
     }
     m_sessionInfo->setText(parts.isEmpty() ? m_session->agentInfo().displayName() : parts.join(QStringLiteral(" · ")));
+}
+
+void WhaleAiPanel::updateAccess()
+{
+    const QSignalBlocker blocker(m_access);
+    const WhaleAiAgent agent = WhaleAiAgents::agent(m_session ? m_sessionAgentId : agentId());
+    m_access->setCurrentIndex(m_access->findData(agent.allFolders));
+    m_access->setEnabled(!agent.id.isEmpty());
+    m_access->setToolTip(m_access->currentData(Qt::ToolTipRole).toString());
+}
+
+void WhaleAiPanel::chooseAccess(bool allFolders)
+{
+    const QString id = m_session ? m_sessionAgentId : agentId();
+    if (id.isEmpty()) {
+        return;
+    }
+    WhaleAiAgents::setAllFolders(id, allFolders);
+    if (m_session && allFolders != m_sessionAllFolders) {
+        // The sandbox is set up when the agent starts.
+        m_transcript->addNotice(i18nc("@info", "The new access applies from the next conversation (New Conversation)."));
+    }
+    updateAccess();
+}
+
+bool WhaleAiPanel::answerOutsideRequest(const WhaleAcpPermissionRequest &request)
+{
+    // A second line behind the sandbox: a request for paths the agent cannot reach is answered
+    // here. Paths in commands are not known, those requests are shown.
+    if (m_sessionAllFolders || request.toolCall.locations.isEmpty()) {
+        return false;
+    }
+    for (const QString &path : request.toolCall.locations) {
+        if (WhaleAiSandbox::reaches(path, m_sessionReach)) {
+            return false;
+        }
+    }
+    const WhaleAcpPermissionRequest::Option *reject = nullptr;
+    for (const WhaleAcpPermissionRequest::Option &option : request.options) {
+        if (option.kind == QLatin1String("reject_once") || (!reject && option.kind.startsWith(QLatin1String("reject")))) {
+            reject = &option;
+        }
+    }
+    if (!reject) {
+        return false;
+    }
+    m_transcript->addNotice(i18nc("@info %1 is what an AI agent asked for, %2 a list of paths",
+                                  "Orcinus said no to “%1”: it is outside the folders the agent may reach (%2).",
+                                  request.toolCall.title,
+                                  request.toolCall.locations.join(QStringLiteral(", "))),
+                            WhaleAiTranscript::Kind::Error);
+    m_session->answerPermission(request.key, reject->id);
+    return true;
 }
 
 void WhaleAiPanel::updateModes()

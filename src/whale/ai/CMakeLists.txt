@@ -5,6 +5,12 @@
 # AI support: the AI panel talks to external agents through the Agent Client Protocol (ACP).
 # See .privatedoc/ai-support-plan.md.
 
+########### sandbox for the agents (AI5d) ###############
+
+set(WHALE_SANDBOX_DIR "${KDE_INSTALL_LIBEXECDIR}/${WHALE_COMPONENT}")
+set(WHALE_APPARMOR_DIR "/etc/apparmor.d" CACHE PATH "Where the AppArmor profile of orcinus-sandbox goes (WHALE_INSTALL_APPARMOR_PROFILE)")
+add_subdirectory(sandbox)
+
 ########### ACP client core (AI1) and agent settings (AI2), no widgets ###############
 
 add_library(whaleai STATIC)
@@ -16,7 +22,12 @@ target_sources(whaleai PRIVATE
     whaleaiagents.cpp
     whaleaiagenttest.cpp
     whaleaicontext.cpp
+    whaleaisandbox.cpp
 )
+
+# Where the installed sandbox helper is; the build tree's one next to the program comes first.
+target_compile_definitions(whaleai PRIVATE WHALE_SANDBOX_INSTALLED="${CMAKE_INSTALL_PREFIX}/${WHALE_SANDBOX_DIR}/orcinus-sandbox")
+add_dependencies(whaleai orcinus-sandbox)
 
 ecm_qt_declare_logging_category(whaleai
     HEADER whaleaidebug.h

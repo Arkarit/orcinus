@@ -25,6 +25,8 @@ const char NameKey[] = "Name";
 const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
+const char AccessKey[] = "Access";
+const char SandboxPathsKey[] = "SandboxPaths";
 const char ModeIdsKey[] = "ModeIds";
 const char ModeNamesKey[] = "ModeNames";
 const char ModeDescriptionsKey[] = "ModeDescriptions";
@@ -97,6 +99,8 @@ QList<WhaleAiAgent> agents()
         agent.commandLine = agentGroup.readEntry(CommandKey, QString());
         agent.environment = agentGroup.readEntry(EnvironmentKey, QStringList());
         agent.startMode = agentGroup.readEntry(StartModeKey, QString());
+        agent.allFolders = agentGroup.readEntry(AccessKey, QString()) == QLatin1String("all");
+        agent.sandboxPaths = agentGroup.readEntry(SandboxPathsKey, QStringList());
         list.append(agent);
     }
     return list;
@@ -120,6 +124,16 @@ void setAgents(const QList<WhaleAiAgent> &agents)
             agentGroup.deleteEntry(StartModeKey);
         } else {
             agentGroup.writeEntry(StartModeKey, agent.startMode);
+        }
+        if (agent.allFolders) {
+            agentGroup.writeEntry(AccessKey, QStringLiteral("all"));
+        } else {
+            agentGroup.deleteEntry(AccessKey);
+        }
+        if (agent.sandboxPaths.isEmpty()) {
+            agentGroup.deleteEntry(SandboxPathsKey);
+        } else {
+            agentGroup.writeEntry(SandboxPathsKey, agent.sandboxPaths);
         }
     }
     const QStringList groups = group.groupList();
@@ -174,6 +188,18 @@ void setStartMode(const QString &id, const QString &mode)
     for (WhaleAiAgent &agent : list) {
         if (agent.id == id) {
             agent.startMode = mode;
+            setAgents(list);
+            return;
+        }
+    }
+}
+
+void setAllFolders(const QString &id, bool allFolders)
+{
+    QList<WhaleAiAgent> list = agents();
+    for (WhaleAiAgent &agent : list) {
+        if (agent.id == id) {
+            agent.allFolders = allFolders;
             setAgents(list);
             return;
         }
@@ -295,7 +321,7 @@ QList<WhaleAiAgentPreset> presets(const QStringList &searchPaths)
     return list;
 }
 
-WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchPaths)
+WhaleAiAgentKind kind(const WhaleAiAgent &agent)
 {
     const QStringList words = KShell::splitArgs(agent.commandLine);
     auto uses = [&words](const QString &name) {
@@ -306,6 +332,20 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
         }
         return false;
     };
+    if (uses(QStringLiteral("codex-acp"))) {
+        return WhaleAiAgentKind::Codex;
+    }
+    if (uses(QStringLiteral("claude-agent-acp"))) {
+        return WhaleAiAgentKind::Claude;
+    }
+    if (uses(QStringLiteral("opencode")) || uses(QStringLiteral("opencode-ai"))) {
+        return WhaleAiAgentKind::OpenCode;
+    }
+    return WhaleAiAgentKind::Unknown;
+}
+
+WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchPaths)
+{
     // The CLI that logs in, or npx with its package if it is not installed.
     auto loginCommand = [&searchPaths](const QString &program, const QString &npmPackage, const QStringList &arguments) {
         if (!findExecutable(program, searchPaths).isEmpty()) {
@@ -315,22 +355,28 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
     };
 
     WhaleAiLoginHint hint;
-    if (uses(QStringLiteral("codex-acp"))) {
+    switch (kind(agent)) {
+    case WhaleAiAgentKind::Codex:
         hint.text = i18nc("@info",
                           "Codex uses the login of the Codex CLI: run “codex login” in a terminal once. "
                           "With an API key instead, set OPENAI_API_KEY or CODEX_API_KEY in the agent's environment (Edit…).");
         hint.command = loginCommand(QStringLiteral("codex"), QStringLiteral("@openai/codex"), {QStringLiteral("login")});
         hint.url = QUrl(QStringLiteral("https://github.com/openai/codex"));
-    } else if (uses(QStringLiteral("claude-agent-acp"))) {
+        break;
+    case WhaleAiAgentKind::Claude:
         hint.text = i18nc("@info", "Claude uses the login of Claude Code: start “claude” in a terminal once and log in there.");
         hint.command = loginCommand(QStringLiteral("claude"), QStringLiteral("@anthropic-ai/claude-code"), {});
         hint.url = QUrl(QStringLiteral("https://github.com/anthropics/claude-code"));
-    } else if (uses(QStringLiteral("opencode")) || uses(QStringLiteral("opencode-ai"))) {
+        break;
+    case WhaleAiAgentKind::OpenCode:
         hint.text = i18nc("@info",
                           "OpenCode keeps its providers in its own configuration: run “opencode auth login” in a terminal, "
                           "or set up a local model there.");
         hint.command = loginCommand(QStringLiteral("opencode"), QStringLiteral("opencode-ai"), {QStringLiteral("auth"), QStringLiteral("login")});
         hint.url = QUrl(QStringLiteral("https://opencode.ai"));
+        break;
+    case WhaleAiAgentKind::Unknown:
+        break;
     }
     return hint;
 }

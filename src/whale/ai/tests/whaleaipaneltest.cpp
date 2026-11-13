@@ -12,6 +12,7 @@
 #include "views/dolphinview.h"
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
+#include "whaleaisandbox.h"
 #include "whaleaitranscript.h"
 
 #include <KActionCollection>
@@ -40,6 +41,7 @@
  * The AI panel (AI3) against the scripted agent whaleacpfakeagent: sending, the transcript of a
  * turn, permission buttons, stopping, failures, choosing another agent, links, and the panel in
  * the main window. The start mode of AI5: read-only first, the stored mode, waiting for the user.
+ * The access of AI5d: the agent in the sandbox, or a clear message where it cannot run.
  */
 class WhaleAiPanelTest : public QObject
 {
@@ -76,6 +78,9 @@ private Q_SLOTS:
     void dropFiles();
     void elideChipText();
 
+    void accessChoice();
+    void sandbox();
+
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
     static QList<WhaleAiTranscript::Kind> kinds(WhaleAiPanel &panel);
@@ -110,7 +115,8 @@ void WhaleAiPanelTest::init()
 
 WhaleAiAgent WhaleAiPanelTest::fakeAgent(const QString &id, const QString &scenario)
 {
-    return {id, QStringLiteral("Fake ") + id, QStringLiteral("'%1' %2").arg(QStringLiteral(WHALE_ACP_FAKE_AGENT), scenario), {}, {}};
+    // Without the sandbox: most tests are about other things, and CI may not allow it (AI5d).
+    return {id, QStringLiteral("Fake ") + id, QStringLiteral("'%1' %2").arg(QStringLiteral(WHALE_ACP_FAKE_AGENT), scenario), {}, {}, true};
 }
 
 QList<WhaleAiTranscript::Kind> WhaleAiPanelTest::kinds(WhaleAiPanel &panel)
@@ -204,7 +210,7 @@ void WhaleAiPanelTest::promptTurn()
     // Without a stored start mode: the read-only one, before the message went out.
     QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Plan”.")), qPrintable(all));
     QVERIFY(WhaleAiAgents::agent(QStringLiteral("basic")).startMode.isEmpty());
-    QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1.").arg(m_work.path())), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1 and can reach all your folders.").arg(m_work.path())), qPrintable(all));
     QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=;text=hello;links=1").arg(m_work.path())), qPrintable(all));
     QVERIFY(all.contains(QLatin1String("permission=yes")));
     QVERIFY(all.contains(QLatin1String("Answered: Yes")));
@@ -844,5 +850,80 @@ void WhaleAiPanelTest::elideChipText()
 }
 
 QTEST_MAIN(WhaleAiPanelTest)
+
+void WhaleAiPanelTest::accessChoice()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    auto *access = panel->findChild<QComboBox *>(QStringLiteral("access"));
+    QVERIFY(access);
+    // fakeAgent() runs without the sandbox.
+    QCOMPARE(access->currentData().toBool(), true);
+
+    // Chosen in the panel, stored for the agent, kept by its settings.
+    access->setCurrentIndex(access->findData(false));
+    Q_EMIT access->activated(access->currentIndex());
+    QVERIFY(!WhaleAiAgents::agent(QStringLiteral("basic")).allFolders);
+    WhaleAiAgent agent = WhaleAiAgents::agent(QStringLiteral("basic"));
+    agent.allFolders = true;
+    WhaleAiAgents::setAgents({agent});
+    panel->readSettings();
+    QCOMPARE(access->currentData().toBool(), true);
+
+    // During a conversation it applies to the next one.
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    access->setCurrentIndex(access->findData(false));
+    Q_EMIT access->activated(access->currentIndex());
+    QVERIFY(texts(*panel).contains(QLatin1String("The new access applies from the next conversation")));
+}
+
+void WhaleAiPanelTest::sandbox()
+{
+    WhaleAiAgent agent = fakeAgent(QStringLiteral("basic"), QStringLiteral("basic"));
+    agent.allFolders = false;
+    WhaleAiAgents::setAgents({agent});
+    WhaleAiAgents::setDefaultAgentId(agent.id);
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+
+    const QString problem = WhaleAiSandbox::check(WhaleAiSandbox::helper());
+    if (!problem.isEmpty()) {
+        // E.g. Ubuntu without the AppArmor profile: not started, and why.
+        QVERIFY(!panel.sendPrompt(QStringLiteral("hello")));
+        QVERIFY(!panel.session());
+        QVERIFY(texts(panel).contains(QLatin1String("Fake basic was not started: it may only reach this folder")));
+        QSKIP(qPrintable(QStringLiteral("The sandbox does not run here: ") + problem));
+    }
+
+    QTemporaryDir outside;
+    QVERIFY(outside.isValid());
+    QFile secret(outside.filePath(QStringLiteral("secret.txt")));
+    QVERIFY(secret.open(QIODevice::WriteOnly));
+    secret.write("secret");
+    secret.close();
+    QFile inside(m_work.filePath(QStringLiteral("inside.txt")));
+    QVERIFY(inside.open(QIODevice::WriteOnly));
+    inside.write("inside");
+    inside.close();
+    const QString written = m_work.filePath(QStringLiteral("written.txt"));
+    QFile::remove(written);
+
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission readfile:%1 readfile:%2 writefile:%3").arg(inside.fileName(), secret.fileName(), written)));
+    QVERIFY(waitForReady(panel));
+    const QString all = texts(panel);
+    QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1 and can reach only this folder and its subfolders.").arg(m_work.path())), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("read=inside;")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("read=missing;")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("written=yes;")), qPrintable(all));
+    QVERIFY(QFile::exists(written));
+
+    // A request for a path outside is answered by Orcinus.
+    QVERIFY(panel.sendPrompt(QStringLiteral("askoutside")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(texts(panel).contains(
+        QStringLiteral("Orcinus said no to “Read secret”: it is outside the folders the agent may reach (/orcinus-test-outside/secret.txt).")));
+    QVERIFY(texts(panel).contains(QLatin1String("permission=no;")));
+    QVERIFY(panel.transcript()->findChildren<QWidget *>(QStringLiteral("permission-n7")).isEmpty());
+}
 
 #include "whaleaipaneltest.moc"

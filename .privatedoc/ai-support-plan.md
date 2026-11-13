@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); next AI5d (folder access, planned 2026-11-13), then AI6 (back channel).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d1–AI5d2 done (2026-11-13), next AI5d3 (add folders live), then AI6 (back channel).
 
 ## Problem
 
@@ -349,6 +349,31 @@ Steps:
     `~/.gitconfig` read-only (commits need the identity); SSH keys not by default.
 - *AI5d2 – Sandbox with fixed folders.* Start the agent in the sandbox with the current folder;
   "Access:" setting; the message without `bwrap`; the reject of requests outside.
+  *AI5d2 result (2026-11-13).* `orcinus-sandbox` (`src/whale/ai/sandbox/`, plain C++, no Qt;
+  installed to `libexec/orcinus`): own user + mount namespace that holds the agent's root as a
+  shared tmpfs (system dirs read-only, fresh `/tmp`, `/run`, `/dev/shm`, `/var/tmp`, resolver
+  dirs of `/run` read-only), then a slave mount + PID namespace for the agent (`pivot_root`,
+  own `/proc`); `--bind` / `--ro-bind` (outer paths first, so a read-write folder inside a
+  read-only one works), `--chdir`, `--check`; signals forwarded, exit status passed on, 125 for
+  its own errors. AppArmor profile from `orcinus-sandbox.apparmor.in`: installed with
+  `WHALE_INSTALL_APPARMOR_PROFILE` (off; `global-install-orcinus.sh` turns it on and loads it);
+  the build tree gets `orcinus-sandbox.apparmor` for its own helper (`sudo apparmor_parser -r`,
+  until the next reboot). `WhaleAiSandbox` (whaleai): `helper()` (next to the program, else the
+  installed one), `check()`, `agentPaths()` (per kind: Claude `~/.claude`, `~/.claude.json`,
+  `~/.local/share/claude`, `~/.cache/claude`; Codex `~/.codex`; OpenCode its XDG dirs; all:
+  `~/.npm` read-write, `~/.local/bin`, `~/.local/lib`, git settings, the npm package of the
+  agent command and an nvm-style node read-only; plus `SandboxPaths` in orcinusrc, no UI yet),
+  `wrap()`, `reaches()`. `WhaleAiAgent::allFolders` (`Access=all`), `WhaleAiAgents::kind()`
+  (shared with the login hints). Panel: "Access:" under "Mode:" ("This folder and subfolders" /
+  "All folders"), stored per agent, a change during a conversation applies to the next one; the
+  start notice says what the agent reaches; without a working sandbox the agent is not started
+  (message, details with the helper's line and, in the build tree, the sudo command); requests
+  whose paths are all outside are answered "reject" with a notice. Tried offscreen through the
+  panel with the real Codex, Claude and OpenCode: all work, none read the file outside (Claude
+  and OpenCode asked and Orcinus said no; Codex found nothing). Found on the way: the npm prefix
+  (`~/.local`) must not be shared, only the package (it has the data of all programs).
+  Open: the Ubuntu package (PPA: `dh_apparmor`, rules option) and the AUR recipe; a settings UI
+  for extra paths; the fake agent's tests run the sandbox only where it may run (CI skips).
 - *AI5d3 – Add and remove folders.* Helper in the outer namespace, list of shared folders, "Give
   Access" on the chip, the question on dropped files.
 

@@ -41,6 +41,11 @@ if [[ "${configured_prefix}" != "${prefix}" ]]; then
     exit 1
 fi
 
+# Ubuntu allows the AI sandbox (orcinus-sandbox) only with its AppArmor profile.
+if [[ -d /etc/apparmor.d ]]; then
+    cmake "${build_dir}" -DWHALE_INSTALL_APPARMOR_PROFILE=ON > /dev/null
+fi
+
 echo "==> Building"
 cmake --build "${build_dir}"
 
@@ -113,6 +118,11 @@ fi
 echo "==> Installing to ${prefix} (sudo)"
 sudo cmake --install "${build_dir}"
 sudo chown "$(id -un):$(id -gn)" "${build_dir}/install_manifest.txt"
+
+if [[ -f /etc/apparmor.d/orcinus-sandbox ]] && command -v apparmor_parser > /dev/null; then
+    echo "==> Loading the AppArmor profile of the AI sandbox"
+    sudo apparmor_parser -r /etc/apparmor.d/orcinus-sandbox
+fi
 
 echo "==> Refreshing caches"
 sudo update-desktop-database "${prefix}/share/applications"

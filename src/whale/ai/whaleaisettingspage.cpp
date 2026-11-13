@@ -111,12 +111,15 @@ WhaleAiSettingsPage::~WhaleAiSettingsPage() = default;
 
 void WhaleAiSettingsPage::applySettings()
 {
-    // The start mode is chosen in the panel, maybe while this page is open: keep the stored one.
+    // The start mode and the access are chosen in the panel, maybe while this page is open: keep
+    // the stored ones.
     QList<WhaleAiAgent> agents = m_agents;
     for (WhaleAiAgent &agent : agents) {
         const WhaleAiAgent stored = WhaleAiAgents::agent(agent.id);
         if (!stored.id.isEmpty()) {
             agent.startMode = stored.startMode;
+            agent.allFolders = stored.allFolders;
+            agent.sandboxPaths = stored.sandboxPaths;
         }
     }
     WhaleAiAgents::setAgents(agents);

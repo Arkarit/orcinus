@@ -126,18 +126,24 @@ private:
     void updateSessionInfo();
     void openLink(const QString &link);
     void updateModes();
+    void updateAccess();
+    void chooseAccess(bool allFolders);
+    bool answerOutsideRequest(const WhaleAcpPermissionRequest &request);
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
     QToolButton *m_newConversation = nullptr;
     QLabel *m_sessionInfo = nullptr;
     QComboBox *m_modes = nullptr;
+    QComboBox *m_access = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_send = nullptr;
 
     QPointer<WhaleAcpSession> m_session;
     QString m_sessionAgentId;
+    bool m_sessionAllFolders = true;
+    QStringList m_sessionReach; ///< what the agent shares in its sandbox (AI5d)
     QString m_pendingPrompt;
     WhaleAiContext m_pendingContext;
     WhaleAiContextChips *m_chips = nullptr;

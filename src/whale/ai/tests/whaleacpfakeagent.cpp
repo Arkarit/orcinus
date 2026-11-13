@@ -23,12 +23,16 @@
  *
  * What the client sent comes back as text in agent_message_chunk, so the tests can check it.
  * A prompt with "nopermission" asks nothing; with "askexecute" it asks to run a command, with
- * "askdiff" to make a change shown as a diff.
+ * "askdiff" to make a change shown as a diff, with "askoutside" to read /orcinus-test-outside/secret.txt.
+ * "readfile:PATH" and "writefile:PATH" in a prompt read or write that file and answer
+ * "read=CONTENT" (or "read=missing") and "written=yes" / "written=no" (the sandbox, AI5d).
  */
 
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 
@@ -259,6 +263,20 @@ void handlePrompt(const QJsonObject &message)
     chunk(QStringLiteral("agent_message_chunk"),
           QStringLiteral("cwd=%1;mcp=%2;text=%3;links=%4;context=%5").arg(sessionCwd, mcpNames.join(QLatin1Char(',')), text).arg(links).arg(contextText));
 
+    static const QRegularExpression fileCommand(QStringLiteral("(readfile|writefile):(\\S+)"));
+    for (auto it = fileCommand.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch match = it.next();
+        QFile file(match.captured(2));
+        if (match.captured(1) == QLatin1String("readfile")) {
+            const bool found = file.open(QIODevice::ReadOnly);
+            chunk(QStringLiteral("agent_message_chunk"),
+                  QStringLiteral("read=%1;").arg(found ? QString::fromUtf8(file.readAll()).trimmed() : QStringLiteral("missing")));
+        } else {
+            const bool written = file.open(QIODevice::WriteOnly) && file.write("written") > 0;
+            chunk(QStringLiteral("agent_message_chunk"), QStringLiteral("written=%1;").arg(written ? QStringLiteral("yes") : QStringLiteral("no")));
+        }
+    }
+
     // The client offers no fs/*: it must answer with an error.
     send({{QStringLiteral("id"), QStringLiteral("fs1")},
           {QStringLiteral("method"), QStringLiteral("fs/read_text_file")},
@@ -286,6 +304,11 @@ void handlePrompt(const QJsonObject &message)
             requestedCall.insert(
                 QStringLiteral("rawInput"),
                 QJsonObject{{QStringLiteral("command"), QStringLiteral("rm -r out")}, {QStringLiteral("description"), QStringLiteral("Remove")}});
+        } else if (text.contains(QLatin1String("askoutside"))) {
+            requestedCall.insert(QStringLiteral("kind"), QStringLiteral("read"));
+            requestedCall.insert(QStringLiteral("title"), QStringLiteral("Read secret"));
+            requestedCall.insert(QStringLiteral("locations"),
+                                 QJsonArray{QJsonObject{{QStringLiteral("path"), QStringLiteral("/orcinus-test-outside/secret.txt")}}});
         } else if (text.contains(QLatin1String("askdiff"))) {
             requestedCall.insert(QStringLiteral("content"),
                                  QJsonArray{QJsonObject{{QStringLiteral("type"), QStringLiteral("diff")},

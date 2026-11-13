@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 Orcinus contributors
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# Lets orcinus-sandbox create the user namespace it runs AI agents in (Orcinus AI panel). Ubuntu
+# allows that only for programs with a profile like this one (as for Chrome or bwrap). It
+# confines nothing else: the sandbox itself does that.
+
+abi <abi/4.0>,
+include <tunables/global>
+
+profile @WHALE_SANDBOX_PROFILE_NAME@ @WHALE_SANDBOX_PROFILE_PATH@ flags=(unconfined) {
+  userns,
+
+  include if exists <local/@WHALE_SANDBOX_PROFILE_NAME@>
+}

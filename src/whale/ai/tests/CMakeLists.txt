@@ -38,3 +38,8 @@ add_dependencies(whaleaipaneltest whaleacpfakeagent)
 ecm_add_test(whaleaicontexttest.cpp
     TEST_NAME whaleaicontexttest
     LINK_LIBRARIES whaleai Qt6::Test)
+
+ecm_add_test(whaleaisandboxtest.cpp
+    TEST_NAME whaleaisandboxtest
+    LINK_LIBRARIES whaleai Qt6::Test)
+add_dependencies(whaleaisandboxtest orcinus-sandbox)
