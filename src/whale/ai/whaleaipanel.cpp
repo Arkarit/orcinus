@@ -229,13 +229,18 @@ void WhaleAiPanel::setContextProvider(const std::function<WhaleAiContext()> &pro
 
 void WhaleAiPanel::refreshContext()
 {
-    if (m_contextProvider) {
-        m_chips->setContext(m_contextProvider());
-        return;
-    }
     WhaleAiContext context;
-    if (url().isLocalFile() && QFileInfo(url().toLocalFile()).isDir()) {
+    if (m_contextProvider) {
+        context = m_contextProvider();
+    } else if (url().isLocalFile() && QFileInfo(url().toLocalFile()).isDir()) {
         context.folder = url().toLocalFile();
+    }
+    // Folders of views may end with a slash.
+    if (!context.folder.isEmpty()) {
+        context.folder = QDir::cleanPath(context.folder);
+    }
+    if (!context.otherFolder.isEmpty()) {
+        context.otherFolder = QDir::cleanPath(context.otherFolder);
     }
     m_chips->setContext(context);
 }

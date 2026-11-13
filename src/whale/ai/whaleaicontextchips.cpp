@@ -8,17 +8,60 @@
 
 #include <KLocalizedString>
 
+#include <QDir>
 #include <QFileInfo>
-#include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
 #include <QLayout>
+#include <QPainter>
+#include <QResizeEvent>
 #include <QStyle>
 #include <QToolButton>
 
 namespace
 {
+/** A label that never asks for the width of its text: it elides it (the chip has a tooltip). */
+class ElidedLabel : public QLabel
+{
+public:
+    using QLabel::QLabel;
+
+    QSize minimumSizeHint() const override
+    {
+        return QSize(fontMetrics().horizontalAdvance(QStringLiteral("M…")), QLabel::minimumSizeHint().height());
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        const QRect rect = contentsRect();
+        const QString elided = fontMetrics().elidedText(text(), Qt::ElideRight, rect.width());
+        style()->drawItemText(&painter, rect, int(alignment()) | Qt::AlignVCenter, palette(), isEnabled(), elided, foregroundRole());
+    }
+};
+
+/** A rounded frame drawn here: QFrame::StyledPanel is not drawn by every style (Breeze). */
+class ChipFrame : public QWidget
+{
+public:
+    using QWidget::QWidget;
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QColor border = palette().color(QPalette::WindowText);
+        border.setAlphaF(0.25);
+        painter.setPen(QPen(border, 1));
+        painter.setBrush(palette().color(QPalette::AlternateBase));
+        const qreal radius = 4;
+        painter.drawRoundedRect(QRectF(rect()).adjusted(0.5, 0.5, -0.5, -0.5), radius, radius);
+    }
+};
+
 /** Lays its widgets out left to right and wraps them into further rows. */
 class FlowLayout : public QLayout
 {
@@ -120,8 +163,10 @@ private:
 
 QString fileName(const QString &path)
 {
-    const QString name = QFileInfo(path).fileName();
-    return name.isEmpty() ? path : name;
+    // A folder may come with a trailing slash.
+    const QString clean = QDir::cleanPath(path);
+    const QString name = QFileInfo(clean).fileName();
+    return name.isEmpty() ? clean : name;
 }
 
 QString pathList(const QStringList &paths)
@@ -143,6 +188,27 @@ WhaleAiContextChips::WhaleAiContextChips(QWidget *parent)
     policy.setHeightForWidth(true);
     setSizePolicy(policy);
     hide();
+}
+
+QSize WhaleAiContextChips::minimumSizeHint() const
+{
+    const QSize minimum = layout()->minimumSize();
+    const int width = qMax(this->width(), minimum.width());
+    return QSize(minimum.width(), layout()->heightForWidth(width));
+}
+
+QSize WhaleAiContextChips::sizeHint() const
+{
+    return minimumSizeHint();
+}
+
+void WhaleAiContextChips::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+    // Another width may need another number of rows.
+    if (event->oldSize().width() != width() && layout()->heightForWidth(width()) != height()) {
+        updateGeometry();
+    }
 }
 
 void WhaleAiContextChips::setContext(const WhaleAiContext &context)
@@ -259,12 +325,11 @@ QWidget *WhaleAiContextChips::createChip(const QString &objectName,
                                          const QString &toolTip,
                                          const std::function<void()> &remove)
 {
-    auto *chip = new QFrame(this);
+    auto *chip = new ChipFrame(this);
     chip->setObjectName(objectName);
-    chip->setFrameShape(QFrame::StyledPanel);
     chip->setToolTip(toolTip);
     auto *layout = new QHBoxLayout(chip);
-    layout->setContentsMargins(4, 1, 1, 1);
+    layout->setContentsMargins(5, 1, 1, 1);
     layout->setSpacing(2);
 
     const int iconSize = style()->pixelMetric(QStyle::PM_SmallIconSize);
@@ -272,10 +337,11 @@ QWidget *WhaleAiContextChips::createChip(const QString &objectName,
     icon->setPixmap(QIcon::fromTheme(iconName).pixmap(iconSize));
     layout->addWidget(icon);
 
-    auto *label = new QLabel(text, chip);
+    auto *label = new ElidedLabel(text, chip);
     label->setObjectName(QStringLiteral("text"));
     label->setTextFormat(Qt::PlainText);
-    layout->addWidget(label);
+    label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    layout->addWidget(label, 1);
 
     auto *button = new QToolButton(chip);
     button->setObjectName(QStringLiteral("remove"));

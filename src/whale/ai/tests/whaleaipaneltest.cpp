@@ -724,6 +724,35 @@ void WhaleAiPanelTest::contextChips()
     QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection")));
     QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-other")));
 
+    // A folder with a trailing slash (as views give it) is named, not shown as a path.
+    window.folder = a + QLatin1Char('/');
+    panel->refreshContext();
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a"));
+    QCOMPARE(panel->contextChips()->context().folder, a);
+
+    // A long name does not widen the panel: the chip elides it.
+    const QString longName = QString(200, QLatin1Char('x'));
+    window.folder = dir.filePath(longName);
+    panel->refreshContext();
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: ") + longName);
+    QVERIFY2(panel->contextChips()->minimumSizeHint().width() < 200, qPrintable(QString::number(panel->contextChips()->minimumSizeHint().width())));
+    QVERIFY(panel->minimumSizeHint().width() < 400);
+
+    // All rows get their room, also in a short panel: the transcript gives way.
+    window = {dir.filePath(QStringLiteral("aaaaaaaaaaaaaaaaaaaa")),
+              {a + QStringLiteral("/bbbbbbbbbbbbbbbbbbbb.png")},
+              dir.filePath(QStringLiteral("cccccccccccccccccccc")),
+              {}};
+    panel->refreshContext();
+    panel->resize(300, 260);
+    panel->show();
+    QVERIFY(QTest::qWaitForWindowExposed(panel.get()));
+    for (const QString &name : {QStringLiteral("chip-folder"), QStringLiteral("chip-selection"), QStringLiteral("chip-other")}) {
+        QWidget *chip = panel->contextChips()->findChild<QWidget *>(name);
+        QTRY_VERIFY2(panel->contextChips()->rect().contains(chip->geometry()), qPrintable(name));
+    }
+    panel->hide();
+
     // Nothing to show: no row.
     window = {};
     panel->refreshContext();

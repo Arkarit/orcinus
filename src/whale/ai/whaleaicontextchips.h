@@ -40,8 +40,15 @@ public:
     /** The next message went out with context(). */
     void messageSent();
 
+    /** All rows of chips at the current width: the transcript above gives way, not the chips. */
+    QSize minimumSizeHint() const override;
+    QSize sizeHint() const override;
+
 Q_SIGNALS:
     void contextChanged();
+
+protected:
+    void resizeEvent(QResizeEvent *event) override;
 
 private:
     void rebuild();

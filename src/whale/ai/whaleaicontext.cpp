@@ -18,8 +18,10 @@ namespace
 {
 QString fileName(const QString &path)
 {
-    const QString name = QFileInfo(path).fileName();
-    return name.isEmpty() ? path : name;
+    // A folder may come with a trailing slash.
+    const QString clean = QDir::cleanPath(path);
+    const QString name = QFileInfo(clean).fileName();
+    return name.isEmpty() ? clean : name;
 }
 
 /** @return @p paths, at most MaxItems, with a note on the rest. */
