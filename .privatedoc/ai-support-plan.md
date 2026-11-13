@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 next (planned 2026-11-13, before AI4).
 
 ## Problem
 
@@ -164,6 +164,42 @@ Large selections are capped (count, with a "+N more" note).
 folder, select) should not need a click each time: answer those requests directly, recognised
 reliably (not by the tool title, which differs per agent; e.g. `orcinus-mcp` announces the call). Settings dialog with details only after we have
 tried it.
+
+Details (planned 2026-11-13, AI5 before AI4):
+
+- *AI5a – Start mode.* After `session/new` and before the first prompt, the panel sets the agent's
+  `StartMode` (orcinusrc, exists since AI2) through `setConfigOption()` on the option of
+  category "mode"; the prompt waits for the answer. `WhaleAcpSession` gets a completion signal
+  for `setConfigOption()` (success or the agent's error), since today a failure only becomes a
+  protocol warning. If the agent does not offer the stored mode or refuses it, the prompt is
+  *not* sent: the transcript says so and the user picks a mode in the bar. Agents without a mode
+  option (none of the three checked, but ACP allows it) start as they are, with a notice that
+  Orcinus cannot choose how much they may do. Every agent starts in its most
+  restrictive mode until the user picks another one (user, 2026-11-13: the signal is "*you* are
+  responsible, not Orcinus, Claude or Codex"): without a stored `StartMode`, the panel takes the
+  first mode whose id is one of the known read-only ones (`plan`, `read-only`, `read_only`,
+  `readonly`; Claude `plan`, Codex `read-only`, OpenCode `plan`). If none matches, the first
+  prompt is not sent until the user picks a mode in the bar. Loosening is always the user's own
+  choice; the transcript notes each mode change. This applies to agents set up before AI5 too
+  (they have no `StartMode`).
+- *AI5b – Permission bar.* A combo box with the agent's modes between session info and
+  transcript (replaces "Mode: …" in the info line). Choosing a mode switches the running session
+  and stores it as the agent's `StartMode` (the bar remembers the last choice per agent). Before
+  the first prompt the bar shows the stored start mode; the agent's list of modes is cached per
+  agent (`Modes`, ids and names from the last session) so it can be chosen before a session
+  exists. Mode names and descriptions come from the agent (tooltip). No claims of our own about
+  what a mode allows: the tooltip says that the agent decides when it asks (AI0: modes are not
+  strict).
+- *AI5c – Better requests.* The inline request shows the kind (read, edit, delete, execute, …)
+  with an icon, the paths, and foldable details: the command for `execute`, the diff for edits
+  (from `content`), otherwise `rawInput` as JSON. Keyboard: the first allow option gets the focus
+  when the request arrives while the panel has focus. "Always" options are passed to the agent,
+  which remembers them for its session; Orcinus stores nothing (forgotten with the session).
+  A request that arrives while the dock is hidden (the user gave a task and closed the panel
+  while the agent works) shows the dock again (an agent that waits unseen looks hung; user
+  agreed 2026-11-13, "for now").
+- *Own MCP tools* need `orcinus-mcp`, which is AI6: answering their requests directly moves to
+  AI6, where the bridge announces each call to the panel before the agent asks.
 
 **AI6 – Back channel.** `orcinus-mcp` and the D-Bus interface on the window. First tools:
 `get_location`, `set_location` (go to a folder, in the active view), `get_selection`,
