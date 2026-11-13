@@ -200,6 +200,13 @@ Details (planned 2026-11-13, AI5 before AI4):
   exists. Mode names and descriptions come from the agent (tooltip). No claims of our own about
   what a mode allows: the tooltip says that the agent decides when it asks (AI0: modes are not
   strict).
+  *AI5b result (2026-11-13).* Combo box "Mode:" (`modes`) under the info line, which no longer
+  names the mode. Known modes per agent in orcinusrc (`ModeIds`, `ModeNames`,
+  `ModeDescriptions`, `WhaleAiAgents::knownModes()` / `setKnownModes()`), updated from each
+  conversation; `setAgents()` keeps them. Before a conversation: the stored start mode, else the
+  read-only one; with nothing known the box is disabled and says "Read-only mode" (or the stored
+  id). While a message waits for the user: no current item, "Choose a mode…". The tooltip has
+  the agent's description of the mode plus the caveat that the agent decides when it asks.
 - *AI5c – Better requests.* The inline request shows the kind (read, edit, delete, execute, …)
   with an icon, the paths, and foldable details: the command for `execute`, the diff for edits
   (from `content`), otherwise `rawInput` as JSON. Keyboard: the first allow option gets the focus

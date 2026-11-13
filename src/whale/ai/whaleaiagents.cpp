@@ -25,6 +25,9 @@ const char NameKey[] = "Name";
 const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
+const char ModeIdsKey[] = "ModeIds";
+const char ModeNamesKey[] = "ModeNames";
+const char ModeDescriptionsKey[] = "ModeDescriptions";
 
 KConfigGroup aiGroup()
 {
@@ -192,6 +195,49 @@ QString restrictiveMode(const WhaleAcpConfigOption &modes)
         }
     }
     return QString();
+}
+
+WhaleAcpConfigOption knownModes(const QString &id)
+{
+    WhaleAcpConfigOption modes;
+    modes.category = QStringLiteral("mode");
+    const KConfigGroup group = aiGroup();
+    if (id.isEmpty() || !group.readEntry(AgentsKey, QStringList()).contains(id)) {
+        return modes;
+    }
+    const KConfigGroup agentGroup = group.group(id);
+    const QStringList ids = agentGroup.readEntry(ModeIdsKey, QStringList());
+    const QStringList names = agentGroup.readEntry(ModeNamesKey, QStringList());
+    const QStringList descriptions = agentGroup.readEntry(ModeDescriptionsKey, QStringList());
+    for (int i = 0; i < ids.size(); ++i) {
+        modes.choices.append({ids.at(i), names.value(i), descriptions.value(i), QString()});
+    }
+    return modes;
+}
+
+void setKnownModes(const QString &id, const WhaleAcpConfigOption &modes)
+{
+    KConfigGroup group = aiGroup();
+    if (id.isEmpty() || !group.readEntry(AgentsKey, QStringList()).contains(id)) {
+        return;
+    }
+    QStringList ids;
+    QStringList names;
+    QStringList descriptions;
+    for (const WhaleAcpConfigOption::Choice &choice : modes.choices) {
+        ids.append(choice.value);
+        names.append(choice.name);
+        descriptions.append(choice.description);
+    }
+    KConfigGroup agentGroup = group.group(id);
+    if (agentGroup.readEntry(ModeIdsKey, QStringList()) == ids && agentGroup.readEntry(ModeNamesKey, QStringList()) == names
+        && agentGroup.readEntry(ModeDescriptionsKey, QStringList()) == descriptions) {
+        return;
+    }
+    agentGroup.writeEntry(ModeIdsKey, ids);
+    agentGroup.writeEntry(ModeNamesKey, names);
+    agentGroup.writeEntry(ModeDescriptionsKey, descriptions);
+    group.sync();
 }
 
 QList<WhaleAiAgentPreset> presets(const QStringList &searchPaths)

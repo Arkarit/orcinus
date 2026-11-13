@@ -22,8 +22,9 @@ class WhaleAiTranscript;
 /**
  * @brief The AI panel (AI3): a conversation with an ACP agent, next to the files.
  *
- * Above: the agent (from the "AI Agents" settings), "New Conversation", and what the session
- * runs with (model, mode), so the user sees where prompts go. In the middle the transcript,
+ * Above: the agent (from the "AI Agents" settings), "New Conversation", what the session runs
+ * with (model, context), so the user sees where prompts go, and the permission bar: the agent's
+ * modes (AI5b), offered from the last conversation before one runs. In the middle the transcript,
  * below the input: Enter sends, Shift+Enter starts a new line; while the agent works, the send
  * button stops it (as does Escape).
  *
@@ -101,11 +102,13 @@ private:
     void updateState();
     void updateSessionInfo();
     void openLink(const QString &link);
+    void updateModes();
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
     QToolButton *m_newConversation = nullptr;
     QLabel *m_sessionInfo = nullptr;
+    QComboBox *m_modes = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_send = nullptr;

@@ -78,6 +78,15 @@ void setStartMode(const QString &id, const QString &mode);
 QString restrictiveMode(const WhaleAcpConfigOption &modes);
 
 /**
+ * @return The modes the agent @p id offered in its last conversation, as an option of category
+ *         "mode" without a current value; no choices if none are known. The permission bar of
+ *         the panel offers them before a conversation runs.
+ */
+WhaleAcpConfigOption knownModes(const QString &id);
+/** Remembers the choices of @p modes for the agent @p id; nothing if it is gone. */
+void setKnownModes(const QString &id, const WhaleAcpConfigOption &modes);
+
+/**
  * @return The known agents (Claude, Codex, OpenCode), each with the command found in
  *         @p searchPaths (empty: PATH).
  */

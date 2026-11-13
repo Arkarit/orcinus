@@ -38,6 +38,7 @@ private Q_SLOTS:
     void uniqueId();
     void startMode();
     void restrictiveMode();
+    void knownModes();
     void testReady();
     void testNeedsLogin();
     void testMissingProgram();
@@ -241,6 +242,35 @@ void WhaleAiAgentsTest::restrictiveMode()
     QCOMPARE(WhaleAiAgents::restrictiveMode(modes({QStringLiteral("ask"), QStringLiteral("ReadOnly")})), QStringLiteral("ReadOnly"));
     QVERIFY(WhaleAiAgents::restrictiveMode(modes({QStringLiteral("ask"), QStringLiteral("auto")})).isEmpty());
     QVERIFY(WhaleAiAgents::restrictiveMode(modes({})).isEmpty());
+}
+
+void WhaleAiAgentsTest::knownModes()
+{
+    WhaleAiAgents::setAgents({{QStringLiteral("a"), QStringLiteral("A"), QStringLiteral("a"), {}, {}}});
+    QVERIFY(WhaleAiAgents::knownModes(QStringLiteral("a")).choices.isEmpty());
+
+    WhaleAcpConfigOption modes;
+    modes.id = QStringLiteral("mode");
+    modes.category = QStringLiteral("mode");
+    modes.currentValue = QStringLiteral("auto");
+    modes.choices = {{QStringLiteral("plan"), QStringLiteral("Plan"), QStringLiteral("Only reads"), {}},
+                     {QStringLiteral("auto"), QStringLiteral("Auto"), {}, {}}};
+    WhaleAiAgents::setKnownModes(QStringLiteral("a"), modes);
+    WhaleAiAgents::setKnownModes(QStringLiteral("gone"), modes);
+
+    const WhaleAcpConfigOption known = WhaleAiAgents::knownModes(QStringLiteral("a"));
+    QCOMPARE(known.category, QStringLiteral("mode"));
+    QVERIFY(known.currentValue.isEmpty());
+    QCOMPARE(known.choices.size(), 2);
+    QCOMPARE(known.choices.at(0).value, QStringLiteral("plan"));
+    QCOMPARE(known.choices.at(0).name, QStringLiteral("Plan"));
+    QCOMPARE(known.choices.at(0).description, QStringLiteral("Only reads"));
+    QCOMPARE(known.choices.at(1).value, QStringLiteral("auto"));
+    QVERIFY(WhaleAiAgents::knownModes(QStringLiteral("gone")).choices.isEmpty());
+
+    // Saving the agents (the settings page) keeps them.
+    WhaleAiAgents::setAgents(WhaleAiAgents::agents());
+    QCOMPARE(WhaleAiAgents::knownModes(QStringLiteral("a")).choices.size(), 2);
 }
 
 void WhaleAiAgentsTest::uniqueId()

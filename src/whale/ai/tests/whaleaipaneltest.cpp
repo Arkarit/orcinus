@@ -63,6 +63,7 @@ private Q_SLOTS:
     void agentWithoutModes();
     void agentSwitchesMode();
     void stopWhileWaitingForMode();
+    void permissionBar();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
@@ -89,6 +90,8 @@ void WhaleAiPanelTest::initTestCase()
 
 void WhaleAiPanelTest::init()
 {
+    // Start modes and known modes of earlier tests must not leak.
+    KSharedConfig::openConfig()->deleteGroup(QStringLiteral("AI"));
     WhaleAiAgents::setAgents({fakeAgent(QStringLiteral("basic"), QStringLiteral("basic")), fakeAgent(QStringLiteral("crash"), QStringLiteral("crash"))});
     WhaleAiAgents::setDefaultAgentId(QStringLiteral("basic"));
 }
@@ -203,7 +206,9 @@ void WhaleAiPanelTest::promptTurn()
     QCOMPARE(toolCall->findChild<QLabel *>(QStringLiteral("status"))->property("status").toInt(), int(WhaleAcpToolCall::Status::Completed));
 
     QVERIFY2(info->text().contains(QLatin1String("Model: Small")), qPrintable(info->text()));
-    QVERIFY(info->text().contains(QLatin1String("Mode: Plan")));
+    // The mode is in the bar, not in the info line.
+    QVERIFY(!info->text().contains(QLatin1String("Mode:")));
+    QCOMPARE(panel.findChild<QComboBox *>(QStringLiteral("modes"))->currentData().toString(), QStringLiteral("plan"));
     QVERIFY(info->text().contains(QLatin1String("Context: 4 %")));
 
     // The same conversation goes on, in the folder it started in.
@@ -423,9 +428,19 @@ void WhaleAiPanelTest::waitsWithoutReadOnlyMode()
     QVERIFY(!panel->sendPrompt(QStringLiteral("more")));
     QVERIFY(!panel->findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
 
-    panel->chooseMode(QStringLiteral("ask"));
+    // The bar asks for a choice instead of showing the agent's permissive mode.
+    auto *modes = panel->findChild<QComboBox *>(QStringLiteral("modes"));
+    QCOMPARE(modes->currentIndex(), -1);
+    QCOMPARE(modes->placeholderText(), QStringLiteral("Choose a mode…"));
+    QVERIFY(modes->isEnabled());
+    QCOMPARE(modes->count(), 2);
+
+    const int ask = modes->findData(QStringLiteral("ask"));
+    modes->setCurrentIndex(ask);
+    Q_EMIT modes->activated(ask);
     QVERIFY(waitForReady(*panel));
     QTRY_VERIFY(texts(*panel).contains(QLatin1String("text=nopermission")));
+    QCOMPARE(modes->currentData().toString(), QStringLiteral("ask"));
     QVERIFY(!panel->isWaitingForMode());
     QCOMPARE(WhaleAiAgents::agent(QStringLiteral("noreadonly")).startMode, QStringLiteral("ask"));
 }
@@ -483,6 +498,50 @@ void WhaleAiPanelTest::stopWhileWaitingForMode()
     send->click();
     QVERIFY(!panel->session());
     QVERIFY(texts(*panel).endsWith(QLatin1String("Stopped.")));
+}
+
+void WhaleAiPanelTest::permissionBar()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    auto *modes = panel->findChild<QComboBox *>(QStringLiteral("modes"));
+    QVERIFY(modes);
+    // Nothing known about the agent yet: the rule.
+    QCOMPARE(modes->count(), 0);
+    QVERIFY(!modes->isEnabled());
+    QCOMPARE(modes->placeholderText(), QStringLiteral("Read-only mode"));
+    QVERIFY(modes->toolTip().contains(QLatin1String("Orcinus can only answer what it is asked")));
+
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    QCOMPARE(modes->count(), 3);
+    QVERIFY(modes->isEnabled());
+    QCOMPARE(modes->currentData().toString(), QStringLiteral("plan"));
+    QCOMPARE(modes->itemData(modes->findData(QStringLiteral("ask")), Qt::ToolTipRole).toString(), QStringLiteral("Always ask"));
+
+    const int autoIndex = modes->findData(QStringLiteral("auto"));
+    modes->setCurrentIndex(autoIndex);
+    Q_EMIT modes->activated(autoIndex);
+    QTRY_COMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("basic")).startMode, QStringLiteral("auto"));
+    QCOMPARE(modes->currentData().toString(), QStringLiteral("auto"));
+
+    // The next conversation: the modes are known before it runs, the last choice is current.
+    panel->newConversation();
+    QVERIFY(!panel->session());
+    QCOMPARE(modes->count(), 3);
+    QVERIFY(modes->isEnabled());
+    QCOMPARE(modes->currentData().toString(), QStringLiteral("auto"));
+    // Choosing before it runs stores the start mode.
+    const int plan = modes->findData(QStringLiteral("plan"));
+    modes->setCurrentIndex(plan);
+    Q_EMIT modes->activated(plan);
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("basic")).startMode, QStringLiteral("plan"));
+
+    // A new panel (window) knows them too.
+    std::unique_ptr<WhaleAiPanel> other(new WhaleAiPanel);
+    auto *otherModes = other->findChild<QComboBox *>(QStringLiteral("modes"));
+    QCOMPARE(otherModes->count(), 3);
+    QCOMPARE(otherModes->currentData().toString(), QStringLiteral("plan"));
 }
 
 QTEST_MAIN(WhaleAiPanelTest)

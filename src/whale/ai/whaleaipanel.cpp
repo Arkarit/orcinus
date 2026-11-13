@@ -20,6 +20,7 @@
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QToolButton>
@@ -61,6 +62,17 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_sessionInfo->setWordWrap(true);
     m_sessionInfo->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
+    // The permission bar
+    m_modes = new QComboBox(chat);
+    m_modes->setObjectName(QStringLiteral("modes"));
+    m_modes->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_modes->setMinimumContentsLength(8);
+    auto *modesLabel = new QLabel(i18nc("@label:listbox what an AI agent may do on its own", "Mode:"), chat);
+    modesLabel->setBuddy(m_modes);
+    auto *modesRow = new QHBoxLayout;
+    modesRow->addWidget(modesLabel);
+    modesRow->addWidget(m_modes, 1);
+
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
 
@@ -83,6 +95,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     chatLayout->setContentsMargins(0, 0, 0, 0);
     chatLayout->addLayout(top);
     chatLayout->addWidget(m_sessionInfo);
+    chatLayout->addLayout(modesRow);
     chatLayout->addWidget(m_transcript, 1);
     chatLayout->addLayout(bottom);
 
@@ -111,6 +124,9 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
 
     connect(setupButton, &QPushButton::clicked, this, &WhaleAiPanel::configureRequested);
     connect(m_agents, &QComboBox::activated, this, &WhaleAiPanel::agentChosen);
+    connect(m_modes, &QComboBox::activated, this, [this](int index) {
+        chooseMode(m_modes->itemData(index).toString());
+    });
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
     connect(m_send, &QToolButton::clicked, this, [this] {
         if (m_send->property("busy").toBool()) {
@@ -280,7 +296,11 @@ bool WhaleAiPanel::startSession()
     connect(session, &WhaleAcpSession::toolCallChanged, m_transcript, &WhaleAiTranscript::updateToolCall);
     connect(session, &WhaleAcpSession::permissionRequested, m_transcript, &WhaleAiTranscript::addPermissionRequest);
     connect(session, &WhaleAcpSession::permissionWithdrawn, m_transcript, &WhaleAiTranscript::withdrawPermissionRequest);
-    connect(session, &WhaleAcpSession::configOptionsChanged, this, [this] {
+    connect(session, &WhaleAcpSession::configOptionsChanged, this, [this, session] {
+        if (const WhaleAcpConfigOption *mode = session->configOption(QStringLiteral("mode"))) {
+            // For the bar of the next conversation.
+            WhaleAiAgents::setKnownModes(m_sessionAgentId, *mode);
+        }
         noteModeChange();
         updateSessionInfo();
     });
@@ -409,6 +429,7 @@ void WhaleAiPanel::blockForMode(const QString &message)
     }
     m_transcript->addNotice(text, WhaleAiTranscript::Kind::Error);
     updateState();
+    updateSessionInfo();
 }
 
 void WhaleAiPanel::noteModeChange()
@@ -437,6 +458,7 @@ void WhaleAiPanel::chooseMode(const QString &value)
     if (!m_session || m_session->state() == WhaleAcpSession::State::Starting || m_modeState == ModeState::Unknown) {
         // The next conversation (or this one, once started) begins in it.
         WhaleAiAgents::setStartMode(m_session ? m_sessionAgentId : agentId(), value);
+        updateSessionInfo();
         return;
     }
     const WhaleAcpConfigOption *mode = m_session->configOption(QStringLiteral("mode"));
@@ -512,6 +534,7 @@ void WhaleAiPanel::updateState()
 
 void WhaleAiPanel::updateSessionInfo()
 {
+    updateModes();
     if (!m_session) {
         m_sessionInfo->setText(i18nc("@info", "Starts with your first message."));
         return;
@@ -528,14 +551,57 @@ void WhaleAiPanel::updateSessionInfo()
     if (const WhaleAcpConfigOption *model = m_session->configOption(QStringLiteral("model"))) {
         parts.append(i18nc("@info %1 is the name of a language model", "Model: %1", valueName(model)));
     }
-    if (const WhaleAcpConfigOption *mode = m_session->configOption(QStringLiteral("mode"))) {
-        parts.append(i18nc("@info %1 is the mode of an AI agent", "Mode: %1", valueName(mode)));
-    }
     const int usage = m_sessionInfo->property("usage").toInt();
     if (usage >= 0 && m_sessionInfo->property("usage").isValid()) {
         parts.append(i18nc("@info how much of the context window is used", "Context: %1 %", usage));
     }
     m_sessionInfo->setText(parts.isEmpty() ? m_session->agentInfo().displayName() : parts.join(QStringLiteral(" · ")));
+}
+
+void WhaleAiPanel::updateModes()
+{
+    const QSignalBlocker blocker(m_modes);
+    m_modes->clear();
+    const QString id = m_session ? m_sessionAgentId : agentId();
+    const WhaleAiAgent agent = WhaleAiAgents::agent(id);
+    // The modes of the running conversation once its start mode is handled, else the last known.
+    const bool live = m_session && m_modeState != ModeState::Unknown;
+    const WhaleAcpConfigOption *liveModes = live ? m_session->configOption(QStringLiteral("mode")) : nullptr;
+    const WhaleAcpConfigOption modes = liveModes ? *liveModes : WhaleAiAgents::knownModes(id);
+    for (const WhaleAcpConfigOption::Choice &choice : modes.choices) {
+        m_modes->addItem(choice.name.isEmpty() ? choice.value : choice.name, choice.value);
+        if (!choice.description.isEmpty()) {
+            m_modes->setItemData(m_modes->count() - 1, choice.description, Qt::ToolTipRole);
+        }
+    }
+
+    QString current;
+    if (live && !liveModes) {
+        m_modes->setPlaceholderText(i18nc("@item:inlistbox", "The agent offers no modes"));
+    } else if (live && m_modeState == ModeState::Blocked) {
+        m_modes->setPlaceholderText(i18nc("@item:inlistbox", "Choose a mode…"));
+    } else if (live) {
+        current = m_modeState == ModeState::Applying ? m_modeRequest : liveModes->currentValue;
+    } else {
+        current = agent.startMode.isEmpty() ? WhaleAiAgents::restrictiveMode(modes) : agent.startMode;
+        if (current.isEmpty() || m_modes->findData(current) < 0) {
+            // Nothing known yet: the rule, or the stored mode the agent may no longer offer.
+            m_modes->setPlaceholderText(agent.startMode.isEmpty() ? i18nc("@item:inlistbox", "Read-only mode") : agent.startMode);
+        }
+    }
+    const int index = current.isEmpty() ? -1 : m_modes->findData(current);
+    m_modes->setCurrentIndex(index);
+    m_modes->setEnabled(m_modes->count() > 0);
+
+    QString tooltip = index >= 0 ? m_modes->itemData(index, Qt::ToolTipRole).toString() : QString();
+    if (!tooltip.isEmpty()) {
+        tooltip += QStringLiteral("\n\n");
+    }
+    // AI0: modes are not strict, the UI must not promise more than the agent keeps.
+    tooltip += i18nc("@info:tooltip",
+                     "What the agent may do without asking. Each agent starts in its most restrictive mode until you choose another one. "
+                     "The agent decides when it asks: Orcinus can only answer what it is asked.");
+    m_modes->setToolTip(tooltip);
 }
 
 void WhaleAiPanel::openLink(const QString &link)
