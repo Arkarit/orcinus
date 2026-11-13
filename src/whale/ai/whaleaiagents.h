@@ -67,6 +67,16 @@ void setDefaultAgentId(const QString &id);
 /** @return The agent with @p id, or one with an empty id. */
 WhaleAiAgent agent(const QString &id);
 
+/** Stores @p mode as the start mode of the agent @p id (empty: none); nothing if it is gone. */
+void setStartMode(const QString &id, const QString &mode);
+
+/**
+ * @return The value of the first choice of @p modes (an option of category "mode") that is
+ *         known to only read (Claude and OpenCode `plan`, Codex `read-only`, …); empty if
+ *         none is. An agent without a stored start mode starts in it (AI5).
+ */
+QString restrictiveMode(const WhaleAcpConfigOption &modes);
+
 /**
  * @return The known agents (Claude, Codex, OpenCode), each with the command found in
  *         @p searchPaths (empty: PATH).

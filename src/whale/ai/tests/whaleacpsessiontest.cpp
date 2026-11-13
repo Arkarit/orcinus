@@ -31,6 +31,7 @@ private Q_SLOTS:
     void cancelWithoutPermission();
     void setsConfigOption();
     void modesWithoutConfigOptions();
+    void configOptionRefused();
     void agentCrashes();
     void ignoresGarbage();
     void startTimesOut();
@@ -288,12 +289,30 @@ void WhaleAcpSessionTest::modesWithoutConfigOptions()
     QVERIFY(mode);
     QVERIFY(mode->isFromModes());
     QCOMPARE(mode->currentValue, QStringLiteral("auto"));
-    QCOMPARE(mode->choices.size(), 2);
+    QCOMPARE(mode->choices.size(), 3);
 
     QSignalSpy changed(session, &WhaleAcpSession::configOptionsChanged);
+    QSignalSpy set(session, &WhaleAcpSession::configOptionSet);
     session->setConfigOption(WhaleAcpConfigOption::modesOptionId(), QStringLiteral("ask"));
     QTRY_COMPARE(session->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("ask"));
     QVERIFY(!changed.isEmpty());
+    QTRY_COMPARE(set.count(), 1);
+    QCOMPARE(set.at(0).at(0).toString(), WhaleAcpConfigOption::modesOptionId());
+    QCOMPARE(set.at(0).at(1).toString(), QStringLiteral("ask"));
+    QVERIFY(set.at(0).at(2).toString().isEmpty());
+}
+
+void WhaleAcpSessionTest::configOptionRefused()
+{
+    WhaleAcpSession *session = startSession(QStringLiteral("refusemode"));
+    QSignalSpy set(session, &WhaleAcpSession::configOptionSet);
+    session->setConfigOption(QStringLiteral("mode"), QStringLiteral("plan"));
+    QTRY_COMPARE(set.count(), 1);
+    QCOMPARE(set.at(0).at(0).toString(), QStringLiteral("mode"));
+    QCOMPARE(set.at(0).at(1).toString(), QStringLiteral("plan"));
+    QCOMPARE(set.at(0).at(2).toString(), QStringLiteral("mode is locked"));
+    QCOMPARE(session->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+    QCOMPARE(session->state(), WhaleAcpSession::State::Ready);
 }
 
 void WhaleAcpSessionTest::agentCrashes()

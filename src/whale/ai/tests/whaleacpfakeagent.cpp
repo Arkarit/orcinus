@@ -12,6 +12,9 @@
  *   basic        configOptions; a prompt streams chunks, asks for a file the client does not
  *                offer (fs/read_text_file), starts a tool call and asks for permission
  *   modes        only the older `modes` field; set_mode answers with current_mode_update
+ *   noreadonly   like basic, but no mode Orcinus knows as read-only (only ask and auto)
+ *   nomode       like basic, but no mode option at all
+ *   refusemode   like basic, but refuses to change the mode
  *   crash        writes to stderr and exits with code 3 when it gets a prompt
  *   garbage      writes a line that is no JSON before answering initialize
  *   oldprotocol  answers initialize with protocol version 99
@@ -101,22 +104,30 @@ QJsonObject waitForResponse(const QJsonValue &id)
     }
 }
 
+QJsonArray modeChoices()
+{
+    QJsonArray choices{
+        QJsonObject{{QStringLiteral("value"), QStringLiteral("ask")},
+                    {QStringLiteral("name"), QStringLiteral("Ask")},
+                    {QStringLiteral("description"), QStringLiteral("Always ask")}},
+    };
+    if (scenario != QLatin1String("noreadonly")) {
+        choices.append(QJsonObject{{QStringLiteral("value"), QStringLiteral("plan")}, {QStringLiteral("name"), QStringLiteral("Plan")}});
+    }
+    choices.append(QJsonObject{{QStringLiteral("value"), QStringLiteral("auto")}, {QStringLiteral("name"), QStringLiteral("Auto")}});
+    return choices;
+}
+
 QJsonArray configOptions()
 {
-    return {
+    QJsonArray options{
         QJsonObject{
             {QStringLiteral("id"), QStringLiteral("mode")},
             {QStringLiteral("name"), QStringLiteral("Mode")},
             {QStringLiteral("category"), QStringLiteral("mode")},
             {QStringLiteral("type"), QStringLiteral("select")},
             {QStringLiteral("currentValue"), modeValue},
-            {QStringLiteral("options"),
-             QJsonArray{
-                 QJsonObject{{QStringLiteral("value"), QStringLiteral("ask")},
-                             {QStringLiteral("name"), QStringLiteral("Ask")},
-                             {QStringLiteral("description"), QStringLiteral("Always ask")}},
-                 QJsonObject{{QStringLiteral("value"), QStringLiteral("auto")}, {QStringLiteral("name"), QStringLiteral("Auto")}},
-             }},
+            {QStringLiteral("options"), modeChoices()},
         },
         QJsonObject{
             {QStringLiteral("id"), QStringLiteral("model")},
@@ -144,6 +155,10 @@ QJsonArray configOptions()
             {QStringLiteral("currentValue"), false},
         },
     };
+    if (scenario == QLatin1String("nomode")) {
+        options.removeFirst();
+    }
+    return options;
 }
 
 void handleInitialize(const QJsonObject &message)
@@ -189,13 +204,18 @@ void handleNewSession(const QJsonObject &message)
     }
 
     QJsonObject result{{QStringLiteral("sessionId"), QStringLiteral("s1")}};
+    QJsonArray availableModes;
+    for (const QJsonValue &choice : modeChoices()) {
+        availableModes.append(QJsonObject{{QStringLiteral("id"), choice.toObject().value(QLatin1String("value"))},
+                                          {QStringLiteral("name"), choice.toObject().value(QLatin1String("name"))}});
+    }
     const QJsonObject modes{
         {QStringLiteral("currentModeId"), modeValue},
-        {QStringLiteral("availableModes"),
-         QJsonArray{QJsonObject{{QStringLiteral("id"), QStringLiteral("ask")}, {QStringLiteral("name"), QStringLiteral("Ask")}},
-                    QJsonObject{{QStringLiteral("id"), QStringLiteral("auto")}, {QStringLiteral("name"), QStringLiteral("Auto")}}}},
+        {QStringLiteral("availableModes"), availableModes},
     };
-    result.insert(QStringLiteral("modes"), modes);
+    if (scenario != QLatin1String("nomode")) {
+        result.insert(QStringLiteral("modes"), modes);
+    }
     if (scenario != QLatin1String("modes")) {
         result.insert(QStringLiteral("configOptions"), configOptions());
     }
@@ -311,6 +331,9 @@ void handleSetConfigOption(const QJsonObject &message)
         modelValue = value;
         // Like a real agent: the model change also moves the mode.
         modeValue = QStringLiteral("ask");
+    } else if (configId == QLatin1String("mode") && scenario == QLatin1String("refusemode")) {
+        respondError(message.value(QLatin1String("id")), -32602, QStringLiteral("mode is locked"));
+        return;
     } else if (configId == QLatin1String("mode")) {
         modeValue = value;
     } else {

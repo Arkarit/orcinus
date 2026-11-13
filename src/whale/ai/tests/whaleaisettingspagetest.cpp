@@ -244,7 +244,7 @@ void WhaleAiSettingsPageTest::testReady()
     QVERIFY(result->text().contains(QLatin1String("Starting A")));
     QTRY_VERIFY_WITH_TIMEOUT(test->isEnabled(), 10000);
     QVERIFY2(result->text().contains(QLatin1String("<b>Fake Agent 1.2.3</b> is ready.")), qPrintable(result->text()));
-    QVERIFY2(result->text().contains(QLatin1String("Mode: Auto (of: Ask, Auto)")), qPrintable(result->text()));
+    QVERIFY2(result->text().contains(QLatin1String("Mode: Auto (of: Ask, Plan, Auto)")), qPrintable(result->text()));
     QVERIFY2(result->text().contains(QLatin1String("Model: Small")), qPrintable(result->text()));
 }
 

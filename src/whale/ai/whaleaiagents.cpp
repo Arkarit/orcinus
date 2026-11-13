@@ -165,6 +165,35 @@ WhaleAiAgent agent(const QString &id)
     return {};
 }
 
+void setStartMode(const QString &id, const QString &mode)
+{
+    QList<WhaleAiAgent> list = agents();
+    for (WhaleAiAgent &agent : list) {
+        if (agent.id == id) {
+            agent.startMode = mode;
+            setAgents(list);
+            return;
+        }
+    }
+}
+
+QString restrictiveMode(const WhaleAcpConfigOption &modes)
+{
+    // Ids of the agents checked in AI0, plus spellings other agents may use.
+    static const QStringList readOnly{
+        QStringLiteral("plan"),
+        QStringLiteral("read-only"),
+        QStringLiteral("read_only"),
+        QStringLiteral("readonly"),
+    };
+    for (const WhaleAcpConfigOption::Choice &choice : modes.choices) {
+        if (readOnly.contains(choice.value, Qt::CaseInsensitive)) {
+            return choice.value;
+        }
+    }
+    return QString();
+}
+
 QList<WhaleAiAgentPreset> presets(const QStringList &searchPaths)
 {
     struct Known {

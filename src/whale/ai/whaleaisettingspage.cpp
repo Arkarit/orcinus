@@ -98,7 +98,15 @@ WhaleAiSettingsPage::~WhaleAiSettingsPage() = default;
 
 void WhaleAiSettingsPage::applySettings()
 {
-    WhaleAiAgents::setAgents(m_agents);
+    // The start mode is chosen in the panel, maybe while this page is open: keep the stored one.
+    QList<WhaleAiAgent> agents = m_agents;
+    for (WhaleAiAgent &agent : agents) {
+        const WhaleAiAgent stored = WhaleAiAgents::agent(agent.id);
+        if (!stored.id.isEmpty()) {
+            agent.startMode = stored.startMode;
+        }
+    }
+    WhaleAiAgents::setAgents(agents);
     WhaleAiAgents::setDefaultAgentId(m_defaultId);
 }
 

@@ -78,6 +78,7 @@ public:
     /**
      * Sets the option @p id to @p value. The agent answers with all options, which may change
      * others too (e.g. a model with other reasoning levels); configOptionsChanged() follows.
+     * configOptionSet() reports the outcome.
      */
     void setConfigOption(const QString &id, const QString &value);
 
@@ -102,6 +103,11 @@ public:
 Q_SIGNALS:
     void stateChanged(WhaleAcpSession::State state);
     void configOptionsChanged();
+    /**
+     * The agent answered setConfigOption(@p id, @p value): @p error is empty if it took the
+     * value, otherwise the reason (also when the agent ended before it answered).
+     */
+    void configOptionSet(const QString &id, const QString &value, const QString &error);
     void availableCommandsChanged();
     void agentMessageChunk(const QString &text);
     void agentThoughtChunk(const QString &text);

@@ -113,7 +113,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     connect(m_agents, &QComboBox::activated, this, &WhaleAiPanel::agentChosen);
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
     connect(m_send, &QToolButton::clicked, this, [this] {
-        if (m_session && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting)) {
+        if (m_send->property("busy").toBool()) {
             stop();
         } else if (sendPrompt(m_input->toPlainText())) {
             m_input->clear();
@@ -211,6 +211,10 @@ bool WhaleAiPanel::sendPrompt(const QString &text)
         // One prompt at a time; the agent is starting or working.
         return false;
     }
+    if (!m_pendingPrompt.isEmpty()) {
+        // The last one still waits for a mode.
+        return false;
+    }
     // A program that cannot be started keeps the text in the input.
     if (!m_session && !startSession()) {
         return false;
@@ -239,6 +243,9 @@ bool WhaleAiPanel::startSession()
     }
 
     m_sessionAgentId = agent.id;
+    m_modeState = ModeState::Unknown;
+    m_modeRequest.clear();
+    m_shownMode.clear();
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
     m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2.", agent.name, directory));
@@ -246,7 +253,11 @@ bool WhaleAiPanel::startSession()
     WhaleAcpSession *session = m_session;
     connect(session, &WhaleAcpSession::stateChanged, this, [this, session](WhaleAcpSession::State state) {
         if (state == WhaleAcpSession::State::Ready) {
-            sendPending();
+            if (m_modeState == ModeState::Unknown) {
+                applyStartMode();
+            } else {
+                sendPending();
+            }
         } else if (state == WhaleAcpSession::State::Failed) {
             QString details = session->errorString();
             const QString log = session->agentLog().trimmed();
@@ -269,7 +280,11 @@ bool WhaleAiPanel::startSession()
     connect(session, &WhaleAcpSession::toolCallChanged, m_transcript, &WhaleAiTranscript::updateToolCall);
     connect(session, &WhaleAcpSession::permissionRequested, m_transcript, &WhaleAiTranscript::addPermissionRequest);
     connect(session, &WhaleAcpSession::permissionWithdrawn, m_transcript, &WhaleAiTranscript::withdrawPermissionRequest);
-    connect(session, &WhaleAcpSession::configOptionsChanged, this, &WhaleAiPanel::updateSessionInfo);
+    connect(session, &WhaleAcpSession::configOptionsChanged, this, [this] {
+        noteModeChange();
+        updateSessionInfo();
+    });
+    connect(session, &WhaleAcpSession::configOptionSet, this, &WhaleAiPanel::modeSet);
     connect(session, &WhaleAcpSession::usageChanged, this, [this](qint64 used, qint64 size) {
         m_sessionInfo->setProperty("usage", size > 0 ? int(used * 100 / size) : -1);
         updateSessionInfo();
@@ -298,10 +313,142 @@ bool WhaleAiPanel::startSession()
 
 void WhaleAiPanel::sendPending()
 {
-    if (!m_session || m_session->state() != WhaleAcpSession::State::Ready || m_pendingPrompt.isEmpty()) {
+    if (!m_session || m_session->state() != WhaleAcpSession::State::Ready || m_modeState != ModeState::Set || m_pendingPrompt.isEmpty()) {
         return;
     }
     m_session->prompt({WhaleAcpContent::text(std::exchange(m_pendingPrompt, QString()))});
+    updateState();
+}
+
+void WhaleAiPanel::applyStartMode()
+{
+    const WhaleAiAgent agent = WhaleAiAgents::agent(m_sessionAgentId);
+    const WhaleAcpConfigOption *mode = m_session->configOption(QStringLiteral("mode"));
+    if (!mode) {
+        // ACP allows it; none of the agents checked in AI0 does it.
+        m_modeState = ModeState::Set;
+        m_transcript->addNotice(
+            i18nc("@info %1 is the name of an AI agent", "%1 offers no modes, so Orcinus cannot choose what it may do. It works as it is set up.", agent.name));
+        sendPending();
+        return;
+    }
+    if (!agent.startMode.isEmpty()) {
+        if (!mode->choice(agent.startMode)) {
+            blockForMode(i18nc("@info %1 is the name of an AI agent, %2 the id of a mode",
+                               "%1 does not offer the mode “%2” any more. Choose the mode it should work in.",
+                               agent.name,
+                               agent.startMode));
+            return;
+        }
+        requestMode(agent.startMode, false);
+        return;
+    }
+    const QString restrictive = WhaleAiAgents::restrictiveMode(*mode);
+    if (restrictive.isEmpty()) {
+        blockForMode(
+            i18nc("@info %1 is the name of an AI agent", "Orcinus does not know which mode of %1 only reads. Choose the mode it should work in.", agent.name));
+        return;
+    }
+    requestMode(restrictive, false);
+}
+
+void WhaleAiPanel::requestMode(const QString &value, bool byUser)
+{
+    const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
+    if (!mode) {
+        return;
+    }
+    m_modeRequest = value;
+    m_modeRequestByUser = byUser;
+    if (mode->currentValue == value) {
+        modeSet(mode->id, value, QString());
+        return;
+    }
+    if (m_modeState != ModeState::Set) {
+        m_modeState = ModeState::Applying;
+    }
+    m_session->setConfigOption(mode->id, value);
+}
+
+void WhaleAiPanel::modeSet(const QString &id, const QString &value, const QString &error)
+{
+    const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
+    if (!mode || mode->id != id || value != m_modeRequest) {
+        return;
+    }
+    m_modeRequest.clear();
+    if (!error.isEmpty()) {
+        const QString message =
+            i18nc("@info %1 is the name of a mode, %2 the agent's reason", "The agent did not switch to the mode “%1”: %2", modeName(value), error);
+        if (m_modeState == ModeState::Set) {
+            // It keeps working in the mode it has.
+            m_transcript->addNotice(message, WhaleAiTranscript::Kind::Error);
+        } else {
+            blockForMode(message + QLatin1Char(' ') + i18nc("@info", "Choose the mode it should work in."));
+        }
+        return;
+    }
+    if (m_modeRequestByUser) {
+        WhaleAiAgents::setStartMode(m_sessionAgentId, value);
+    }
+    m_shownMode = value;
+    m_transcript->addNotice(m_modeRequestByUser
+                                ? i18nc("@info %1 is the name of a mode of an AI agent", "You switched the agent to the mode “%1”.", modeName(value))
+                                : i18nc("@info %1 is the name of a mode of an AI agent", "The agent works in the mode “%1”.", modeName(value)));
+    m_modeState = ModeState::Set;
+    sendPending();
+    updateSessionInfo();
+}
+
+void WhaleAiPanel::blockForMode(const QString &message)
+{
+    m_modeState = ModeState::Blocked;
+    QString text = message;
+    if (!m_pendingPrompt.isEmpty()) {
+        text += QLatin1Char(' ') + i18nc("@info", "Your message is sent once the agent works in the chosen mode.");
+    }
+    m_transcript->addNotice(text, WhaleAiTranscript::Kind::Error);
+    updateState();
+}
+
+void WhaleAiPanel::noteModeChange()
+{
+    // The agent may switch on its own (e.g. Claude leaving plan mode after a permission request).
+    const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
+    if (!mode || m_modeState != ModeState::Set || !m_modeRequest.isEmpty() || mode->currentValue == m_shownMode) {
+        return;
+    }
+    m_shownMode = mode->currentValue;
+    m_transcript->addNotice(i18nc("@info %1 is the name of a mode of an AI agent", "The agent switched to the mode “%1”.", modeName(m_shownMode)));
+}
+
+QString WhaleAiPanel::modeName(const QString &value) const
+{
+    const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
+    const WhaleAcpConfigOption::Choice *choice = mode ? mode->choice(value) : nullptr;
+    return choice && !choice->name.isEmpty() ? choice->name : value;
+}
+
+void WhaleAiPanel::chooseMode(const QString &value)
+{
+    if (value.isEmpty()) {
+        return;
+    }
+    if (!m_session || m_session->state() == WhaleAcpSession::State::Starting || m_modeState == ModeState::Unknown) {
+        // The next conversation (or this one, once started) begins in it.
+        WhaleAiAgents::setStartMode(m_session ? m_sessionAgentId : agentId(), value);
+        return;
+    }
+    const WhaleAcpConfigOption *mode = m_session->configOption(QStringLiteral("mode"));
+    if (!mode || !mode->choice(value)) {
+        return;
+    }
+    requestMode(value, true);
+}
+
+bool WhaleAiPanel::isWaitingForMode() const
+{
+    return m_session && !m_pendingPrompt.isEmpty() && m_modeState == ModeState::Blocked;
 }
 
 void WhaleAiPanel::stop()
@@ -311,7 +458,7 @@ void WhaleAiPanel::stop()
     }
     if (m_session->state() == WhaleAcpSession::State::Prompting) {
         m_session->cancel();
-    } else if (m_session->state() == WhaleAcpSession::State::Starting) {
+    } else if (m_session->state() == WhaleAcpSession::State::Starting || !m_pendingPrompt.isEmpty()) {
         endSession();
         m_transcript->addNotice(i18nc("@info", "Stopped."));
     }
@@ -321,6 +468,8 @@ void WhaleAiPanel::stop()
 void WhaleAiPanel::endSession()
 {
     m_pendingPrompt.clear();
+    m_modeState = ModeState::Unknown;
+    m_modeRequest.clear();
     if (!m_session) {
         return;
     }
@@ -345,7 +494,10 @@ void WhaleAiPanel::newConversation()
 
 void WhaleAiPanel::updateState()
 {
-    const bool busy = m_session && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting);
+    // A message that waits for the start mode counts as sent, unless it waits for the user.
+    const bool busy = m_session
+        && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting
+            || (!m_pendingPrompt.isEmpty() && m_modeState != ModeState::Blocked));
     if (busy) {
         m_send->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-stop")));
         m_send->setToolTip(i18nc("@info:tooltip", "Stop (Escape)"));

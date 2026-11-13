@@ -29,10 +29,12 @@
 #include <QTest>
 #include <QToolButton>
 
+#include <memory>
+
 /**
  * The AI panel (AI3) against the scripted agent whaleacpfakeagent: sending, the transcript of a
  * turn, permission buttons, stopping, failures, choosing another agent, links, and the panel in
- * the main window.
+ * the main window. The start mode of AI5: read-only first, the stored mode, waiting for the user.
  */
 class WhaleAiPanelTest : public QObject
 {
@@ -53,11 +55,21 @@ private Q_SLOTS:
     void links();
     void panelInMainWindow();
 
+    void storedStartMode();
+    void chosenModeIsStored();
+    void waitsWithoutReadOnlyMode();
+    void waitsWhenModeRefused();
+    void waitsWhenStoredModeIsGone();
+    void agentWithoutModes();
+    void agentSwitchesMode();
+    void stopWhileWaitingForMode();
+
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
     static QList<WhaleAiTranscript::Kind> kinds(WhaleAiPanel &panel);
     static QString texts(WhaleAiPanel &panel);
     static bool waitForReady(WhaleAiPanel &panel);
+    static WhaleAiPanel *panelWith(const QString &scenario, const QString &startMode, const QString &workPath);
 
     QTemporaryDir m_home;
     QTemporaryDir m_work;
@@ -116,7 +128,9 @@ bool WhaleAiPanelTest::waitForReady(WhaleAiPanel &panel)
 {
     return QTest::qWaitFor(
         [&panel] {
-            return panel.session() && panel.session()->state() == WhaleAcpSession::State::Ready;
+            // A message that waits for the start mode is not done yet.
+            return panel.session() && panel.session()->state() == WhaleAcpSession::State::Ready
+                && !panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool();
         },
         10000);
 }
@@ -166,18 +180,22 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(!send->property("busy").toBool());
 
     using Kind = WhaleAiTranscript::Kind;
-    // Notice of the folder, the message, the thought, the answer, the tool call, the request,
-    // and the answer after it as an entry of its own.
-    QCOMPARE(kinds(panel),
-             (QList<Kind>{Kind::Notice, Kind::UserMessage, Kind::Thought, Kind::AgentMessage, Kind::ToolCall, Kind::Permission, Kind::AgentMessage}));
+    // Notice of the folder, the message, the mode, the thought, the answer, the tool call, the
+    // request, and the answer after it as an entry of its own.
+    QCOMPARE(
+        kinds(panel),
+        (QList<Kind>{Kind::Notice, Kind::UserMessage, Kind::Notice, Kind::Thought, Kind::AgentMessage, Kind::ToolCall, Kind::Permission, Kind::AgentMessage}));
     const QString all = texts(panel);
+    // Without a stored start mode: the read-only one, before the message went out.
+    QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Plan”.")), qPrintable(all));
+    QVERIFY(WhaleAiAgents::agent(QStringLiteral("basic")).startMode.isEmpty());
     QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1.").arg(m_work.path())), qPrintable(all));
     QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=;text=hello;links=0").arg(m_work.path())), qPrintable(all));
     QVERIFY(all.contains(QLatin1String("permission=yes")));
     QVERIFY(all.contains(QLatin1String("Answered: Yes")));
     QVERIFY(!all.contains(QLatin1String("WRONG SESSION")));
     // The thought is folded.
-    QVERIFY(!panel.transcript()->entries().at(2)->findChildren<QLabel *>().first()->isVisibleTo(panel.transcript()->entries().at(2)));
+    QVERIFY(!panel.transcript()->entries().at(3)->findChildren<QLabel *>().first()->isVisibleTo(panel.transcript()->entries().at(3)));
 
     QWidget *toolCall = panel.transcript()->findChild<QWidget *>(QStringLiteral("toolCall-t1"));
     QVERIFY(toolCall);
@@ -185,7 +203,7 @@ void WhaleAiPanelTest::promptTurn()
     QCOMPARE(toolCall->findChild<QLabel *>(QStringLiteral("status"))->property("status").toInt(), int(WhaleAcpToolCall::Status::Completed));
 
     QVERIFY2(info->text().contains(QLatin1String("Model: Small")), qPrintable(info->text()));
-    QVERIFY(info->text().contains(QLatin1String("Mode: Auto")));
+    QVERIFY(info->text().contains(QLatin1String("Mode: Plan")));
     QVERIFY(info->text().contains(QLatin1String("Context: 4 %")));
 
     // The same conversation goes on, in the folder it started in.
@@ -342,6 +360,129 @@ void WhaleAiPanelTest::panelInMainWindow()
     // A file in an answer: its folder with the file selected.
     Q_EMIT panel->localUrlActivated(QUrl::fromLocalFile(dir.path() + QStringLiteral("/a.txt")));
     QTRY_COMPARE(mainWindow.activeViewContainer()->view()->selectedItems().count(), 1);
+}
+
+WhaleAiPanel *WhaleAiPanelTest::panelWith(const QString &scenario, const QString &startMode, const QString &workPath)
+{
+    WhaleAiAgent agent = fakeAgent(scenario, scenario);
+    agent.startMode = startMode;
+    WhaleAiAgents::setAgents({agent});
+    WhaleAiAgents::setDefaultAgentId(scenario);
+    auto *panel = new WhaleAiPanel;
+    panel->setUrl(QUrl::fromLocalFile(workPath));
+    return panel;
+}
+
+void WhaleAiPanelTest::storedStartMode()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QStringLiteral("ask"), m_work.path()));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    const QString all = texts(*panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Ask”.")), qPrintable(all));
+    QVERIFY(all.contains(QLatin1String("text=nopermission")));
+    QCOMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("ask"));
+    // The order: the mode is noted before the agent's answer.
+    QVERIFY(all.indexOf(QStringLiteral("mode “Ask”")) < all.indexOf(QLatin1String("text=nopermission")));
+}
+
+void WhaleAiPanelTest::chosenModeIsStored()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    // Before a conversation: only stored.
+    panel->chooseMode(QStringLiteral("ask"));
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("basic")).startMode, QStringLiteral("ask"));
+    QVERIFY(!panel->session());
+
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    QCOMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("ask"));
+
+    // In the conversation: switched, noted, stored.
+    panel->chooseMode(QStringLiteral("auto"));
+    QTRY_COMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+    QTRY_VERIFY(texts(*panel).endsWith(QStringLiteral("You switched the agent to the mode “Auto”.")));
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("basic")).startMode, QStringLiteral("auto"));
+    // A mode the agent does not offer is ignored.
+    panel->chooseMode(QStringLiteral("nonsense"));
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("basic")).startMode, QStringLiteral("auto"));
+}
+
+void WhaleAiPanelTest::waitsWithoutReadOnlyMode()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("noreadonly"), QString(), m_work.path()));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QTRY_VERIFY(panel->isWaitingForMode());
+    QString all = texts(*panel);
+    QVERIFY2(all.contains(QLatin1String("Orcinus does not know which mode of Fake noreadonly only reads.")), qPrintable(all));
+    QVERIFY(all.contains(QLatin1String("Your message is sent once the agent works in the chosen mode.")));
+    QVERIFY(!all.contains(QLatin1String("text=")));
+    QCOMPARE(kinds(*panel).last(), WhaleAiTranscript::Kind::Error);
+    QCOMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+    // One waiting message at a time; the send button does not stop.
+    QVERIFY(!panel->sendPrompt(QStringLiteral("more")));
+    QVERIFY(!panel->findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+
+    panel->chooseMode(QStringLiteral("ask"));
+    QVERIFY(waitForReady(*panel));
+    QTRY_VERIFY(texts(*panel).contains(QLatin1String("text=nopermission")));
+    QVERIFY(!panel->isWaitingForMode());
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("noreadonly")).startMode, QStringLiteral("ask"));
+}
+
+void WhaleAiPanelTest::waitsWhenModeRefused()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("refusemode"), QString(), m_work.path()));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QTRY_VERIFY(panel->isWaitingForMode());
+    const QString all = texts(*panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent did not switch to the mode “Plan”: mode is locked")), qPrintable(all));
+    QVERIFY(!all.contains(QLatin1String("text=")));
+}
+
+void WhaleAiPanelTest::waitsWhenStoredModeIsGone()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QStringLiteral("gone"), m_work.path()));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QTRY_VERIFY(panel->isWaitingForMode());
+    const QString all = texts(*panel);
+    QVERIFY2(all.contains(QStringLiteral("Fake basic does not offer the mode “gone” any more.")), qPrintable(all));
+    QVERIFY(!all.contains(QLatin1String("text=")));
+    // Not the read-only mode in its place: the user chose something else before.
+    QCOMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+}
+
+void WhaleAiPanelTest::agentWithoutModes()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("nomode"), QString(), m_work.path()));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    const QString all = texts(*panel);
+    QVERIFY2(all.contains(QLatin1String("Fake nomode offers no modes, so Orcinus cannot choose what it may do.")), qPrintable(all));
+    QVERIFY(all.contains(QLatin1String("text=nopermission")));
+}
+
+void WhaleAiPanelTest::agentSwitchesMode()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    // The fake agent moves the mode to "ask" when the model changes, as a real one may.
+    panel->session()->setConfigOption(QStringLiteral("model"), QStringLiteral("big"));
+    QTRY_VERIFY(texts(*panel).endsWith(QStringLiteral("The agent switched to the mode “Ask”.")));
+    // Not the user's choice: not stored.
+    QVERIFY(WhaleAiAgents::agent(QStringLiteral("basic")).startMode.isEmpty());
+}
+
+void WhaleAiPanelTest::stopWhileWaitingForMode()
+{
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    auto *send = panel->findChild<QToolButton *>(QStringLiteral("send"));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(send->property("busy").toBool());
+    send->click();
+    QVERIFY(!panel->session());
+    QVERIFY(texts(*panel).endsWith(QLatin1String("Stopped.")));
 }
 
 QTEST_MAIN(WhaleAiPanelTest)

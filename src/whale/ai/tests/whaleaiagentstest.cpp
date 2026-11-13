@@ -36,6 +36,8 @@ private Q_SLOTS:
     void presetsFound();
     void presetsThroughNpx();
     void uniqueId();
+    void startMode();
+    void restrictiveMode();
     void testReady();
     void testNeedsLogin();
     void testMissingProgram();
@@ -201,6 +203,44 @@ void WhaleAiAgentsTest::presetsThroughNpx()
     QVERIFY(presets.at(0).viaNpx);
     QCOMPARE(presets.at(1).commandLine, QStringLiteral("npx -y @agentclientprotocol/codex-acp"));
     QCOMPARE(presets.at(2).commandLine, QStringLiteral("npx -y opencode-ai acp"));
+}
+
+void WhaleAiAgentsTest::startMode()
+{
+    WhaleAiAgents::setAgents(
+        {{QStringLiteral("a"), QStringLiteral("A"), QStringLiteral("a"), {}, {}}, {QStringLiteral("b"), QStringLiteral("B"), QStringLiteral("b"), {}, {}}});
+    WhaleAiAgents::setStartMode(QStringLiteral("b"), QStringLiteral("ask"));
+    QCOMPARE(WhaleAiAgents::agent(QStringLiteral("b")).startMode, QStringLiteral("ask"));
+    QVERIFY(WhaleAiAgents::agent(QStringLiteral("a")).startMode.isEmpty());
+    // An agent that is gone stays gone.
+    WhaleAiAgents::setStartMode(QStringLiteral("c"), QStringLiteral("ask"));
+    QCOMPARE(WhaleAiAgents::agents().size(), 2);
+    WhaleAiAgents::setStartMode(QStringLiteral("b"), QString());
+    QVERIFY(WhaleAiAgents::agent(QStringLiteral("b")).startMode.isEmpty());
+}
+
+void WhaleAiAgentsTest::restrictiveMode()
+{
+    auto modes = [](const QStringList &values) {
+        WhaleAcpConfigOption option;
+        option.category = QStringLiteral("mode");
+        for (const QString &value : values) {
+            option.choices.append({value, value.toUpper(), {}, {}});
+        }
+        return option;
+    };
+    // Claude Agent, Codex, OpenCode as seen in AI0.
+    QCOMPARE(
+        WhaleAiAgents::restrictiveMode(modes(
+            {QStringLiteral("default"), QStringLiteral("acceptEdits"), QStringLiteral("plan"), QStringLiteral("auto"), QStringLiteral("bypassPermissions")})),
+        QStringLiteral("plan"));
+    QCOMPARE(WhaleAiAgents::restrictiveMode(
+                 modes({QStringLiteral("read-only"), QStringLiteral("workspace-write"), QStringLiteral("agent"), QStringLiteral("agent-full-access")})),
+             QStringLiteral("read-only"));
+    QCOMPARE(WhaleAiAgents::restrictiveMode(modes({QStringLiteral("build"), QStringLiteral("plan")})), QStringLiteral("plan"));
+    QCOMPARE(WhaleAiAgents::restrictiveMode(modes({QStringLiteral("ask"), QStringLiteral("ReadOnly")})), QStringLiteral("ReadOnly"));
+    QVERIFY(WhaleAiAgents::restrictiveMode(modes({QStringLiteral("ask"), QStringLiteral("auto")})).isEmpty());
+    QVERIFY(WhaleAiAgents::restrictiveMode(modes({})).isEmpty());
 }
 
 void WhaleAiAgentsTest::uniqueId()

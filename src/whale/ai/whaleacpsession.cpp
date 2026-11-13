@@ -14,6 +14,11 @@
 
 namespace
 {
+QString errorText(const WhaleAcpError &error)
+{
+    return error.message.isEmpty() ? QStringLiteral("error %1").arg(error.code) : error.message;
+}
+
 QString keyOf(const QJsonValue &id)
 {
     if (id.isString()) {
@@ -250,9 +255,10 @@ void WhaleAcpSession::setConfigOption(const QString &id, const QString &value)
     if (id == WhaleAcpConfigOption::modesOptionId()) {
         m_connection->sendRequest(QStringLiteral("session/set_mode"),
                                   QJsonObject{{QStringLiteral("sessionId"), m_sessionId}, {QStringLiteral("modeId"), value}},
-                                  [this, value](const QJsonValue &, const WhaleAcpError &error) {
+                                  [this, id, value](const QJsonValue &, const WhaleAcpError &error) {
                                       if (error.isError()) {
                                           Q_EMIT protocolWarning(QStringLiteral("The agent did not change the mode: %1").arg(error.message));
+                                          Q_EMIT configOptionSet(id, value, errorText(error));
                                           return;
                                       }
                                       for (WhaleAcpConfigOption &option : m_configOptions) {
@@ -261,18 +267,21 @@ void WhaleAcpSession::setConfigOption(const QString &id, const QString &value)
                                           }
                                       }
                                       Q_EMIT configOptionsChanged();
+                                      Q_EMIT configOptionSet(id, value, QString());
                                   });
         return;
     }
 
     m_connection->sendRequest(QStringLiteral("session/set_config_option"),
                               QJsonObject{{QStringLiteral("sessionId"), m_sessionId}, {QStringLiteral("configId"), id}, {QStringLiteral("value"), value}},
-                              [this](const QJsonValue &result, const WhaleAcpError &error) {
+                              [this, id, value](const QJsonValue &result, const WhaleAcpError &error) {
                                   if (error.isError()) {
                                       Q_EMIT protocolWarning(QStringLiteral("The agent did not change the setting: %1").arg(error.message));
+                                      Q_EMIT configOptionSet(id, value, errorText(error));
                                       return;
                                   }
                                   readConfig(result.toObject());
+                                  Q_EMIT configOptionSet(id, value, QString());
                               });
 }
 

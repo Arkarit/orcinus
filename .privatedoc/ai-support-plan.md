@@ -182,6 +182,16 @@ Details (planned 2026-11-13, AI5 before AI4):
   prompt is not sent until the user picks a mode in the bar. Loosening is always the user's own
   choice; the transcript notes each mode change. This applies to agents set up before AI5 too
   (they have no `StartMode`).
+  *AI5a result (2026-11-13).* `WhaleAcpSession::configOptionSet()` (outcome of
+  `setConfigOption()`), `WhaleAiAgents::setStartMode()` / `restrictiveMode()`, and in the panel a
+  small state machine (start mode unknown / applying / set / blocked) before `sendPending()`.
+  `WhaleAiPanel::chooseMode()` is the entry point for the AI5b bar: without a session it only
+  stores the start mode; with one it switches, notes it, stores it and sends a waiting message.
+  While the message waits for the agent to take the start mode, the send button stops (ends the
+  conversation); while it waits for the user, it does not. Mode changes the agent makes itself
+  (e.g. after a model change) are noted, not stored. The settings page keeps the stored start
+  mode on Apply (it may have changed in the panel meanwhile). Fake agent: mode `plan`, scenarios
+  `noreadonly`, `nomode`, `refusemode`.
 - *AI5b – Permission bar.* A combo box with the agent's modes between session info and
   transcript (replaces "Mode: …" in the info line). Choosing a mode switches the running session
   and stores it as the agent's `StartMode` (the bar remembers the last choice per agent). Before

@@ -34,6 +34,11 @@ class WhaleAiTranscript;
  *
  * Without agents, the panel offers to set them up (configureRequested()).
  *
+ * Before the first message goes out, the conversation is switched to the agent's start mode:
+ * the one the user chose last for it, otherwise its read-only mode (AI5). If that fails, or the
+ * agent has no read-only mode Orcinus knows, the message waits until the user picks a mode
+ * (chooseMode()). Every change of the mode is noted in the transcript.
+ *
  * See .privatedoc/ai-support-plan.md.
  */
 class WhaleAiPanel : public Panel
@@ -53,6 +58,15 @@ public:
     void stop();
     /** Ends the conversation and clears the transcript. */
     void newConversation();
+
+    /**
+     * Switches the conversation to the mode @p value and remembers it as the start mode of the
+     * agent. A message that waits for a mode goes out once the agent took it. Without a
+     * conversation, only the start mode is stored.
+     */
+    void chooseMode(const QString &value);
+    /** @return True while a message waits until the user picks a mode. */
+    bool isWaitingForMode() const;
 
     /** @return The id of the chosen agent. */
     QString agentId() const;
@@ -78,6 +92,12 @@ private:
     bool startSession();
     void endSession();
     void sendPending();
+    void applyStartMode();
+    void requestMode(const QString &value, bool byUser);
+    void modeSet(const QString &id, const QString &value, const QString &error);
+    void blockForMode(const QString &message);
+    void noteModeChange();
+    QString modeName(const QString &value) const;
     void updateState();
     void updateSessionInfo();
     void openLink(const QString &link);
@@ -93,6 +113,17 @@ private:
     QPointer<WhaleAcpSession> m_session;
     QString m_sessionAgentId;
     QString m_pendingPrompt;
+
+    enum class ModeState {
+        Unknown, ///< the start mode is not set yet
+        Applying, ///< waiting for the agent to take m_modeRequest
+        Set,
+        Blocked, ///< a message waits until the user picks a mode
+    };
+    ModeState m_modeState = ModeState::Unknown;
+    QString m_modeRequest;
+    bool m_modeRequestByUser = false;
+    QString m_shownMode; ///< the mode the transcript last named
 };
 
 #endif
