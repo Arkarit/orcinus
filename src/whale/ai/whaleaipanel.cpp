@@ -30,6 +30,7 @@
 #include <QStackedWidget>
 #include <QTimer>
 #include <QToolButton>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace
@@ -97,6 +98,15 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     modesRow->addWidget(m_access, 1, 1);
     modesRow->setColumnStretch(1, 1);
 
+    // What the agent in its sandbox reaches (AI5d3), with links to take added ones back.
+    m_shared = new QLabel(chat);
+    m_shared->setObjectName(QStringLiteral("shared"));
+    m_shared->setWordWrap(true);
+    m_shared->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    m_shared->setTextFormat(Qt::RichText);
+    m_shared->hide();
+    modesRow->addWidget(m_shared, 2, 0, 1, 2);
+
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
 
@@ -157,6 +167,12 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     connect(m_modes, &QComboBox::activated, this, [this](int index) {
         chooseMode(m_modes->itemData(index).toString());
     });
+    connect(m_shared, &QLabel::linkActivated, this, [this](const QString &link) {
+        if (link.startsWith(QLatin1String("remove:")) && m_control) {
+            m_control->remove(QUrl::fromPercentEncoding(link.mid(7).toUtf8()));
+        }
+    });
+    connect(m_chips, &WhaleAiContextChips::accessRequested, this, &WhaleAiPanel::giveAccess);
     connect(m_access, &QComboBox::activated, this, [this](int index) {
         chooseAccess(m_access->itemData(index).toBool());
     });
@@ -300,6 +316,9 @@ bool WhaleAiPanel::sendPrompt(const QString &text)
     // Current, also if the other view changed without a signal; what goes is shown.
     refreshContext();
     m_pendingContext = m_chips->context();
+    if (m_control) {
+        m_pendingContext.reachable = m_sessionFolders + m_sessionAdded;
+    }
     m_transcript->addUserMessage(prompt, WhaleAiContextPrompt::summary(m_pendingContext));
     m_chips->messageSent();
     m_pendingPrompt = prompt;
@@ -328,6 +347,7 @@ bool WhaleAiPanel::startSession()
 
     WhaleAcpSession::AgentCommand run = command;
     QStringList reach;
+    WhaleAiSandboxControl *control = nullptr;
     if (!agent.allFolders) {
         const QString helper = WhaleAiSandbox::helper();
         const QString problem = WhaleAiSandbox::check(helper);
@@ -353,18 +373,28 @@ bool WhaleAiPanel::startSession()
         for (const QString &path : paths.create) {
             QDir().mkpath(path);
         }
-        run = WhaleAiSandbox::wrap(command, helper, shared, paths, directory);
+        control = new WhaleAiSandboxControl(this);
+        run = WhaleAiSandbox::wrap(command, helper, shared, paths, directory, control->arguments());
+        run.childSetup = control->childSetup();
         reach = shared + paths.readWrite + paths.readOnly;
     }
 
     m_sessionAgentId = agent.id;
     m_sessionAllFolders = agent.allFolders;
     m_sessionReach = reach;
+    m_sessionFolders = shared;
+    m_sessionAdded.clear();
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     m_shownMode.clear();
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
+    m_control = control;
+    if (control) {
+        // Goes with the session.
+        control->setParent(m_session);
+        connect(control, &WhaleAiSandboxControl::finished, this, &WhaleAiPanel::sandboxChanged);
+    }
     if (agent.allFolders) {
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2 and can reach all your folders.", agent.name, directory));
@@ -453,6 +483,13 @@ bool WhaleAiPanel::startSession()
     });
 
     m_session->start(run, directory);
+    if (control) {
+        control->childStarted();
+        m_chips->setAccess([this](const QString &path) {
+            return WhaleAiSandbox::reaches(path, m_sessionReach, false);
+        });
+    }
+    updateShared();
     m_sessionInfo->setProperty("usage", -1);
     return m_session != nullptr;
 }
@@ -619,6 +656,15 @@ void WhaleAiPanel::endSession()
     m_pendingContext = {};
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
+    if (m_control) {
+        m_control->disconnect(this);
+    }
+    m_control = nullptr;
+    m_sessionReach.clear();
+    m_sessionFolders.clear();
+    m_sessionAdded.clear();
+    m_chips->setAccess({});
+    updateShared();
     if (!m_session) {
         return;
     }
@@ -737,6 +783,64 @@ bool WhaleAiPanel::answerOutsideRequest(const WhaleAcpPermissionRequest &request
                             WhaleAiTranscript::Kind::Error);
     m_session->answerPermission(request.key, reject->id);
     return true;
+}
+
+void WhaleAiPanel::giveAccess(const QString &path)
+{
+    const QString clean = QDir::cleanPath(path);
+    if (!m_control || !QDir::isAbsolutePath(clean) || WhaleAiSandbox::reaches(clean, m_sessionReach, false)) {
+        return;
+    }
+    m_control->add(clean);
+}
+
+void WhaleAiPanel::sandboxChanged(bool added, const QString &path, const QString &error)
+{
+    if (!error.isEmpty()) {
+        m_transcript->addNotice(added ? i18nc("@info %1 is a path, %2 the reason", "%1 could not be shared with the agent: %2", path, error)
+                                      : i18nc("@info %1 is a path, %2 the reason", "%1 could not be taken from the agent: %2", path, error),
+                                WhaleAiTranscript::Kind::Error);
+        return;
+    }
+    if (added) {
+        m_sessionAdded.append(path);
+        m_sessionReach.append(path);
+        m_transcript->addNotice(i18nc("@info %1 is a path", "The agent may now also reach %1, reading and writing.", path));
+    } else {
+        m_sessionAdded.removeAll(path);
+        m_sessionReach.removeAll(path);
+        m_transcript->addNotice(i18nc("@info %1 is a path", "The agent can no longer reach %1.", path));
+    }
+    updateShared();
+    // The chips say again what it reaches.
+    m_chips->setAccess([this](const QString &path) {
+        return WhaleAiSandbox::reaches(path, m_sessionReach, false);
+    });
+}
+
+void WhaleAiPanel::updateShared()
+{
+    if (!m_control) {
+        m_shared->hide();
+        m_shared->clear();
+        return;
+    }
+    auto name = [](const QString &path) {
+        const QString fileName = QFileInfo(path).fileName();
+        return (fileName.isEmpty() ? path : fileName).toHtmlEscaped();
+    };
+    QStringList parts;
+    for (const QString &path : std::as_const(m_sessionFolders)) {
+        parts.append(QStringLiteral("<b>%1</b>").arg(name(path)));
+    }
+    for (const QString &path : std::as_const(m_sessionAdded)) {
+        parts.append(QStringLiteral("%1 <a href=\"remove:%2\">%3</a>")
+                         .arg(name(path), QString::fromLatin1(QUrl::toPercentEncoding(path)), i18nc("@action:button take access back", "(remove)")));
+    }
+    m_shared->setText(parts.isEmpty() ? i18nc("@info", "The agent reaches none of your folders.")
+                                      : i18nc("@info %1 is a list of folders", "The agent reaches: %1", parts.join(QStringLiteral(", "))));
+    m_shared->setToolTip((m_sessionFolders + m_sessionAdded).join(QLatin1Char('\n')));
+    m_shared->show();
 }
 
 void WhaleAiPanel::updateModes()

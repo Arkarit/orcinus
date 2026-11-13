@@ -924,6 +924,40 @@ void WhaleAiPanelTest::sandbox()
         QStringLiteral("Orcinus said no to “Read secret”: it is outside the folders the agent may reach (/orcinus-test-outside/secret.txt).")));
     QVERIFY(texts(panel).contains(QLatin1String("permission=no;")));
     QVERIFY(panel.transcript()->findChildren<QWidget *>(QStringLiteral("permission-n7")).isEmpty());
+
+    // The agent is told what it reaches; the panel shows it.
+    QVERIFY(texts(panel).contains(QStringLiteral("Your sandbox reaches only these folders and files (besides the system, read-only): %1.").arg(m_work.path())));
+    auto *shared = panel.findChild<QLabel *>(QStringLiteral("shared"));
+    QVERIFY(shared && shared->isVisibleTo(&panel));
+    QVERIFY(!shared->text().contains(QLatin1String("remove:")));
+
+    // Another folder: the chip says the agent does not reach it, and gives access.
+    panel.setUrl(QUrl::fromLocalFile(outside.path()));
+    panel.refreshContext();
+    QWidget *chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
+    QVERIFY(chip && chip->property("noAccess").toBool());
+    chip->findChild<QToolButton *>(QStringLiteral("giveAccess"))->click();
+    QTRY_VERIFY(texts(panel).contains(QStringLiteral("The agent may now also reach %1, reading and writing.").arg(outside.path())));
+    chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
+    QVERIFY(!chip->property("noAccess").toBool());
+    QVERIFY(!chip->findChild<QToolButton *>(QStringLiteral("giveAccess")));
+    QVERIFY(shared->text().contains(QLatin1String("remove:")));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission readfile:%1").arg(secret.fileName())));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QLatin1String("read=secret;")), qPrintable(texts(panel)));
+
+    // And takes it back.
+    Q_EMIT shared->linkActivated(QStringLiteral("remove:") + QString::fromLatin1(QUrl::toPercentEncoding(outside.path())));
+    QTRY_VERIFY(texts(panel).contains(QStringLiteral("The agent can no longer reach %1.").arg(outside.path())));
+    QVERIFY(panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->property("noAccess").toBool());
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission again readfile:%1").arg(secret.fileName())));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(texts(panel).count(QLatin1String("read=missing;")), 2);
+
+    // A new conversation starts with its folder only.
+    panel.newConversation();
+    QVERIFY(!shared->isVisibleTo(&panel));
+    QVERIFY(!panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->property("noAccess").toBool());
 }
 
 #include "whaleaipaneltest.moc"

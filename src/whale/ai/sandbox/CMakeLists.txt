@@ -6,6 +6,8 @@
 # See .privatedoc/ai-support-plan.md.
 
 add_executable(orcinus-sandbox orcinus-sandbox.cpp)
+find_package(Threads REQUIRED)
+target_link_libraries(orcinus-sandbox PRIVATE Threads::Threads)
 install(TARGETS orcinus-sandbox DESTINATION ${WHALE_SANDBOX_DIR})
 
 # Ubuntu lets a program create user namespaces with capabilities only with an AppArmor profile

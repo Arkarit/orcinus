@@ -311,6 +311,12 @@ void WhaleAiContextChips::messageSent()
     rebuild();
 }
 
+void WhaleAiContextChips::setAccess(const std::function<bool(const QString &)> &reaches)
+{
+    m_reaches = reaches;
+    rebuild();
+}
+
 void WhaleAiContextChips::rebuild()
 {
     QLayout *flow = layout();
@@ -325,6 +331,7 @@ void WhaleAiContextChips::rebuild()
                                    i18nc("@label chip in the AI panel, %1 is a folder name", "Folder: %1", fileName(m_window.folder)),
                                    fileName(m_window.folder),
                                    m_window.folder,
+                                   m_window.folder,
                                    [this] {
                                        m_folderRemoved = true;
                                    }));
@@ -334,15 +341,17 @@ void WhaleAiContextChips::rebuild()
             ? i18nc("@label chip in the AI panel, %1 is a file name", "Selected: %1", fileName(m_window.selection.first()))
             : i18ncp("@label chip in the AI panel", "Selected: %1 item", "Selected: %1 items", m_window.selection.size());
         const QString name = m_window.selection.size() == 1 ? fileName(m_window.selection.first()) : QString();
-        flow->addWidget(createChip(QStringLiteral("chip-selection"), QStringLiteral("edit-select-all"), text, name, pathList(m_window.selection), [this] {
-            m_selectionRemoved = true;
-        }));
+        flow->addWidget(
+            createChip(QStringLiteral("chip-selection"), QStringLiteral("edit-select-all"), text, name, pathList(m_window.selection), QString(), [this] {
+                m_selectionRemoved = true;
+            }));
     }
     if (!m_window.otherFolder.isEmpty() && !m_otherRemoved) {
         flow->addWidget(createChip(QStringLiteral("chip-other"),
                                    QStringLiteral("view-split-left-right"),
                                    i18nc("@label chip in the AI panel, %1 is a folder name", "Other view: %1", fileName(m_window.otherFolder)),
                                    fileName(m_window.otherFolder),
+                                   m_window.otherFolder,
                                    m_window.otherFolder,
                                    [this] {
                                        m_otherRemoved = true;
@@ -353,6 +362,7 @@ void WhaleAiContextChips::rebuild()
                                    QFileInfo(path).isDir() ? QStringLiteral("folder") : QStringLiteral("document-new"),
                                    fileName(path),
                                    fileName(path),
+                                   path,
                                    path,
                                    [this, path] {
                                        m_added.removeAll(path);
@@ -369,8 +379,10 @@ QWidget *WhaleAiContextChips::createChip(const QString &objectName,
                                          const QString &text,
                                          const QString &name,
                                          const QString &toolTip,
+                                         const QString &accessPath,
                                          const std::function<void()> &remove)
 {
+    const bool noAccess = m_reaches && !accessPath.isEmpty() && !m_reaches(accessPath);
     auto *chip = new ChipFrame(this);
     chip->setObjectName(objectName);
     chip->setToolTip(toolTip);
@@ -383,12 +395,27 @@ QWidget *WhaleAiContextChips::createChip(const QString &objectName,
     icon->setPixmap(QIcon::fromTheme(iconName).pixmap(iconSize));
     layout->addWidget(icon);
 
-    auto *label = new ElidedLabel(text, chip);
+    auto *label = new ElidedLabel(noAccess ? i18nc("@label chip in the AI panel, %1 is what it shows", "%1 (no access)", text) : text, chip);
     label->setObjectName(QStringLiteral("text"));
     label->setTextFormat(Qt::PlainText);
     label->setName(name);
     label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     layout->addWidget(label, 1);
+
+    if (noAccess) {
+        chip->setProperty("noAccess", true);
+        chip->setToolTip(i18nc("@info:tooltip %1 is a path", "%1\nThe agent cannot reach this: it may only reach the folders it was given.", toolTip));
+        auto *give = new QToolButton(chip);
+        give->setObjectName(QStringLiteral("giveAccess"));
+        give->setIcon(QIcon::fromTheme(QStringLiteral("unlock"), QIcon::fromTheme(QStringLiteral("object-unlocked"))));
+        give->setIconSize(QSize(iconSize * 3 / 4, iconSize * 3 / 4));
+        give->setAutoRaise(true);
+        give->setToolTip(i18nc("@info:tooltip", "Give the agent access to this, reading and writing, for this conversation"));
+        layout->addWidget(give);
+        connect(give, &QToolButton::clicked, this, [this, accessPath] {
+            Q_EMIT accessRequested(accessPath);
+        });
+    }
 
     auto *button = new QToolButton(chip);
     button->setObjectName(QStringLiteral("remove"));

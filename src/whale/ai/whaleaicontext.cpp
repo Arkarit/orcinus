@@ -88,6 +88,11 @@ QString text(const WhaleAiContext &context)
     if (!context.added.isEmpty()) {
         lines.append(QStringLiteral("- Added by the user for this message (%1): %2").arg(context.added.size()).arg(itemList(context.added)));
     }
+    if (!context.reachable.isEmpty()) {
+        lines.append(QStringLiteral("- Your sandbox reaches only these folders and files (besides the system, read-only): %1. "
+                                    "For anything else, ask the user to give you access in Orcinus.")
+                         .arg(context.reachable.join(QStringLiteral(", "))));
+    }
     return lines.join(QLatin1Char('\n'));
 }
 

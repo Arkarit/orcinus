@@ -8,6 +8,7 @@
 
 #include <QFile>
 #include <QProcess>
+#include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -26,6 +27,7 @@ private Q_SLOTS:
     void reaches();
     void missingHelper();
     void helper();
+    void addFolders();
 
 private:
     static WhaleAiAgent agent(const QString &commandLine)
@@ -134,6 +136,10 @@ void WhaleAiSandboxTest::reaches()
     QVERIFY(WhaleAiSandbox::reaches(QStringLiteral("/h/work/../work/b.txt"), shared));
     QVERIFY(WhaleAiSandbox::reaches(QStringLiteral("/usr/include/stdio.h"), shared));
     QVERIFY(WhaleAiSandbox::reaches(QStringLiteral("/tmp/scratch"), shared));
+    // The host's /tmp is not the agent's.
+    QVERIFY(!WhaleAiSandbox::reaches(QStringLiteral("/tmp/scratch"), shared, false));
+    QVERIFY(WhaleAiSandbox::reaches(QStringLiteral("/tmp/scratch"), {QStringLiteral("/tmp/scratch")}, false));
+    QVERIFY(WhaleAiSandbox::reaches(QStringLiteral("/usr/share"), shared, false));
     QVERIFY(!WhaleAiSandbox::reaches(QStringLiteral("/h/workshop"), shared));
     QVERIFY(!WhaleAiSandbox::reaches(QStringLiteral("/h/work/../secret"), shared));
     QVERIFY(!WhaleAiSandbox::reaches(QStringLiteral("/h"), shared));
@@ -209,6 +215,55 @@ void WhaleAiSandboxTest::helper()
     QVERIFY(process.waitForFinished(10000));
     QCOMPARE(process.exitCode(), 125);
     QVERIFY(process.readAllStandardError().startsWith("orcinus-sandbox: --bind needs an absolute path"));
+}
+
+void WhaleAiSandboxTest::addFolders()
+{
+    const QString helper = WhaleAiSandbox::helper();
+    const QString problem = WhaleAiSandbox::check(helper);
+    if (!problem.isEmpty()) {
+        QSKIP(qPrintable(QStringLiteral("The sandbox does not run here: ") + problem));
+    }
+    QTemporaryDir inside;
+    QTemporaryDir later;
+    QVERIFY(inside.isValid() && later.isValid());
+    QFile file(later.filePath(QStringLiteral("f.txt")));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.write("later");
+    file.close();
+
+    // The agent waits until the folder is there, writes into it, and waits until it is gone.
+    WhaleAiSandboxControl control;
+    QVERIFY(control.isValid());
+    WhaleAcpSession::AgentCommand command;
+    command.program = QStringLiteral("sh");
+    command.arguments = {QStringLiteral("-c"),
+                         QStringLiteral("test -e '%1' && echo early; while ! test -e '%1'; do sleep 0.05; done; cat '%1'; echo; echo hi > '%2/new.txt' "
+                                        "&& echo written; while test -e '%1'; do sleep 0.05; done; echo gone")
+                             .arg(file.fileName(), later.path())};
+    const WhaleAcpSession::AgentCommand wrapped = WhaleAiSandbox::wrap(command, helper, {inside.path()}, {}, inside.path(), control.arguments());
+    QProcess process;
+    process.setChildProcessModifier(control.childSetup());
+    process.start(wrapped.program, wrapped.arguments);
+    QVERIFY(process.waitForStarted());
+    control.childStarted();
+
+    QSignalSpy finished(&control, &WhaleAiSandboxControl::finished);
+    QTest::qWait(200);
+    control.add(later.path());
+    QVERIFY(finished.wait(5000));
+    QCOMPARE(finished.last(), (QVariantList{true, later.path(), QString()}));
+    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(later.filePath(QStringLiteral("new.txt"))), 5000);
+    control.remove(later.path());
+    QVERIFY(finished.wait(5000));
+    QCOMPARE(finished.last(), (QVariantList{false, later.path(), QString()}));
+    QVERIFY(process.waitForFinished(5000));
+    QCOMPARE(QString::fromLocal8Bit(process.readAllStandardOutput()), QStringLiteral("later\nwritten\ngone\n"));
+
+    // Errors come back, also when the sandbox has ended.
+    control.add(QStringLiteral("/no/such/folder"));
+    QVERIFY(finished.wait(5000));
+    QVERIFY(!finished.last().at(2).toString().isEmpty());
 }
 
 QTEST_GUILESS_MAIN(WhaleAiSandboxTest)

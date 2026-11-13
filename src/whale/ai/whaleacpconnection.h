@@ -50,7 +50,8 @@ public:
     void start(const QString &program,
                const QStringList &arguments,
                const QString &workingDirectory,
-               const QProcessEnvironment &environment = QProcessEnvironment());
+               const QProcessEnvironment &environment = QProcessEnvironment(),
+               const std::function<void()> &childSetup = {});
 
     /**
      * Ends the agent: closes its stdin (agents end on EOF), terminates it after a grace period

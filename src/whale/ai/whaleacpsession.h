@@ -13,6 +13,8 @@
 #include <QObject>
 #include <QProcessEnvironment>
 
+#include <functional>
+
 class WhaleAcpConnection;
 
 /**
@@ -52,6 +54,8 @@ public:
         QString program;
         QStringList arguments;
         QProcessEnvironment environment; ///< empty: the one of Orcinus
+        /** Run in the child before the program starts (e.g. to pass on a file descriptor). */
+        std::function<void()> childSetup;
     };
 
     explicit WhaleAcpSession(QObject *parent = nullptr);

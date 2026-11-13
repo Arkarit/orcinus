@@ -11,7 +11,10 @@
 #include "whaleaiagents.h"
 
 #include <QDir>
+#include <QObject>
 #include <QStringList>
+
+class QSocketNotifier;
 
 /**
  * @brief Starting an agent in orcinus-sandbox, so that it reaches only its folder (AI5d).
@@ -48,19 +51,66 @@ Paths agentPaths(const WhaleAiAgent &agent, const QString &program, const QStrin
 
 /**
  * @return @p command run by @p helper with @p folders read-write, @p paths, in
- *         @p workingDirectory.
+ *         @p workingDirectory; @p helperArguments go to the helper (e.g. WhaleAiSandboxControl).
  */
-WhaleAcpSession::AgentCommand
-wrap(const WhaleAcpSession::AgentCommand &command, const QString &helper, const QStringList &folders, const Paths &paths, const QString &workingDirectory);
+WhaleAcpSession::AgentCommand wrap(const WhaleAcpSession::AgentCommand &command,
+                                   const QString &helper,
+                                   const QStringList &folders,
+                                   const Paths &paths,
+                                   const QString &workingDirectory,
+                                   const QStringList &helperArguments = {});
 
 /** @return Whether @p path is one of @p folders or inside one. */
 bool isInside(const QString &path, const QStringList &folders);
 
 /**
  * @return Whether an agent in the sandbox reaches @p path: inside @p shared (its folders and
- *         paths) or in what every sandbox has (the system read-only, its own /tmp).
+ *         paths), the system (read-only), or, for a path the agent names (@p agentsView), its
+ *         own /tmp and the like. A path of the host in /tmp is not the agent's /tmp.
  */
-bool reaches(const QString &path, const QStringList &shared);
+bool reaches(const QString &path, const QStringList &shared, bool agentsView = true);
 }
+
+/**
+ * @brief Adds and removes folders of a running sandbox (AI5d3): the control socket of
+ *        orcinus-sandbox.
+ *
+ * Pass arguments() and childSetup() with the command (WhaleAiSandbox::wrap()) and call
+ * childStarted() once the process is started. Each add() and remove() ends with finished().
+ */
+class WhaleAiSandboxControl : public QObject
+{
+    Q_OBJECT
+
+public:
+    explicit WhaleAiSandboxControl(QObject *parent = nullptr);
+    ~WhaleAiSandboxControl() override;
+
+    bool isValid() const;
+    /** For the helper: "--control FD". */
+    QStringList arguments() const;
+    /** For the child process: keeps the helper's end of the socket open across exec. */
+    std::function<void()> childSetup() const;
+    /** Closes the helper's end here: the child has its own. */
+    void childStarted();
+
+    /** Shares @p path (absolute, clean) read-write with the agent. */
+    void add(const QString &path);
+    void remove(const QString &path);
+
+Q_SIGNALS:
+    /** @p error is empty on success. */
+    void finished(bool added, const QString &path, const QString &error);
+
+private:
+    void send(bool add, const QString &path);
+    void readAnswers();
+
+    int m_fd = -1;
+    int m_childFd = -1;
+    QSocketNotifier *m_notifier = nullptr;
+    QByteArray m_buffer;
+    QList<QPair<bool, QString>> m_pending;
+};
 
 #endif

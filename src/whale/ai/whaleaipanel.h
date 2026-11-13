@@ -21,6 +21,7 @@ class QPlainTextEdit;
 class QStackedWidget;
 class QToolButton;
 class WhaleAiContextChips;
+class WhaleAiSandboxControl;
 class WhaleAiTranscript;
 
 /**
@@ -129,6 +130,9 @@ private:
     void updateAccess();
     void chooseAccess(bool allFolders);
     bool answerOutsideRequest(const WhaleAcpPermissionRequest &request);
+    void giveAccess(const QString &path);
+    void sandboxChanged(bool added, const QString &path, const QString &error);
+    void updateShared();
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
@@ -136,6 +140,7 @@ private:
     QLabel *m_sessionInfo = nullptr;
     QComboBox *m_modes = nullptr;
     QComboBox *m_access = nullptr;
+    QLabel *m_shared = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_send = nullptr;
@@ -144,6 +149,9 @@ private:
     QString m_sessionAgentId;
     bool m_sessionAllFolders = true;
     QStringList m_sessionReach; ///< what the agent shares in its sandbox (AI5d)
+    QStringList m_sessionFolders; ///< the folder it started in (AI5d2)
+    QStringList m_sessionAdded; ///< what the user shared with it later (AI5d3)
+    QPointer<WhaleAiSandboxControl> m_control;
     QString m_pendingPrompt;
     WhaleAiContext m_pendingContext;
     WhaleAiContextChips *m_chips = nullptr;

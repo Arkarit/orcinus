@@ -70,7 +70,7 @@ void WhaleAcpSession::start(const AgentCommand &command, const QString &workingD
     // Needed once `initialize` is answered.
     m_pendingStart = {workingDirectory, mcpServers};
 
-    m_connection->start(command.program, command.arguments, workingDirectory, command.environment);
+    m_connection->start(command.program, command.arguments, workingDirectory, command.environment, command.childSetup);
 }
 
 void WhaleAcpSession::initialize()

@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d1–AI5d2 done (2026-11-13), next AI5d3 (add folders live), then AI6 (back channel).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13), next AI6 (back channel).
 
 ## Problem
 
@@ -376,6 +376,20 @@ Steps:
   for extra paths; the fake agent's tests run the sandbox only where it may run (CI skips).
 - *AI5d3 – Add and remove folders.* Helper in the outer namespace, list of shared folders, "Give
   Access" on the chip, the question on dropped files.
+  *AI5d3 result (2026-11-13).* `orcinus-sandbox --control FD`: a socket with one line per
+  change ("add PATH" / "remove PATH", answered "ok" / "error …"), served by a thread of the outer
+  process; a removed path leaves no empty places behind. The root is now built on an empty
+  holder folder (`$XDG_RUNTIME_DIR/orcinus-sandbox`, else `/tmp/.orcinus-sandbox-UID`) covered
+  by a tmpfs in the helper's namespace only, so the host stays visible there and folders
+  anywhere (also in `/tmp`) can be added later. `WhaleAiSandboxControl` (socketpair, its end kept
+  across exec through `AgentCommand::childSetup` → `QProcess::setChildProcessModifier`).
+  Panel: "The agent reaches: **start folder**, added (remove)" under Access; folder, other-view
+  and added chips the agent does not reach say "(no access)" with a "Give Access" button (never
+  automatic); notices for each change; the context text names what the sandbox reaches, so the
+  agent does not try the rest. `WhaleAiSandbox::reaches()` tells the agent's own `/tmp` (for its
+  requests) from a host path in `/tmp` (for the chips). A file dropped from outside gets the
+  same button on its chip instead of a question. Tried with the fake agent through the real
+  sandbox (read, write, take back); the real agents use the same mounts.
 
 **AI6 – Back channel.** `orcinus-mcp` and the D-Bus interface on the window. First tools:
 `get_location`, `set_location` (go to a folder, in the active view), `get_selection`,

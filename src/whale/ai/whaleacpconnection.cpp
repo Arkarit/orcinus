@@ -37,7 +37,11 @@ qsizetype WhaleAcpConnection::maxLineLength()
     return MaxLineLength;
 }
 
-void WhaleAcpConnection::start(const QString &program, const QStringList &arguments, const QString &workingDirectory, const QProcessEnvironment &environment)
+void WhaleAcpConnection::start(const QString &program,
+                               const QStringList &arguments,
+                               const QString &workingDirectory,
+                               const QProcessEnvironment &environment,
+                               const std::function<void()> &childSetup)
 {
     Q_ASSERT(!m_process);
     m_process = new QProcess(this);
@@ -46,6 +50,9 @@ void WhaleAcpConnection::start(const QString &program, const QStringList &argume
     m_process->setWorkingDirectory(workingDirectory);
     if (!environment.isEmpty()) {
         m_process->setProcessEnvironment(environment);
+    }
+    if (childSetup) {
+        m_process->setChildProcessModifier(childSetup);
     }
 
     connect(m_process, &QProcess::started, this, &WhaleAcpConnection::started);

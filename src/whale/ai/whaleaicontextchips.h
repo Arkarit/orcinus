@@ -24,6 +24,10 @@
  *
  * Each chip has the object name "chip-folder", "chip-selection", "chip-other" or "chip-added",
  * and a "remove" button. Without chips the widget hides itself.
+ *
+ * With setAccess() (an agent in its sandbox, AI5d3), the folder, other-view and added chips
+ * whose path the agent does not reach say so (property "noAccess") and get a "giveAccess"
+ * button, which emits accessRequested().
  */
 class WhaleAiContextChips : public QWidget
 {
@@ -41,6 +45,9 @@ public:
     /** The next message went out with context(). */
     void messageSent();
 
+    /** @p reaches tells whether the agent reaches a path; empty: no sandbox, nothing to mark. */
+    void setAccess(const std::function<bool(const QString &)> &reaches);
+
     /**
      * @return @p text in at most @p width: if it does not fit, the file or folder @p name in it
      *         keeps its first characters and as much of its end as fits, with "…" between (the
@@ -55,6 +62,8 @@ public:
 
 Q_SIGNALS:
     void contextChanged();
+    /** The user wants the agent to reach @p path. */
+    void accessRequested(const QString &path);
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -66,6 +75,7 @@ private:
                         const QString &text,
                         const QString &name,
                         const QString &toolTip,
+                        const QString &accessPath,
                         const std::function<void()> &remove);
 
     WhaleAiContext m_window;
@@ -73,6 +83,7 @@ private:
     bool m_folderRemoved = false;
     bool m_selectionRemoved = false;
     bool m_otherRemoved = false;
+    std::function<bool(const QString &)> m_reaches;
 };
 
 #endif

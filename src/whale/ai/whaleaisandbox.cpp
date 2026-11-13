@@ -9,9 +9,15 @@
 #include <KLocalizedString>
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QFileInfo>
 #include <QProcess>
+#include <QSocketNotifier>
 #include <QStandardPaths>
+
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 namespace
 {
@@ -179,8 +185,12 @@ Paths agentPaths(const WhaleAiAgent &agent, const QString &program, const QStrin
     return paths;
 }
 
-WhaleAcpSession::AgentCommand
-wrap(const WhaleAcpSession::AgentCommand &command, const QString &helper, const QStringList &folders, const Paths &paths, const QString &workingDirectory)
+WhaleAcpSession::AgentCommand wrap(const WhaleAcpSession::AgentCommand &command,
+                                   const QString &helper,
+                                   const QStringList &folders,
+                                   const Paths &paths,
+                                   const QString &workingDirectory,
+                                   const QStringList &helperArguments)
 {
     WhaleAcpSession::AgentCommand wrapped;
     wrapped.program = helper;
@@ -194,15 +204,22 @@ wrap(const WhaleAcpSession::AgentCommand &command, const QString &helper, const 
     for (const QString &path : paths.readOnly) {
         wrapped.arguments << QStringLiteral("--ro-bind") << path;
     }
+    wrapped.arguments += helperArguments;
     wrapped.arguments << QStringLiteral("--chdir") << workingDirectory << QStringLiteral("--") << command.program;
     wrapped.arguments += command.arguments;
     return wrapped;
 }
 
-bool reaches(const QString &path, const QStringList &shared)
+bool reaches(const QString &path, const QStringList &shared, bool agentsView)
 {
     static const QStringList own{QStringLiteral("/tmp"), QStringLiteral("/var/tmp"), QStringLiteral("/dev"), QStringLiteral("/proc")};
-    return isInside(path, shared) || isSystem(path) || isInside(path, own);
+    if (isInside(path, shared)) {
+        return true;
+    }
+    if (isInside(path, own)) {
+        return agentsView;
+    }
+    return isSystem(path);
 }
 
 bool isInside(const QString &path, const QStringList &folders)
@@ -216,4 +233,101 @@ bool isInside(const QString &path, const QStringList &folders)
     }
     return false;
 }
+}
+
+WhaleAiSandboxControl::WhaleAiSandboxControl(QObject *parent)
+    : QObject(parent)
+{
+    int fds[2];
+    if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0, fds) != 0) {
+        return;
+    }
+    m_fd = fds[0];
+    m_childFd = fds[1];
+    m_notifier = new QSocketNotifier(m_fd, QSocketNotifier::Read, this);
+    connect(m_notifier, &QSocketNotifier::activated, this, &WhaleAiSandboxControl::readAnswers);
+}
+
+WhaleAiSandboxControl::~WhaleAiSandboxControl()
+{
+    childStarted();
+    if (m_fd >= 0) {
+        ::close(m_fd);
+    }
+}
+
+bool WhaleAiSandboxControl::isValid() const
+{
+    return m_fd >= 0;
+}
+
+QStringList WhaleAiSandboxControl::arguments() const
+{
+    return {QStringLiteral("--control"), QString::number(m_childFd)};
+}
+
+std::function<void()> WhaleAiSandboxControl::childSetup() const
+{
+    const int fd = m_childFd;
+    return [fd] {
+        // In the child between fork and exec: only async-signal-safe calls.
+        fcntl(fd, F_SETFD, 0);
+    };
+}
+
+void WhaleAiSandboxControl::childStarted()
+{
+    if (m_childFd >= 0) {
+        ::close(m_childFd);
+        m_childFd = -1;
+    }
+}
+
+void WhaleAiSandboxControl::add(const QString &path)
+{
+    send(true, path);
+}
+
+void WhaleAiSandboxControl::remove(const QString &path)
+{
+    send(false, path);
+}
+
+void WhaleAiSandboxControl::send(bool add, const QString &path)
+{
+    const QByteArray line = (add ? QByteArrayLiteral("add ") : QByteArrayLiteral("remove ")) + QFile::encodeName(path) + '\n';
+    if (m_fd < 0 || path.contains(QLatin1Char('\n')) || ::write(m_fd, line.constData(), line.size()) != line.size()) {
+        // Not queued: the answer would never come.
+        QMetaObject::invokeMethod(
+            this,
+            [this, add, path] {
+                Q_EMIT finished(add, path, i18nc("@info", "The sandbox does not answer."));
+            },
+            Qt::QueuedConnection);
+        return;
+    }
+    m_pending.append({add, path});
+}
+
+void WhaleAiSandboxControl::readAnswers()
+{
+    char chunk[4096];
+    const ssize_t size = ::read(m_fd, chunk, sizeof(chunk));
+    if (size <= 0) {
+        // The sandbox ended: what is still waiting is not done.
+        m_notifier->setEnabled(false);
+        const auto pending = std::exchange(m_pending, {});
+        for (const auto &[add, path] : pending) {
+            Q_EMIT finished(add, path, i18nc("@info", "The sandbox does not answer."));
+        }
+        return;
+    }
+    m_buffer.append(chunk, size);
+    qsizetype end;
+    while ((end = m_buffer.indexOf('\n')) >= 0 && !m_pending.isEmpty()) {
+        const QByteArray answer = m_buffer.left(end);
+        m_buffer.remove(0, end + 1);
+        const auto [add, path] = m_pending.takeFirst();
+        Q_EMIT finished(add, path, answer == "ok" ? QString() : QString::fromLocal8Bit(answer.mid(answer.startsWith("error ") ? 6 : 0)));
+    }
 }

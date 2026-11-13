@@ -7,7 +7,7 @@
 /*
  * orcinus-sandbox: runs an AI agent so that it reaches only the folders it is given (AI5d).
  *
- *   orcinus-sandbox [--bind PATH]... [--ro-bind PATH]... [--chdir DIR] -- PROGRAM [ARGUMENT]...
+ *   orcinus-sandbox [--bind PATH]... [--ro-bind PATH]... [--chdir DIR] [--control FD] -- PROGRAM [ARGUMENT]...
  *   orcinus-sandbox --check
  *
  * The agent sees a root of its own: the system (/usr, /etc, /opt, /var, …) read-only, fresh
@@ -23,6 +23,14 @@
  *    shared tmpfs, so folders can be added later (AI5d3);
  *  - the agent: a mount namespace whose root is a slave of that tmpfs (pivot_root), and a PID
  *    namespace. It runs as the user, without capabilities.
+ * The root is built on an empty folder of the user's runtime directory ($XDG_RUNTIME_DIR/orcinus-sandbox,
+ * else /tmp/.orcinus-sandbox-UID), covered by a tmpfs in our namespace only: the rest of the host
+ * stays visible here, so folders anywhere can be added later.
+ *
+ * --control FD: a socket on which Orcinus adds and removes folders while the agent runs, one
+ * line each, "add PATH" or "remove PATH" (absolute, read-write); each line is answered "ok" or
+ * "error MESSAGE". The agent does not get the socket.
+ *
  * Signals to this process go to the agent; its exit status is ours. Errors of the sandbox
  * itself end with status 125 and a line on stderr starting with "orcinus-sandbox:".
  *
@@ -35,7 +43,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <set>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <dirent.h>
@@ -43,6 +53,7 @@
 #include <sched.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
@@ -51,7 +62,10 @@
 namespace
 {
 constexpr int SetupFailed = 125;
-constexpr const char *Root = "/tmp/.orcinus-sandbox-root";
+/** The agent's root, a shared tmpfs (see main()). */
+std::string Root;
+/** Folders shared now, by their path; added and removed through the control socket. */
+std::set<std::string> g_shared;
 
 struct Bind {
     std::string path;
@@ -163,7 +177,7 @@ void buildRoot()
         makeReadOnly(target);
     }
 
-    const std::string root(Root);
+    const std::string &root = Root;
     mkdir((root + "/dev").c_str(), 0755);
     mountOrFail("/dev", root + "/dev", nullptr, MS_BIND | MS_REC);
     struct stat st;
@@ -203,7 +217,107 @@ void addBind(const Bind &bind)
     mountOrFail(fdPath(bind.fd).c_str(), target, nullptr, MS_BIND | MS_REC);
     if (bind.readOnly) {
         makeReadOnly(target);
+    } else {
+        g_shared.insert(bind.path);
     }
+}
+
+/** @return An error message, empty on success. */
+std::string share(const std::string &path)
+{
+    if (path.empty() || path[0] != '/' || path.find("/../") != std::string::npos || path.find("/./") != std::string::npos) {
+        return "not a clean absolute path";
+    }
+    if (g_shared.count(path)) {
+        return std::string();
+    }
+    const int fd = open(path.c_str(), O_PATH | O_CLOEXEC);
+    if (fd < 0) {
+        return std::strerror(errno);
+    }
+    struct stat st;
+    std::string error;
+    const std::string target = Root + path;
+    if (fstat(fd, &st) != 0) {
+        error = std::strerror(errno);
+    } else if (!makePath(target, !S_ISDIR(st.st_mode))) {
+        error = std::string("no place for it: ") + std::strerror(errno);
+    } else if (mount(fdPath(fd).c_str(), target.c_str(), nullptr, MS_BIND | MS_REC, nullptr) != 0) {
+        error = std::strerror(errno);
+    } else {
+        g_shared.insert(path);
+    }
+    close(fd);
+    return error;
+}
+
+std::string unshare(const std::string &path)
+{
+    if (!g_shared.count(path)) {
+        return "not shared";
+    }
+    const std::string target = Root + path;
+    if (umount2(target.c_str(), MNT_DETACH) != 0) {
+        return std::strerror(errno);
+    }
+    g_shared.erase(path);
+    // The place it had, and parents that are empty now (they were made for it).
+    std::string place = target;
+    while (place.size() > Root.size() && (rmdir(place.c_str()) == 0 || unlink(place.c_str()) == 0)) {
+        place.erase(place.rfind('/'));
+    }
+    return std::string();
+}
+
+void serveControl(int fd)
+{
+    std::string buffer;
+    char chunk[4096];
+    for (;;) {
+        const ssize_t size = read(fd, chunk, sizeof(chunk));
+        if (size <= 0) {
+            if (size < 0 && errno == EINTR) {
+                continue;
+            }
+            return;
+        }
+        buffer.append(chunk, size);
+        std::size_t end;
+        while ((end = buffer.find('\n')) != std::string::npos) {
+            const std::string line = buffer.substr(0, end);
+            buffer.erase(0, end + 1);
+            std::string error;
+            if (line.rfind("add ", 0) == 0) {
+                error = share(line.substr(4));
+            } else if (line.rfind("remove ", 0) == 0) {
+                error = unshare(line.substr(7));
+            } else {
+                error = "unknown command";
+            }
+            const std::string answer = error.empty() ? "ok\n" : "error " + error + "\n";
+            if (write(fd, answer.data(), answer.size()) < 0) {
+                return;
+            }
+        }
+    }
+}
+
+/** The empty folder of the host the root is built on; made if needed. */
+std::string holderPath()
+{
+    const char *runtime = std::getenv("XDG_RUNTIME_DIR");
+    std::string path;
+    if (runtime && runtime[0] == '/') {
+        path = std::string(runtime) + "/orcinus-sandbox";
+    } else {
+        path = "/tmp/.orcinus-sandbox-" + std::to_string(getuid());
+    }
+    mkdir(path.c_str(), 0700);
+    struct stat st;
+    if (lstat(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode) || st.st_uid != getuid()) {
+        fail("cannot use " + path, 0);
+    }
+    return path;
 }
 
 pid_t g_child = 0;
@@ -266,9 +380,9 @@ int waitFor(pid_t child)
 [[noreturn]] void runAgent(const std::string &directory, char **argv)
 {
     // PID 1 of the new PID namespace, in the agent's mount namespace.
-    const std::string root(Root);
+    const std::string &root = Root;
     mountOrFail("proc", root + "/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC);
-    if (chdir(Root) != 0 || syscall(SYS_pivot_root, ".", ".") != 0 || umount2(".", MNT_DETACH) != 0) {
+    if (chdir(Root.c_str()) != 0 || syscall(SYS_pivot_root, ".", ".") != 0 || umount2(".", MNT_DETACH) != 0) {
         fail("cannot enter the sandbox");
     }
     if (chdir("/") != 0) {
@@ -300,6 +414,7 @@ int main(int argc, char **argv)
 {
     std::vector<Bind> binds;
     std::string directory;
+    int control = -1;
     int first = argc;
     char trueCommand[] = "true";
     char *checkArgv[] = {trueCommand, nullptr};
@@ -314,6 +429,13 @@ int main(int argc, char **argv)
             command = checkArgv;
             continue;
         }
+        if (arg == "--control" && i + 1 < argc) {
+            control = std::atoi(argv[++i]);
+            if (control < 3 || fcntl(control, F_SETFD, FD_CLOEXEC) != 0) {
+                fail("--control needs an open file descriptor", 0);
+            }
+            continue;
+        }
         if ((arg == "--bind" || arg == "--ro-bind" || arg == "--chdir") && i + 1 < argc) {
             const std::string value = argv[++i];
             if (value.empty() || value[0] != '/') {
@@ -326,7 +448,8 @@ int main(int argc, char **argv)
             }
             continue;
         }
-        fail("unknown argument " + arg + "; usage: orcinus-sandbox [--bind PATH]... [--ro-bind PATH]... [--chdir DIR] -- PROGRAM [ARGUMENT]...", 0);
+        fail("unknown argument " + arg + "; usage: orcinus-sandbox [--bind PATH]... [--ro-bind PATH]... [--chdir DIR] [--control FD] -- PROGRAM [ARGUMENT]...",
+             0);
     }
     if (!command) {
         if (first >= argc) {
@@ -335,20 +458,18 @@ int main(int argc, char **argv)
         command = argv + first;
     }
 
+    const std::string holder = holderPath();
     const uid_t uid = getuid();
     const gid_t gid = getgid();
-    if (unshare(CLONE_NEWUSER | CLONE_NEWNS) != 0) {
+    if (::unshare(CLONE_NEWUSER | CLONE_NEWNS) != 0) {
         fail("cannot create a user namespace");
     }
     writeFile("/proc/self/setgroups", "deny");
     writeFile("/proc/self/uid_map", std::to_string(uid) + " " + std::to_string(uid) + " 1");
     writeFile("/proc/self/gid_map", std::to_string(gid) + " " + std::to_string(gid) + " 1");
 
-    // The root lives in a tmpfs over /tmp of this namespace only (the host's /tmp stays).
     mountOrFail(nullptr, "/", nullptr, MS_REC | MS_PRIVATE);
-    // In this namespace (a bind needs a mount of it), before anything is mounted over the places
-    // they come from (e.g. a folder in /tmp).
-    // Outer paths first: a read-only folder must not cover what is shared read-write inside it.
+    // In this namespace (a bind needs a mount of it). Outer paths first: a read-only folder must not cover what is shared read-write inside it.
     std::stable_sort(binds.begin(), binds.end(), [](const Bind &a, const Bind &b) {
         return std::count(a.path.begin(), a.path.end(), '/') < std::count(b.path.begin(), b.path.end(), '/');
     });
@@ -359,8 +480,10 @@ int main(int argc, char **argv)
             found.push_back(bind);
         }
     }
-    mountOrFail("tmpfs", "/tmp", "tmpfs", MS_NOSUID | MS_NODEV, "mode=0700");
-    mkdir(Root, 0755);
+    // Over the empty holder of this namespace only; the host keeps it empty.
+    mountOrFail("tmpfs", holder, "tmpfs", MS_NOSUID | MS_NODEV, "mode=0700");
+    Root = holder + "/root";
+    mkdir(Root.c_str(), 0755);
     mountOrFail("tmpfs", Root, "tmpfs", MS_NOSUID | MS_NODEV, "mode=0755");
     mountOrFail(nullptr, Root, nullptr, MS_SHARED);
     buildRoot();
@@ -376,7 +499,7 @@ int main(int argc, char **argv)
     }
     if (child == 0) {
         dieWithParent(self);
-        if (unshare(CLONE_NEWNS | CLONE_NEWPID) != 0) {
+        if (::unshare(CLONE_NEWNS | CLONE_NEWPID) != 0) {
             fail("cannot create the agent's namespaces");
         }
         // Mounts added to the root later reach the agent, none of its own go back.
@@ -395,5 +518,8 @@ int main(int argc, char **argv)
     }
     g_child = child;
     forwardSignals();
+    if (control >= 0) {
+        std::thread(serveControl, control).detach();
+    }
     return waitFor(child);
 }
