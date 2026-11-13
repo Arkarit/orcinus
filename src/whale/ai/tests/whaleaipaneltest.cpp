@@ -11,15 +11,20 @@
 #include "testdir.h"
 #include "views/dolphinview.h"
 #include "whaleaiagents.h"
+#include "whaleaicontextchips.h"
 #include "whaleaitranscript.h"
 
 #include <KActionCollection>
 #include <KActionMenu>
 #include <KSharedConfig>
 
+#include <QApplication>
 #include <QComboBox>
 #include <QDir>
+#include <QDragEnterEvent>
+#include <QFile>
 #include <QLabel>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -67,6 +72,8 @@ private Q_SLOTS:
     void requestDetails();
     void requestFocus();
     void requestShowsHiddenPanel();
+    void contextChips();
+    void dropFiles();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
@@ -197,7 +204,7 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Plan”.")), qPrintable(all));
     QVERIFY(WhaleAiAgents::agent(QStringLiteral("basic")).startMode.isEmpty());
     QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1.").arg(m_work.path())), qPrintable(all));
-    QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=;text=hello;links=0").arg(m_work.path())), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=;text=hello;links=1").arg(m_work.path())), qPrintable(all));
     QVERIFY(all.contains(QLatin1String("permission=yes")));
     QVERIFY(all.contains(QLatin1String("Answered: Yes")));
     QVERIFY(!all.contains(QLatin1String("WRONG SESSION")));
@@ -369,6 +376,13 @@ void WhaleAiPanelTest::panelInMainWindow()
     // A file in an answer: its folder with the file selected.
     Q_EMIT panel->localUrlActivated(QUrl::fromLocalFile(dir.path() + QStringLiteral("/a.txt")));
     QTRY_COMPARE(mainWindow.activeViewContainer()->view()->selectedItems().count(), 1);
+    // The selection is context of the next message.
+    QTRY_VERIFY(panel->findChild<QWidget *>(QStringLiteral("chip-selection")));
+    QCOMPARE(panel->findChild<QWidget *>(QStringLiteral("chip-selection"))->findChild<QLabel *>(QStringLiteral("text"))->text(),
+             QStringLiteral("Selected: a.txt"));
+    QCOMPARE(panel->contextChips()->context().folder, dir.path());
+    QCOMPARE(panel->contextChips()->context().selection, QStringList{dir.path() + QStringLiteral("/a.txt")});
+    QVERIFY(panel->contextChips()->context().otherFolder.isEmpty());
 
     // The user gives a task and closes the panel; the agent asks: the panel comes back.
     QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
@@ -654,6 +668,107 @@ void WhaleAiPanelTest::requestShowsHiddenPanel()
     QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
     QVERIFY(waitForPermission(*panel));
     QCOMPARE(attention.count(), 1);
+}
+
+static QString chipText(WhaleAiPanel &panel, const QString &name)
+{
+    auto *chip = panel.contextChips()->findChild<QWidget *>(name);
+    return chip ? chip->findChild<QLabel *>(QStringLiteral("text"))->text() : QString();
+}
+
+void WhaleAiPanelTest::contextChips()
+{
+    QTemporaryDir dir;
+    QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("a/sub")));
+    QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("b")));
+    const QString a = dir.filePath(QStringLiteral("a"));
+    const QString b = dir.filePath(QStringLiteral("b"));
+    WhaleAiContext window{a, {a + QStringLiteral("/x.jpg"), a + QStringLiteral("/y.jpg")}, b, {}};
+
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    panel->setContextProvider([&window] {
+        return window;
+    });
+    QVERIFY(panel->contextChips()->isVisibleTo(panel.get()));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a"));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-selection")), QStringLiteral("Selected: 2 items"));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-other")), QStringLiteral("Other view: b"));
+    QCOMPARE(panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection"))->toolTip(),
+             a + QStringLiteral("/x.jpg\n") + a + QStringLiteral("/y.jpg"));
+
+    // Removed for the next message.
+    panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection"))->findChild<QToolButton *>(QStringLiteral("remove"))->click();
+    QTRY_VERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection")));
+    QVERIFY(panel->contextChips()->context().selection.isEmpty());
+
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    const QString all = texts(*panel);
+    QVERIFY2(all.contains(QStringLiteral("With: folder “a”, other view “b”")), qPrintable(all));
+    QVERIFY(all.contains(QStringLiteral("text=nopermission;links=2;context=Context from the file manager Orcinus")));
+    QVERIFY(all.contains(QStringLiteral("- Current folder: %1 (subfolders: sub)").arg(a)));
+    QVERIFY(!all.contains(QLatin1String("x.jpg")));
+    // Back for the message after.
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-selection")), QStringLiteral("Selected: 2 items"));
+
+    // A removed chip comes back when its content changes.
+    panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->findChild<QToolButton *>(QStringLiteral("remove"))->click();
+    QTRY_VERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder")));
+    panel->refreshContext();
+    QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder")));
+    window.folder = b;
+    window.selection.clear();
+    window.otherFolder.clear();
+    panel->refreshContext();
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: b"));
+    QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection")));
+    QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-other")));
+
+    // Nothing to show: no row.
+    window = {};
+    panel->refreshContext();
+    QVERIFY(!panel->contextChips()->isVisibleTo(panel.get()));
+}
+
+void WhaleAiPanelTest::dropFiles()
+{
+    QTemporaryDir dir;
+    const QString file = dir.filePath(QStringLiteral("notes.md"));
+    QFile(file).open(QIODevice::WriteOnly);
+    std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
+    auto *input = panel->findChild<QPlainTextEdit *>(QStringLiteral("input"));
+
+    auto drop = [&](const QList<QUrl> &urls) {
+        QMimeData mime;
+        mime.setUrls(urls);
+        QDragEnterEvent enter(QPoint(5, 5), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(input->viewport(), &enter);
+        if (!enter.isAccepted()) {
+            return false;
+        }
+        QDropEvent dropEvent(QPointF(5, 5), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(input->viewport(), &dropEvent);
+        return dropEvent.isAccepted();
+    };
+    QVERIFY(drop({QUrl::fromLocalFile(file), QUrl::fromLocalFile(dir.path())}));
+    // Chips, not text.
+    QVERIFY(input->toPlainText().isEmpty());
+    const auto added = panel->contextChips()->findChildren<QWidget *>(QStringLiteral("chip-added"));
+    QCOMPARE(added.size(), 2);
+    QCOMPARE(added.first()->findChild<QLabel *>(QStringLiteral("text"))->text(), QStringLiteral("notes.md"));
+    QCOMPARE(panel->contextChips()->context().added, (QStringList{file, dir.path()}));
+    // The same again is not added twice.
+    QVERIFY(drop({QUrl::fromLocalFile(file)}));
+    QCOMPARE(panel->contextChips()->context().added.size(), 2);
+
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    const QString all = texts(*panel);
+    QVERIFY2(all.contains(QStringLiteral("2 added items")), qPrintable(all));
+    QVERIFY(all.contains(QStringLiteral("- Added by the user for this message (2): %1, %2").arg(file, dir.path())));
+    // Used once.
+    QVERIFY(panel->contextChips()->findChildren<QWidget *>(QStringLiteral("chip-added")).isEmpty());
+    QVERIFY(panel->contextChips()->context().added.isEmpty());
 }
 
 QTEST_MAIN(WhaleAiPanelTest)

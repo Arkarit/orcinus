@@ -46,7 +46,8 @@ public:
 
     explicit WhaleAiTranscript(QWidget *parent = nullptr);
 
-    void addUserMessage(const QString &text);
+    /** @p context says what was sent along (folder, selection, …); shown small below. */
+    void addUserMessage(const QString &text, const QString &context = QString());
     /** Appends to the agent's current answer, or starts one. */
     void appendAgentText(const QString &text);
     /** Appends to the agent's current thought, or starts one. */

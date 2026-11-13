@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 done (2026-11-13, before AI4); next AI4.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); next AI6 (back channel).
 
 ## Problem
 
@@ -158,6 +158,40 @@ default Auto mode asked no permission at all, which makes AI5 the next important
 **AI4 – Context.** Chips for folder / selection / other split view above the input, follow the
 active view, each removable for the next prompt. Drag and drop of files into the input adds them.
 Large selections are capped (count, with a "+N more" note).
+
+Details (planned 2026-11-13):
+
+- *Source.* The window hands the panel a context provider (`std::function` returning
+  `WhaleAiContext`: folder of the active view, its selection, folder of the other split view if
+  split; local items only, since the agent works on local paths). The panel asks it when the
+  window's URL or selection changes, when the active view changes, when the input gets the
+  focus, and again right before sending (the other view can change without a signal of the
+  window; what goes out is always current and shown in the transcript).
+- *Chips* in a wrapping row between transcript and input: "Folder: name", "Selection: name" /
+  "Selection: N items", "Other view: name", and one chip per file dropped onto the input. Each
+  has a remove button; the tooltip shows the paths. Removing a folder/selection/other-view chip
+  holds for the next message only (it comes back after sending, or when its content changes);
+  dropped files are used by the next message and then go.
+- *What is sent.* Before the user's text, one text block (English, for the agent, not
+  translated) like "Context from the file manager Orcinus: current folder /a (subfolders: x,
+  y, …); selected in it: …; other view: /b; added by the user: …", plus one `resource_link` per
+  folder/item. Caps: 50 selected or dropped items (then "… and N more", which are not sent),
+  30 subfolder names (AI0: the agent missed an empty subfolder, so the text names them).
+- *Transcript.* The user message entry gets a small line "With: Folder x, 3 selected items, …"
+  so nothing goes out unseen.
+- *Drag and drop.* Local files and folders dropped onto the input become chips (not text in the
+  input); other drops behave as before.
+
+*AI4 result (2026-11-13).* `WhaleAiContext` + `WhaleAiContextPrompt` (`text()`, `blocks()`,
+`summary()`) in `whaleai`; `WhaleAiContextChips` (own small flow layout) in `dolphinstatic`.
+The window sets the provider in `setupDockWidgets()` and refreshes the visible panel on
+`selectionChanged` and `activeViewChanged`, and on URL changes of the inactive view (linked
+views); a hidden panel refreshes when shown. Non-local folders count if they have a local path
+(`KFileItem::localPath()`, e.g. desktop:/). Only known limit: closing the inactive split view
+gives no signal, so its chip stays until the next refresh (input focus, send). Tests:
+`whaleaicontexttest`, panel tests `contextChips`, `dropFiles`, selection chip in
+`panelInMainWindow`. The fake agent now echoes the user's text and the context separately.
+Checked offscreen as an image: chips wrap below the transcript.
 
 **AI5 – Permissions.** Inline permission requests; permission bar with the agent's modes; remember
 "always" per session only in the first version. Calls of Orcinus' own harmless MCP tools (show a

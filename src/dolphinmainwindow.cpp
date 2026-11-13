@@ -2678,6 +2678,47 @@ void DolphinMainWindow::setupDockWidgets()
             m_settingsDialog->setCurrentPage(m_settingsDialog->aiAgentsSettings);
         }
     });
+    // The context of a message (AI4): folder and selection of the active view, folder of the
+    // other split view. Local paths only; the agent works on the local file system.
+    aiPanel->setContextProvider([this] {
+        WhaleAiContext context;
+        if (!m_activeViewContainer) {
+            return context;
+        }
+        const QUrl url = m_activeViewContainer->url();
+        context.folder = url.isLocalFile() ? url.toLocalFile() : m_activeViewContainer->rootItem().localPath();
+        const KFileItemList selection = m_activeViewContainer->view()->selectedItems();
+        for (const KFileItem &item : selection) {
+            const QString path = item.localPath();
+            if (!path.isEmpty()) {
+                context.selection.append(path);
+            }
+        }
+        DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+        if (tabPage && tabPage->splitViewEnabled() && tabPage->inactiveViewContainer()) {
+            DolphinViewContainer *other = tabPage->inactiveViewContainer();
+            const QUrl otherUrl = other->url();
+            context.otherFolder = otherUrl.isLocalFile() ? otherUrl.toLocalFile() : other->rootItem().localPath();
+        }
+        return context;
+    });
+    // While the panel is hidden it asks when it is shown again.
+    auto refreshAiContext = [aiPanel] {
+        if (aiPanel->isVisible()) {
+            aiPanel->refreshContext();
+        }
+    };
+    connect(this, &DolphinMainWindow::selectionChanged, aiPanel, refreshAiContext);
+    // The other view can change its folder while it is not active (linked views).
+    auto otherViewConnection = std::make_shared<QMetaObject::Connection>();
+    connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, aiPanel, [this, aiPanel, refreshAiContext, otherViewConnection] {
+        QObject::disconnect(*otherViewConnection);
+        DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+        if (tabPage && tabPage->inactiveViewContainer()) {
+            *otherViewConnection = connect(tabPage->inactiveViewContainer()->view(), &DolphinView::urlChanged, aiPanel, refreshAiContext);
+        }
+        refreshAiContext();
+    });
     connect(aiPanel, &WhaleAiPanel::attentionRequested, aiDock, [aiDock] {
         aiDock->show();
         aiDock->raise();

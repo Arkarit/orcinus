@@ -268,7 +268,7 @@ QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
     return entry;
 }
 
-void WhaleAiTranscript::addUserMessage(const QString &text)
+void WhaleAiTranscript::addUserMessage(const QString &text, const QString &context)
 {
     endTurn();
     auto *frame = new QFrame(m_content);
@@ -280,6 +280,17 @@ void WhaleAiTranscript::addUserMessage(const QString &text)
     label->setParent(frame);
     label->setText(text);
     layout->addWidget(label);
+    if (!context.isEmpty()) {
+        QLabel *contextLabel = createTextLabel(Qt::PlainText);
+        contextLabel->setParent(frame);
+        contextLabel->setObjectName(QStringLiteral("context"));
+        contextLabel->setText(context);
+        contextLabel->setForegroundRole(QPalette::PlaceholderText);
+        QFont small = contextLabel->font();
+        small.setPointSizeF(small.pointSizeF() * 0.9);
+        contextLabel->setFont(small);
+        layout->addWidget(contextLabel);
+    }
     addEntry(Kind::UserMessage, frame);
 }
 

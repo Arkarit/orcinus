@@ -244,7 +244,9 @@ void handlePrompt(const QJsonObject &message)
             ++links;
         }
     }
-    const QString text = texts.join(QLatin1Char(' '));
+    // The last text block is the user's; one before it is the context of the file manager.
+    const QString text = texts.isEmpty() ? QString() : texts.last();
+    const QString contextText = texts.size() > 1 ? texts.mid(0, texts.size() - 1).join(QLatin1Char(' ')) : QString();
 
     // Updates the client must ignore.
     update(QStringLiteral("other"),
@@ -255,7 +257,7 @@ void handlePrompt(const QJsonObject &message)
 
     chunk(QStringLiteral("agent_thought_chunk"), QStringLiteral("thinking"));
     chunk(QStringLiteral("agent_message_chunk"),
-          QStringLiteral("cwd=%1;mcp=%2;text=%3;links=%4").arg(sessionCwd, mcpNames.join(QLatin1Char(',')), text).arg(links));
+          QStringLiteral("cwd=%1;mcp=%2;text=%3;links=%4;context=%5").arg(sessionCwd, mcpNames.join(QLatin1Char(',')), text).arg(links).arg(contextText));
 
     // The client offers no fs/*: it must answer with an error.
     send({{QStringLiteral("id"), QStringLiteral("fs1")},

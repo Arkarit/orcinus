@@ -15,6 +15,7 @@ target_sources(whaleai PRIVATE
     whaleacptypes.cpp
     whaleaiagents.cpp
     whaleaiagenttest.cpp
+    whaleaicontext.cpp
 )
 
 ecm_qt_declare_logging_category(whaleai
@@ -38,6 +39,7 @@ target_link_libraries(whaleai PUBLIC
 
 target_sources(dolphinstatic PRIVATE
     whaleaiagentdialog.cpp
+    whaleaicontextchips.cpp
     whaleaipanel.cpp
     whaleaisettingspage.cpp
     whaleaitranscript.cpp

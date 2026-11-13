@@ -172,7 +172,7 @@ void WhaleAcpSessionTest::promptTurn()
 
     // What the agent got: working directory, MCP server, text, link; not the other session's text.
     QCOMPARE(text,
-             QStringLiteral("cwd=%1;mcp=orcinus:/usr/lib/orcinus/orcinus-mcp;text=hello;links=1|permission=yes;fs=%2|")
+             QStringLiteral("cwd=%1;mcp=orcinus:/usr/lib/orcinus/orcinus-mcp;text=hello;links=1;context=|permission=yes;fs=%2|")
                  .arg(m_dir.path())
                  .arg(int(WhaleAcpError::MethodNotFound)));
     QCOMPARE(finished.size(), 1);

@@ -9,6 +9,9 @@
 
 #include "panels/panel.h"
 #include "whaleacpsession.h"
+#include "whaleaicontext.h"
+
+#include <functional>
 
 #include <QPointer>
 
@@ -17,6 +20,7 @@ class QLabel;
 class QPlainTextEdit;
 class QStackedWidget;
 class QToolButton;
+class WhaleAiContextChips;
 class WhaleAiTranscript;
 
 /**
@@ -39,6 +43,10 @@ class WhaleAiTranscript;
  * the one the user chose last for it, otherwise its read-only mode (AI5). If that fails, or the
  * agent has no read-only mode Orcinus knows, the message waits until the user picks a mode
  * (chooseMode()). Every change of the mode is noted in the transcript.
+ *
+ * Each message carries the context of the window (AI4): the folder, the selection and the
+ * other split view, shown as removable chips above the input, plus files dropped onto the
+ * input. The transcript notes what went along.
  *
  * See .privatedoc/ai-support-plan.md.
  */
@@ -75,6 +83,15 @@ public:
 
     WhaleAcpSession *session() const;
     WhaleAiTranscript *transcript() const;
+    WhaleAiContextChips *contextChips() const;
+
+    /**
+     * Sets where the context of a message comes from (the window). Without one, the context is
+     * the panel's folder.
+     */
+    void setContextProvider(const std::function<WhaleAiContext()> &provider);
+    /** Asks the provider again (the window's folder, selection or split changed). */
+    void refreshContext();
 
 Q_SIGNALS:
     /** The user wants to set up agents. */
@@ -91,6 +108,7 @@ protected:
     bool urlChanged() override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void focusInEvent(QFocusEvent *event) override;
+    void showEvent(QShowEvent *event) override;
 
 private:
     void fillAgents(const QString &preferredId);
@@ -121,6 +139,9 @@ private:
     QPointer<WhaleAcpSession> m_session;
     QString m_sessionAgentId;
     QString m_pendingPrompt;
+    WhaleAiContext m_pendingContext;
+    WhaleAiContextChips *m_chips = nullptr;
+    std::function<WhaleAiContext()> m_contextProvider;
 
     enum class ModeState {
         Unknown, ///< the start mode is not set yet

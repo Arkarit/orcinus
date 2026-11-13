@@ -34,3 +34,7 @@ ecm_add_test(whaleaipaneltest.cpp ${CMAKE_SOURCE_DIR}/src/tests/testdir.cpp ${CM
 target_include_directories(whaleaipaneltest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
 target_compile_definitions(whaleaipaneltest PRIVATE WHALE_ACP_FAKE_AGENT="$<TARGET_FILE:whaleacpfakeagent>")
 add_dependencies(whaleaipaneltest whaleacpfakeagent)
+
+ecm_add_test(whaleaicontexttest.cpp
+    TEST_NAME whaleaicontexttest
+    LINK_LIBRARIES whaleai Qt6::Test)

@@ -6,6 +6,7 @@
 
 #include "whaleaipanel.h"
 #include "whaleaiagents.h"
+#include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
 #include "whaleaitranscript.h"
 
@@ -15,10 +16,12 @@
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
+#include <QDropEvent>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
@@ -77,12 +80,17 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
 
+    m_chips = new WhaleAiContextChips(chat);
+    m_chips->setObjectName(QStringLiteral("contextChips"));
+
     m_input = new QPlainTextEdit(chat);
     m_input->setObjectName(QStringLiteral("input"));
     m_input->setPlaceholderText(i18nc("@info:placeholder", "Ask the agent… (Enter sends, Shift+Enter: new line)"));
     m_input->setTabChangesFocus(true);
     m_input->setFixedHeight(m_input->fontMetrics().lineSpacing() * 3 + 2 * m_input->frameWidth() + 8);
     m_input->installEventFilter(this);
+    // Drops land on the viewport.
+    m_input->viewport()->installEventFilter(this);
 
     m_send = new QToolButton(chat);
     m_send->setObjectName(QStringLiteral("send"));
@@ -98,6 +106,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     chatLayout->addWidget(m_sessionInfo);
     chatLayout->addLayout(modesRow);
     chatLayout->addWidget(m_transcript, 1);
+    chatLayout->addWidget(m_chips);
     chatLayout->addLayout(bottom);
 
     // Setup, while no agent is set up
@@ -207,6 +216,30 @@ WhaleAiTranscript *WhaleAiPanel::transcript() const
     return m_transcript;
 }
 
+WhaleAiContextChips *WhaleAiPanel::contextChips() const
+{
+    return m_chips;
+}
+
+void WhaleAiPanel::setContextProvider(const std::function<WhaleAiContext()> &provider)
+{
+    m_contextProvider = provider;
+    refreshContext();
+}
+
+void WhaleAiPanel::refreshContext()
+{
+    if (m_contextProvider) {
+        m_chips->setContext(m_contextProvider());
+        return;
+    }
+    WhaleAiContext context;
+    if (url().isLocalFile() && QFileInfo(url().toLocalFile()).isDir()) {
+        context.folder = url().toLocalFile();
+    }
+    m_chips->setContext(context);
+}
+
 void WhaleAiPanel::agentChosen()
 {
     if (m_session && m_sessionAgentId != agentId()) {
@@ -236,7 +269,11 @@ bool WhaleAiPanel::sendPrompt(const QString &text)
     if (!m_session && !startSession()) {
         return false;
     }
-    m_transcript->addUserMessage(prompt);
+    // Current, also if the other view changed without a signal; what goes is shown.
+    refreshContext();
+    m_pendingContext = m_chips->context();
+    m_transcript->addUserMessage(prompt, WhaleAiContextPrompt::summary(m_pendingContext));
+    m_chips->messageSent();
     m_pendingPrompt = prompt;
     sendPending();
     updateState();
@@ -348,7 +385,7 @@ void WhaleAiPanel::sendPending()
     if (!m_session || m_session->state() != WhaleAcpSession::State::Ready || m_modeState != ModeState::Set || m_pendingPrompt.isEmpty()) {
         return;
     }
-    m_session->prompt({WhaleAcpContent::text(std::exchange(m_pendingPrompt, QString()))});
+    m_session->prompt(WhaleAiContextPrompt::blocks(std::exchange(m_pendingContext, {}), std::exchange(m_pendingPrompt, QString())));
     updateState();
 }
 
@@ -502,6 +539,7 @@ void WhaleAiPanel::stop()
 void WhaleAiPanel::endSession()
 {
     m_pendingPrompt.clear();
+    m_pendingContext = {};
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     if (!m_session) {
@@ -635,12 +673,42 @@ void WhaleAiPanel::openLink(const QString &link)
 
 bool WhaleAiPanel::urlChanged()
 {
-    // The folder of the next conversation; a running one stays where it started.
+    // The folder of the next conversation; a running one stays where it started. The next
+    // message names the new folder.
+    refreshContext();
     return true;
 }
 
 bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_input->viewport() && (event->type() == QEvent::DragEnter || event->type() == QEvent::DragMove || event->type() == QEvent::Drop)) {
+        // Local files and folders become chips, not text in the input.
+        auto *drop = static_cast<QDropEvent *>(event);
+        QStringList paths;
+        if (drop->mimeData()->hasUrls()) {
+            const QList<QUrl> urls = drop->mimeData()->urls();
+            for (const QUrl &url : urls) {
+                if (!url.isLocalFile()) {
+                    paths.clear();
+                    break;
+                }
+                paths.append(url.toLocalFile());
+            }
+        }
+        if (paths.isEmpty()) {
+            return Panel::eventFilter(watched, event);
+        }
+        drop->setDropAction(Qt::CopyAction);
+        drop->accept();
+        if (event->type() == QEvent::Drop) {
+            m_chips->addFiles(paths);
+            m_input->setFocus();
+        }
+        return true;
+    }
+    if (watched == m_input && event->type() == QEvent::FocusIn) {
+        refreshContext();
+    }
     if (watched == m_input && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent *>(event);
         if ((keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) && !(keyEvent->modifiers() & Qt::ShiftModifier)) {
@@ -655,6 +723,13 @@ bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return Panel::eventFilter(watched, event);
+}
+
+void WhaleAiPanel::showEvent(QShowEvent *event)
+{
+    Panel::showEvent(event);
+    // The window does not update a hidden panel.
+    refreshContext();
 }
 
 void WhaleAiPanel::focusInEvent(QFocusEvent *event)
