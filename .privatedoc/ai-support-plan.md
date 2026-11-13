@@ -325,7 +325,25 @@ Steps:
     unconfined `unshare` gets a user namespace without capabilities, so our own namespaces
     (needed for adding folders live as well) need an AppArmor profile for the helper (installed
     with the package, like `bwrap`'s), children unconfined so nested `bwrap` keeps its own
-    profile. Not tried yet (needs root in the VM). Other distributions have no such restriction.
+    profile. Other distributions have no such restriction.
+  - *Tried with Ubuntu's restriction on* (sysctl set to 1 for the test, profile loaded into the
+    kernel only): a plain `unshare` fails (`uid_map: Operation not permitted`); a copy of
+    `unshare` with the profile `profile … flags=(unconfined) { userns, }` (the pattern of
+    Ubuntu's own profiles for Chrome etc.) builds the sandbox. Inside it all three agents ran the
+    prompt as before, Codex' own sandbox included (its `curl` blocked again), the file outside
+    did not exist, `systemd-run --user` found no bus, a fresh `/proc` showed 3 processes.
+  - *Adding folders live works under the restriction too,* with two levels: an outer holder
+    process (user + mount namespace, sees the host; a shared tmpfs as the view of `$HOME`) and an
+    inner mount namespace for the agent (`--propagation slave`, PID namespace, view bound over
+    `$HOME`, `/media`, `/mnt`, `/run/user`, `/tmp` as tmpfs, capabilities dropped). `nsenter`
+    into the holder's namespaces (no new namespace, so no AppArmor question) binds a host folder
+    into the view: the agent sees it at once, reads and writes; `umount` takes it away (the
+    empty mount point stays visible until removed).
+  - *Decision for AI5d2:* our own small helper (`orcinus-sandbox`, C++ or C, installed next to
+    `orcinus`) instead of `bwrap`: it builds both levels and takes "add / remove folder" from
+    Orcinus over a pipe, so no `nsenter`. Packages and `global-install-orcinus.sh` install its
+    AppArmor profile on Ubuntu; the dev build needs it loaded once by hand (documented), and
+    without it the agent does not start (the message of AI5d).
   - *Open for AI5d2:* where agents live elsewhere (nvm, bun, `/opt`): bind the resolved package
     of the agent command read-only, plus a per-agent list of extra folders in the settings.
     `~/.gitconfig` read-only (commits need the identity); SSH keys not by default.
