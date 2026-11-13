@@ -74,6 +74,7 @@ private Q_SLOTS:
     void requestShowsHiddenPanel();
     void contextChips();
     void dropFiles();
+    void elideChipText();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
@@ -798,6 +799,37 @@ void WhaleAiPanelTest::dropFiles()
     // Used once.
     QVERIFY(panel->contextChips()->findChildren<QWidget *>(QStringLiteral("chip-added")).isEmpty());
     QVERIFY(panel->contextChips()->context().added.isEmpty());
+}
+
+void WhaleAiPanelTest::elideChipText()
+{
+    const QFontMetrics metrics(QApplication::font());
+    const QString name = QStringLiteral("ein-sehr-langer-ordnername-der-nicht-passt-2026-final");
+    const QString text = QStringLiteral("Folder: ") + name;
+    auto elide = [&](int width) {
+        return WhaleAiContextChips::elidedText(metrics, text, name, width);
+    };
+
+    // Fits: unchanged.
+    QCOMPARE(elide(metrics.horizontalAdvance(text)), text);
+
+    // Too long: the label, the first 6 characters, "…", the end of the name.
+    const int width = metrics.horizontalAdvance(QStringLiteral("Folder: ein-se…passt-2026-final"));
+    const QString elided = elide(width);
+    QVERIFY2(elided.startsWith(QStringLiteral("Folder: ein-se…")), qPrintable(elided));
+    QVERIFY2(elided.endsWith(QLatin1String("2026-final")), qPrintable(elided));
+    QVERIFY(metrics.horizontalAdvance(elided) <= width);
+
+    // Narrower: the head goes before the end does.
+    const QString narrow = elide(metrics.horizontalAdvance(QStringLiteral("Folder: …final")));
+    QVERIFY2(narrow.startsWith(QStringLiteral("Folder: …")) && narrow.endsWith(QLatin1String("final")), qPrintable(narrow));
+
+    // Hardly any room: still within the width.
+    QVERIFY(metrics.horizontalAdvance(elide(metrics.horizontalAdvance(QStringLiteral("Fol…")))) <= metrics.horizontalAdvance(QStringLiteral("Fol…")));
+
+    // Without a name (e.g. "Selected: 3 items"): the end goes.
+    const QString plain = WhaleAiContextChips::elidedText(metrics, text, QString(), width);
+    QVERIFY2(plain.startsWith(QLatin1String("Folder: ein-sehr")) && plain.endsWith(QStringLiteral("…")), qPrintable(plain));
 }
 
 QTEST_MAIN(WhaleAiPanelTest)

@@ -27,6 +27,13 @@ class ElidedLabel : public QLabel
 public:
     using QLabel::QLabel;
 
+    /** The part of the text that is elided in its middle. */
+    void setName(const QString &name)
+    {
+        m_name = name;
+        update();
+    }
+
     QSize minimumSizeHint() const override
     {
         return QSize(fontMetrics().horizontalAdvance(QStringLiteral("M…")), QLabel::minimumSizeHint().height());
@@ -37,9 +44,12 @@ protected:
     {
         QPainter painter(this);
         const QRect rect = contentsRect();
-        const QString elided = fontMetrics().elidedText(text(), Qt::ElideRight, rect.width());
+        const QString elided = WhaleAiContextChips::elidedText(fontMetrics(), text(), m_name, rect.width());
         style()->drawItemText(&painter, rect, int(alignment()) | Qt::AlignVCenter, palette(), isEnabled(), elided, foregroundRole());
     }
+
+private:
+    QString m_name;
 };
 
 /** A rounded frame drawn here: QFrame::StyledPanel is not drawn by every style (Breeze). */
@@ -190,6 +200,37 @@ WhaleAiContextChips::WhaleAiContextChips(QWidget *parent)
     hide();
 }
 
+QString WhaleAiContextChips::elidedText(const QFontMetrics &metrics, const QString &text, const QString &name, int width)
+{
+    constexpr int KeptHead = 6;
+    if (metrics.horizontalAdvance(text) <= width) {
+        return text;
+    }
+    const int at = name.isEmpty() ? -1 : text.lastIndexOf(name);
+    if (at < 0) {
+        return metrics.elidedText(text, Qt::ElideRight, width);
+    }
+    const QString before = text.left(at);
+    const QString after = text.mid(at + name.size());
+    const QString ellipsis = QStringLiteral("…");
+    const int room = width - metrics.horizontalAdvance(before + after);
+    // The head, if there is room for it and some of the end.
+    QString head = name.left(KeptHead) + ellipsis;
+    if (name.size() <= KeptHead || metrics.horizontalAdvance(head) >= room) {
+        head = ellipsis;
+    }
+    const int tailRoom = room - metrics.horizontalAdvance(head);
+    int tail = name.size() - (head == ellipsis ? 0 : KeptHead);
+    while (tail > 0 && metrics.horizontalAdvance(name.right(tail)) > tailRoom) {
+        --tail;
+    }
+    if (tail == 0 && head == ellipsis) {
+        // Not even the end of the name fits: the text as a whole.
+        return metrics.elidedText(text, Qt::ElideRight, width);
+    }
+    return before + head + name.right(tail) + after;
+}
+
 QSize WhaleAiContextChips::minimumSizeHint() const
 {
     const QSize minimum = layout()->minimumSize();
@@ -282,6 +323,7 @@ void WhaleAiContextChips::rebuild()
         flow->addWidget(createChip(QStringLiteral("chip-folder"),
                                    QStringLiteral("folder"),
                                    i18nc("@label chip in the AI panel, %1 is a folder name", "Folder: %1", fileName(m_window.folder)),
+                                   fileName(m_window.folder),
                                    m_window.folder,
                                    [this] {
                                        m_folderRemoved = true;
@@ -291,7 +333,8 @@ void WhaleAiContextChips::rebuild()
         const QString text = m_window.selection.size() == 1
             ? i18nc("@label chip in the AI panel, %1 is a file name", "Selected: %1", fileName(m_window.selection.first()))
             : i18ncp("@label chip in the AI panel", "Selected: %1 item", "Selected: %1 items", m_window.selection.size());
-        flow->addWidget(createChip(QStringLiteral("chip-selection"), QStringLiteral("edit-select-all"), text, pathList(m_window.selection), [this] {
+        const QString name = m_window.selection.size() == 1 ? fileName(m_window.selection.first()) : QString();
+        flow->addWidget(createChip(QStringLiteral("chip-selection"), QStringLiteral("edit-select-all"), text, name, pathList(m_window.selection), [this] {
             m_selectionRemoved = true;
         }));
     }
@@ -299,6 +342,7 @@ void WhaleAiContextChips::rebuild()
         flow->addWidget(createChip(QStringLiteral("chip-other"),
                                    QStringLiteral("view-split-left-right"),
                                    i18nc("@label chip in the AI panel, %1 is a folder name", "Other view: %1", fileName(m_window.otherFolder)),
+                                   fileName(m_window.otherFolder),
                                    m_window.otherFolder,
                                    [this] {
                                        m_otherRemoved = true;
@@ -307,6 +351,7 @@ void WhaleAiContextChips::rebuild()
     for (const QString &path : std::as_const(m_added)) {
         flow->addWidget(createChip(QStringLiteral("chip-added"),
                                    QFileInfo(path).isDir() ? QStringLiteral("folder") : QStringLiteral("document-new"),
+                                   fileName(path),
                                    fileName(path),
                                    path,
                                    [this, path] {
@@ -322,6 +367,7 @@ void WhaleAiContextChips::rebuild()
 QWidget *WhaleAiContextChips::createChip(const QString &objectName,
                                          const QString &iconName,
                                          const QString &text,
+                                         const QString &name,
                                          const QString &toolTip,
                                          const std::function<void()> &remove)
 {
@@ -340,6 +386,7 @@ QWidget *WhaleAiContextChips::createChip(const QString &objectName,
     auto *label = new ElidedLabel(text, chip);
     label->setObjectName(QStringLiteral("text"));
     label->setTextFormat(Qt::PlainText);
+    label->setName(name);
     label->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
     layout->addWidget(label, 1);
 

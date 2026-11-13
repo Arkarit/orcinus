@@ -9,6 +9,7 @@
 
 #include "whaleaicontext.h"
 
+#include <QFontMetrics>
 #include <QWidget>
 
 #include <functional>
@@ -40,6 +41,14 @@ public:
     /** The next message went out with context(). */
     void messageSent();
 
+    /**
+     * @return @p text in at most @p width: if it does not fit, the file or folder @p name in it
+     *         keeps its first characters and as much of its end as fits, with "…" between (the
+     *         end of a long name says more than its middle); the rest of @p text stays. Without
+     *         @p name in @p text, the end of the text goes.
+     */
+    static QString elidedText(const QFontMetrics &metrics, const QString &text, const QString &name, int width);
+
     /** All rows of chips at the current width: the transcript above gives way, not the chips. */
     QSize minimumSizeHint() const override;
     QSize sizeHint() const override;
@@ -52,7 +61,12 @@ protected:
 
 private:
     void rebuild();
-    QWidget *createChip(const QString &objectName, const QString &iconName, const QString &text, const QString &toolTip, const std::function<void()> &remove);
+    QWidget *createChip(const QString &objectName,
+                        const QString &iconName,
+                        const QString &text,
+                        const QString &name,
+                        const QString &toolTip,
+                        const std::function<void()> &remove);
 
     WhaleAiContext m_window;
     QStringList m_added;
