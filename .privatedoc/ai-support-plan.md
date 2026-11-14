@@ -376,6 +376,17 @@ Steps:
   (`~/.local`) must not be shared, only the package (it has the data of all programs).
   Open: the Ubuntu package (PPA: `dh_apparmor`, rules option) and the AUR recipe; a settings UI
   for extra paths; the fake agent's tests run the sandbox only where it may run (CI skips).
+  *AI5d4 – read-only root (2026-11-14, found during AI6d manual testing).* The agent's home was a
+  writable tmpfs, so a write outside the shared folders (e.g. `cp screenshot ~/`) succeeded into
+  the throwaway tmpfs and the agent reported success "despite the sandbox boundary" — nothing
+  reached the host, but it looked like a leak and the user's real intent silently did not happen.
+  Fix: after `pivot_root` the agent remounts its root `/` read-only (MS_REMOUNT|MS_RDONLY), so
+  writes outside the shared folders, `/tmp`, `/var/tmp` and the agent's own bound config fail with
+  EROFS. Only the agent's slave namespace is affected; the holder keeps its read-write view and
+  still makes mount points for folders added later (AI5d3), which propagate in as read-write
+  mounts. Verified with the installed helper (write to `/home/user/` now EROFS, host untouched)
+  and all three real agents (they start, read, and write inside the folder; Claude/Codex/OpenCode).
+  whaleaisandboxtest asserts root-read-only; addFolders still writes into a live-added folder.
 - *AI5d3 – Add and remove folders.* Helper in the outer namespace, list of shared folders, "Give
   Access" on the chip, the question on dropped files.
   *AI5d3 result (2026-11-13).* `orcinus-sandbox --control FD`: a socket with one line per

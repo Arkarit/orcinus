@@ -15,7 +15,9 @@
  * (--bind read-write, --ro-bind read-only; missing ones are left out; outer ones first, so a
  * folder inside a read-only one can be read-write). Everything else, the
  * rest of the home folder, /media, /mnt, /srv and /run/user (the session bus would let it run
- * commands outside), is not there.
+ * commands outside), is not there. The root itself is read-only in the agent's view, so a write
+ * outside the shared folders, /tmp and its own config fails honestly instead of vanishing into
+ * the throwaway tmpfs and looking like it worked.
  *
  * Two levels, both in a user namespace of our own (no root; on Ubuntu the AppArmor profile
  * orcinus-sandbox allows it):
@@ -387,6 +389,15 @@ int waitFor(pid_t child)
     }
     if (chdir("/") != 0) {
         fail("cannot enter the sandbox");
+    }
+    // The root tmpfs is read-only in the agent's view: a write outside the shared folders, its
+    // own /tmp and config (all separate mounts on top) then fails honestly instead of landing in
+    // this throwaway tmpfs and looking like it worked (the agent cannot tell the empty home from
+    // the real one). Only the agent's view: this is a slave of the holder's mount namespace, so
+    // the holder keeps writing here to make mount points for folders added later (AI5d3), which
+    // propagate in as read-write mounts.
+    if (mount(nullptr, "/", nullptr, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV, nullptr) != 0) {
+        fail("cannot make the sandbox root read-only");
     }
     if (!directory.empty() && chdir(directory.c_str()) != 0) {
         fail("cannot change to " + directory);

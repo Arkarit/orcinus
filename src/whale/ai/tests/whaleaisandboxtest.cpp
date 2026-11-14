@@ -173,6 +173,9 @@ void WhaleAiSandboxTest::helper()
     const QString script = QStringLiteral(
         "pwd; cat '%1' 2>/dev/null || echo no-secret; echo hi > new.txt && echo written; "
         "touch /usr/orcinus-sandbox-test 2>/dev/null || echo system-read-only; "
+        // A write outside the shared folders must fail (read-only root), not vanish into the
+        // throwaway tmpfs and look like it worked.
+        "touch /orcinus-sandbox-test 2>/dev/null || echo root-read-only; "
         "test -e /run/user || echo no-session-bus; exit 7");
     process.start(helper,
                   {QStringLiteral("--bind"),
@@ -191,6 +194,7 @@ void WhaleAiSandboxTest::helper()
                           QStringLiteral("no-secret"),
                           QStringLiteral("written"),
                           QStringLiteral("system-read-only"),
+                          QStringLiteral("root-read-only"),
                           QStringLiteral("no-session-bus")}));
     QVERIFY(QFile::exists(inside.filePath(QStringLiteral("new.txt"))));
 
