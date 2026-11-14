@@ -453,14 +453,17 @@ bool WhaleAiPanel::startSession()
         connect(control, &WhaleAiSandboxControl::finished, this, &WhaleAiPanel::sandboxChanged);
     }
     if (agent.allFolders) {
-        m_transcript->addNotice(
-            i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2 and can reach all your folders.", agent.name, directory));
+        m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder",
+                                      "%1 works in %2 and can reach all your folders, with no sandbox.",
+                                      agent.name,
+                                      directory));
     } else if (shared.isEmpty()) {
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent", "%1 works in an empty folder of its sandbox: this location is not a local folder.", agent.name));
     } else {
         m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder",
-                                      "%1 works in %2 and can reach only this folder and its subfolders.",
+                                      "%1 works in %2: it reads and writes this folder and its subfolders and can read system files, but the rest "
+                                      "of your data is out of reach. Orcinus' sandbox enforces this, not the agent.",
                                       agent.name,
                                       directory));
     }
@@ -916,8 +919,10 @@ void WhaleAiPanel::updateShared()
         parts.append(QStringLiteral("%1 <a href=\"remove:%2\">%3</a>")
                          .arg(name(path), QString::fromLatin1(QUrl::toPercentEncoding(path)), i18nc("@action:button take access back", "(remove)")));
     }
-    m_shared->setText(parts.isEmpty() ? i18nc("@info", "The agent reaches none of your folders.")
-                                      : i18nc("@info %1 is a list of folders", "The agent reaches: %1", parts.join(QStringLiteral(", "))));
+    m_shared->setText(parts.isEmpty() ? i18nc("@info", "The agent can read and write none of your folders (it can still read system files).")
+                                      : i18nc("@info %1 is a list of folders",
+                                              "The agent can read and write: %1. It can also read system files, nothing else of yours.",
+                                              parts.join(QStringLiteral(", "))));
     m_shared->setToolTip((m_sessionFolders + m_sessionAdded).join(QLatin1Char('\n')));
     m_shared->show();
 }

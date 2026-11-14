@@ -213,7 +213,7 @@ void WhaleAiPanelTest::promptTurn()
     // Without a stored start mode: the read-only one, before the message went out.
     QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Plan”.")), qPrintable(all));
     QVERIFY(WhaleAiAgents::agent(QStringLiteral("basic")).startMode.isEmpty());
-    QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1 and can reach all your folders.").arg(m_work.path())), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1 and can reach all your folders, with no sandbox.").arg(m_work.path())), qPrintable(all));
     QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=orcinus:%2;text=hello;links=1").arg(m_work.path(), WhaleAiMcpServer::relay())), qPrintable(all));
     QVERIFY(all.contains(QLatin1String("permission=yes")));
     QVERIFY(all.contains(QLatin1String("Answered: Yes")));
@@ -930,7 +930,9 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission readfile:%1 readfile:%2 writefile:%3").arg(inside.fileName(), secret.fileName(), written)));
     QVERIFY(waitForReady(panel));
     const QString all = texts(panel);
-    QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1 and can reach only this folder and its subfolders.").arg(m_work.path())), qPrintable(all));
+    QVERIFY2(
+        all.contains(QStringLiteral("Fake basic works in %1: it reads and writes this folder and its subfolders and can read system files").arg(m_work.path())),
+        qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("read=inside;")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("read=missing;")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("written=yes;")), qPrintable(all));
