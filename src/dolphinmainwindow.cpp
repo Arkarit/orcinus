@@ -62,6 +62,7 @@
 #include <KColorSchemeMenu>
 #include <KConfig>
 #include <KConfigGui>
+#include <KCoreDirLister>
 #include <KDialogJobUiDelegate>
 #include <KDualAction>
 #include <KFileItemListProperties>
@@ -2701,6 +2702,35 @@ void DolphinMainWindow::setupDockWidgets()
             context.otherFolder = otherUrl.isLocalFile() ? otherUrl.toLocalFile() : other->rootItem().localPath();
         }
         return context;
+    });
+    // The back channel of the agent (AI6c): only the active view, as the user would.
+    aiPanel->setViewActions({
+        [this](const QString &folder) {
+            if (m_activeViewContainer) {
+                changeUrl(QUrl::fromLocalFile(folder));
+            }
+        },
+        [this](const QStringList &paths) {
+            if (!m_activeViewContainer || paths.isEmpty()) {
+                return;
+            }
+            DolphinView *view = m_activeViewContainer->view();
+            QList<QUrl> urls;
+            for (const QString &path : paths) {
+                urls.append(QUrl::fromLocalFile(path));
+            }
+            view->clearSelection();
+            view->markUrlAsCurrent(urls.constFirst());
+            view->markUrlsAsSelected(urls);
+            // While the folder loads (set_location just before), the view applies it at the end.
+            const auto listers = view->findChildren<KCoreDirLister *>();
+            const bool loading = std::any_of(listers.cbegin(), listers.cend(), [](const KCoreDirLister *lister) {
+                return !lister->isFinished();
+            });
+            if (!loading) {
+                view->updateViewState();
+            }
+        },
     });
     // While the panel is hidden it asks when it is shown again.
     auto refreshAiContext = [aiPanel] {

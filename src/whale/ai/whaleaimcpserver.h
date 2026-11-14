@@ -17,6 +17,14 @@
 #include <functional>
 #include <memory>
 
+/** What the back channel may do in the window (AI6c); set by the window, like the context. */
+struct WhaleAiViewActions {
+    /** Opens @p folder (absolute, an existing local folder) in the active view. */
+    std::function<void(const QString &folder)> openFolder;
+    /** Selects @p paths (in the folder of the active view) there, instead of what was selected. */
+    std::function<void(const QStringList &paths)> select;
+};
+
 class QLocalServer;
 class QLocalSocket;
 class QTemporaryDir;
@@ -34,8 +42,10 @@ class WhaleAiMcpServer : public QObject
     Q_OBJECT
 
 public:
-    /** At most this many items in get_selection. */
+    /** At most this many items in get_selection and select_items. */
     static constexpr int MaxSelection = 500;
+    /** The name of the server in session/new. */
+    static QString name();
 
     explicit WhaleAiMcpServer(QObject *parent = nullptr);
     ~WhaleAiMcpServer() override;
@@ -57,6 +67,14 @@ public:
     void setContextProvider(const std::function<WhaleAiContext()> &provider);
     /** Whether the agent reaches a path (its sandbox); none: all of them. */
     void setAccess(const std::function<bool(const QString &)> &access);
+    /** What set_location and select_items do; without them they answer with an error. */
+    void setViewActions(const WhaleAiViewActions &actions);
+
+    /**
+     * @return The name of our tool @p toolCall calls, as the agents checked in AI6b say it, or an
+     *         empty string if it is not one of ours (then the user answers the request).
+     */
+    static QString ownTool(const WhaleAcpToolCall &toolCall);
 
     /** Answers one JSON-RPC message; for the tests. @return The response, empty for a notification. */
     QJsonObject handle(const QJsonObject &message);
@@ -64,6 +82,10 @@ public:
 Q_SIGNALS:
     /** A tool was called (the result is already sent). */
     void toolCalled(const QString &name, bool error);
+    /** set_location opened @p folder. */
+    void locationSet(const QString &folder);
+    /** select_items selected @p count items. */
+    void itemsSelected(int count);
 
 private:
     void newConnection();
@@ -71,6 +93,8 @@ private:
     QJsonObject callTool(const QString &name, const QJsonObject &arguments, bool *known);
     QJsonObject location();
     QJsonObject selection();
+    QJsonObject setLocation(const QJsonObject &arguments, bool *error);
+    QJsonObject selectItems(const QJsonObject &arguments, bool *error);
     bool reaches(const QString &path) const;
 
     std::unique_ptr<QTemporaryDir> m_dir;
@@ -80,6 +104,7 @@ private:
     QHash<QLocalSocket *, bool> m_authorized;
     std::function<WhaleAiContext()> m_contextProvider;
     std::function<bool(const QString &)> m_access;
+    WhaleAiViewActions m_viewActions;
 };
 
 #endif

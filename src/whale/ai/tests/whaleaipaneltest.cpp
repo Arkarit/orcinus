@@ -403,6 +403,22 @@ void WhaleAiPanelTest::panelInMainWindow()
     QVERIFY(action->isChecked());
     panel->findChild<QPushButton *>(QStringLiteral("option-no"))->click();
     QVERIFY(waitForReady(*panel));
+
+    // The back channel (AI6c): the agent opens a folder and selects in it at once, while the
+    // view still loads it.
+    dir.createFile(QStringLiteral("sub/b.txt"));
+    dir.createFile(QStringLiteral("sub/c.txt"));
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission mcp:set_location:%1/sub mcp:select_items:b.txt,c.txt").arg(dir.path())));
+    QVERIFY(waitForReady(*panel));
+    DolphinView *view = mainWindow.activeViewContainer()->view();
+    QCOMPARE(view->url(), QUrl::fromLocalFile(dir.path() + QStringLiteral("/sub")));
+    QTRY_COMPARE(view->selectedItems().count(), 2);
+    QCOMPARE(view->selectedItems().urlList().contains(QUrl::fromLocalFile(dir.path() + QStringLiteral("/sub/b.txt"))), true);
+    // In a loaded folder, the selection is replaced.
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission mcp:select_items:c.txt")));
+    QVERIFY(waitForReady(*panel));
+    QTRY_COMPARE(view->selectedItems().count(), 1);
+    QCOMPARE(view->selectedItems().first().url(), QUrl::fromLocalFile(dir.path() + QStringLiteral("/sub/c.txt")));
 }
 
 WhaleAiPanel *WhaleAiPanelTest::panelWith(const QString &scenario, const QString &startMode, const QString &workPath)
@@ -988,15 +1004,47 @@ void WhaleAiPanelTest::backChannel()
     // The agent starts orcinus-mcp from session/new and asks where the user is.
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
     QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(
-                 QStringLiteral("tools=get_location,get_selection;mcp={\"access\":true,\"folder\":\"%1\",\"otherAccess\":true,\"otherFolder\":\"%2\"};")
-                     .arg(m_work.path(), other)),
+    QVERIFY2(texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items;mcp={\"access\":true,\"folder\":\"%1\","
+                                                  "\"otherAccess\":true,\"otherFolder\":\"%2\"};")
+                                       .arg(m_work.path(), other)),
              qPrintable(texts(panel)));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_selection")));
     QVERIFY(waitForReady(panel));
     QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"count\":1,\"folder\":\"%1\",\"items\":[{\"access\":true,\"path\":\"%2\"}],\"truncated\":false};")
                                        .arg(m_work.path(), selected)),
              qPrintable(texts(panel)));
+
+    // The agent changes the view through the window; the transcript says so.
+    QStringList opened;
+    QStringList selection;
+    panel.setViewActions({[&](const QString &folder) {
+                              opened.append(folder);
+                          },
+                          [&](const QStringList &paths) {
+                              selection = paths;
+                          }});
+    QFile file(selected);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+    QVERIFY(QDir(m_work.path()).mkpath(QStringLiteral("sub")));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_location:%1 mcp:select_items:a.txt,missing").arg(m_work.filePath(QStringLiteral("sub")))));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(opened, QStringList{m_work.filePath(QStringLiteral("sub"))});
+    QCOMPARE(selection, QStringList{selected});
+    QString all = texts(panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent opened %1.").arg(m_work.filePath(QStringLiteral("sub")))), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("The agent selected 1 item.")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("\"notFound\":[\"missing\"],\"selected\":1")), qPrintable(all));
+
+    // Requests for our own tools are answered at once, as each agent asks; others are not.
+    for (const char *agent : {"claude", "codex", "opencode"}) {
+        QVERIFY(panel.sendPrompt(QStringLiteral("askorcinus-%1").arg(QString::fromLatin1(agent))));
+        QVERIFY2(waitForReady(panel), agent);
+        QVERIFY(panel.transcript()->findChildren<QWidget *>(QStringLiteral("permission-n7")).isEmpty());
+    }
+    QCOMPARE(texts(panel).count(QLatin1String("permission=yes;")), 3);
+    QVERIFY(panel.sendPrompt(QStringLiteral("askorcinus-spoof")));
+    QVERIFY2(waitForPermission(panel), qPrintable(texts(panel).right(1500)));
 
     // Each conversation has its own socket; it goes with the conversation.
     const QString socket = panel.session()->findChild<WhaleAiMcpServer *>()->socketPath();

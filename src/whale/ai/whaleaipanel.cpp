@@ -267,6 +267,14 @@ void WhaleAiPanel::setContextProvider(const std::function<WhaleAiContext()> &pro
     refreshContext();
 }
 
+void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
+{
+    m_viewActions = actions;
+    if (m_mcp) {
+        m_mcp->setViewActions(actions);
+    }
+}
+
 void WhaleAiPanel::refreshContext()
 {
     m_chips->setContext(currentContext());
@@ -417,12 +425,20 @@ bool WhaleAiPanel::startSession()
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
     m_control = control;
+    m_mcp = mcp;
     QList<WhaleAcpMcpServer> mcpServers;
     if (mcp) {
         // Goes with the session, like the sandbox control.
         mcp->setParent(m_session);
         mcp->setContextProvider([this] {
             return currentContext();
+        });
+        mcp->setViewActions(m_viewActions);
+        connect(mcp, &WhaleAiMcpServer::locationSet, this, [this](const QString &folder) {
+            m_transcript->addNotice(i18nc("@info %1 is a folder", "The agent opened %1.", folder));
+        });
+        connect(mcp, &WhaleAiMcpServer::itemsSelected, this, [this](int count) {
+            m_transcript->addNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
         });
         if (control) {
             mcp->setAccess([this](const QString &path) {
@@ -478,7 +494,7 @@ bool WhaleAiPanel::startSession()
     connect(session, &WhaleAcpSession::agentThoughtChunk, m_transcript, &WhaleAiTranscript::appendThought);
     connect(session, &WhaleAcpSession::toolCallChanged, m_transcript, &WhaleAiTranscript::updateToolCall);
     connect(session, &WhaleAcpSession::permissionRequested, this, [this](const WhaleAcpPermissionRequest &request) {
-        if (answerOutsideRequest(request)) {
+        if (answerOwnToolRequest(request) || answerOutsideRequest(request)) {
             return;
         }
         m_transcript->addPermissionRequest(request);
@@ -701,6 +717,12 @@ void WhaleAiPanel::endSession()
         m_control->disconnect(this);
     }
     m_control = nullptr;
+    if (m_mcp) {
+        // It goes with the session; nothing it does after the end belongs here.
+        m_mcp->disconnect(this);
+        m_mcp->setViewActions({});
+    }
+    m_mcp = nullptr;
     m_sessionReach.clear();
     m_sessionFolders.clear();
     m_sessionAdded.clear();
@@ -794,6 +816,22 @@ void WhaleAiPanel::chooseAccess(bool allFolders)
         m_transcript->addNotice(i18nc("@info", "The new access applies from the next conversation (New Conversation)."));
     }
     updateAccess();
+}
+
+bool WhaleAiPanel::answerOwnToolRequest(const WhaleAcpPermissionRequest &request)
+{
+    // Our tools only show something in the window; they check what the agent may reach
+    // themselves. No click for each of them (AI5), and only once: "always" stays the user's.
+    if (!m_mcp || WhaleAiMcpServer::ownTool(request.toolCall).isEmpty()) {
+        return false;
+    }
+    for (const WhaleAcpPermissionRequest::Option &option : request.options) {
+        if (option.kind == QLatin1String("allow_once")) {
+            m_session->answerPermission(request.key, option.id);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool WhaleAiPanel::answerOutsideRequest(const WhaleAcpPermissionRequest &request)

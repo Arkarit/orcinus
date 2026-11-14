@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6a + AI6b done (2026-11-14), next AI6c.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6a–AI6c done (2026-11-14), next AI6d (after a VM snapshot).
 
 ## Problem
 
@@ -496,6 +496,32 @@ Steps:
 - *AI6c – Tools that change the view.* `set_location`, `select_items`, the notices, the reach
   check; answering the requests for our tools directly if AI6b found a reliable sign, else
   leave them to the user and note why.
+  *AI6c result (2026-11-14).* `set_location(path)`: absolute path, cleaned; the reach check comes
+  first and on the canonical path too (a link inside to outside is outside), with the same answer
+  for an existing and a missing folder outside; then an existing folder, else an error.
+  `select_items(items)`: names in the folder of the active view or absolute paths directly in
+  it, at most 500, duplicates once; replaces the selection, answers `selected` and `notFound`;
+  nothing found leaves the selection as it was; the folder must be one the agent reaches. Both:
+  `readOnlyHint` false, `destructiveHint` false, `idempotentHint` true; without the window's
+  actions an error. `WhaleAiViewActions` (open, select) from the window: `changeUrl()` of the
+  active view as the user's navigation, selection by `clearSelection()` +
+  `markUrlAsCurrent()` + `markUrlsAsSelected()` and `updateViewState()` unless a dir lister of
+  the view still loads (then the view applies it at the end, so `select_items` right after
+  `set_location` works). Notices "The agent opened …" / "The agent selected N items".
+  `WhaleAcpToolCall::meta` keeps `_meta`; `WhaleAiMcpServer::ownTool()` recognises a request by
+  the signs of AI6b (Claude `_meta`, Codex `rawInput.server`, OpenCode the exact title with kind
+  `other` and no locations; only known tool names); the panel answers those with the "allow
+  once" option and shows nothing else (the tool call entry stays); "always" stays the user's.
+  Tests: server (both tools, all refusals, `ownTool` with spoofs), panel (notices, auto answer
+  as each agent asks, a spoofed command is shown), main window (open + select while loading,
+  then replace).
+  *Real agents* (probe, prompt "open sub with set_location, then select b.txt"): Codex
+  `read-only` and OpenCode `plan` call both without asking; Claude `default` asks for each and
+  Orcinus answers (recognised as `set_location` / `select_items`). Claude `plan` does not call
+  them: it writes a plan and asks "Approve Plan" (`switch_mode`), also with `readOnlyHint` true
+  and a description saying the tools change no file (both tried, taken back). So in Claude's
+  plan mode the agent can read where the user is but not show a result; that is Claude's rule
+  for its plan mode, and approving the plan is the user's choice of a looser mode.
 - *AI6d – Try it.* Only after a VM snapshot (user, 2026-11-14). Real agents in the VM with tasks
   that need the back channel ("select the images smaller than 1000 pixels", "go to the folder
   with the newest PDF"); fixes; results here.

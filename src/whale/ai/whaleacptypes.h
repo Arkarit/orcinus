@@ -140,6 +140,7 @@ struct WhaleAcpToolCall {
     QJsonArray content;
     QJsonValue rawInput;
     QJsonValue rawOutput;
+    QJsonObject meta; ///< `_meta`: what the agent adds of its own (e.g. Claude's tool and MCP server)
 
     bool isFinished() const
     {

@@ -144,6 +144,9 @@ void WhaleAcpToolCall::merge(const QJsonObject &update)
     if (update.contains(QLatin1String("rawOutput"))) {
         rawOutput = update.value(QLatin1String("rawOutput"));
     }
+    if (update.contains(QLatin1String("_meta"))) {
+        meta = update.value(QLatin1String("_meta")).toObject();
+    }
 }
 
 QJsonObject WhaleAcpMcpServer::toJson() const

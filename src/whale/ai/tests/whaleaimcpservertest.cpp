@@ -7,6 +7,7 @@
 #include "whaleaimcpserver.h"
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -14,6 +15,7 @@
 #include <QProcess>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTest>
 
 #include <cstring>
@@ -33,6 +35,9 @@ private Q_SLOTS:
     void errors();
     void location();
     void selection();
+    void setLocation();
+    void selectItems();
+    void ownTool();
     void socketFolder();
     void relay();
     void wrongToken();
@@ -41,7 +46,7 @@ private Q_SLOTS:
 
 private:
     static QJsonObject request(WhaleAiMcpServer &server, const QString &method, const QJsonObject &params = {});
-    static QJsonObject toolResult(WhaleAiMcpServer &server, const QString &tool);
+    static QJsonObject toolResult(WhaleAiMcpServer &server, const QString &tool, const QJsonObject &arguments = {}, bool *error = nullptr);
 };
 
 QJsonObject WhaleAiMcpServerTest::request(WhaleAiMcpServer &server, const QString &method, const QJsonObject &params)
@@ -52,9 +57,14 @@ QJsonObject WhaleAiMcpServerTest::request(WhaleAiMcpServer &server, const QStrin
                           {QStringLiteral("params"), params}});
 }
 
-QJsonObject WhaleAiMcpServerTest::toolResult(WhaleAiMcpServer &server, const QString &tool)
+QJsonObject WhaleAiMcpServerTest::toolResult(WhaleAiMcpServer &server, const QString &tool, const QJsonObject &arguments, bool *error)
 {
-    const QJsonObject result = request(server, QStringLiteral("tools/call"), {{QStringLiteral("name"), tool}}).value(QLatin1String("result")).toObject();
+    const QJsonObject result = request(server, QStringLiteral("tools/call"), {{QStringLiteral("name"), tool}, {QStringLiteral("arguments"), arguments}})
+                                   .value(QLatin1String("result"))
+                                   .toObject();
+    if (error) {
+        *error = result.value(QLatin1String("isError")).toBool();
+    }
     // The text says the same as the structured content.
     const QJsonObject structured = result.value(QLatin1String("structuredContent")).toObject();
     const QString text = result.value(QLatin1String("content")).toArray().first().toObject().value(QLatin1String("text")).toString();
@@ -92,10 +102,16 @@ void WhaleAiMcpServerTest::toolsList()
     for (const QJsonValue &tool : tools) {
         names.append(tool.toObject().value(QLatin1String("name")).toString());
         QCOMPARE(tool.toObject().value(QLatin1String("inputSchema")).toObject().value(QLatin1String("type")).toString(), QStringLiteral("object"));
-        QVERIFY(tool.toObject().value(QLatin1String("annotations")).toObject().value(QLatin1String("readOnlyHint")).toBool());
+        const QJsonObject annotations = tool.toObject().value(QLatin1String("annotations")).toObject();
+        // Only the get_ tools leave the view as it is; none of them changes a file.
+        QCOMPARE(annotations.value(QLatin1String("readOnlyHint")).toBool(), names.last().startsWith(QLatin1String("get_")));
+        QVERIFY(!annotations.value(QLatin1String("destructiveHint")).toBool());
         QVERIFY(!tool.toObject().value(QLatin1String("description")).toString().isEmpty());
     }
-    QCOMPARE(names, (QStringList{QStringLiteral("get_location"), QStringLiteral("get_selection")}));
+    QCOMPARE(names,
+             (QStringList{QStringLiteral("get_location"), QStringLiteral("get_selection"), QStringLiteral("set_location"), QStringLiteral("select_items")}));
+    QCOMPARE(tools.at(2).toObject().value(QLatin1String("inputSchema")).toObject().value(QLatin1String("required")).toArray(),
+             QJsonArray{QStringLiteral("path")});
 }
 
 void WhaleAiMcpServerTest::errors()
@@ -168,6 +184,172 @@ void WhaleAiMcpServerTest::selection()
     QCOMPARE(result.value(QLatin1String("count")).toInt(), many.size());
     QCOMPARE(result.value(QLatin1String("items")).toArray().size(), WhaleAiMcpServer::MaxSelection);
     QVERIFY(result.value(QLatin1String("truncated")).toBool());
+}
+
+void WhaleAiMcpServerTest::setLocation()
+{
+    QTemporaryDir shared;
+    QTemporaryDir outside;
+    QVERIFY(shared.isValid() && outside.isValid());
+    QVERIFY(QDir(shared.path()).mkdir(QStringLiteral("sub")));
+    QVERIFY(QFile::link(outside.path(), shared.filePath(QStringLiteral("link"))));
+    QFile file(shared.filePath(QStringLiteral("file.txt")));
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    file.close();
+
+    WhaleAiMcpServer server;
+    QStringList opened;
+    auto setLocation = [&server](const QString &path, bool *error) {
+        return toolResult(server, QStringLiteral("set_location"), {{QStringLiteral("path"), path}}, error);
+    };
+    bool error = false;
+    // Without the window: an error, nothing happens.
+    setLocation(shared.path(), &error);
+    QVERIFY(error);
+    server.setViewActions({[&](const QString &folder) {
+                               opened.append(folder);
+                           },
+                           {}});
+    server.setAccess([&](const QString &path) {
+        return path == shared.path() || path.startsWith(shared.path() + QLatin1Char('/'));
+    });
+    QSignalSpy set(&server, &WhaleAiMcpServer::locationSet);
+
+    QJsonObject result = setLocation(shared.filePath(QStringLiteral("sub/../sub/")), &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("folder")).toString(), shared.filePath(QStringLiteral("sub")));
+    QCOMPARE(opened, QStringList{shared.filePath(QStringLiteral("sub"))});
+    QCOMPARE(set.size(), 1);
+
+    // Outside, existing or not, the same answer; a link inside to outside is outside.
+    const QString outsideAnswer = setLocation(outside.path(), &error).value(QLatin1String("error")).toString();
+    QVERIFY(error);
+    QCOMPARE(setLocation(outside.filePath(QStringLiteral("nothing")), &error).value(QLatin1String("error")).toString(), outsideAnswer);
+    QCOMPARE(setLocation(shared.filePath(QStringLiteral("link")), &error).value(QLatin1String("error")).toString(), outsideAnswer);
+    QCOMPARE(setLocation(shared.filePath(QStringLiteral("../")), &error).value(QLatin1String("error")).toString(), outsideAnswer);
+    // Inside: missing, a file, relative, no path.
+    setLocation(shared.filePath(QStringLiteral("nothing")), &error);
+    QVERIFY(error);
+    setLocation(file.fileName(), &error);
+    QVERIFY(error);
+    setLocation(QStringLiteral("sub"), &error);
+    QVERIFY(error);
+    toolResult(server, QStringLiteral("set_location"), {}, &error);
+    QVERIFY(error);
+    QCOMPARE(opened.size(), 1);
+    QCOMPARE(set.size(), 1);
+}
+
+void WhaleAiMcpServerTest::selectItems()
+{
+    QTemporaryDir shared;
+    QVERIFY(shared.isValid());
+    for (const char *name : {"a.txt", "b.txt", "c d.txt"}) {
+        QFile file(shared.filePath(QString::fromLatin1(name)));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+    }
+    QVERIFY(QDir(shared.path()).mkpath(QStringLiteral("sub/deep")));
+    QString folder = shared.path();
+    WhaleAiMcpServer server;
+    server.setContextProvider([&] {
+        return WhaleAiContext{folder, {}, {}, {}, {}};
+    });
+    QStringList selected;
+    server.setViewActions({{}, [&](const QStringList &paths) {
+                               selected = paths;
+                           }});
+    server.setAccess([&](const QString &path) {
+        return path == shared.path() || path.startsWith(shared.path() + QLatin1Char('/'));
+    });
+    QSignalSpy spy(&server, &WhaleAiMcpServer::itemsSelected);
+    auto select = [&server](const QStringList &items, bool *error) {
+        return toolResult(server, QStringLiteral("select_items"), {{QStringLiteral("items"), QJsonArray::fromStringList(items)}}, error);
+    };
+    bool error = false;
+    QJsonObject result = select({QStringLiteral("a.txt"),
+                                 shared.filePath(QStringLiteral("c d.txt")),
+                                 QStringLiteral("sub"),
+                                 QStringLiteral("a.txt"),
+                                 QStringLiteral("missing"),
+                                 QStringLiteral("sub/deep"),
+                                 QStringLiteral(".."),
+                                 shared.filePath(QStringLiteral("sub/deep")),
+                                 QStringLiteral("/etc/passwd")},
+                                &error);
+    QVERIFY(!error);
+    QCOMPARE(selected,
+             (QStringList{shared.filePath(QStringLiteral("a.txt")), shared.filePath(QStringLiteral("c d.txt")), shared.filePath(QStringLiteral("sub"))}));
+    QCOMPARE(result.value(QLatin1String("selected")).toInt(), 3);
+    QCOMPARE(result.value(QLatin1String("notFound")).toArray(),
+             (QJsonArray{QStringLiteral("missing"),
+                         QStringLiteral("sub/deep"),
+                         QStringLiteral(".."),
+                         shared.filePath(QStringLiteral("sub/deep")),
+                         QStringLiteral("/etc/passwd")}));
+    QCOMPARE(spy.size(), 1);
+    QCOMPARE(spy.first().at(0).toInt(), 3);
+
+    // Nothing found: the selection stays.
+    selected.clear();
+    result = select({QStringLiteral("missing")}, &error);
+    QVERIFY(!error);
+    QVERIFY(selected.isEmpty());
+    QCOMPARE(spy.size(), 1);
+
+    // Too many, no list, or a folder the agent does not reach.
+    QStringList many;
+    for (int i = 0; i <= WhaleAiMcpServer::MaxSelection; ++i) {
+        many.append(QStringLiteral("a.txt"));
+    }
+    select(many, &error);
+    QVERIFY(error);
+    toolResult(server, QStringLiteral("select_items"), {{QStringLiteral("items"), QStringLiteral("a.txt")}}, &error);
+    QVERIFY(error);
+    folder = QDir::tempPath();
+    select({QStringLiteral("a.txt")}, &error);
+    QVERIFY(error);
+    QVERIFY(selected.isEmpty());
+}
+
+void WhaleAiMcpServerTest::ownTool()
+{
+    // As the agents of AI6b ask.
+    WhaleAcpToolCall claude;
+    claude.title = QStringLiteral("mcp__orcinus__set_location");
+    claude.kind = QStringLiteral("other");
+    claude.meta = QJsonObject{{QStringLiteral("claudeCode"),
+                               QJsonObject{{QStringLiteral("toolName"), QStringLiteral("mcp__orcinus__set_location")},
+                                           {QStringLiteral("mcpServer"), QJsonObject{{QStringLiteral("name"), QStringLiteral("orcinus")}}}}}};
+    QCOMPARE(WhaleAiMcpServer::ownTool(claude), QStringLiteral("set_location"));
+    WhaleAcpToolCall codex;
+    codex.title = QStringLiteral("mcp.orcinus.get_selection");
+    codex.kind = QStringLiteral("execute");
+    codex.rawInput = QJsonObject{{QStringLiteral("server"), QStringLiteral("orcinus")}, {QStringLiteral("tool"), QStringLiteral("get_selection")}};
+    QCOMPARE(WhaleAiMcpServer::ownTool(codex), QStringLiteral("get_selection"));
+    WhaleAcpToolCall opencode;
+    opencode.title = QStringLiteral("orcinus_select_items");
+    opencode.kind = QStringLiteral("other");
+    QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("select_items"));
+
+    // Not ours: another server, an unknown tool, a command titled like ours, files named.
+    WhaleAcpToolCall other = claude;
+    other.meta = QJsonObject{{QStringLiteral("claudeCode"),
+                              QJsonObject{{QStringLiteral("toolName"), QStringLiteral("mcp__orcinus__set_location")},
+                                          {QStringLiteral("mcpServer"), QJsonObject{{QStringLiteral("name"), QStringLiteral("other")}}}}}};
+    other.title = QStringLiteral("Bash");
+    QVERIFY(WhaleAiMcpServer::ownTool(other).isEmpty());
+    WhaleAcpToolCall unknown = codex;
+    unknown.rawInput = QJsonObject{{QStringLiteral("server"), QStringLiteral("orcinus")}, {QStringLiteral("tool"), QStringLiteral("delete_all")}};
+    QVERIFY(WhaleAiMcpServer::ownTool(unknown).isEmpty());
+    WhaleAcpToolCall spoof = opencode;
+    spoof.kind = QStringLiteral("execute");
+    QVERIFY(WhaleAiMcpServer::ownTool(spoof).isEmpty());
+    WhaleAcpToolCall files = opencode;
+    files.locations = {QStringLiteral("/home/u/file")};
+    QVERIFY(WhaleAiMcpServer::ownTool(files).isEmpty());
+    WhaleAcpToolCall titleOnly;
+    titleOnly.title = QStringLiteral("mcp__orcinus__get_location");
+    QVERIFY(WhaleAiMcpServer::ownTool(titleOnly).isEmpty());
 }
 
 void WhaleAiMcpServerTest::socketFolder()

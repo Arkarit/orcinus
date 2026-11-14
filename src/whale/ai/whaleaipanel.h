@@ -10,6 +10,7 @@
 #include "panels/panel.h"
 #include "whaleacpsession.h"
 #include "whaleaicontext.h"
+#include "whaleaimcpserver.h"
 
 #include <functional>
 
@@ -93,6 +94,8 @@ public:
     void setContextProvider(const std::function<WhaleAiContext()> &provider);
     /** Asks the provider again (the window's folder, selection or split changed). */
     void refreshContext();
+    /** What the agent may do in the window through the back channel (AI6c). */
+    void setViewActions(const WhaleAiViewActions &actions);
 
 Q_SIGNALS:
     /** The user wants to set up agents. */
@@ -114,6 +117,8 @@ protected:
 private:
     /** Where the user is: from the provider, else the panel's folder. */
     WhaleAiContext currentContext() const;
+    /** Answers a request for one of our own tools (AI6c). */
+    bool answerOwnToolRequest(const WhaleAcpPermissionRequest &request);
     void fillAgents(const QString &preferredId);
     void agentChosen();
     bool startSession();
@@ -154,6 +159,8 @@ private:
     QStringList m_sessionFolders; ///< the folder it started in (AI5d2)
     QStringList m_sessionAdded; ///< what the user shared with it later (AI5d3)
     QPointer<WhaleAiSandboxControl> m_control;
+    QPointer<WhaleAiMcpServer> m_mcp; ///< the back channel of the conversation (AI6)
+    WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;
     WhaleAiContext m_pendingContext;
     WhaleAiContextChips *m_chips = nullptr;

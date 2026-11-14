@@ -27,7 +27,10 @@
  * "readfile:PATH" and "writefile:PATH" in a prompt read or write that file and answer
  * "read=CONTENT" (or "read=missing") and "written=yes" / "written=no" (the sandbox, AI5d).
  * "mcp:TOOL" starts the MCP server "orcinus" from session/new, as real agents do, calls TOOL and
- * answers "tools=NAMES;mcp=TEXT;" (or "mcp=none;", "mcp=error:MESSAGE;"; the back channel, AI6).
+ * answers "tools=NAMES;mcp=TEXT;" (or "mcp=none;", "mcp=error:MESSAGE;"; the back channel, AI6);
+ * "mcp:set_location:PATH" and "mcp:select_items:A,B" pass arguments. "askorcinus-claude",
+ * "askorcinus-codex" and "askorcinus-opencode" ask for get_location as those agents do,
+ * "askorcinus-spoof" asks to run a command titled like it (AI6c).
  */
 
 #include <QFile>
@@ -236,7 +239,7 @@ void handleNewSession(const QJsonObject &message)
 }
 
 /** Starts the "orcinus" MCP server of session/new and calls @p tool, like an agent does. */
-QString callMcp(const QString &tool)
+QString callMcp(const QString &tool, const QJsonObject &toolArguments)
 {
     if (orcinusServer.isEmpty()) {
         return QStringLiteral("mcp=none;");
@@ -283,7 +286,7 @@ QString callMcp(const QString &tool)
         for (const QJsonValue &value : tools) {
             names.append(value.toObject().value(QLatin1String("name")).toString());
         }
-        const QJsonObject called = request(3, QStringLiteral("tools/call"), {{QStringLiteral("name"), tool}, {QStringLiteral("arguments"), QJsonObject()}});
+        const QJsonObject called = request(3, QStringLiteral("tools/call"), {{QStringLiteral("name"), tool}, {QStringLiteral("arguments"), toolArguments}});
         const QString text = called.contains(QLatin1String("error"))
             ? QStringLiteral("error:") + called.value(QLatin1String("error")).toObject().value(QLatin1String("message")).toString()
             : called.value(QLatin1String("result"))
@@ -353,9 +356,16 @@ void handlePrompt(const QJsonObject &message)
         }
     }
 
-    static const QRegularExpression mcpCommand(QStringLiteral("mcp:(\\w+)"));
+    static const QRegularExpression mcpCommand(QStringLiteral("mcp:(\\w+)(?::(\\S+))?"));
     for (auto it = mcpCommand.globalMatch(text); it.hasNext();) {
-        chunk(QStringLiteral("agent_message_chunk"), callMcp(it.next().captured(1)));
+        const QRegularExpressionMatch match = it.next();
+        QJsonObject toolArguments;
+        if (match.captured(1) == QLatin1String("set_location")) {
+            toolArguments.insert(QStringLiteral("path"), match.captured(2));
+        } else if (match.captured(1) == QLatin1String("select_items")) {
+            toolArguments.insert(QStringLiteral("items"), QJsonArray::fromStringList(match.captured(2).split(QLatin1Char(','))));
+        }
+        chunk(QStringLiteral("agent_message_chunk"), callMcp(match.captured(1), toolArguments));
     }
 
     // The client offers no fs/*: it must answer with an error.
@@ -378,7 +388,37 @@ void handlePrompt(const QJsonObject &message)
     if (!text.contains(QLatin1String("nopermission"))) {
         QJsonObject requestedCall{{QStringLiteral("toolCallId"), QStringLiteral("t1")},
                                   {QStringLiteral("rawInput"), QJsonObject{{QStringLiteral("content"), QStringLiteral("hi")}}}};
-        if (text.contains(QLatin1String("askexecute"))) {
+        static const QRegularExpression ownTool(QStringLiteral("askorcinus-(\\w+)"));
+        if (const QRegularExpressionMatch match = ownTool.match(text); match.hasMatch()) {
+            // A call of its own, as real agents give each call a new id.
+            requestedCall.insert(QStringLiteral("toolCallId"), QString(QStringLiteral("o-") + match.captured(1)));
+        }
+        if (text.contains(QLatin1String("askorcinus-claude"))) {
+            requestedCall.insert(QStringLiteral("kind"), QStringLiteral("other"));
+            requestedCall.insert(QStringLiteral("title"), QStringLiteral("mcp__orcinus__get_location"));
+            requestedCall.insert(QStringLiteral("rawInput"), QJsonObject());
+            requestedCall.insert(QStringLiteral("_meta"),
+                                 QJsonObject{{QStringLiteral("claudeCode"),
+                                              QJsonObject{{QStringLiteral("toolName"), QStringLiteral("mcp__orcinus__get_location")},
+                                                          {QStringLiteral("mcpServer"),
+                                                           QJsonObject{{QStringLiteral("name"), QStringLiteral("orcinus")},
+                                                                       {QStringLiteral("source"), QStringLiteral("dynamic")}}}}}});
+        } else if (text.contains(QLatin1String("askorcinus-codex"))) {
+            requestedCall.insert(QStringLiteral("kind"), QStringLiteral("execute"));
+            requestedCall.insert(QStringLiteral("title"), QStringLiteral("mcp.orcinus.get_location"));
+            requestedCall.insert(QStringLiteral("rawInput"),
+                                 QJsonObject{{QStringLiteral("server"), QStringLiteral("orcinus")},
+                                             {QStringLiteral("tool"), QStringLiteral("get_location")},
+                                             {QStringLiteral("arguments"), QJsonObject()}});
+        } else if (text.contains(QLatin1String("askorcinus-opencode"))) {
+            requestedCall.insert(QStringLiteral("kind"), QStringLiteral("other"));
+            requestedCall.insert(QStringLiteral("title"), QStringLiteral("orcinus_get_location"));
+            requestedCall.insert(QStringLiteral("rawInput"), QJsonObject());
+        } else if (text.contains(QLatin1String("askorcinus-spoof"))) {
+            requestedCall.insert(QStringLiteral("kind"), QStringLiteral("execute"));
+            requestedCall.insert(QStringLiteral("title"), QStringLiteral("orcinus_get_location"));
+            requestedCall.insert(QStringLiteral("rawInput"), QJsonObject{{QStringLiteral("command"), QStringLiteral("rm -r out")}});
+        } else if (text.contains(QLatin1String("askexecute"))) {
             // As Claude Agent asks for a shell command.
             requestedCall.insert(QStringLiteral("kind"), QStringLiteral("execute"));
             requestedCall.insert(QStringLiteral("title"), QStringLiteral("Remove out"));
