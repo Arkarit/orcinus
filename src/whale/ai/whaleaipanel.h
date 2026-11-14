@@ -112,6 +112,8 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    /** Where the user is: from the provider, else the panel's folder. */
+    WhaleAiContext currentContext() const;
     void fillAgents(const QString &preferredId);
     void agentChosen();
     bool startSession();

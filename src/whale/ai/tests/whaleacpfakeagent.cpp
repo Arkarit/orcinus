@@ -26,12 +26,15 @@
  * "askdiff" to make a change shown as a diff, with "askoutside" to read /orcinus-test-outside/secret.txt.
  * "readfile:PATH" and "writefile:PATH" in a prompt read or write that file and answer
  * "read=CONTENT" (or "read=missing") and "written=yes" / "written=no" (the sandbox, AI5d).
+ * "mcp:TOOL" starts the MCP server "orcinus" from session/new, as real agents do, calls TOOL and
+ * answers "tools=NAMES;mcp=TEXT;" (or "mcp=none;", "mcp=error:MESSAGE;"; the back channel, AI6).
  */
 
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QString>
 #include <QStringList>
@@ -45,6 +48,7 @@ namespace
 QString scenario;
 QString sessionCwd;
 QStringList mcpNames;
+QJsonObject orcinusServer;
 bool cancelSeen = false;
 QString modelValue = QStringLiteral("small");
 QString modeValue = QStringLiteral("auto");
@@ -207,6 +211,9 @@ void handleNewSession(const QJsonObject &message)
     for (const QJsonValue &server : servers) {
         mcpNames.append(server.toObject().value(QLatin1String("name")).toString() + QLatin1Char(':')
                         + server.toObject().value(QLatin1String("command")).toString());
+        if (server.toObject().value(QLatin1String("name")).toString() == QLatin1String("orcinus")) {
+            orcinusServer = server.toObject();
+        }
     }
 
     QJsonObject result{{QStringLiteral("sessionId"), QStringLiteral("s1")}};
@@ -226,6 +233,75 @@ void handleNewSession(const QJsonObject &message)
         result.insert(QStringLiteral("configOptions"), configOptions());
     }
     respond(id, result);
+}
+
+/** Starts the "orcinus" MCP server of session/new and calls @p tool, like an agent does. */
+QString callMcp(const QString &tool)
+{
+    if (orcinusServer.isEmpty()) {
+        return QStringLiteral("mcp=none;");
+    }
+    QStringList arguments;
+    for (const QJsonValue &argument : orcinusServer.value(QLatin1String("args")).toArray()) {
+        arguments.append(argument.toString());
+    }
+    QProcess server;
+    server.start(orcinusServer.value(QLatin1String("command")).toString(), arguments);
+    if (!server.waitForStarted()) {
+        return QStringLiteral("mcp=error:%1;").arg(server.errorString());
+    }
+    auto request = [&server](int id, const QString &method, const QJsonObject &params) -> QJsonObject {
+        QJsonObject message{{QStringLiteral("jsonrpc"), QStringLiteral("2.0")}, {QStringLiteral("method"), method}, {QStringLiteral("params"), params}};
+        if (id > 0) {
+            message.insert(QStringLiteral("id"), id);
+        }
+        server.write(QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n');
+        if (id <= 0) {
+            return QJsonObject();
+        }
+        while (!server.canReadLine()) {
+            if (!server.waitForReadyRead(5000)) {
+                return QJsonObject{
+                    {QStringLiteral("error"), QJsonObject{{QStringLiteral("message"), QString::fromLocal8Bit(server.readAllStandardError()).trimmed()}}}};
+            }
+        }
+        return QJsonDocument::fromJson(server.readLine()).object();
+    };
+    QString answer;
+    const QJsonObject initialized = request(1,
+                                            QStringLiteral("initialize"),
+                                            {{QStringLiteral("protocolVersion"), QStringLiteral("2025-06-18")},
+                                             {QStringLiteral("capabilities"), QJsonObject()},
+                                             {QStringLiteral("clientInfo"), QJsonObject{{QStringLiteral("name"), QStringLiteral("fake")}}}});
+    if (initialized.contains(QLatin1String("error"))) {
+        answer = QStringLiteral("mcp=error:%1;").arg(initialized.value(QLatin1String("error")).toObject().value(QLatin1String("message")).toString());
+    } else {
+        request(0, QStringLiteral("notifications/initialized"), QJsonObject());
+        QStringList names;
+        const QJsonArray tools =
+            request(2, QStringLiteral("tools/list"), QJsonObject()).value(QLatin1String("result")).toObject().value(QLatin1String("tools")).toArray();
+        for (const QJsonValue &value : tools) {
+            names.append(value.toObject().value(QLatin1String("name")).toString());
+        }
+        const QJsonObject called = request(3, QStringLiteral("tools/call"), {{QStringLiteral("name"), tool}, {QStringLiteral("arguments"), QJsonObject()}});
+        const QString text = called.contains(QLatin1String("error"))
+            ? QStringLiteral("error:") + called.value(QLatin1String("error")).toObject().value(QLatin1String("message")).toString()
+            : called.value(QLatin1String("result"))
+                  .toObject()
+                  .value(QLatin1String("content"))
+                  .toArray()
+                  .first()
+                  .toObject()
+                  .value(QLatin1String("text"))
+                  .toString();
+        answer = QStringLiteral("tools=%1;mcp=%2;").arg(names.join(QLatin1Char(',')), text);
+    }
+    server.closeWriteChannel();
+    if (!server.waitForFinished(5000)) {
+        server.kill();
+        server.waitForFinished();
+    }
+    return answer;
 }
 
 void handlePrompt(const QJsonObject &message)
@@ -275,6 +351,11 @@ void handlePrompt(const QJsonObject &message)
             const bool written = file.open(QIODevice::WriteOnly) && file.write("written") > 0;
             chunk(QStringLiteral("agent_message_chunk"), QStringLiteral("written=%1;").arg(written ? QStringLiteral("yes") : QStringLiteral("no")));
         }
+    }
+
+    static const QRegularExpression mcpCommand(QStringLiteral("mcp:(\\w+)"));
+    for (auto it = mcpCommand.globalMatch(text); it.hasNext();) {
+        chunk(QStringLiteral("agent_message_chunk"), callMcp(it.next().captured(1)));
     }
 
     // The client offers no fs/*: it must answer with an error.

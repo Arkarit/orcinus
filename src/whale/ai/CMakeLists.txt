@@ -11,6 +11,10 @@ set(WHALE_SANDBOX_DIR "${KDE_INSTALL_LIBEXECDIR}/${WHALE_COMPONENT}")
 set(WHALE_APPARMOR_DIR "/etc/apparmor.d" CACHE PATH "Where the AppArmor profile of orcinus-sandbox goes (WHALE_INSTALL_APPARMOR_PROFILE)")
 add_subdirectory(sandbox)
 
+########### back channel of the agents (AI6) ###############
+
+add_subdirectory(mcp)
+
 ########### ACP client core (AI1) and agent settings (AI2), no widgets ###############
 
 add_library(whaleai STATIC)
@@ -22,12 +26,15 @@ target_sources(whaleai PRIVATE
     whaleaiagents.cpp
     whaleaiagenttest.cpp
     whaleaicontext.cpp
+    whaleaimcpserver.cpp
     whaleaisandbox.cpp
 )
 
 # Where the installed sandbox helper is; the build tree's one next to the program comes first.
 target_compile_definitions(whaleai PRIVATE WHALE_SANDBOX_INSTALLED="${CMAKE_INSTALL_PREFIX}/${WHALE_SANDBOX_DIR}/orcinus-sandbox")
 add_dependencies(whaleai orcinus-sandbox)
+target_compile_definitions(whaleai PRIVATE WHALE_MCP_INSTALLED="${CMAKE_INSTALL_PREFIX}/${WHALE_SANDBOX_DIR}/orcinus-mcp")
+add_dependencies(whaleai orcinus-mcp)
 
 ecm_qt_declare_logging_category(whaleai
     HEADER whaleaidebug.h
@@ -39,8 +46,10 @@ ecm_qt_declare_logging_category(whaleai
 
 target_include_directories(whaleai PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
+find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Network)
 target_link_libraries(whaleai PUBLIC
     Qt6::Core
+    Qt6::Network
     KF6::ConfigCore
     KF6::CoreAddons
     KF6::I18n

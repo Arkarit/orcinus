@@ -12,6 +12,7 @@
 #include "views/dolphinview.h"
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
+#include "whaleaimcpserver.h"
 #include "whaleaisandbox.h"
 #include "whaleaitranscript.h"
 
@@ -80,6 +81,8 @@ private Q_SLOTS:
 
     void accessChoice();
     void sandbox();
+
+    void backChannel();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
@@ -211,7 +214,7 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Plan”.")), qPrintable(all));
     QVERIFY(WhaleAiAgents::agent(QStringLiteral("basic")).startMode.isEmpty());
     QVERIFY2(all.contains(QStringLiteral("Fake basic works in %1 and can reach all your folders.").arg(m_work.path())), qPrintable(all));
-    QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=;text=hello;links=1").arg(m_work.path())), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("cwd=%1;mcp=orcinus:%2;text=hello;links=1").arg(m_work.path(), WhaleAiMcpServer::relay())), qPrintable(all));
     QVERIFY(all.contains(QLatin1String("permission=yes")));
     QVERIFY(all.contains(QLatin1String("Answered: Yes")));
     QVERIFY(!all.contains(QLatin1String("WRONG SESSION")));
@@ -235,7 +238,7 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission again")));
     QVERIFY(waitForReady(panel));
     QCOMPARE(panel.session(), session);
-    QVERIFY(texts(panel).contains(QStringLiteral("cwd=%1;mcp=;text=nopermission again").arg(m_work.path())));
+    QVERIFY(texts(panel).contains(QStringLiteral("cwd=%1;mcp=orcinus:%2;text=nopermission again").arg(m_work.path(), WhaleAiMcpServer::relay())));
 }
 
 void WhaleAiPanelTest::enterAndShiftEnter()
@@ -917,6 +920,11 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY2(all.contains(QLatin1String("written=yes;")), qPrintable(all));
     QVERIFY(QFile::exists(written));
 
+    // The back channel reaches the panel from inside the sandbox; the agent is told what it reaches.
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":true,\"folder\":\"%1\"};").arg(m_work.path())), qPrintable(texts(panel)));
+
     // A request for a path outside is answered by Orcinus.
     QVERIFY(panel.sendPrompt(QStringLiteral("askoutside")));
     QVERIFY(waitForReady(panel));
@@ -945,6 +953,9 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission readfile:%1").arg(secret.fileName())));
     QVERIFY(waitForReady(panel));
     QVERIFY2(texts(panel).contains(QLatin1String("read=secret;")), qPrintable(texts(panel)));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":true,\"folder\":\"%1\"};").arg(outside.path())), qPrintable(texts(panel)));
 
     // And takes it back.
     Q_EMIT shared->linkActivated(QStringLiteral("remove:") + QString::fromLatin1(QUrl::toPercentEncoding(outside.path())));
@@ -953,11 +964,45 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission again readfile:%1").arg(secret.fileName())));
     QVERIFY(waitForReady(panel));
     QCOMPARE(texts(panel).count(QLatin1String("read=missing;")), 2);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":false,\"folder\":\"%1\"};").arg(outside.path())), qPrintable(texts(panel)));
 
     // A new conversation starts with its folder only.
     panel.newConversation();
     QVERIFY(!shared->isVisibleTo(&panel));
     QVERIFY(!panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->property("noAccess").toBool());
+}
+
+void WhaleAiPanelTest::backChannel()
+{
+    QVERIFY(!WhaleAiMcpServer::relay().isEmpty());
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    const QString other = QDir::tempPath();
+    const QString selected = m_work.filePath(QStringLiteral("a.txt"));
+    panel.setContextProvider([&] {
+        return WhaleAiContext{m_work.path(), {selected}, other, {}, {}};
+    });
+
+    // The agent starts orcinus-mcp from session/new and asks where the user is.
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(
+                 QStringLiteral("tools=get_location,get_selection;mcp={\"access\":true,\"folder\":\"%1\",\"otherAccess\":true,\"otherFolder\":\"%2\"};")
+                     .arg(m_work.path(), other)),
+             qPrintable(texts(panel)));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_selection")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"count\":1,\"folder\":\"%1\",\"items\":[{\"access\":true,\"path\":\"%2\"}],\"truncated\":false};")
+                                       .arg(m_work.path(), selected)),
+             qPrintable(texts(panel)));
+
+    // Each conversation has its own socket; it goes with the conversation.
+    const QString socket = panel.session()->findChild<WhaleAiMcpServer *>()->socketPath();
+    QVERIFY(QFileInfo::exists(socket));
+    panel.newConversation();
+    QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(socket), 15000);
 }
 
 #include "whaleaipaneltest.moc"

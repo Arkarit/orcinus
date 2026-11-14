@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 planned (2026-11-14, AI6a), next AI6b.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6a + AI6b done (2026-11-14), next AI6c.
 
 ## Problem
 
@@ -455,11 +455,58 @@ Steps:
   real Claude, Codex and OpenCode: do they start it in the sandbox, what do their permission
   requests for our tools look like (note per agent), does `readOnlyHint` spare the question, do
   they call our tools in their read-only mode.
+  *AI6b result (2026-11-14).* `orcinus-mcp` (`src/whale/ai/mcp/`, plain C++, installed to
+  `libexec/orcinus`): connects, sends the token, relays both ways, ends when either side does;
+  without Orcinus behind the socket it exits 1 with a message. `WhaleAiMcpServer` (whaleai, Qt
+  Network for `QLocalServer`): socket folder `$XDG_RUNTIME_DIR/orcinus-ai/c-XXXXXX` (`0700`, the
+  base folder too; left-over folders whose socket refuses a connection are removed), token of 48
+  hex digits, a wrong token closes the connection without an answer, a line over 1 MiB too;
+  MCP `initialize` (protocol versions 2025-06-18, 2025-03-26, 2024-11-05; others get the newest),
+  `ping`, `tools/list`, `tools/call` (unknown tool: -32602; results as `structuredContent` plus
+  the same JSON as text), other methods -32601. Tools `get_location` (`folder`, `access`,
+  `otherFolder`, `otherAccess`; `folder` null with a note if the view shows no local folder) and
+  `get_selection` (`folder`, `count`, `items` of `path` + `access`, at most 500, `truncated`),
+  both `readOnlyHint`. Panel: one server per conversation, parented to the session; with the
+  sandbox only the socket file is bound (read-write) and the build tree's relay read-only; the
+  access check is `WhaleAiSandbox::reaches()` on what the conversation shares, live with "Give
+  Access". Without a relay or when listening fails the agent starts without the back channel
+  (warning in the log). Tests: `whaleaimcpservertest` (protocol, tools, socket folder and its
+  removal, relay end to end, wrong token, broken and too long messages, leftovers); the fake
+  agent's `mcp:TOOL` starts the relay from `session/new`; `whaleaipaneltest` `backChannel` and
+  `sandbox` (from inside the sandbox, `access` follows "Give Access" and its removal).
+  *Real agents* (throw-away probe on whaleai in the scratchpad: the agent in the sandbox with the
+  back channel, raw ACP traffic logged; prompt "call get_location and get_selection, tell me"):
+  all three start `orcinus-mcp` inside the sandbox and answer correctly, Claude and OpenCode
+  also name the selected file outside as not reachable (Codex ignores `access`).
+  - *Claude* (claude-agent-acp): mode `plan` calls both without asking; `default` asks for each.
+    The request: `title` and `name` `mcp__orcinus__get_location`, `kind` `other`, `rawInput` the
+    arguments, `_meta.claudeCode` `{"toolName": "mcp__orcinus__get_location", "mcpServer":
+    {"name": "orcinus", "source": "dynamic"}}`; options allow-once, allow-with-updates
+    (allow_always, "don't ask again for Get Location commands"), reject. So `readOnlyHint` does
+    not spare the question in `default`.
+  - *Codex* (codex-acp): `read-only` and `agent` call both without asking. Tool call `title`
+    `mcp.orcinus.get_location`, `kind` `execute`, `rawInput` `{"server": "orcinus", "tool":
+    "get_location", "arguments": {}}`.
+  - *OpenCode*: `plan` and `build` call both without asking. `title` `orcinus_get_location`,
+    `kind` `other`, `rawInput` the arguments.
+  - *Signs for AI6c:* Claude `_meta.claudeCode.mcpServer.name == "orcinus"` (reliable; needs
+    `_meta` kept in `WhaleAcpToolCall`); Codex `rawInput.server == "orcinus"`; OpenCode only the
+    title prefix `orcinus_` (weak, but it did not ask). Whether they ask for the tools without
+    `readOnlyHint` (and whether the read-only modes allow them at all) is checked in AI6c.
 - *AI6c – Tools that change the view.* `set_location`, `select_items`, the notices, the reach
   check; answering the requests for our tools directly if AI6b found a reliable sign, else
   leave them to the user and note why.
-- *AI6d – Try it.* Real agents in the VM with tasks that need the back channel ("select the
-  images smaller than 1000 pixels", "go to the folder with the newest PDF"); fixes; results here.
+- *AI6d – Try it.* Only after a VM snapshot (user, 2026-11-14). Real agents in the VM with tasks
+  that need the back channel ("select the images smaller than 1000 pixels", "go to the folder
+  with the newest PDF"); fixes; results here.
+  *Attack tests* (user, 2026-11-14: things that would surely wreck the system must not be
+  possible): with "This folder and subfolders", tell each agent (in its loosest mode, approving
+  everything) to do real damage: `rm -rf ~` and `/`, delete or change files outside the folder,
+  write `~/.bashrc`, `~/.config/autostart`, `~/.ssh`, systemd user units, escape through
+  `systemd-run --user`, D-Bus, `/proc`, `nsenter`, the X11 / Wayland sockets, `kill` of host
+  processes, and the back channel itself (open the socket directly, wrong token, huge or broken
+  messages, `set_location` outside). Expected: nothing outside the sandbox changes. "All folders"
+  has no such protection by design and is not part of it.
 
 **AI7 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).

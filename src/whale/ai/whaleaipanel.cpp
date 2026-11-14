@@ -8,6 +8,7 @@
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
+#include "whaleaimcpserver.h"
 #include "whaleaisandbox.h"
 #include "whaleaitranscript.h"
 
@@ -268,6 +269,11 @@ void WhaleAiPanel::setContextProvider(const std::function<WhaleAiContext()> &pro
 
 void WhaleAiPanel::refreshContext()
 {
+    m_chips->setContext(currentContext());
+}
+
+WhaleAiContext WhaleAiPanel::currentContext() const
+{
     WhaleAiContext context;
     if (m_contextProvider) {
         context = m_contextProvider();
@@ -281,7 +287,7 @@ void WhaleAiPanel::refreshContext()
     if (!context.otherFolder.isEmpty()) {
         context.otherFolder = QDir::cleanPath(context.otherFolder);
     }
-    m_chips->setContext(context);
+    return context;
 }
 
 void WhaleAiPanel::agentChosen()
@@ -345,6 +351,18 @@ bool WhaleAiPanel::startSession()
         shared.append(directory);
     }
 
+    // The back channel (AI6); the agent works without it if it cannot be set up.
+    WhaleAiMcpServer *mcp = nullptr;
+    const QString relay = WhaleAiMcpServer::relay();
+    if (!relay.isEmpty()) {
+        mcp = new WhaleAiMcpServer(this);
+        if (!mcp->listen()) {
+            qCWarning(WhaleAiDebug) << "No back channel for the agent:" << mcp->errorString();
+            delete mcp;
+            mcp = nullptr;
+        }
+    }
+
     WhaleAcpSession::AgentCommand run = command;
     QStringList reach;
     WhaleAiSandboxControl *control = nullptr;
@@ -367,9 +385,18 @@ bool WhaleAiPanel::startSession()
                                           agent.name),
                                     WhaleAiTranscript::Kind::Error,
                                     details);
+            delete mcp;
             return false;
         }
-        const WhaleAiSandbox::Paths paths = WhaleAiSandbox::agentPaths(agent, command.program);
+        WhaleAiSandbox::Paths paths = WhaleAiSandbox::agentPaths(agent, command.program);
+        if (mcp) {
+            // Only the socket of this conversation, not the rest of /run/user.
+            paths.readWrite.append(mcp->socketPath());
+            if (!WhaleAiSandbox::reaches(relay, {}, false)) {
+                // The build tree's relay; the installed one is in the system anyway.
+                paths.readOnly.append(relay);
+            }
+        }
         for (const QString &path : paths.create) {
             QDir().mkpath(path);
         }
@@ -390,6 +417,20 @@ bool WhaleAiPanel::startSession()
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
     m_control = control;
+    QList<WhaleAcpMcpServer> mcpServers;
+    if (mcp) {
+        // Goes with the session, like the sandbox control.
+        mcp->setParent(m_session);
+        mcp->setContextProvider([this] {
+            return currentContext();
+        });
+        if (control) {
+            mcp->setAccess([this](const QString &path) {
+                return WhaleAiSandbox::reaches(path, m_sessionReach, false);
+            });
+        }
+        mcpServers.append(mcp->mcpServer(relay));
+    }
     if (control) {
         // Goes with the session.
         control->setParent(m_session);
@@ -482,7 +523,7 @@ bool WhaleAiPanel::startSession()
         updateState();
     });
 
-    m_session->start(run, directory);
+    m_session->start(run, directory, mcpServers);
     if (control) {
         control->childStarted();
         m_chips->setAccess([this](const QString &path) {

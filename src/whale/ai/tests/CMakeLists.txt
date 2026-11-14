@@ -43,3 +43,9 @@ ecm_add_test(whaleaisandboxtest.cpp
     TEST_NAME whaleaisandboxtest
     LINK_LIBRARIES whaleai Qt6::Test)
 add_dependencies(whaleaisandboxtest orcinus-sandbox)
+
+ecm_add_test(whaleaimcpservertest.cpp
+    TEST_NAME whaleaimcpservertest
+    LINK_LIBRARIES whaleai Qt6::Test)
+target_compile_definitions(whaleaimcpservertest PRIVATE WHALE_MCP_RELAY="$<TARGET_FILE:orcinus-mcp>")
+add_dependencies(whaleaimcpservertest orcinus-mcp)
