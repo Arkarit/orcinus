@@ -599,6 +599,12 @@ and a local agent).
 
 ## Open
 
+- *Greeting timing (user, 2026-11-14).* The system prompt rides on the first user message, so the
+  agent introduces itself only after the user writes, and greets in the system language first,
+  switching to the user's language once it sees it. The user wants the introduction to appear when
+  the conversation opens, before they type. Next time: when the session is Ready and no prompt has
+  been sent, send the system prompt plus a "introduce yourself now" turn on its own (no user text),
+  so the greeting comes first; the language stays the stored/system one until the user writes.
 - Session persistence (ACP `session/load`) across restarts: later.
 - Several panels / windows: one session each; the MCP token keeps them apart.
 - Whether to offer `fs/write_text_file` so writes go through KIO (trash, undo): after AI0, depends on
