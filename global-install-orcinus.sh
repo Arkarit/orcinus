@@ -64,17 +64,35 @@ fi
 echo "==> Staging the installation"
 DESTDIR="${stage_dir}" cmake --install "${build_dir}" > /dev/null
 
+# A pre-existing file at a path this loop staged is only a true collision when it belongs to
+# another package. If it belongs to no package and the path is an Orcinus one (every installed
+# path contains "orcinus"), it is a leftover of an earlier Orcinus install: replace it. This is
+# what lets the install recover when ../build-whale-system lost its install_manifest.txt (e.g.
+# the build directory was reconfigured) while Orcinus is still installed in the prefix, instead
+# of mistaking its own files for foreign ones.
+is_orcinus_path() {
+    [[ "${1,,}" == *orcinus* ]]
+}
+
 collisions=0
+reused=0
 while IFS= read -r file; do
     file="${file#.}"
     if dpkg -S "${file}" > /dev/null 2>&1; then
         echo "Collision: ${file} belongs to package $(dpkg -S "${file}" 2>/dev/null | cut -d: -f1)" >&2
         collisions=1
     elif [[ -e "${file}" || -L "${file}" ]] && ! grep -qxF "${file}" "${previous_manifest}"; then
-        echo "Collision: ${file} already exists and was not installed by Orcinus" >&2
-        collisions=1
+        if is_orcinus_path "${file}"; then
+            reused=$((reused + 1))
+        else
+            echo "Collision: ${file} already exists and was not installed by Orcinus" >&2
+            collisions=1
+        fi
     fi
 done < <(cd "${stage_dir}" && find . ! -type d)
+if [[ ${reused} -gt 0 ]]; then
+    echo "    ${reused} file(s) of an earlier Orcinus install will be replaced (not in the saved manifest)" >&2
+fi
 
 # Installed files may only carry RUNPATHs relative to themselves ($ORIGIN, the private library
 # directory of B2/B3), never an absolute path such as the private development prefix.
