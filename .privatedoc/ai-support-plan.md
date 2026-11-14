@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6a–AI6c done (2026-11-14), next AI6d (after a VM snapshot).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. Next AI7 (documentation).
 
 ## Problem
 
@@ -533,6 +533,38 @@ Steps:
   processes, and the back channel itself (open the socket directly, wrong token, huge or broken
   messages, `set_location` outside). Expected: nothing outside the sandbox changes. "All folders"
   has no such protection by design and is not part of it.
+  *AI6d result (2026-11-14).* Snapshot taken by the user first. A throw-away ACP client on
+  whaleai (scratchpad, the agent in orcinus-sandbox with the back channel, "approve all").
+  - *Useful tasks.* "Select the images below 1000 px" (folder of 8): Claude (default) and Codex
+    (read-only) selected exactly the four right ones through get_location + get_selection +
+    select_items; OpenCode (plan) found the four but did not call select_items (it ended with
+    "approve and I'll execute" — its plan mode wants a go-ahead the ACP client did not give; in
+    build it selects, like AI6c). "Open the folder of the newest PDF and select it" (tree of 4
+    PDFs): all three opened docs/reports and selected q3.pdf.
+  - *Attack tests done safely.* Written not as destruction but as boundary probes: the point is
+    whether the sandboxed process can *see* or *create* anything outside its folder; if a plain
+    new file at `~/.bashrc` or in `~/.config/autostart` is refused, so is deleting or
+    overwriting. A probe script plus the agent's own tries, in the loosest mode of each (Claude
+    bypassPermissions, Codex agent-full-access, OpenCode build). Baseline + "after" snapshot of
+    the forbidden host paths (`~/.bashrc`, `~/.ssh`, canaries, `~/.vm-exchange`, the repo,
+    autostart, systemd user units, applications, plasma env, git hooks, host `/tmp` canary, git
+    HEAD, crontab); noisy host-session files (`~/.claude*`, written by my own Claude Code and by
+    a real Claude agent's login by design) excluded.
+  - *Result: the boundary holds for all three.* The snapshot was IDENTICAL after each agent;
+    nothing outside the sandbox changed. From inside, the host home is invisible (a fresh tmpfs
+    root with only the bound config dirs; no `~/.bashrc`, no `~/.ssh`), reading host paths
+    fails, the user D-Bus session and other processes are not there, `systemd-run --user` finds
+    no bus. The writes that *do* succeed (`~/.bashrc-probe`, an agent's own bound config) land in
+    the ephemeral tmpfs or the agent's own config and were confirmed absent on the host
+    afterwards. The two expected "yes" are the network (agents need it) and the agent writing
+    its own login dir (AI5d, by design). A caveat worth a doc line: a Claude agent gets the real
+    `~/.claude` read-write for its login, which is the same tree that holds Claude Code session
+    data — in the VM agents use their own logins ([[ai-dev-in-vm]]).
+  - *Back channel attacks* are covered by whaleaimcpservertest (wrong token closes the
+    connection, a too-long or broken message too, `set_location` / `select_items` outside the
+    reachable folders refused): the checks are server-side, so the agent's own shell opening the
+    bound socket gains nothing beyond the four tools with their reach checks.
+  AI6 complete.
 
 **AI7 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
