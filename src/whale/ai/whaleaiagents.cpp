@@ -454,12 +454,26 @@ QString greetingInstruction(const QString &language)
     const QString name = language.isEmpty() ? QLocale::system().nativeLanguageName() : language;
     return QStringLiteral(
                "Begin the conversation with a single short sentence, in %1, saying what you can help the user do with "
-               "their files. Keep it to one sentence. After that, reply in whatever language the user writes in.")
+               "their files. Keep it to one sentence. After that, reply in whatever language the user writes in. If the "
+               "user writes in a language other than %1, call the remember_language tool once with that language, so "
+               "later conversations start in it.")
         .arg(name);
 }
 
 QString fullSystemPrompt(const QString &language)
 {
     return systemPrompt() + QStringLiteral("\n\n") + greetingInstruction(language);
+}
+
+QString language()
+{
+    return aiGroup().readEntry(LanguageKey, QString());
+}
+
+void setLanguage(const QString &language)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(LanguageKey, language);
+    group.sync();
 }
 }

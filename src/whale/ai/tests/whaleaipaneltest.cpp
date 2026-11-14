@@ -1015,9 +1015,10 @@ void WhaleAiPanelTest::backChannel()
     // The agent starts orcinus-mcp from session/new and asks where the user is.
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
     QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items;mcp={\"access\":true,\"folder\":\"%1\","
-                                                  "\"otherAccess\":true,\"otherFolder\":\"%2\"};")
-                                       .arg(m_work.path(), other)),
+    QVERIFY2(texts(panel).contains(
+                 QStringLiteral("tools=get_location,get_selection,set_location,select_items,remember_language;mcp={\"access\":true,\"folder\":\"%1\","
+                                "\"otherAccess\":true,\"otherFolder\":\"%2\"};")
+                     .arg(m_work.path(), other)),
              qPrintable(texts(panel)));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_selection")));
     QVERIFY(waitForReady(panel));
@@ -1055,7 +1056,23 @@ void WhaleAiPanelTest::backChannel()
     }
     QCOMPARE(texts(panel).count(QLatin1String("permission=yes;")), 3);
     QVERIFY(panel.sendPrompt(QStringLiteral("askorcinus-spoof")));
-    QVERIFY2(waitForPermission(panel), qPrintable(texts(panel).right(1500)));
+    QWidget *spoof = waitForPermission(panel);
+    QVERIFY2(spoof, qPrintable(texts(panel).right(1500)));
+    spoof->findChild<QPushButton *>(QStringLiteral("option-no"))->click();
+    QVERIFY(waitForReady(panel));
+
+    // The agent reports the user's language; Orcinus remembers it and says so.
+    KSharedConfig::openConfig()->group(QStringLiteral("AI")).deleteEntry(QStringLiteral("Language"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:remember_language:Esperanto")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(WhaleAiAgents::language(), QStringLiteral("Esperanto"));
+    QVERIFY2(texts(panel).contains(QStringLiteral("The agent will greet you in Esperanto from now on.")), qPrintable(texts(panel)));
+
+    // The next conversation greets in the remembered language.
+    panel.newConversation();
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QLatin1String("single short sentence, in Esperanto")), qPrintable(texts(panel)));
 
     // Each conversation has its own socket; it goes with the conversation.
     const QString socket = panel.session()->findChild<WhaleAiMcpServer *>()->socketPath();

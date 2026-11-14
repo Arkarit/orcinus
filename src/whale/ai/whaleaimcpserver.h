@@ -69,6 +69,8 @@ public:
     void setAccess(const std::function<bool(const QString &)> &access);
     /** What set_location and select_items do; without them they answer with an error. */
     void setViewActions(const WhaleAiViewActions &actions);
+    /** Called when the agent reports the user's language (remember_language); none: the tool is not offered. */
+    void setRememberLanguage(const std::function<void(const QString &)> &remember);
 
     /**
      * @return The name of our tool @p toolCall calls, as the agents checked in AI6b say it, or an
@@ -95,6 +97,7 @@ private:
     QJsonObject selection();
     QJsonObject setLocation(const QJsonObject &arguments, bool *error);
     QJsonObject selectItems(const QJsonObject &arguments, bool *error);
+    QJsonObject rememberLanguage(const QJsonObject &arguments, bool *error);
     bool reaches(const QString &path) const;
 
     std::unique_ptr<QTemporaryDir> m_dir;
@@ -105,6 +108,7 @@ private:
     std::function<WhaleAiContext()> m_contextProvider;
     std::function<bool(const QString &)> m_access;
     WhaleAiViewActions m_viewActions;
+    std::function<void(const QString &)> m_rememberLanguage;
 };
 
 #endif

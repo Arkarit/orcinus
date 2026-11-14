@@ -577,7 +577,24 @@ Steps:
     bound socket gains nothing beyond the four tools with their reach checks.
   AI6 complete.
 
-**AI7 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
+**AI7 – System prompt and language.** A system prompt leads the first message of every
+conversation (ACP has no system prompt of its own; later messages carry only the live context).
+Part A (36de8cbca): `WhaleAiAgents::defaultSystemPrompt()` — a built-in English briefing (role,
+the Orcinus tools, the sandbox) that grows with the features; `systemPrompt()` returns it unless
+the user took over (`customSystemPrompt()` / `setSystemPrompt()`), stored globally in orcinusrc
+`[AI]`. The AI settings page (which was sparse) gets a "System prompt" box showing the text, a
+checkbox that unlocks editing it behind a warning (the sandbox holds either way), and a reset
+button. `fullSystemPrompt(language)` = `systemPrompt()` + `greetingInstruction(language)`, an
+always-appended line: greet with one short sentence in the language, then follow the user's
+language. The panel sends it once, prepended to the first prompt's blocks (`m_sessionGreeted`).
+Part B (language memory): `greetingInstruction` also tells the agent to call `remember_language`
+when the user writes in another language; the back-channel tool `remember_language` (AI6,
+auto-answered like the others, `WhaleAiAgents::setLanguage()`, a transcript notice) stores it,
+and the next conversation greets in it (`WhaleAiAgents::language()` passed to `fullSystemPrompt`).
+Tried with the real agents: Claude greets in the system language in one sentence, then, told in
+German, calls `remember_language("German")` and answers in German.
+
+**AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 
 ## Open

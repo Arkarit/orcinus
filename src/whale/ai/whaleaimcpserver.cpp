@@ -94,7 +94,8 @@ const QStringList &toolNames()
     static const QStringList names{QStringLiteral("get_location"),
                                    QStringLiteral("get_selection"),
                                    QStringLiteral("set_location"),
-                                   QStringLiteral("select_items")};
+                                   QStringLiteral("select_items"),
+                                   QStringLiteral("remember_language")};
     return names;
 }
 
@@ -139,6 +140,15 @@ QJsonArray tools()
                            {QStringLiteral("items"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
                            {QStringLiteral("description"), QStringLiteral("Names in that folder, or absolute paths of items directly in it")}}}},
              {QStringLiteral("items")}),
+        tool(QStringLiteral("remember_language"),
+             QStringLiteral("Remember the user's language"),
+             QStringLiteral("Tells Orcinus the language the user writes in, so later conversations greet the user in it. Call it once when the "
+                            "user's language differs from the one you were asked to greet in. It changes nothing the user sees and no file."),
+             false,
+             {{QStringLiteral("language"),
+               QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
+                           {QStringLiteral("description"), QStringLiteral("The language's name, e.g. \"German\" or \"Deutsch\"")}}}},
+             {QStringLiteral("language")}),
     };
 }
 
@@ -281,6 +291,11 @@ void WhaleAiMcpServer::setViewActions(const WhaleAiViewActions &actions)
     m_viewActions = actions;
 }
 
+void WhaleAiMcpServer::setRememberLanguage(const std::function<void(const QString &)> &remember)
+{
+    m_rememberLanguage = remember;
+}
+
 void WhaleAiMcpServer::newConnection()
 {
     while (QLocalSocket *socket = m_server->nextPendingConnection()) {
@@ -396,6 +411,10 @@ QJsonObject WhaleAiMcpServer::callTool(const QString &name, const QJsonObject &a
         const QJsonObject result = selectItems(arguments, &error);
         return toolResult(result, error);
     }
+    if (name == QLatin1String("remember_language")) {
+        const QJsonObject result = rememberLanguage(arguments, &error);
+        return toolResult(result, error);
+    }
     *known = false;
     return QJsonObject();
 }
@@ -506,6 +525,23 @@ QJsonObject WhaleAiMcpServer::selection()
                        {QStringLiteral("truncated"), context.selection.size() > MaxSelection}};
     result.insert(QStringLiteral("folder"), context.folder.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(context.folder));
     return result;
+}
+
+QJsonObject WhaleAiMcpServer::rememberLanguage(const QJsonObject &arguments, bool *error)
+{
+    *error = true;
+    QString language = arguments.value(QLatin1String("language")).toString().simplified();
+    if (language.isEmpty()) {
+        return toolError(QStringLiteral("\"language\" must be the name of a language."));
+    }
+    // A name, not a sentence: keep it short and on one line.
+    language.truncate(40);
+    if (!m_rememberLanguage) {
+        return toolError(QStringLiteral("Orcinus cannot remember a language here."));
+    }
+    m_rememberLanguage(language);
+    *error = false;
+    return {{QStringLiteral("language"), language}};
 }
 
 bool WhaleAiMcpServer::reaches(const QString &path) const

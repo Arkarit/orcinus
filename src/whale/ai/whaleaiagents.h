@@ -153,11 +153,17 @@ void setCustomSystemPrompt(bool custom);
 /**
  * @return One line Orcinus appends to the system prompt (AI, always, not part of the editable
  *         text): greet in @p language with a single short sentence, then follow the user's
- *         language. @p language empty: the system language.
+ *         language, and call remember_language when it differs. @p language empty: the system
+ *         language.
  */
 QString greetingInstruction(const QString &language = QString());
 /** @return The whole first message sent once per conversation: systemPrompt() + greetingInstruction(). */
 QString fullSystemPrompt(const QString &language = QString());
+
+/** @return The language Orcinus learned the user writes in (empty: none yet, use the system one). */
+QString language();
+/** Remembers @p language for the greeting of later conversations (empty: forget it). */
+void setLanguage(const QString &language);
 }
 
 #endif

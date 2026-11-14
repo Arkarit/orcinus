@@ -37,6 +37,7 @@ private Q_SLOTS:
     void selection();
     void setLocation();
     void selectItems();
+    void rememberLanguage();
     void ownTool();
     void socketFolder();
     void relay();
@@ -109,7 +110,11 @@ void WhaleAiMcpServerTest::toolsList()
         QVERIFY(!tool.toObject().value(QLatin1String("description")).toString().isEmpty());
     }
     QCOMPARE(names,
-             (QStringList{QStringLiteral("get_location"), QStringLiteral("get_selection"), QStringLiteral("set_location"), QStringLiteral("select_items")}));
+             (QStringList{QStringLiteral("get_location"),
+                          QStringLiteral("get_selection"),
+                          QStringLiteral("set_location"),
+                          QStringLiteral("select_items"),
+                          QStringLiteral("remember_language")}));
     QCOMPARE(tools.at(2).toObject().value(QLatin1String("inputSchema")).toObject().value(QLatin1String("required")).toArray(),
              QJsonArray{QStringLiteral("path")});
 }
@@ -311,6 +316,38 @@ void WhaleAiMcpServerTest::selectItems()
     QVERIFY(selected.isEmpty());
 }
 
+void WhaleAiMcpServerTest::rememberLanguage()
+{
+    WhaleAiMcpServer server;
+    bool error = false;
+    // Without a sink, the tool reports it cannot.
+    QVERIFY(toolResult(server, QStringLiteral("remember_language"), {{QStringLiteral("language"), QStringLiteral("German")}}, &error)
+                .contains(QLatin1String("error")));
+    QVERIFY(error);
+
+    QString remembered;
+    server.setRememberLanguage([&](const QString &language) {
+        remembered = language;
+    });
+    QSignalSpy called(&server, &WhaleAiMcpServer::toolCalled);
+    QJsonObject result = toolResult(server, QStringLiteral("remember_language"), {{QStringLiteral("language"), QStringLiteral("  Deutsch  ")}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(remembered, QStringLiteral("Deutsch"));
+    QCOMPARE(result.value(QLatin1String("language")).toString(), QStringLiteral("Deutsch"));
+    QCOMPARE(called.size(), 1);
+    QCOMPARE(called.first().at(0).toString(), QStringLiteral("remember_language"));
+
+    // Empty is refused; a sentence is cut to a short name.
+    remembered.clear();
+    QVERIFY(toolResult(server, QStringLiteral("remember_language"), {{QStringLiteral("language"), QStringLiteral("   ")}}, &error)
+                .contains(QLatin1String("error")));
+    QVERIFY(error);
+    QVERIFY(remembered.isEmpty());
+    toolResult(server, QStringLiteral("remember_language"), {{QStringLiteral("language"), QString(QStringLiteral("x")).repeated(100)}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(remembered.size(), 40);
+}
+
 void WhaleAiMcpServerTest::ownTool()
 {
     // As the agents of AI6b ask.
@@ -330,6 +367,11 @@ void WhaleAiMcpServerTest::ownTool()
     opencode.title = QStringLiteral("orcinus_select_items");
     opencode.kind = QStringLiteral("other");
     QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("select_items"));
+    WhaleAcpToolCall language;
+    language.title = QStringLiteral("mcp.orcinus.remember_language");
+    language.kind = QStringLiteral("execute");
+    language.rawInput = QJsonObject{{QStringLiteral("server"), QStringLiteral("orcinus")}, {QStringLiteral("tool"), QStringLiteral("remember_language")}};
+    QCOMPARE(WhaleAiMcpServer::ownTool(language), QStringLiteral("remember_language"));
 
     // Not ours: another server, an unknown tool, a command titled like ours, files named.
     WhaleAcpToolCall other = claude;

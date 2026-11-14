@@ -435,6 +435,10 @@ bool WhaleAiPanel::startSession()
             return currentContext();
         });
         mcp->setViewActions(m_viewActions);
+        mcp->setRememberLanguage([this](const QString &language) {
+            WhaleAiAgents::setLanguage(language);
+            m_transcript->addNotice(i18nc("@info %1 is the name of a language", "The agent will greet you in %1 from now on.", language));
+        });
         connect(mcp, &WhaleAiMcpServer::locationSet, this, [this](const QString &folder) {
             m_transcript->addNotice(i18nc("@info %1 is a folder", "The agent opened %1.", folder));
         });
@@ -565,7 +569,7 @@ void WhaleAiPanel::sendPending()
         // The system prompt leads the first message of the conversation (ACP has no system
         // prompt of its own); later messages carry only the live context.
         m_sessionGreeted = true;
-        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::fullSystemPrompt()));
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::fullSystemPrompt(WhaleAiAgents::language())));
     }
     m_session->prompt(blocks);
     updateState();

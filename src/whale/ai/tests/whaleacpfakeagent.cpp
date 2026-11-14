@@ -364,6 +364,8 @@ void handlePrompt(const QJsonObject &message)
             toolArguments.insert(QStringLiteral("path"), match.captured(2));
         } else if (match.captured(1) == QLatin1String("select_items")) {
             toolArguments.insert(QStringLiteral("items"), QJsonArray::fromStringList(match.captured(2).split(QLatin1Char(','))));
+        } else if (match.captured(1) == QLatin1String("remember_language")) {
+            toolArguments.insert(QStringLiteral("language"), match.captured(2));
         }
         chunk(QStringLiteral("agent_message_chunk"), callMcp(match.captured(1), toolArguments));
     }
