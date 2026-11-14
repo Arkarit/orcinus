@@ -1,6 +1,6 @@
 # AI support (AI0–AI7)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13), next AI6 (back channel).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 planned (2026-11-14, AI6a), next AI6b.
 
 ## Problem
 
@@ -23,9 +23,10 @@ to a folder). Example: "The images in this folder: crop them all to 4:3."
   through the Claude Agent ACP adapter; Gemini CLI, Codex CLI, Qwen Code, Mistral Vibe, …). Login,
   billing, model choice and tools stay with the agent.
 - **Back channel through MCP.** `session/new` passes a list of MCP servers to the agent. Orcinus
-  passes its own one: a small stdio executable (`orcinus-mcp`, C++, QtCore + QtDBus) that the
-  agent starts and that talks over D-Bus to the window that owns the panel (a per-session token
-  in the arguments binds it to that window). stdio MCP servers are the baseline every ACP agent
+  passes its own one: a small stdio executable (`orcinus-mcp`) that the agent starts and that
+  relays to the panel over a private Unix socket of the conversation (a per-conversation token
+  binds it to that panel). Not D-Bus (changed 2026-11-14 in AI6a): the sandbox of AI5d hides the
+  session bus, which is a way out of it. stdio MCP servers are the baseline every ACP agent
   supports; HTTP is optional in ACP. It is separate from the dev MCP (`WHALE_ENABLE_DEV_MCP`, not
   installed, test tool): small, safe tool set, installed.
 - **Context as ACP content.** The current folder is the session's `cwd` at start; each prompt
@@ -258,7 +259,8 @@ Details (planned 2026-11-13, AI5 before AI4):
   `WhaleAiPanel::attentionRequested()`, and the window shows and raises the dock; an inactive
   window is flagged with `QApplication::alert()`. Fake agent prompts `askexecute`, `askdiff`.
 - *Own MCP tools* need `orcinus-mcp`, which is AI6: answering their requests directly moves to
-  AI6, where the bridge announces each call to the panel before the agent asks.
+  AI6. (The idea that the bridge announces each call before the agent asks does not hold: an
+  agent asks first and calls the tool only once allowed; see AI6c.)
 
 **AI5d – Folder access (sandbox).** Planned 2026-11-13 after a test: the user gave Codex (mode
 "Read-only") a folder outside the current one to delete; Codex asked, but nothing *kept* it from
@@ -391,10 +393,73 @@ Steps:
   same button on its chip instead of a question. Tried with the fake agent through the real
   sandbox (read, write, take back); the real agents use the same mounts.
 
-**AI6 – Back channel.** `orcinus-mcp` and the D-Bus interface on the window. First tools:
-`get_location`, `set_location` (go to a folder, in the active view), `get_selection`,
-`select_items` (in the current folder). Later candidates: open in a new tab / the other split view,
-filter, show in the viewer. Each tool call that changes the view is visible in the transcript.
+**AI6 – Back channel.** The agent can see and change where the user is: `orcinus-mcp` and a
+small MCP server in the panel. First tools: `get_location`, `set_location` (go to a folder, in the
+active view), `get_selection`, `select_items` (in the current folder). Later candidates: open in a
+new tab / the other split view, filter, show in the viewer. Each tool call that changes the view
+is visible in the transcript.
+
+Details (planned 2026-11-14, AI6a):
+
+- *No D-Bus.* The plan had `orcinus-mcp` talk over D-Bus to the window. The sandbox (AI5d) hides
+  `/run/user`, and with it the session bus, on purpose: the bus is a way out (`systemd-run
+  --user`). A filtering proxy (`xdg-dbus-proxy`) would be one more moving part for four tools.
+  Instead each conversation gets its own Unix socket; with "All folders" (no sandbox) it is the
+  same way, so there is only one.
+- *The socket.* The panel listens (`QLocalServer`) on `$XDG_RUNTIME_DIR/orcinus-ai/<random>/mcp`
+  (folders `0700`; leftovers of a crashed Orcinus are removed at the next start). With the
+  sandbox the folder `<random>` is bound read-write into the agent's view at the same path
+  (`/run/user` is a tmpfs there, so nothing else of it appears). It lives as long as the
+  conversation; a new conversation gets a new one. The token (random, in the arguments of
+  `orcinus-mcp`) is the first line on the socket; a wrong one closes it. Within the sandbox the
+  socket is the only way to the panel, and only this conversation's agent sees it.
+- *`orcinus-mcp` is a relay, the MCP server is in the panel.* `orcinus-mcp --socket PATH --token
+  T` copies newline-delimited JSON-RPC between stdio and the socket; nothing else. Plain C++, no
+  Qt (it starts with every conversation, like `orcinus-sandbox`), installed to `libexec/orcinus`
+  next to the helper; in the build tree next to the program, which is then bound read-only into
+  the sandbox (the installed one is under `/usr`, visible anyway). The MCP side (`initialize`,
+  `tools/list`, `tools/call`, `ping`) is `WhaleAiMcpServer` in whaleai, so the tool list and the
+  checks live in one place and cannot drift from the relay's version. Passed in `session/new` as
+  a stdio server named `orcinus` (`WhaleAcpMcpServer`, exists since AI1).
+- *Nothing behind the socket is trusted.* The agent's own shell commands can open the socket
+  too, so every check is in Orcinus, not in `orcinus-mcp`: the socket offers exactly the tools,
+  nothing more. With the sandbox, `set_location` goes only to folders the agent reaches
+  (`WhaleAiSandbox::reaches()`; else an error, and no answer that tells whether a folder outside
+  exists); `get_selection` lists paths outside the shared folders as "no access", like the chips.
+  Non-local folders (KIO URLs) are not offered in the first version: `get_location` says "not a
+  local folder", `set_location` takes local paths only.
+- *Tools.* `get_location`: folder of the active view, plus the other split view's folder if there
+  is one. `get_selection`: selected items of the active view (paths, at most 500, says when cut).
+  `set_location(path)`: opens an existing folder in the active view (a file is an error, kept
+  plain; selecting it is `select_items`' job). `select_items(names)`: names or
+  paths in the current folder, replaces the selection, answers which were not found. The view
+  side is a callback set by the window, like `setContextProvider()` (the panel cannot see
+  `DolphinMainWindow`; whaleai stays free of the shell). Tool annotations: `readOnlyHint` true
+  for the two `get_` tools; for the other two see AI6b.
+- *Transcript.* `set_location` and `select_items` add a notice ("The agent opened …", "The agent
+  selected 12 items"); no undo link in the first version (the view's Back works). The reads show up
+  as the agent's own tool calls anyway.
+- *Permission requests for our tools* (moved from AI5): an agent asks before it calls a tool, so
+  Orcinus cannot learn of the call first. How to recognise a request for an `orcinus` tool
+  reliably (title, `kind`, `rawInput`, `_meta`, the MCP server name in the tool id) differs per
+  agent and is checked in AI6b, before anything is answered automatically. Until then the
+  requests are shown like any other.
+
+Steps:
+
+- *AI6a – Plan.* This section (2026-11-14).
+- *AI6b – Socket, relay, read tools.* `orcinus-mcp`, `WhaleAiMcpServer` with `get_location` and
+  `get_selection`, the socket folder in the sandbox, the server passed in `session/new`. Tests:
+  `WhaleAiMcpServer` over a real socket (token, tools, errors), and the fake agent starting
+  `orcinus-mcp` from `session/new` and calling a tool (new scenario). Then in the VM with the
+  real Claude, Codex and OpenCode: do they start it in the sandbox, what do their permission
+  requests for our tools look like (note per agent), does `readOnlyHint` spare the question, do
+  they call our tools in their read-only mode.
+- *AI6c – Tools that change the view.* `set_location`, `select_items`, the notices, the reach
+  check; answering the requests for our tools directly if AI6b found a reliable sign, else
+  leave them to the user and note why.
+- *AI6d – Try it.* Real agents in the VM with tasks that need the back channel ("select the
+  images smaller than 1000 pixels", "go to the folder with the newest PDF"); fixes; results here.
 
 **AI7 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
