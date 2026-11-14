@@ -134,6 +134,30 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
 
 /** @return An id based on @p base that none of @p agents has. */
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);
+
+/**
+ * @return Orcinus' built-in instructions for every agent (role, the Orcinus tools, the sandbox):
+ *         the text a fresh setup sends and the settings page shows. It is in English, like the
+ *         context of each message, because it goes to the agent; it grows with the features.
+ */
+QString defaultSystemPrompt();
+/** @return The instructions sent to every agent: the user's own if customSystemPrompt(), else defaultSystemPrompt(). */
+QString systemPrompt();
+/** @return Whether the user edits the system prompt instead of using the built-in one. */
+bool customSystemPrompt();
+/** Stores the user's own system prompt text (used only while customSystemPrompt()). */
+void setSystemPrompt(const QString &text);
+/** Lets the user edit the system prompt (@p custom), or go back to the built-in one. */
+void setCustomSystemPrompt(bool custom);
+
+/**
+ * @return One line Orcinus appends to the system prompt (AI, always, not part of the editable
+ *         text): greet in @p language with a single short sentence, then follow the user's
+ *         language. @p language empty: the system language.
+ */
+QString greetingInstruction(const QString &language = QString());
+/** @return The whole first message sent once per conversation: systemPrompt() + greetingInstruction(). */
+QString fullSystemPrompt(const QString &language = QString());
 }
 
 #endif

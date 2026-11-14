@@ -13,6 +13,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QLocale>
 #include <QRegularExpression>
 #include <QStandardPaths>
 
@@ -30,6 +31,9 @@ const char SandboxPathsKey[] = "SandboxPaths";
 const char ModeIdsKey[] = "ModeIds";
 const char ModeNamesKey[] = "ModeNames";
 const char ModeDescriptionsKey[] = "ModeDescriptions";
+const char SystemPromptKey[] = "SystemPrompt";
+const char CustomSystemPromptKey[] = "CustomSystemPrompt";
+const char LanguageKey[] = "Language";
 
 KConfigGroup aiGroup()
 {
@@ -399,5 +403,63 @@ QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents)
         id = stem + QLatin1Char('-') + QString::number(i);
     }
     return id;
+}
+
+QString defaultSystemPrompt()
+{
+    // English, like the context of each message: it goes to the agent, not the user. Keep it in
+    // step with what the sandbox and the back channel (AI5d/AI6) actually do.
+    return QStringLiteral(
+        "You are an AI assistant working with the user's files through the Orcinus file manager. The user is working in "
+        "Orcinus next to this chat, and each message tells you the folder they have open and what they have selected.\n\n"
+        "You can see and change what the user sees with your Orcinus tools: get_location and get_selection to read where "
+        "they are, set_location to open a folder, and select_items to select files in it. Prefer these over guessing "
+        "paths, and use them to show the user a result; they see every change you make.\n\n"
+        "Unless the user chose \"All folders\", you run in a sandbox: you can read system files and read and write only the "
+        "folders listed as reachable in each message. Writing anywhere else fails, and the rest of the user's data is not "
+        "visible to you. If you need another folder, ask the user to give you access in Orcinus instead of trying to work "
+        "around it.");
+}
+
+bool customSystemPrompt()
+{
+    return aiGroup().readEntry(CustomSystemPromptKey, false);
+}
+
+QString systemPrompt()
+{
+    if (!customSystemPrompt()) {
+        return defaultSystemPrompt();
+    }
+    return aiGroup().readEntry(SystemPromptKey, defaultSystemPrompt());
+}
+
+void setSystemPrompt(const QString &text)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(SystemPromptKey, text);
+    group.sync();
+}
+
+void setCustomSystemPrompt(bool custom)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(CustomSystemPromptKey, custom);
+    group.sync();
+}
+
+QString greetingInstruction(const QString &language)
+{
+    // The system language unless Orcinus learned another one (AI, remember_language).
+    const QString name = language.isEmpty() ? QLocale::system().nativeLanguageName() : language;
+    return QStringLiteral(
+               "Begin the conversation with a single short sentence, in %1, saying what you can help the user do with "
+               "their files. Keep it to one sentence. After that, reply in whatever language the user writes in.")
+        .arg(name);
+}
+
+QString fullSystemPrompt(const QString &language)
+{
+    return systemPrompt() + QStringLiteral("\n\n") + greetingInstruction(language);
 }
 }

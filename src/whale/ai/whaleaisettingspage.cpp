@@ -8,14 +8,20 @@
 #include "whaleaiagentdialog.h"
 
 #include <KLocalizedString>
+#include <KMessageBox>
+#include <KStandardGuiItem>
 #include <KTerminalLauncherJob>
 
+#include <QCheckBox>
 #include <QDir>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
+#include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 namespace
@@ -78,11 +84,46 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     m_logIn->setObjectName(QStringLiteral("logIn"));
     m_logIn->hide();
 
+    // The system prompt sent once to every agent (AI): a built-in briefing by default, which the
+    // user may take over with a warning.
+    auto *promptGroup = new QGroupBox(i18nc("@title:group", "System prompt"), this);
+    m_editPrompt = new QCheckBox(i18nc("@option:check", "Write my own instructions for every agent"), promptGroup);
+    m_editPrompt->setObjectName(QStringLiteral("editPrompt"));
+    auto *promptHint = new QLabel(i18nc("@info",
+                                        "These instructions lead the first message of every conversation: who the agent is, its Orcinus "
+                                        "tools and its sandbox. Orcinus keeps them up to date. You can write your own, but a weak prompt "
+                                        "can confuse the agent (the sandbox stays in force either way)."),
+                                  promptGroup);
+    promptHint->setWordWrap(true);
+    m_prompt = new QPlainTextEdit(promptGroup);
+    m_prompt->setObjectName(QStringLiteral("systemPrompt"));
+    m_prompt->setReadOnly(true);
+    m_prompt->setTabChangesFocus(true);
+    m_resetPrompt = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-reset")), i18nc("@action:button", "Reset to Orcinus' Text"), promptGroup);
+    m_resetPrompt->setObjectName(QStringLiteral("resetPrompt"));
+    m_resetPrompt->setEnabled(false);
+    auto *promptLayout = new QVBoxLayout(promptGroup);
+    promptLayout->addWidget(m_editPrompt);
+    promptLayout->addWidget(promptHint);
+    promptLayout->addWidget(m_prompt, 1);
+    promptLayout->addWidget(m_resetPrompt, 0, Qt::AlignRight);
+
+    connect(m_editPrompt, &QCheckBox::toggled, this, &WhaleAiSettingsPage::toggleEditPrompt);
+    connect(m_prompt, &QPlainTextEdit::textChanged, this, [this] {
+        if (!m_prompt->isReadOnly()) {
+            Q_EMIT changed();
+        }
+    });
+    connect(m_resetPrompt, &QPushButton::clicked, this, [this] {
+        m_prompt->setPlainText(WhaleAiAgents::defaultSystemPrompt());
+    });
+
     auto *layout = new QVBoxLayout(this);
     layout->addWidget(intro);
     layout->addLayout(listRow, 1);
     layout->addWidget(m_result);
     layout->addWidget(m_logIn, 0, Qt::AlignLeft);
+    layout->addWidget(promptGroup);
 
     m_tester = new WhaleAiAgentTest(this);
     connect(m_tester, &WhaleAiAgentTest::finished, this, [this](const WhaleAiAgentTest::Result &result) {
@@ -105,6 +146,15 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     m_agents = WhaleAiAgents::agents();
     m_defaultId = WhaleAiAgents::defaultAgentId();
     fillList(m_defaultId);
+
+    // Load the system prompt without the warning that a user click would bring.
+    m_prompt->setPlainText(WhaleAiAgents::systemPrompt());
+    {
+        const QSignalBlocker blocker(m_editPrompt);
+        m_editPrompt->setChecked(WhaleAiAgents::customSystemPrompt());
+    }
+    m_prompt->setReadOnly(!m_editPrompt->isChecked());
+    m_resetPrompt->setEnabled(m_editPrompt->isChecked());
 }
 
 WhaleAiSettingsPage::~WhaleAiSettingsPage() = default;
@@ -124,6 +174,10 @@ void WhaleAiSettingsPage::applySettings()
     }
     WhaleAiAgents::setAgents(agents);
     WhaleAiAgents::setDefaultAgentId(m_defaultId);
+    WhaleAiAgents::setCustomSystemPrompt(m_editPrompt->isChecked());
+    if (m_editPrompt->isChecked()) {
+        WhaleAiAgents::setSystemPrompt(m_prompt->toPlainText());
+    }
 }
 
 void WhaleAiSettingsPage::restoreDefaults()
@@ -312,6 +366,34 @@ void WhaleAiSettingsPage::setAgentsChanged()
 {
     m_result->clear();
     m_logIn->hide();
+    Q_EMIT changed();
+}
+
+void WhaleAiSettingsPage::toggleEditPrompt(bool edit)
+{
+    if (edit) {
+        const auto answer =
+            KMessageBox::warningContinueCancel(this,
+                                               i18nc("@info",
+                                                     "You are about to write your own instructions for every agent, instead of the ones Orcinus keeps up to "
+                                                     "date. A weak or misleading prompt can confuse the agent or drop useful guidance. The sandbox and the "
+                                                     "folder limits stay in force either way. Continue?"),
+                                               i18nc("@title:window", "Edit the system prompt"),
+                                               KStandardGuiItem::cont(),
+                                               KStandardGuiItem::cancel(),
+                                               QStringLiteral("whale-ai-edit-system-prompt"));
+        if (answer != KMessageBox::Continue) {
+            const QSignalBlocker blocker(m_editPrompt);
+            m_editPrompt->setChecked(false);
+            return;
+        }
+    } else {
+        // Back to Orcinus' built-in text (what will actually be sent); a stored custom one is kept.
+        const QSignalBlocker blocker(m_prompt);
+        m_prompt->setPlainText(WhaleAiAgents::defaultSystemPrompt());
+    }
+    m_prompt->setReadOnly(!edit);
+    m_resetPrompt->setEnabled(edit);
     Q_EMIT changed();
 }
 

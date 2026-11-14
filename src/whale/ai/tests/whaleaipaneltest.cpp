@@ -239,6 +239,13 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(waitForReady(panel));
     QCOMPARE(panel.session(), session);
     QVERIFY(texts(panel).contains(QStringLiteral("cwd=%1;mcp=orcinus:%2;text=nopermission again").arg(m_work.path(), WhaleAiMcpServer::relay())));
+
+    // The system prompt leads the first message of the conversation, once: the agent echoes the
+    // briefing and the greeting instruction before the first message, and nothing of it before
+    // the second.
+    const QString sent = texts(panel);
+    QCOMPARE(sent.count(QLatin1String("working with the user's files through the Orcinus file manager")), 1);
+    QVERIFY2(sent.contains(QLatin1String("Begin the conversation with a single short sentence")), qPrintable(sent));
 }
 
 void WhaleAiPanelTest::enterAndShiftEnter()
@@ -742,7 +749,9 @@ void WhaleAiPanelTest::contextChips()
     QVERIFY(waitForReady(*panel));
     const QString all = texts(*panel);
     QVERIFY2(all.contains(QStringLiteral("With: folder “a”, other view “b”")), qPrintable(all));
-    QVERIFY(all.contains(QStringLiteral("text=nopermission;links=2;context=Context from the file manager Orcinus")));
+    // The first message carries the system prompt, then the live context.
+    QVERIFY(all.contains(QStringLiteral("text=nopermission;links=2;context=")));
+    QVERIFY2(all.contains(QLatin1String("Context from the file manager Orcinus")), qPrintable(all));
     QVERIFY(all.contains(QStringLiteral("- Current folder: %1 (subfolders: sub)").arg(a)));
     QVERIFY(!all.contains(QLatin1String("x.jpg")));
     // Back for the message after.

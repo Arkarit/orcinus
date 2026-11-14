@@ -11,9 +11,11 @@
 #include "whaleaiagents.h"
 #include "whaleaiagenttest.h"
 
+class QCheckBox;
 class QLabel;
 class QListWidget;
 class QMenu;
+class QPlainTextEdit;
 class QPushButton;
 
 /**
@@ -65,6 +67,8 @@ private:
     void testCurrent();
     void logInInTerminal();
     void setAgentsChanged();
+    /** The checkbox that unlocks editing the system prompt (AI); warns before it lets the user in. */
+    void toggleEditPrompt(bool edit);
 
     QList<WhaleAiAgent> m_agents;
     QString m_defaultId;
@@ -82,6 +86,10 @@ private:
     WhaleAiAgentTest *m_tester = nullptr;
     QStringList m_presetSearchPaths;
     int m_testTimeout = 30000;
+
+    QCheckBox *m_editPrompt = nullptr;
+    QPlainTextEdit *m_prompt = nullptr;
+    QPushButton *m_resetPrompt = nullptr;
 };
 
 #endif

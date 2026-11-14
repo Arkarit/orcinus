@@ -415,6 +415,7 @@ bool WhaleAiPanel::startSession()
     }
 
     m_sessionAgentId = agent.id;
+    m_sessionGreeted = false;
     m_sessionAllFolders = agent.allFolders;
     m_sessionReach = reach;
     m_sessionFolders = shared;
@@ -559,7 +560,14 @@ void WhaleAiPanel::sendPending()
     if (!m_session || m_session->state() != WhaleAcpSession::State::Ready || m_modeState != ModeState::Set || m_pendingPrompt.isEmpty()) {
         return;
     }
-    m_session->prompt(WhaleAiContextPrompt::blocks(std::exchange(m_pendingContext, {}), std::exchange(m_pendingPrompt, QString())));
+    QJsonArray blocks = WhaleAiContextPrompt::blocks(std::exchange(m_pendingContext, {}), std::exchange(m_pendingPrompt, QString()));
+    if (!m_sessionGreeted) {
+        // The system prompt leads the first message of the conversation (ACP has no system
+        // prompt of its own); later messages carry only the live context.
+        m_sessionGreeted = true;
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::fullSystemPrompt()));
+    }
+    m_session->prompt(blocks);
     updateState();
 }
 

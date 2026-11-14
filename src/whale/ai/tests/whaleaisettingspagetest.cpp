@@ -12,9 +12,11 @@
 
 #include <KActionCollection>
 #include <KConfigGroup>
+#include <KMessageBox>
 #include <KSharedConfig>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QLabel>
@@ -50,6 +52,7 @@ private Q_SLOTS:
     void testNeedsLogin();
     void loginHintText();
     void defaultsKeepAgents();
+    void systemPrompt();
     void pageInDialog();
 
 private:
@@ -293,6 +296,49 @@ void WhaleAiSettingsPageTest::defaultsKeepAgents()
     page.restoreDefaults();
     page.applySettings();
     QCOMPARE(WhaleAiAgents::agents().size(), 1);
+}
+
+void WhaleAiSettingsPageTest::systemPrompt()
+{
+    {
+        WhaleAiSettingsPage page;
+        auto *edit = child<QCheckBox>(page, QStringLiteral("editPrompt"));
+        auto *field = child<QPlainTextEdit>(page, QStringLiteral("systemPrompt"));
+        auto *reset = child<QPushButton>(page, QStringLiteral("resetPrompt"));
+        QVERIFY(edit && field && reset);
+        // Default: the built-in text, read-only, editing off.
+        QVERIFY(!edit->isChecked());
+        QVERIFY(field->isReadOnly());
+        QVERIFY(!reset->isEnabled());
+        QCOMPARE(field->toPlainText(), WhaleAiAgents::defaultSystemPrompt());
+
+        // Turning editing on (the warning is suppressed in the test) unlocks the field.
+        KMessageBox::saveDontShowAgainContinue(QStringLiteral("whale-ai-edit-system-prompt"));
+        edit->setChecked(true);
+        QVERIFY(!field->isReadOnly());
+        QVERIFY(reset->isEnabled());
+        field->setPlainText(QStringLiteral("Answer only in haiku."));
+        page.applySettings();
+    }
+    QVERIFY(WhaleAiAgents::customSystemPrompt());
+    QCOMPARE(WhaleAiAgents::systemPrompt(), QStringLiteral("Answer only in haiku."));
+
+    // A fresh page shows the stored custom text, editable; turning editing off goes back to the
+    // built-in text and, on apply, stops using the custom one (which stays stored).
+    {
+        WhaleAiSettingsPage page;
+        auto *edit = child<QCheckBox>(page, QStringLiteral("editPrompt"));
+        auto *field = child<QPlainTextEdit>(page, QStringLiteral("systemPrompt"));
+        QVERIFY(edit->isChecked());
+        QVERIFY(!field->isReadOnly());
+        QCOMPARE(field->toPlainText(), QStringLiteral("Answer only in haiku."));
+        edit->setChecked(false);
+        QVERIFY(field->isReadOnly());
+        QCOMPARE(field->toPlainText(), WhaleAiAgents::defaultSystemPrompt());
+        page.applySettings();
+    }
+    QVERIFY(!WhaleAiAgents::customSystemPrompt());
+    QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
 }
 
 void WhaleAiSettingsPageTest::pageInDialog()

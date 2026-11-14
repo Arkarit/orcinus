@@ -37,6 +37,7 @@ private Q_SLOTS:
     void presetsThroughNpx();
     void uniqueId();
     void startMode();
+    void systemPromptStorage();
     void restrictiveMode();
     void knownModes();
     void loginHints();
@@ -219,6 +220,34 @@ void WhaleAiAgentsTest::startMode()
     QCOMPARE(WhaleAiAgents::agents().size(), 2);
     WhaleAiAgents::setStartMode(QStringLiteral("b"), QString());
     QVERIFY(WhaleAiAgents::agent(QStringLiteral("b")).startMode.isEmpty());
+}
+
+void WhaleAiAgentsTest::systemPromptStorage()
+{
+    // Default until the user takes over; the built-in text mentions the sandbox and the tools.
+    QVERIFY(!WhaleAiAgents::customSystemPrompt());
+    QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
+    QVERIFY(WhaleAiAgents::defaultSystemPrompt().contains(QLatin1String("sandbox")));
+    QVERIFY(WhaleAiAgents::defaultSystemPrompt().contains(QLatin1String("set_location")));
+
+    // A stored custom text is only used while editing is on.
+    WhaleAiAgents::setSystemPrompt(QStringLiteral("Be brief."));
+    QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
+    WhaleAiAgents::setCustomSystemPrompt(true);
+    QVERIFY(WhaleAiAgents::customSystemPrompt());
+    QCOMPARE(WhaleAiAgents::systemPrompt(), QStringLiteral("Be brief."));
+    WhaleAiAgents::setCustomSystemPrompt(false);
+    QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
+
+    // The greeting instruction names the language and leads the whole first message.
+    const QString appendix = WhaleAiAgents::greetingInstruction(QStringLiteral("Esperanto"));
+    QVERIFY(appendix.contains(QLatin1String("Esperanto")));
+    QVERIFY(appendix.contains(QLatin1String("one sentence")) || appendix.contains(QLatin1String("single short sentence")));
+    const QString full = WhaleAiAgents::fullSystemPrompt(QStringLiteral("Esperanto"));
+    QVERIFY(full.startsWith(WhaleAiAgents::systemPrompt()));
+    QVERIFY(full.endsWith(appendix));
+    // No language given: the system language, whatever it is, is non-empty.
+    QVERIFY(!WhaleAiAgents::greetingInstruction().isEmpty());
 }
 
 void WhaleAiAgentsTest::restrictiveMode()
