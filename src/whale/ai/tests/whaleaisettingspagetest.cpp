@@ -91,6 +91,8 @@ void WhaleAiSettingsPageTest::init()
 {
     KSharedConfig::openConfig()->deleteGroup(QStringLiteral("AI"));
     KSharedConfig::openConfig()->sync();
+    // The disclaimer has its own test (WhaleAiPanelTest::disclaimer()).
+    WhaleAiAgents::setDisclaimerAccepted(true);
 }
 
 QMenu *WhaleAiSettingsPageTest::addMenu(WhaleAiSettingsPage &page)

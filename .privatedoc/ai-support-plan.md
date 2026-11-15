@@ -274,6 +274,14 @@ removes an installed profile and helper once. The folder and the selection have 
 view shows them). Instead: a disclaimer (AI5f). The agents' modes (AI5) stay the only control;
 the system prompt asks the agent to ask before changing anything beyond the request.
 
+**AI5f – Disclaimer (done 2026-11-15).** `WhaleAiDisclaimer` (draft text by the user, the last
+part tied to the GPL 2 warranty and liability terms, sections 11 and 12, with "View License"
+showing the application's license): over the AI panel (a page of its stack) and on the "AI
+Agents" settings page, until the user ticks "I understand the risks of using AI agents." and
+clicks Continue. Stored as `[AI] DisclaimerAccepted` in orcinusrc; accepting it in one place
+hides it in the other at once (`WhaleAiDisclaimerNotifier`). The panel sends nothing before.
+Test `WhaleAiPanelTest::disclaimer()`.
+
 **AI5d – Folder access (sandbox).** Planned 2026-11-13 after a test: the user gave Codex (mode
 "Read-only") a folder outside the current one to delete; Codex asked, but nothing *kept* it from
 the folder. The modes are promises of the agent; it reads anywhere in every mode. By default the

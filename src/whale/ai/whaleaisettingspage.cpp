@@ -6,6 +6,7 @@
 
 #include "whaleaisettingspage.h"
 #include "whaleaiagentdialog.h"
+#include "whaleaidisclaimer.h"
 
 #include <KLocalizedString>
 #include <KMessageBox>
@@ -22,6 +23,7 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QStackedWidget>
 #include <QVBoxLayout>
 
 namespace
@@ -118,12 +120,26 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
         m_prompt->setPlainText(WhaleAiAgents::defaultSystemPrompt());
     });
 
-    auto *layout = new QVBoxLayout(this);
+    auto *content = new QWidget(this);
+    auto *layout = new QVBoxLayout(content);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(intro);
     layout->addLayout(listRow, 1);
     layout->addWidget(m_result);
     layout->addWidget(m_logIn, 0, Qt::AlignLeft);
     layout->addWidget(promptGroup);
+
+    // The disclaimer first, until the user accepts it here or in the AI panel (AI5f).
+    m_pages = new QStackedWidget(this);
+    m_pages->addWidget(new WhaleAiDisclaimer(m_pages));
+    m_pages->addWidget(content);
+    m_pages->setCurrentIndex(WhaleAiAgents::disclaimerAccepted() ? 1 : 0);
+    connect(WhaleAiDisclaimerNotifier::instance(), &WhaleAiDisclaimerNotifier::accepted, this, [this] {
+        m_pages->setCurrentIndex(1);
+    });
+    auto *outer = new QVBoxLayout(this);
+    outer->setContentsMargins(0, 0, 0, 0);
+    outer->addWidget(m_pages);
 
     m_tester = new WhaleAiAgentTest(this);
     connect(m_tester, &WhaleAiAgentTest::finished, this, [this](const WhaleAiAgentTest::Result &result) {

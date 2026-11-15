@@ -8,6 +8,7 @@
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
+#include "whaleaidisclaimer.h"
 #include "whaleaimcpserver.h"
 #include "whaleaitranscript.h"
 
@@ -38,6 +39,7 @@ namespace
 enum Page {
     ChatPage,
     SetupPage,
+    DisclaimerPage,
 };
 }
 
@@ -139,12 +141,21 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_stack = new QStackedWidget(this);
     m_stack->insertWidget(ChatPage, chat);
     m_stack->insertWidget(SetupPage, setup);
+    // Over everything until the user accepts it, here or in the settings (AI5f).
+    m_stack->insertWidget(DisclaimerPage, new WhaleAiDisclaimer(this));
     auto *layout = new QVBoxLayout(this);
     // Some room to the dock's edges, for the chat and the setup page alike.
     layout->setContentsMargins(4, 4, 4, 4);
     layout->addWidget(m_stack);
 
     connect(setupButton, &QPushButton::clicked, this, &WhaleAiPanel::configureRequested);
+    connect(WhaleAiDisclaimerNotifier::instance(), &WhaleAiDisclaimerNotifier::accepted, this, [this] {
+        const bool here = m_stack->currentIndex() == DisclaimerPage && isAncestorOf(QApplication::focusWidget());
+        updatePage();
+        if (here) {
+            m_input->setFocus();
+        }
+    });
     connect(configure, &QToolButton::clicked, this, &WhaleAiPanel::configureRequested);
     connect(m_agents, &QComboBox::activated, this, &WhaleAiPanel::agentChosen);
     connect(m_modes, &QComboBox::activated, this, [this](int index) {
@@ -203,7 +214,16 @@ void WhaleAiPanel::fillAgents(const QString &preferredId)
         index = m_agents->findData(WhaleAiAgents::defaultAgentId());
     }
     m_agents->setCurrentIndex(qMax(index, 0));
-    m_stack->setCurrentIndex(agents.isEmpty() ? SetupPage : ChatPage);
+    updatePage();
+}
+
+void WhaleAiPanel::updatePage()
+{
+    if (!WhaleAiAgents::disclaimerAccepted()) {
+        m_stack->setCurrentIndex(DisclaimerPage);
+    } else {
+        m_stack->setCurrentIndex(m_agents->count() == 0 ? SetupPage : ChatPage);
+    }
 }
 
 QString WhaleAiPanel::agentId() const
@@ -286,7 +306,7 @@ void WhaleAiPanel::agentChosen()
 bool WhaleAiPanel::sendPrompt(const QString &text)
 {
     const QString prompt = text.trimmed();
-    if (prompt.isEmpty() || agentId().isEmpty()) {
+    if (prompt.isEmpty() || agentId().isEmpty() || !WhaleAiAgents::disclaimerAccepted()) {
         return false;
     }
     if (m_session && m_session->state() != WhaleAcpSession::State::Ready) {

@@ -143,6 +143,10 @@ bool customSystemPrompt();
 void setSystemPrompt(const QString &text);
 /** Lets the user edit the system prompt (@p custom), or go back to the built-in one. */
 void setCustomSystemPrompt(bool custom);
+
+/** @return Whether the user accepted the disclaimer about AI agents (AI5f, WhaleAiDisclaimer). */
+bool disclaimerAccepted();
+void setDisclaimerAccepted(bool accepted);
 }
 
 #endif

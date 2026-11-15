@@ -13,6 +13,7 @@
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
 #include "whaleaimcpserver.h"
+#include "whaleaisettingspage.h"
 #include "whaleaitranscript.h"
 
 #include <KActionCollection>
@@ -22,6 +23,7 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDialog>
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QFile>
@@ -51,6 +53,7 @@ private Q_SLOTS:
     void initTestCase();
     void init();
 
+    void disclaimer();
     void setupWithoutAgents();
     void promptTurn();
     void enterAndShiftEnter();
@@ -110,6 +113,8 @@ void WhaleAiPanelTest::init()
     KSharedConfig::openConfig()->deleteGroup(QStringLiteral("AI"));
     WhaleAiAgents::setAgents({fakeAgent(QStringLiteral("basic"), QStringLiteral("basic")), fakeAgent(QStringLiteral("crash"), QStringLiteral("crash"))});
     WhaleAiAgents::setDefaultAgentId(QStringLiteral("basic"));
+    // Accepted: only disclaimer() is about it.
+    WhaleAiAgents::setDisclaimerAccepted(true);
 }
 
 WhaleAiAgent WhaleAiPanelTest::fakeAgent(const QString &id, const QString &scenario)
@@ -152,6 +157,62 @@ bool WhaleAiPanelTest::waitForReady(WhaleAiPanel &panel)
                 && !panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool();
         },
         10000);
+}
+
+void WhaleAiPanelTest::disclaimer()
+{
+    // Over the panel and on the settings page until it is accepted; nothing goes out before.
+    WhaleAiAgents::setDisclaimerAccepted(false);
+    WhaleAiPanel panel;
+    auto *stack = panel.findChild<QStackedWidget *>();
+    auto *shown = panel.findChild<QWidget *>(QStringLiteral("aiDisclaimer"));
+    QVERIFY(shown);
+    QCOMPARE(stack->currentWidget(), shown);
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QVERIFY(!panel.sendPrompt(QStringLiteral("hello")));
+    QVERIFY(!panel.session());
+    WhaleAiSettingsPage page;
+    auto *pages = page.findChild<QStackedWidget *>();
+    QCOMPARE(pages->currentWidget()->objectName(), QStringLiteral("aiDisclaimer"));
+
+    // The last part is about the warranty and liability of the GPL 2; the license is one click away.
+    const QString text = shown->findChild<QLabel *>(QStringLiteral("text"))->text();
+    QVERIFY(text.contains(QLatin1String("Your system, your responsibility.")));
+    QVERIFY(text.contains(QLatin1String("sections 11 and 12")));
+    shown->findChild<QToolButton *>(QStringLiteral("viewLicense"))->click();
+    auto *licenseDialog = panel.findChild<QDialog *>(QStringLiteral("licenseDialog"));
+    QVERIFY(licenseDialog);
+    QVERIFY(licenseDialog->findChild<QPlainTextEdit *>()->toPlainText().contains(QLatin1String("GNU GENERAL PUBLIC LICENSE")));
+    licenseDialog->close();
+
+    // Continue only once the user says they understand; accepted in the panel, gone in both.
+    auto *understood = shown->findChild<QCheckBox *>(QStringLiteral("understood"));
+    auto *proceed = shown->findChild<QPushButton *>(QStringLiteral("continue"));
+    QVERIFY(!proceed->isEnabled());
+    understood->click();
+    QVERIFY(proceed->isEnabled());
+    proceed->click();
+    QVERIFY(WhaleAiAgents::disclaimerAccepted());
+    QCOMPARE(stack->currentIndex(), 0);
+    QVERIFY(pages->currentWidget()->objectName() != QStringLiteral("aiDisclaimer"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+
+    // Not again, in a new panel or page.
+    WhaleAiPanel next;
+    QCOMPARE(next.findChild<QStackedWidget *>()->currentIndex(), 0);
+    WhaleAiSettingsPage nextPage;
+    QVERIFY(nextPage.findChild<QStackedWidget *>()->currentWidget()->objectName() != QStringLiteral("aiDisclaimer"));
+
+    // Accepted on the settings page: the panel follows.
+    WhaleAiAgents::setDisclaimerAccepted(false);
+    WhaleAiPanel third;
+    WhaleAiSettingsPage thirdPage;
+    QCOMPARE(third.findChild<QStackedWidget *>()->currentWidget()->objectName(), QStringLiteral("aiDisclaimer"));
+    auto *onPage = thirdPage.findChild<QWidget *>(QStringLiteral("aiDisclaimer"));
+    onPage->findChild<QCheckBox *>(QStringLiteral("understood"))->click();
+    onPage->findChild<QPushButton *>(QStringLiteral("continue"))->click();
+    QCOMPARE(third.findChild<QStackedWidget *>()->currentIndex(), 0);
 }
 
 void WhaleAiPanelTest::setupWithoutAgents()

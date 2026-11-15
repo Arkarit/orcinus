@@ -17,6 +17,7 @@ class QListWidget;
 class QMenu;
 class QPlainTextEdit;
 class QPushButton;
+class QStackedWidget;
 
 /**
  * @brief The "AI Agents" page of the settings dialog (AI2).
@@ -87,6 +88,7 @@ private:
     QStringList m_presetSearchPaths;
     int m_testTimeout = 30000;
 
+    QStackedWidget *m_pages = nullptr; ///< the disclaimer (AI5f), then the page
     QCheckBox *m_editPrompt = nullptr;
     QPlainTextEdit *m_prompt = nullptr;
     QPushButton *m_resetPrompt = nullptr;

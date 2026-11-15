@@ -52,6 +52,7 @@ target_link_libraries(whaleai PUBLIC
 target_sources(dolphinstatic PRIVATE
     whaleaiagentdialog.cpp
     whaleaicontextchips.cpp
+    whaleaidisclaimer.cpp
     whaleaipanel.cpp
     whaleaisettingspage.cpp
     whaleaitranscript.cpp

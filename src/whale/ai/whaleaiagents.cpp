@@ -25,6 +25,7 @@ const char NameKey[] = "Name";
 const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
+const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -33,7 +34,6 @@ const char ModeNamesKey[] = "ModeNames";
 const char ModeDescriptionsKey[] = "ModeDescriptions";
 const char SystemPromptKey[] = "SystemPrompt";
 const char CustomSystemPromptKey[] = "CustomSystemPrompt";
-const char LanguageKey[] = "Language";
 
 KConfigGroup aiGroup()
 {
@@ -421,6 +421,18 @@ void setCustomSystemPrompt(bool custom)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(CustomSystemPromptKey, custom);
+    group.sync();
+}
+
+bool disclaimerAccepted()
+{
+    return aiGroup().readEntry(DisclaimerAcceptedKey, false);
+}
+
+void setDisclaimerAccepted(bool accepted)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(DisclaimerAcceptedKey, accepted);
     group.sync();
 }
 }

@@ -38,7 +38,8 @@ class WhaleAiTranscript;
  * "New Conversation", when another agent is chosen, or when the panel goes. If the agent
  * fails, the next prompt starts it again in a new conversation.
  *
- * Without agents, the panel offers to set them up (configureRequested()).
+ * Without agents, the panel offers to set them up (configureRequested()). Before anything else,
+ * it shows the disclaimer until the user accepts it (WhaleAiDisclaimer, AI5f).
  *
  * Before the first message goes out, the conversation is switched to the agent's start mode:
  * the one the user chose last for it, otherwise its read-only mode (AI5). If that fails, or the
@@ -119,6 +120,8 @@ private:
     /** Answers a request for one of our own tools (AI6c). */
     bool answerOwnToolRequest(const WhaleAcpPermissionRequest &request);
     void fillAgents(const QString &preferredId);
+    /** The disclaimer until it is accepted (AI5f), then the setup without agents, else the chat. */
+    void updatePage();
     void agentChosen();
     bool startSession();
     void endSession();
