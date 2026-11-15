@@ -1,6 +1,6 @@
 # AI support (AI0–AI8)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). Next AI5e (access follows the view), then AI8 (documentation).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first.
 
 ## Problem
 
