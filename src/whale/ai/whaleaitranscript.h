@@ -10,6 +10,7 @@
 #include "whaleacptypes.h"
 
 #include <QHash>
+#include <QPointer>
 #include <QScrollArea>
 
 class QLabel;
@@ -62,6 +63,8 @@ public:
      */
     bool focusPermissionRequest(const QString &key);
     /** The request @p key needs no answer any more: its buttons go. */
+    /** Where the focus goes when a focused permission request is answered or withdrawn (the input). */
+    void setFocusReturn(QWidget *widget);
     void withdrawPermissionRequest(const QString &key);
     /** A message of the panel; @p details (plain text) can be unfolded. */
     void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString());
@@ -102,6 +105,7 @@ private:
     QHash<QString, ToolCallEntry> m_toolCalls;
     QHash<QString, QWidget *> m_permissions;
     bool m_followBottom = true;
+    QPointer<QWidget> m_focusReturn;
 };
 
 #endif

@@ -120,6 +120,8 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    /** @return @p actions, giving the focus back to the input if it had it (the user is typing). */
+    WhaleAiViewActions keepingInputFocus(const WhaleAiViewActions &actions);
     /** Where the user is: from the provider, else the panel's folder. */
     WhaleAiContext currentContext() const;
     /** Answers a request for one of our own tools (AI6c). */

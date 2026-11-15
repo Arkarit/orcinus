@@ -27,6 +27,7 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTimer>
@@ -178,6 +179,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     });
 
     setFocusProxy(m_input);
+    m_transcript->setFocusReturn(m_input);
     fillAgents(WhaleAiAgents::defaultAgentId());
     greet();
     updateState();
@@ -265,8 +267,44 @@ void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
 {
     m_viewActions = actions;
     if (m_mcp) {
-        m_mcp->setViewActions(actions);
+        m_mcp->setViewActions(keepingInputFocus(actions));
     }
+}
+
+WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &actions)
+{
+    // What the agent does in the window (open a folder, switch the view, choose a split view)
+    // moves the focus there, as it would for the user. The user is typing here, though: if the
+    // input had the focus, it gets it back, also after what the window does later on its own.
+    auto wrap = [this](auto function) {
+        return [this, function](auto &&...arguments) {
+            // Also while the user is in another window: then it has no focus, but is the focus widget.
+            const bool hadFocus = m_input->hasFocus() || m_input->window()->focusWidget() == m_input;
+            auto restore = qScopeGuard([this, hadFocus] {
+                if (hadFocus) {
+                    m_input->setFocus(Qt::OtherFocusReason);
+                    QTimer::singleShot(0, m_input, [input = m_input] {
+                        input->setFocus(Qt::OtherFocusReason);
+                    });
+                }
+            });
+            return function(std::forward<decltype(arguments)>(arguments)...);
+        };
+    };
+    WhaleAiViewActions result = actions;
+    if (actions.openFolder) {
+        result.openFolder = wrap(actions.openFolder);
+    }
+    if (actions.select) {
+        result.select = wrap(actions.select);
+    }
+    if (actions.trigger) {
+        result.trigger = wrap(actions.trigger);
+    }
+    if (actions.activatePane) {
+        result.activatePane = wrap(actions.activatePane);
+    }
+    return result;
 }
 
 void WhaleAiPanel::refreshContext()
@@ -375,7 +413,7 @@ bool WhaleAiPanel::startSession()
         mcp->setContextProvider([this] {
             return currentContext();
         });
-        mcp->setViewActions(m_viewActions);
+        mcp->setViewActions(keepingInputFocus(m_viewActions));
         connect(mcp, &WhaleAiMcpServer::locationSet, this, [this](const QString &folder) {
             m_transcript->addNotice(i18nc("@info %1 is a folder", "The agent opened %1.", folder));
         });

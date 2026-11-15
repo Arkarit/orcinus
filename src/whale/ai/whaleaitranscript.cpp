@@ -8,6 +8,7 @@
 
 #include <KLocalizedString>
 
+#include <QApplication>
 #include <QEvent>
 #include <QFontDatabase>
 #include <QFrame>
@@ -512,7 +513,12 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
         button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
         buttonLayout->addWidget(button);
         connect(button, &QPushButton::clicked, this, [this, key = request.key, option, buttons, answer] {
+            // Hiding the focused button would pass the focus on to the next widget, often the file view.
+            const bool hadFocus = buttons->isAncestorOf(QApplication::focusWidget());
             buttons->hide();
+            if (hadFocus && m_focusReturn) {
+                m_focusReturn->setFocus(Qt::OtherFocusReason);
+            }
             answer->setText(i18nc("@info the option the user chose for a permission request", "Answered: %1", option.name));
             answer->show();
             m_permissions.remove(key);
@@ -549,13 +555,23 @@ bool WhaleAiTranscript::focusPermissionRequest(const QString &key)
     return false;
 }
 
+void WhaleAiTranscript::setFocusReturn(QWidget *widget)
+{
+    m_focusReturn = widget;
+}
+
 void WhaleAiTranscript::withdrawPermissionRequest(const QString &key)
 {
     QWidget *frame = m_permissions.take(key);
     if (!frame) {
         return;
     }
-    frame->findChild<QWidget *>(QStringLiteral("buttons"))->hide();
+    QWidget *buttons = frame->findChild<QWidget *>(QStringLiteral("buttons"));
+    const bool hadFocus = buttons->isAncestorOf(QApplication::focusWidget());
+    buttons->hide();
+    if (hadFocus && m_focusReturn) {
+        m_focusReturn->setFocus(Qt::OtherFocusReason);
+    }
     auto *answer = frame->findChild<QLabel *>(QStringLiteral("answer"));
     answer->setText(i18nc("@info a permission request of an AI agent", "No longer needed."));
     answer->show();

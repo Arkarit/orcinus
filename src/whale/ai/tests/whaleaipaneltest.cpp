@@ -29,6 +29,7 @@
 #include <QDragEnterEvent>
 #include <QFile>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -38,6 +39,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
+#include <QVBoxLayout>
 
 #include <memory>
 
@@ -83,6 +85,7 @@ private Q_SLOTS:
     void elideChipText();
 
     void backChannel();
+    void inputKeepsFocus();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
@@ -1038,6 +1041,57 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY(QFileInfo::exists(socket));
     panel.newConversation();
     QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(socket), 15000);
+}
+
+void WhaleAiPanelTest::inputKeepsFocus()
+{
+    // The window takes the focus when the agent runs a command; the user typing here keeps it.
+    QWidget window;
+    auto *layout = new QVBoxLayout(&window);
+    auto *view = new QLineEdit(&window);
+    auto *other = new QLineEdit(&window);
+    auto *panel = new WhaleAiPanel(&window);
+    layout->addWidget(view);
+    layout->addWidget(other);
+    layout->addWidget(panel);
+    panel->setUrl(QUrl::fromLocalFile(m_work.path()));
+    WhaleAiViewActions viewActions;
+    viewActions.actions = [] {
+        return QList<WhaleAiUiAction>{{QStringLiteral("details"), QStringLiteral("Details"), {}, QStringLiteral("View"), true, false, true, true}};
+    };
+    viewActions.trigger = [view](const QString &) {
+        view->setFocus();
+    };
+    panel->setViewActions(viewActions);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowActive(&window));
+    auto *input = panel->findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    QVERIFY(input);
+
+    input->setFocus();
+    QTRY_VERIFY(input->hasFocus());
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(*panel));
+    QTRY_VERIFY(input->hasFocus());
+
+    // Somewhere else: the command takes the focus, as it would for the user.
+    other->setFocus();
+    QTRY_VERIFY(other->hasFocus());
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(*panel));
+    QTRY_VERIFY(view->hasFocus());
+
+    // Answering a permission request on its focused button: the focus goes back to the input,
+    // not on to the next widget.
+    QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
+    QWidget *permission = waitForPermission(*panel);
+    QVERIFY(permission);
+    auto *no = permission->findChild<QPushButton *>(QStringLiteral("option-no"));
+    no->setFocus();
+    QTRY_VERIFY(no->hasFocus());
+    no->click();
+    QTRY_VERIFY(input->hasFocus());
+    QVERIFY(waitForReady(*panel));
 }
 
 #include "whaleaipaneltest.moc"
