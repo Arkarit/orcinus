@@ -1062,6 +1062,20 @@ void WhaleAiPanelTest::sandbox()
     panel.newConversation();
     QVERIFY(!shared->isVisibleTo(&panel));
     QVERIFY(!panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-other"))->property("noAccess").toBool());
+
+    // Started in the home folder: the agent works there but does not get it shared.
+    panel.setContextProvider({});
+    panel.setUrl(QUrl::fromLocalFile(QDir::homePath()));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QStringLiteral("Fake basic works in %1 but cannot reach your files there").arg(QDir::homePath())), qPrintable(texts(panel)));
+    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":false,\"folder\":\"%1\"};").arg(QDir::homePath())), qPrintable(texts(panel)));
+    QVERIFY(shared->text().contains(QLatin1String("none of your folders")));
+    QWidget *homeChip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
+    QVERIFY(homeChip && homeChip->property("noAccess").toBool());
+    // A folder inside it is followed as usual.
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QTRY_VERIFY2(shared->text().contains(QLatin1String("(open)")), qPrintable(shared->text()));
 }
 
 void WhaleAiPanelTest::backChannel()

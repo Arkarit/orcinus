@@ -686,7 +686,10 @@ Steps:
   (the helper works in order). Navigating into a subfolder of a followed folder shrinks the share
   to the subfolder once the agent is idle.
   *Provisional* (open question above): the home folder and anything above it are not followed;
-  the folder chip offers "Give Access" there instead.
+  the folder chip offers "Give Access" there instead. Fixed the same day (user found it): this
+  held only for following, a conversation started in `~` still shared all of it as its start
+  folder. Now the start folder is not shared either when it is the home folder or above; the
+  agent's `cwd` is still that path (its sandbox view: only its own folders), a notice says why.
   The "shared" line: start folder "(started here)", followed folder "(open)" or "(until this
   answer ends)", user-given folders with "(remove)". The folder chip shows only when the agent
   cannot reach the folder shown (with "Give Access"); the folder still goes with every message.

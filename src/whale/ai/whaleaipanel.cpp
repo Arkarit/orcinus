@@ -38,6 +38,12 @@
 
 namespace
 {
+/** @return Whether @p folder is the home folder or above it: shared, it would share hidden settings and keys too (AI5e). */
+bool isHomeOrAbove(const QString &folder)
+{
+    return WhaleAiSandbox::isInside(QDir::cleanPath(QDir::homePath()), {folder});
+}
+
 enum Page {
     ChatPage,
     SetupPage,
@@ -355,9 +361,14 @@ bool WhaleAiPanel::startSession()
 
     QString directory = QDir::homePath();
     QStringList shared;
+    bool homeKept = false;
     if (url().isLocalFile() && QFileInfo(url().toLocalFile()).isDir()) {
         directory = QDir::cleanPath(url().toLocalFile());
-        shared.append(directory);
+        // Like the folder shown later (followTarget()): not the home folder or above.
+        homeKept = !agent.allFolders && isHomeOrAbove(directory);
+        if (!homeKept) {
+            shared.append(directory);
+        }
     }
 
     // The back channel (AI6); the agent works without it if it cannot be set up.
@@ -460,6 +471,13 @@ bool WhaleAiPanel::startSession()
     if (agent.allFolders) {
         m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder",
                                       "%1 works in %2 and can reach all your folders, with no sandbox.",
+                                      agent.name,
+                                      directory));
+    } else if (homeKept) {
+        m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder",
+                                      "%1 works in %2 but cannot reach your files there: the home folder and the folders above it hold "
+                                      "hidden settings and keys the view does not show, so the sandbox does not share them. Open a folder "
+                                      "inside it for the agent, or give it access with the folder chip.",
                                       agent.name,
                                       directory));
     } else if (shared.isEmpty()) {
@@ -971,7 +989,7 @@ QString WhaleAiPanel::followTarget() const
     // For now not the home folder or above it: that would share its hidden files too (~/.ssh,
     // keyrings, browser profiles), which the view does not show. "Give Access" on the folder
     // chip still does it. Open question of AI5e.
-    if (WhaleAiSandbox::isInside(QDir::cleanPath(QDir::homePath()), {folder})) {
+    if (isHomeOrAbove(folder)) {
         return QString();
     }
     // Inside the folder of the conversation or one the user gave: nothing more to share.
