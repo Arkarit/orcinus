@@ -136,3 +136,10 @@ path = "website/fonts/BowlbyOneSC-Regular.ttf"
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2011 Vernon Adams <vern@newtypography.co.uk>"
 SPDX-License-Identifier = "OFL-1.1"
+
+# Linux problem knowledge base entries — start with YAML front matter, so no comment header.
+[[annotations]]
+path = "docs/knowledge-base/entries/*.md"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Orcinus contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
