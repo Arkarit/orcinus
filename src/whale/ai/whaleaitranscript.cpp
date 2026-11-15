@@ -577,11 +577,12 @@ void WhaleAiTranscript::withdrawPermissionRequest(const QString &key)
     answer->show();
 }
 
-void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString &details)
+void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString &details, const QString &toolTip)
 {
     endTurn();
     QLabel *label = createTextLabel(Qt::PlainText);
     label->setText(text);
+    label->setToolTip(toolTip);
     QFont italic = label->font();
     italic.setItalic(kind == Kind::Notice);
     label->setFont(italic);

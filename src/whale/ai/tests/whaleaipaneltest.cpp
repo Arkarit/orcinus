@@ -1000,7 +1000,13 @@ void WhaleAiPanelTest::backChannel()
     QCOMPARE(opened, QStringList{m_work.filePath(QStringLiteral("sub"))});
     QCOMPARE(selection, QStringList{selected});
     QString all = texts(panel);
-    QVERIFY2(all.contains(QStringLiteral("The agent opened %1.").arg(m_work.filePath(QStringLiteral("sub")))), qPrintable(all));
+    // The name only; the path in the tooltip.
+    QVERIFY2(all.contains(QStringLiteral("The agent opened “sub”.")), qPrintable(all));
+    bool tooltip = false;
+    for (const QLabel *label : panel.transcript()->findChildren<QLabel *>()) {
+        tooltip = tooltip || (label->text() == QStringLiteral("The agent opened “sub”.") && label->toolTip() == m_work.filePath(QStringLiteral("sub")));
+    }
+    QVERIFY(tooltip);
     QVERIFY2(all.contains(QLatin1String("The agent selected 1 item.")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("\"notFound\":[\"missing\"],\"selected\":1")), qPrintable(all));
 
@@ -1025,6 +1031,17 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY2(all.contains(QStringLiteral("The agent used View ▸ View Mode ▸ Details.")), qPrintable(all));
     QVERIFY2(all.contains(QStringLiteral("The agent turned on View ▸ Show Hidden Files.")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("not available")), qPrintable(all));
+
+    // In split view the notices say which view.
+    viewActions.activePane = [] {
+        return 1;
+    };
+    panel.setViewActions(viewActions);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_location:%1 mcp:get_location").arg(m_work.filePath(QStringLiteral("sub")))));
+    QVERIFY(waitForReady(panel));
+    all = texts(panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent opened “sub” in the right view.")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("\"activeView\":\"right\"")), qPrintable(all));
 
     // Requests for our own tools are answered at once, as each agent asks; others are not.
     for (const char *agent : {"claude", "codex", "opencode"}) {

@@ -30,6 +30,8 @@ struct WhaleAiViewActions {
     std::function<void(const QString &name)> trigger;
     /** Makes the left (0) or right (1) view of the split view active; false without split view. */
     std::function<bool(int pane)> activatePane;
+    /** The active view: left (0) or right (1) in split view, -1 without split view. */
+    std::function<int()> activePane;
 };
 
 class QLocalServer;

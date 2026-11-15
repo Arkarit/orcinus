@@ -67,7 +67,7 @@ public:
     void setFocusReturn(QWidget *widget);
     void withdrawPermissionRequest(const QString &key);
     /** A message of the panel; @p details (plain text) can be unfolded. */
-    void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString());
+    void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString(), const QString &toolTip = QString());
     /** Ends the current answer and thought: what the agent sends next starts new entries. */
     void endTurn();
     void clear();

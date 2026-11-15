@@ -271,6 +271,11 @@ void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
     }
 }
 
+int WhaleAiPanel::activePane() const
+{
+    return m_viewActions.activePane ? m_viewActions.activePane() : -1;
+}
+
 WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &actions)
 {
     // What the agent does in the window (open a folder, switch the view, choose a split view)
@@ -415,10 +420,38 @@ bool WhaleAiPanel::startSession()
         });
         mcp->setViewActions(keepingInputFocus(m_viewActions));
         connect(mcp, &WhaleAiMcpServer::locationSet, this, [this](const QString &folder) {
-            m_transcript->addNotice(i18nc("@info %1 is a folder", "The agent opened %1.", folder));
+            // The name only (paths get long); the path in the tooltip.
+            const QString name = QDir(folder).dirName().isEmpty() ? folder : QDir(folder).dirName();
+            switch (activePane()) {
+            case 0:
+                m_transcript->addNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the left view.", name),
+                                        WhaleAiTranscript::Kind::Notice,
+                                        {},
+                                        folder);
+                break;
+            case 1:
+                m_transcript->addNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the right view.", name),
+                                        WhaleAiTranscript::Kind::Notice,
+                                        {},
+                                        folder);
+                break;
+            default:
+                m_transcript->addNotice(i18nc("@info %1 is a folder name", "The agent opened “%1”.", name), WhaleAiTranscript::Kind::Notice, {}, folder);
+            }
         });
         connect(mcp, &WhaleAiMcpServer::itemsSelected, this, [this](int count) {
-            m_transcript->addNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
+            switch (activePane()) {
+            case 0:
+                m_transcript->addNotice(
+                    i18ncp("@info", "The agent selected %1 item in the left view.", "The agent selected %1 items in the left view.", count));
+                break;
+            case 1:
+                m_transcript->addNotice(
+                    i18ncp("@info", "The agent selected %1 item in the right view.", "The agent selected %1 items in the right view.", count));
+                break;
+            default:
+                m_transcript->addNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
+            }
         });
         connect(mcp, &WhaleAiMcpServer::actionTriggered, this, [this](const WhaleAiUiAction &action) {
             const QString command = action.menu.isEmpty() ? action.text : action.menu + QStringLiteral(" ▸ ") + action.text;

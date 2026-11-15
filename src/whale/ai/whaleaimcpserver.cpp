@@ -114,8 +114,8 @@ QJsonArray tools()
     return {
         tool(QStringLiteral("get_location"),
              QStringLiteral("Get the folder shown in Orcinus"),
-             QStringLiteral("Returns the folder the user has open in the active view of the Orcinus file manager, and the folder of the other "
-                            "split view if there is one."),
+             QStringLiteral("Returns the folder the user has open in the active view of the Orcinus file manager, and in split view the "
+                            "folder of the other view and which one is active (left or right)."),
              true),
         tool(QStringLiteral("get_selection"),
              QStringLiteral("Get the items selected in Orcinus"),
@@ -655,6 +655,10 @@ QJsonObject WhaleAiMcpServer::location()
     }
     if (!context.otherFolder.isEmpty()) {
         result.insert(QStringLiteral("otherFolder"), context.otherFolder);
+    }
+    const int pane = m_viewActions.activePane ? m_viewActions.activePane() : -1;
+    if (pane >= 0) {
+        result.insert(QStringLiteral("activeView"), pane == 0 ? QStringLiteral("left") : QStringLiteral("right"));
     }
     return result;
 }

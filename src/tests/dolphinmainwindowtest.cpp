@@ -2957,7 +2957,7 @@ void DolphinMainWindowTest::testAiAgentCommands()
     auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
     QVERIFY(panel);
     const WhaleAiViewActions &actions = panel->viewActions();
-    QVERIFY(actions.actions && actions.trigger && actions.activatePane);
+    QVERIFY(actions.actions && actions.trigger && actions.activatePane && actions.activePane);
 
     const QList<WhaleAiUiAction> all = actions.actions();
     QHash<QString, WhaleAiUiAction> byName;
@@ -2993,10 +2993,12 @@ void DolphinMainWindowTest::testAiAgentCommands()
 
     // A view can be chosen only in split view.
     QVERIFY(!actions.activatePane(1));
+    QCOMPARE(actions.activePane(), -1);
     auto tabPage = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget")->currentTabPage();
     tabPage->setSplitViewEnabled(true, WithoutAnimation);
     QVERIFY(actions.activatePane(1));
     QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->secondaryViewContainer());
+    QCOMPARE(actions.activePane(), 1);
     QVERIFY(actions.activatePane(0));
     QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->primaryViewContainer());
 }

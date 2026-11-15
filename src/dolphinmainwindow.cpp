@@ -2793,6 +2793,13 @@ void DolphinMainWindow::setupDockWidgets()
             container->setActive(true);
             return true;
         },
+        [this] {
+            DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+            if (!tabPage || !tabPage->splitViewEnabled()) {
+                return -1;
+            }
+            return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
+        },
     });
     // While the panel is hidden it asks when it is shown again.
     auto refreshAiContext = [aiPanel] {
