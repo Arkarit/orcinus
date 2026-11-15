@@ -30,6 +30,7 @@
 #include "panels/terminal/terminalpanel.h"
 #if WHALE_ENABLE_AI
 #include "whaleaipanel.h"
+#include "whaleaiwindowtools.h"
 #endif
 #include "search/dolphinquery.h"
 #include "selectionmode/actiontexthelper.h"
@@ -2800,6 +2801,7 @@ void DolphinMainWindow::setupDockWidgets()
             }
             return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
         },
+        WhaleAiWindowTools::create(this),
     });
     // While the panel is hidden it asks when it is shown again.
     auto refreshAiContext = [aiPanel] {

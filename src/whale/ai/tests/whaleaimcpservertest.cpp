@@ -40,6 +40,7 @@ private Q_SLOTS:
     void access();
     void listActions();
     void triggerAction();
+    void windowTools();
     void ownTool();
     void socketFolder();
     void relay();
@@ -487,6 +488,59 @@ void WhaleAiMcpServerTest::triggerAction()
     QCOMPARE(window.triggered.count(QStringLiteral("go_home")), 2);
 }
 
+void WhaleAiMcpServerTest::windowTools()
+{
+    WhaleAiMcpServer server;
+    QStringList called;
+    auto make = [&called](const QString &name, const QString &notice) {
+        WhaleAiWindowTool tool;
+        tool.name = name;
+        tool.title = name;
+        tool.description = QStringLiteral("A tool");
+        tool.call = [&called, name, notice](const QJsonObject &arguments, bool *error, QString *text) {
+            called.append(name);
+            if (arguments.contains(QLatin1String("fail"))) {
+                *error = true;
+                return QJsonObject();
+            }
+            *text = notice;
+            return QJsonObject{{QStringLiteral("done"), name}};
+        };
+        return tool;
+    };
+    WhaleAiViewActions actions;
+    // Only the names the server knows are offered: they are answered without a click.
+    actions.windowTools = {make(QStringLiteral("set_split_ratio"), QStringLiteral("Divided.")), make(QStringLiteral("delete_everything"), QString())};
+    server.setViewActions(actions);
+    const QJsonArray tools = request(server, QStringLiteral("tools/list")).value(QLatin1String("result")).toObject().value(QLatin1String("tools")).toArray();
+    QStringList names;
+    for (const QJsonValue &tool : tools) {
+        names.append(tool.toObject().value(QLatin1String("name")).toString());
+    }
+    QVERIFY(names.contains(QStringLiteral("set_split_ratio")));
+    QVERIFY(!names.contains(QStringLiteral("delete_everything")));
+    QCOMPARE(request(server, QStringLiteral("tools/call"), {{QStringLiteral("name"), QStringLiteral("delete_everything")}})
+                 .value(QLatin1String("error"))
+                 .toObject()
+                 .value(QLatin1String("code"))
+                 .toInt(),
+             -32602);
+    QVERIFY(called.isEmpty());
+
+    QSignalSpy used(&server, &WhaleAiMcpServer::windowToolUsed);
+    bool error = false;
+    QJsonObject result = toolResult(server, QStringLiteral("set_split_ratio"), {}, &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("done")).toString(), QStringLiteral("set_split_ratio"));
+    QCOMPARE(used.count(), 1);
+    QCOMPARE(used.first().first().toString(), QStringLiteral("Divided."));
+    // A failure without its own message still says something; no transcript line.
+    result = toolResult(server, QStringLiteral("set_split_ratio"), {{QStringLiteral("fail"), true}}, &error);
+    QVERIFY(error);
+    QVERIFY(!result.value(QLatin1String("error")).toString().isEmpty());
+    QCOMPARE(used.count(), 1);
+}
+
 void WhaleAiMcpServerTest::ownTool()
 {
     // As the agents of AI6b ask.
@@ -508,6 +562,8 @@ void WhaleAiMcpServerTest::ownTool()
     QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("select_items"));
     opencode.title = QStringLiteral("orcinus_trigger_action");
     QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("trigger_action"));
+    opencode.title = QStringLiteral("orcinus_open_in_viewer");
+    QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("open_in_viewer"));
     opencode.title = QStringLiteral("orcinus_select_items");
 
     // Not ours: another server, an unknown tool, a command titled like ours, files named.

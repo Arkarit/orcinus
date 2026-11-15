@@ -30,19 +30,25 @@
 #include "views/zoomlevelinfo.h"
 #include "whaleaipanel.h"
 #include "whalesplitviewstartup.h"
+#include "whaleviewer.h"
 
 #include <KActionCollection>
 #include <KConfig>
 #include <KConfigGui>
 #include <KFileItem>
+#include <KMessageWidget>
 #include <KProtocolManager>
 #include <KStandardAction>
 
 #include <QAccessible>
 #include <QApplication>
 #include <QComboBox>
+#include <QDockWidget>
 #include <QDomDocument>
 #include <QFileSystemWatcher>
+#include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QKeySequence>
 #include <QPixmap>
 #include <QScopeGuard>
@@ -130,6 +136,7 @@ private Q_SLOTS:
     void testRestoreStateKeepsTheActiveSplitPane();
     void testFileItemActionsOutliveContextMenu();
     void testAiAgentCommands();
+    void testAiWindowTools();
     void cleanupTestCase();
 
 private:
@@ -3001,4 +3008,130 @@ void DolphinMainWindowTest::testAiAgentCommands()
     QCOMPARE(actions.activePane(), 1);
     QVERIFY(actions.activatePane(0));
     QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->primaryViewContainer());
+}
+void DolphinMainWindowTest::testAiWindowTools()
+{
+    // The window tools of the agent (AI9): what the commands of the window do not cover.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    QImage image(16, 16, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(testDir->path() + QStringLiteral("/a.png")));
+    QVERIFY(image.save(testDir->path() + QStringLiteral("/b.png")));
+    testDir->createFile(QStringLiteral("c.txt"));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    QTRY_COMPARE(view->items().count(), 3);
+
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    QCOMPARE(QSet<QString>(tools.keyBegin(), tools.keyEnd()),
+             QSet<QString>(WhaleAiMcpServer::windowToolNames().cbegin(), WhaleAiMcpServer::windowToolNames().cend()));
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+
+    // State: window, panels, split view, messages, viewer.
+    QJsonObject state = call(QStringLiteral("get_window_state"), {}, &error);
+    QVERIFY(!error);
+    QCOMPARE(state.value(QLatin1String("window")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("normal"));
+    QCOMPARE(state.value(QLatin1String("splitView")).toObject().value(QLatin1String("enabled")).toBool(), false);
+    QVERIFY(state.value(QLatin1String("messages")).toArray().isEmpty());
+    QCOMPARE(state.value(QLatin1String("viewer")).toObject().value(QLatin1String("open")).toBool(), false);
+    QStringList panelIds;
+    for (const QJsonValue &entry : state.value(QLatin1String("panels")).toArray()) {
+        panelIds.append(entry.toObject().value(QLatin1String("id")).toString());
+    }
+    QVERIFY(panelIds.contains(QStringLiteral("places")));
+    QVERIFY(panelIds.contains(QStringLiteral("ai")));
+
+    // Window: a size; no minimizing.
+    call(QStringLiteral("set_window_state"), {{QStringLiteral("width"), 700}, {QStringLiteral("height"), 500}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_COMPARE(m_mainWindow->size(), QSize(700, 500));
+    QVERIFY(notice.contains(QLatin1String("700")));
+    call(QStringLiteral("set_window_state"), {{QStringLiteral("state"), QStringLiteral("minimized")}}, &error);
+    QVERIFY(error);
+    QVERIFY(!m_mainWindow->isMinimized());
+    call(QStringLiteral("set_window_state"), {{QStringLiteral("width"), 900}}, &error);
+    QVERIFY(error);
+
+    // Panel width: only a visible panel.
+    auto *places = m_mainWindow->findChild<QDockWidget *>(QStringLiteral("placesDock"));
+    QVERIFY(places);
+    places->show();
+    QTRY_VERIFY(places->isVisible());
+    call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("places")}, {QStringLiteral("width"), 250}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_COMPARE(places->width(), 250);
+    places->hide();
+    call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("places")}, {QStringLiteral("width"), 200}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("nope")}, {QStringLiteral("width"), 200}}, &error);
+    QVERIFY(error);
+
+    // Split view.
+    call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.3}}, &error);
+    QVERIFY(error);
+    DolphinTabPage *tabPage = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget")->currentTabPage();
+    tabPage->setSplitViewEnabled(true, WithoutAnimation);
+    QTRY_VERIFY(tabPage->secondaryViewContainer() && tabPage->secondaryViewContainer()->isVisible());
+    call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.3}}, &error, &notice);
+    QVERIFY(!error);
+    auto leftShare = [&] {
+        bool unused = false;
+        return call(QStringLiteral("get_window_state"), {}, &unused).value(QLatin1String("splitView")).toObject().value(QLatin1String("leftShare")).toDouble();
+    };
+    QTRY_VERIFY(qAbs(leftShare() - 0.3) < 0.03);
+    call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.95}}, &error);
+    QVERIFY(error);
+
+    // Messages: listed with their view, closed like their close button.
+    DolphinViewContainer *right = tabPage->secondaryViewContainer();
+    right->showMessage(QStringLiteral("Something happened"), KMessageWidget::Warning);
+    QTRY_VERIFY(!call(QStringLiteral("get_window_state"), {}, &error).value(QLatin1String("messages")).toArray().isEmpty());
+    state = call(QStringLiteral("get_window_state"), {}, &error);
+    const QJsonObject message = state.value(QLatin1String("messages")).toArray().first().toObject();
+    QCOMPARE(message.value(QLatin1String("view")).toString(), QStringLiteral("right"));
+    QCOMPARE(message.value(QLatin1String("text")).toString(), QStringLiteral("Something happened"));
+    call(QStringLiteral("dismiss_message"), {{QStringLiteral("view"), QStringLiteral("left")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("dismiss_message"), {{QStringLiteral("view"), QStringLiteral("right")}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_VERIFY(call(QStringLiteral("get_window_state"), {}, &error).value(QLatin1String("messages")).toArray().isEmpty());
+    tabPage->setSplitViewEnabled(false, WithoutAnimation);
+
+    // Viewer: an image of the active view's folder, paging, closing; not a text file.
+    call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("next")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("open_in_viewer"), {{QStringLiteral("item"), QStringLiteral("c.txt")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("open_in_viewer"), {{QStringLiteral("item"), QStringLiteral("missing.png")}}, &error);
+    QVERIFY(error);
+    state = call(QStringLiteral("open_in_viewer"), {{QStringLiteral("item"), QStringLiteral("a.png")}}, &error, &notice);
+    QVERIFY2(!error, qPrintable(QJsonDocument(state).toJson()));
+    QVERIFY(WhaleViewer::instance());
+    QCOMPARE(state.value(QLatin1String("file")).toString(), testDir->path() + QStringLiteral("/a.png"));
+    state = call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("next")}}, &error, &notice);
+    QVERIFY(!error);
+    QCOMPARE(state.value(QLatin1String("file")).toString(), testDir->path() + QStringLiteral("/b.png"));
+    QVERIFY(notice.contains(QLatin1String("b.png")));
+    call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("pause")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("close")}}, &error);
+    QVERIFY(!error);
+    QTRY_VERIFY(!WhaleViewer::instance());
 }

@@ -234,10 +234,34 @@ QString WhaleAiMcpServer::name()
     return QStringLiteral("orcinus");
 }
 
+const QStringList &WhaleAiMcpServer::windowToolNames()
+{
+    // Each changes only what the user sees (or reads it), no file: answered without a click.
+    static const QStringList names{QStringLiteral("get_window_state"),
+                                   QStringLiteral("set_window_state"),
+                                   QStringLiteral("set_panel_width"),
+                                   QStringLiteral("set_split_ratio"),
+                                   QStringLiteral("dismiss_message"),
+                                   QStringLiteral("open_in_viewer"),
+                                   QStringLiteral("control_viewer")};
+    return names;
+}
+
+QList<WhaleAiWindowTool> WhaleAiMcpServer::windowTools() const
+{
+    QList<WhaleAiWindowTool> result;
+    for (const WhaleAiWindowTool &tool : m_viewActions.windowTools) {
+        if (windowToolNames().contains(tool.name) && tool.call) {
+            result.append(tool);
+        }
+    }
+    return result;
+}
+
 QString WhaleAiMcpServer::ownTool(const WhaleAcpToolCall &toolCall)
 {
     auto known = [](const QString &tool) {
-        return toolNames().contains(tool) ? tool : QString();
+        return toolNames().contains(tool) || windowToolNames().contains(tool) ? tool : QString();
     };
     // Claude Agent: the MCP server and the tool in its own _meta.
     const QJsonObject claude = toolCall.meta.value(QLatin1String("claudeCode")).toObject();
@@ -423,7 +447,11 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
         return response(id, QJsonObject());
     }
     if (method == QLatin1String("tools/list")) {
-        return response(id, {{QStringLiteral("tools"), tools()}});
+        QJsonArray all = tools();
+        for (const WhaleAiWindowTool &windowTool : windowTools()) {
+            all.append(tool(windowTool.name, windowTool.title, windowTool.description, windowTool.readOnly, windowTool.properties, windowTool.required));
+        }
+        return response(id, {{QStringLiteral("tools"), all}});
     }
     if (method == QLatin1String("tools/call")) {
         const QString name = params.value(QLatin1String("name")).toString();
@@ -463,6 +491,16 @@ QJsonObject WhaleAiMcpServer::callTool(const QString &name, const QJsonObject &a
     if (name == QLatin1String("trigger_action")) {
         const QJsonObject result = triggerAction(arguments, &error);
         return toolResult(result, error);
+    }
+    for (const WhaleAiWindowTool &windowTool : windowTools()) {
+        if (windowTool.name == name) {
+            QString notice;
+            const QJsonObject result = windowTool.call(arguments, &error, &notice);
+            if (!error && !notice.isEmpty()) {
+                Q_EMIT windowToolUsed(notice);
+            }
+            return toolResult(error && !result.contains(QLatin1String("error")) ? toolError(QStringLiteral("It did not work.")) : result, error);
+        }
     }
     *known = false;
     return QJsonObject();

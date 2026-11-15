@@ -1,6 +1,6 @@
 # AI support (AI0–AI9)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15; AI9b tools done 2026-11-15, real agent test open.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15; AI9b done 2026-11-16 (incl. findings of the real agent test).
 
 ## Problem
 
@@ -851,7 +851,27 @@ paths, trigger, pane).
 - **Weak point:** the block list is generic-allow. A new dangerous action added later is allowed
   until it is listed. Review the list when adding actions (note in the header of
   `whaleaiuiactions.h`).
-- Open in AI9b: test with a real agent (together with the user, on the host, isolated profile).
+- Real agent test (2026-11-15, user, Codex + Claude "Elfie" tour, host, isolated profile): the
+  commands work (profiles, view modes, split, hidden files). Codex, missing a way to close a
+  message, fell back to qdbus on the user's *other* Orcinus instance (stopped at the permission
+  request). Findings, all done 2026-11-16:
+  1. System prompt + MCP instructions: Orcinus only through the tools, never D-Bus / input
+     automation; say when a tool is missing.
+  2. Messages: `get_window_state` lists them (view, type, text), `dismiss_message` closes them.
+  3. Window: `set_window_state` (normal / maximized / fullscreen, width × height); no minimizing
+     (the conversation would vanish), no moving (Wayland).
+  4. `set_panel_width` (visible panels), `set_split_ratio`.
+  5. Viewer: `open_in_viewer` (item of the active view), `control_viewer` (next, previous,
+     first, last, play, pause, close); state in `get_window_state`.
+  6. Focus: the input keeps it — after a focused permission button is answered (Qt passed it on
+     to the file view) and after the agent's commands.
+  7. Transcript names the folder (path in the tooltip) and the view in split view;
+     `get_location` returns `activeView`.
+  8. "Actions" checkbox filters tool calls and action lines; permission requests stay.
+- Window tools: `WhaleAiWindowTool` (name, schema, call) supplied by the window
+  (`whaleaiwindowtools.cpp`); the server offers only names in `windowToolNames()` (they are
+  answered without a click), so a window cannot add tools by mistake. `get_window_state` is the
+  start of AI9c (UI state).
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).

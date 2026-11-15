@@ -57,6 +57,7 @@ target_sources(dolphinstatic PRIVATE
     whaleaipanel.cpp
     whaleaisettingspage.cpp
     whaleaitranscript.cpp
+    whaleaiwindowtools.cpp
 )
 target_link_libraries(dolphinstatic whaleai)
 

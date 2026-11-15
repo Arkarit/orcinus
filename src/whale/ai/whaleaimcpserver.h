@@ -18,6 +18,25 @@
 #include <functional>
 #include <memory>
 
+/**
+ * A tool of the back channel that the window implements (AI9: window, panels, messages, viewer).
+ * Only the names in WhaleAiMcpServer::windowToolNames() are offered; texts for the agent are English.
+ */
+struct WhaleAiWindowTool {
+    QString name;
+    QString title;
+    QString description;
+    bool readOnly = false;
+    /** The JSON schema properties of the arguments, and which are required. */
+    QJsonObject properties;
+    QStringList required;
+    /**
+     * Runs the tool. Sets @p error on wrong arguments or when it cannot be done, and @p notice to
+     * a line for the transcript (translated) when it changed what the user sees.
+     */
+    std::function<QJsonObject(const QJsonObject &arguments, bool *error, QString *notice)> call;
+};
+
 /** What the back channel may do in the window (AI6c); set by the window, like the context. */
 struct WhaleAiViewActions {
     /** Opens @p folder (absolute, an existing local folder) in the active view. */
@@ -32,6 +51,8 @@ struct WhaleAiViewActions {
     std::function<bool(int pane)> activatePane;
     /** The active view: left (0) or right (1) in split view, -1 without split view. */
     std::function<int()> activePane;
+    /** Tools of the window (AI9); see WhaleAiWindowTool. */
+    QList<WhaleAiWindowTool> windowTools;
 };
 
 class QLocalServer;
@@ -55,6 +76,8 @@ public:
     static constexpr int MaxSelection = 500;
     /** The name of the server in session/new. */
     static QString name();
+    /** The window tools that may be offered (AI9); others in WhaleAiViewActions are ignored. */
+    static const QStringList &windowToolNames();
 
     explicit WhaleAiMcpServer(QObject *parent = nullptr);
     ~WhaleAiMcpServer() override;
@@ -95,6 +118,8 @@ Q_SIGNALS:
     void itemsSelected(int count);
     /** trigger_action triggered @p action; its state is the one afterwards. */
     void actionTriggered(const WhaleAiUiAction &action);
+    /** A window tool changed what the user sees; @p notice says what, for the transcript. */
+    void windowToolUsed(const QString &notice);
 
 private:
     void newConnection();
@@ -108,6 +133,8 @@ private:
     QJsonObject triggerAction(const QJsonObject &arguments, bool *error);
     /** The actions the agent may use. */
     QList<WhaleAiUiAction> allowedActions() const;
+    /** The window tools set and allowed. */
+    QList<WhaleAiWindowTool> windowTools() const;
 
     std::unique_ptr<QTemporaryDir> m_dir;
     QLocalServer *m_server = nullptr;

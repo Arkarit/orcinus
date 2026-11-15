@@ -328,6 +328,11 @@ WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &act
     if (actions.activatePane) {
         result.activatePane = wrap(actions.activatePane);
     }
+    for (WhaleAiWindowTool &tool : result.windowTools) {
+        if (tool.call) {
+            tool.call = wrap(tool.call);
+        }
+    }
     return result;
 }
 
@@ -463,6 +468,9 @@ bool WhaleAiPanel::startSession()
             default:
                 addActionNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
             }
+        });
+        connect(mcp, &WhaleAiMcpServer::windowToolUsed, this, [this](const QString &notice) {
+            addActionNotice(notice);
         });
         connect(mcp, &WhaleAiMcpServer::actionTriggered, this, [this](const WhaleAiUiAction &action) {
             const QString command = action.menu.isEmpty() ? action.text : action.menu + QStringLiteral(" ▸ ") + action.text;
