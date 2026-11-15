@@ -1,6 +1,6 @@
-# AI support (AI0–AI8)
+# AI support (AI0–AI9)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15.
 
 ## Problem
 
@@ -732,6 +732,56 @@ Steps:
   Known edge (old, also for "Give Access"): removing a user-given folder while a share above it
   covers its mount point fails with an error notice; harmless, it stays reachable through the
   share above.
+
+**AI9 – The agent operates Orcinus.** Planned 2026-11-15 (user): the agent can read and operate
+Orcinus as fully as a human, on an invisible layer: change settings, open panels, switch view
+modes, sort, split, profiles, … Builds on the back channel of AI6 (today only `get_location`,
+`set_location`, `get_selection`, `select_items`).
+
+*Starting point.* The dev automation (`src/whale/devmcp/`, ~4000 lines, 50+ tools such as
+`set_view`, `trigger_action`, `apply_style`, `get_ui_state`) already does much of this, but it is
+a test tool: it answers dialogs, synthesizes drag and drop, takes screenshots, knows no
+permissions, and is not built for releases (`WHALE_ENABLE_DEV_MCP=OFF`). It is not exposed as
+is. Reusable parts (mainly reading the UI state) move into a shared core used by both.
+
+*Approach: generic tools first, specific ones only where generic does not fit.*
+- **Actions.** Almost everything in the menus is a `QAction` in a `KActionCollection` (view
+  modes, panels, sorting, split view, hidden files, …). `list_actions(filter)`: name, text,
+  tooltip, checkable/checked, enabled, menu path; compact and filterable. `trigger_action(name,
+  checked?)`. Covers a large part with two tools, and new features come along automatically.
+- **Settings.** The KConfigXT skeletons can be enumerated generically. `list_settings(filter)`:
+  key, type, current value, default, label/what's this, choices; `set_setting(key, value)`. To
+  check: many settings probably take effect only through the settings dialog's apply path. Only
+  settings verified to apply live are offered at first.
+- **State.** `get_ui_state`: windows, tabs, panes, view mode, visible panels, active profile
+  (largely taken from the dev automation).
+- **Specific tools** where the generic ones do not fit: apply/save profiles, per-folder view
+  properties, filter.
+
+*Rules.*
+- **Safety** (the most important point since the sandbox is gone). Three classes: harmless (view,
+  panels): allowed directly; changing (settings, profiles): allowed, but "undo the agent's
+  changes" takes them back; dangerous: **blocked in the first round** (decided 2026-11-15),
+  maybe "always ask" later. Dangerous at least: delete, empty trash, admin mode, run scripts /
+  open a terminal (a way out), quit, configure shortcuts.
+- **No modal dialogs** on the invisible layer. Actions that open a dialog are left out, or open it
+  visibly for the user.
+- **Traceable.** Every change by the agent gets a line in the transcript ("Agent switched to the
+  Details view").
+- **Token budget.** There are hundreds of actions; lists stay short and filterable.
+- **Several windows.** The target is always the window the panel belongs to.
+
+*Steps.*
+- **AI9a – Spike.** Count actions and settings, check which settings apply live, find the actions
+  that open dialogs, try a real agent with `list_actions` / `trigger_action`. Result: a short note
+  here; adjust the plan.
+- **AI9b – Actions.** `list_actions`, `trigger_action`, block list, transcript lines, tests.
+- **AI9c – State.** `get_ui_state` from a core shared with the dev automation.
+- **AI9d – Settings.** `list_settings`, `set_setting` for the settings verified live.
+- **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
+  (profiles, view properties, filter).
+
+Work happens in the VM, as real agents are attached.
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
