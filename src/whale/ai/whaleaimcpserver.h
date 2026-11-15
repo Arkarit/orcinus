@@ -9,6 +9,7 @@
 
 #include "whaleacptypes.h"
 #include "whaleaicontext.h"
+#include "whaleaiuiactions.h"
 
 #include <QHash>
 #include <QJsonObject>
@@ -23,6 +24,12 @@ struct WhaleAiViewActions {
     std::function<void(const QString &folder)> openFolder;
     /** Selects @p paths (in the folder of the active view) there, instead of what was selected. */
     std::function<void(const QStringList &paths)> select;
+    /** The actions of the window (AI9b), visible ones only, without pure submenus. */
+    std::function<QList<WhaleAiUiAction>()> actions;
+    /** Triggers the action @p name of the window. */
+    std::function<void(const QString &name)> trigger;
+    /** Makes the left (0) or right (1) view of the split view active; false without split view. */
+    std::function<bool(int pane)> activatePane;
 };
 
 class QLocalServer;
@@ -84,6 +91,8 @@ Q_SIGNALS:
     void locationSet(const QString &folder);
     /** select_items selected @p count items. */
     void itemsSelected(int count);
+    /** trigger_action triggered @p action; its state is the one afterwards. */
+    void actionTriggered(const WhaleAiUiAction &action);
 
 private:
     void newConnection();
@@ -93,6 +102,10 @@ private:
     QJsonObject selection();
     QJsonObject setLocation(const QJsonObject &arguments, bool *error);
     QJsonObject selectItems(const QJsonObject &arguments, bool *error);
+    QJsonObject listActions(const QJsonObject &arguments, bool *error);
+    QJsonObject triggerAction(const QJsonObject &arguments, bool *error);
+    /** The actions the agent may use. */
+    QList<WhaleAiUiAction> allowedActions() const;
 
     std::unique_ptr<QTemporaryDir> m_dir;
     QLocalServer *m_server = nullptr;

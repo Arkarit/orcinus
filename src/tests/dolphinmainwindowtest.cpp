@@ -28,6 +28,7 @@
 #include "views/dolphinitemlistview.h"
 #include "views/viewproperties.h"
 #include "views/zoomlevelinfo.h"
+#include "whaleaipanel.h"
 #include "whalesplitviewstartup.h"
 
 #include <KActionCollection>
@@ -128,6 +129,7 @@ private Q_SLOTS:
     void testActiveViewFollowsTheActivatedView();
     void testRestoreStateKeepsTheActiveSplitPane();
     void testFileItemActionsOutliveContextMenu();
+    void testAiAgentCommands();
     void cleanupTestCase();
 
 private:
@@ -2944,3 +2946,57 @@ int main(int argc, char *argv[])
 }
 
 #include "dolphinmainwindowtest.moc"
+void DolphinMainWindowTest::testAiAgentCommands()
+{
+    // The commands the window offers the agent's back channel (AI9b).
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createDir("a");
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    const WhaleAiViewActions &actions = panel->viewActions();
+    QVERIFY(actions.actions && actions.trigger && actions.activatePane);
+
+    const QList<WhaleAiUiAction> all = actions.actions();
+    QHash<QString, WhaleAiUiAction> byName;
+    for (const WhaleAiUiAction &action : all) {
+        QVERIFY(!action.name.isEmpty());
+        QVERIFY2(!action.text.contains(QLatin1Char('&')), qPrintable(action.text));
+        byName.insert(action.name, action);
+    }
+    // Pure submenus are left out; their entries come with their menu path.
+    QVERIFY(!byName.contains(QStringLiteral("view_mode")));
+    QVERIFY(!byName.contains(QStringLiteral("sort")));
+    QVERIFY(!byName.contains(QStringLiteral("split_view")));
+    QVERIFY(byName.contains(QStringLiteral("split_view_menu")));
+    // Names are unique, so trigger_action knows what it triggers.
+    QCOMPARE(byName.size(), all.size());
+    QVERIFY(byName.contains(QStringLiteral("details")));
+    QVERIFY(byName.value(QStringLiteral("details")).exclusive);
+    QCOMPARE(byName.value(QStringLiteral("details")).menu, QStringLiteral("View"));
+    QVERIFY2(byName.value(QStringLiteral("sort_by_size")).menu.contains(QStringLiteral("Sort By")),
+             qPrintable(byName.value(QStringLiteral("sort_by_size")).menu));
+    // Created after the menus: the panel toggles are there too.
+    QVERIFY(byName.contains(QStringLiteral("show_places_panel")));
+    QVERIFY(byName.contains(QStringLiteral("show_ai_panel")));
+
+    // Triggering acts as the menu does.
+    const WhaleAiUiAction hidden = byName.value(QStringLiteral("show_hidden_files"));
+    QVERIFY(hidden.checkable);
+    actions.trigger(QStringLiteral("show_hidden_files"));
+    QCOMPARE(m_mainWindow->activeViewContainer()->view()->hiddenFilesShown(), !hidden.checked);
+    actions.trigger(QStringLiteral("show_hidden_files"));
+    QCOMPARE(m_mainWindow->activeViewContainer()->view()->hiddenFilesShown(), hidden.checked);
+    actions.trigger(QStringLiteral("no_such_action"));
+
+    // A view can be chosen only in split view.
+    QVERIFY(!actions.activatePane(1));
+    auto tabPage = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget")->currentTabPage();
+    tabPage->setSplitViewEnabled(true, WithoutAnimation);
+    QVERIFY(actions.activatePane(1));
+    QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->secondaryViewContainer());
+    QVERIFY(actions.activatePane(0));
+    QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->primaryViewContainer());
+}

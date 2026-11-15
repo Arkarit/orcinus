@@ -22,6 +22,7 @@ target_sources(whaleai PRIVATE
     whaleaiagenttest.cpp
     whaleaicontext.cpp
     whaleaimcpserver.cpp
+    whaleaiuiactions.cpp
 )
 
 # Where the installed relay is; the build tree's one next to the program comes first.

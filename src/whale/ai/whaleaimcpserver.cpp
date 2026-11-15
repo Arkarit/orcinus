@@ -22,6 +22,9 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 
+#include <algorithm>
+#include <optional>
+
 namespace
 {
 /** A message longer than this ends the connection: no tool call needs it. */
@@ -94,7 +97,9 @@ const QStringList &toolNames()
     static const QStringList names{QStringLiteral("get_location"),
                                    QStringLiteral("get_selection"),
                                    QStringLiteral("set_location"),
-                                   QStringLiteral("select_items")};
+                                   QStringLiteral("select_items"),
+                                   QStringLiteral("list_actions"),
+                                   QStringLiteral("trigger_action")};
     return names;
 }
 
@@ -139,7 +144,66 @@ QJsonArray tools()
                            {QStringLiteral("items"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
                            {QStringLiteral("description"), QStringLiteral("Names in that folder, or absolute paths of items directly in it")}}}},
              {QStringLiteral("items")}),
+        tool(QStringLiteral("list_actions"),
+             QStringLiteral("List the commands of Orcinus"),
+             QStringLiteral("Lists the commands of the Orcinus window the user is chatting from (menus and toolbars): view modes, sorting, "
+                            "grouping, columns, panels, split view, tabs, zoom, hidden files, profiles, ... with their state. Use "
+                            "trigger_action to run one. Commands that change files, start other programs, change rights or open dialogs "
+                            "are not offered: use your own tools for files, and ask the user for the rest."),
+             true,
+             {{QStringLiteral("filter"),
+               QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
+                           {QStringLiteral("description"),
+                            QStringLiteral("Optional words that must all appear in the name, text, menu or tooltip (any case), e.g. "
+                                           "\"sort\" or \"view mode\"")}}}}),
+        [] {
+            QJsonObject trigger = tool(
+                QStringLiteral("trigger_action"),
+                QStringLiteral("Run a command of Orcinus"),
+                QStringLiteral("Runs a command of the Orcinus window, as if the user chose it in a menu (names from list_actions). It "
+                               "changes only what the user sees and how Orcinus shows it, no file. View commands act on the active view; "
+                               "in split view, \"pane\" chooses the left or right view first. Returns the state afterwards."),
+                false,
+                {{QStringLiteral("name"),
+                  QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}, {QStringLiteral("description"), QStringLiteral("Name from list_actions")}}},
+                 {QStringLiteral("checked"),
+                  QJsonObject{{QStringLiteral("type"), QStringLiteral("boolean")},
+                              {QStringLiteral("description"),
+                               QStringLiteral("For an on/off command: the state wanted; nothing happens if it is already so. Without it "
+                                              "the command toggles.")}}},
+                 {QStringLiteral("pane"),
+                  QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
+                              {QStringLiteral("enum"), QJsonArray{QStringLiteral("left"), QStringLiteral("right")}},
+                              {QStringLiteral("description"), QStringLiteral("Split view only: make this view active first")}}}},
+                {QStringLiteral("name")});
+            QJsonObject annotations = trigger.value(QLatin1String("annotations")).toObject();
+            annotations.insert(QStringLiteral("idempotentHint"), false);
+            trigger.insert(QStringLiteral("annotations"), annotations);
+            return trigger;
+        }(),
     };
+}
+
+QJsonObject describe(const WhaleAiUiAction &action)
+{
+    // Short: hundreds of them go to the agent.
+    QJsonObject result{{QStringLiteral("name"), action.name}, {QStringLiteral("text"), action.text}};
+    if (!action.menu.isEmpty()) {
+        result.insert(QStringLiteral("menu"), action.menu);
+    }
+    if (!action.toolTip.isEmpty() && action.toolTip.compare(action.text, Qt::CaseInsensitive) != 0) {
+        result.insert(QStringLiteral("tip"), action.toolTip);
+    }
+    if (action.checkable) {
+        result.insert(QStringLiteral("checked"), action.checked);
+    }
+    if (action.exclusive) {
+        result.insert(QStringLiteral("exclusive"), true);
+    }
+    if (!action.enabled) {
+        result.insert(QStringLiteral("enabled"), false);
+    }
+    return result;
 }
 
 QJsonObject toolResult(const QJsonObject &structured, bool error = false)
@@ -352,7 +416,8 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
              {QStringLiteral("serverInfo"),
               QJsonObject{{QStringLiteral("name"), QStringLiteral("orcinus")}, {QStringLiteral("version"), QCoreApplication::applicationVersion()}}},
              {QStringLiteral("instructions"),
-              QStringLiteral("Tools of the Orcinus file manager the user is chatting with you from. They show where the user is.")}});
+              QStringLiteral(
+                  "Tools of the Orcinus file manager the user is chatting with you from. They show where the user is, and change how Orcinus shows it.")}});
     }
     if (method == QLatin1String("ping")) {
         return response(id, QJsonObject());
@@ -389,6 +454,14 @@ QJsonObject WhaleAiMcpServer::callTool(const QString &name, const QJsonObject &a
     }
     if (name == QLatin1String("select_items")) {
         const QJsonObject result = selectItems(arguments, &error);
+        return toolResult(result, error);
+    }
+    if (name == QLatin1String("list_actions")) {
+        const QJsonObject result = listActions(arguments, &error);
+        return toolResult(result, error);
+    }
+    if (name == QLatin1String("trigger_action")) {
+        const QJsonObject result = triggerAction(arguments, &error);
         return toolResult(result, error);
     }
     *known = false;
@@ -458,6 +531,116 @@ QJsonObject WhaleAiMcpServer::selectItems(const QJsonObject &arguments, bool *er
         Q_EMIT itemsSelected(found.size());
     }
     return {{QStringLiteral("folder"), folder}, {QStringLiteral("selected"), int(found.size())}, {QStringLiteral("notFound"), notFound}};
+}
+
+QList<WhaleAiUiAction> WhaleAiMcpServer::allowedActions() const
+{
+    QList<WhaleAiUiAction> result;
+    if (!m_viewActions.actions) {
+        return result;
+    }
+    const QList<WhaleAiUiAction> all = m_viewActions.actions();
+    for (const WhaleAiUiAction &action : all) {
+        if (WhaleAiUiActions::access(action.name) == WhaleAiUiActions::Access::Allowed && !action.text.isEmpty()) {
+            result.append(action);
+        }
+    }
+    return result;
+}
+
+QJsonObject WhaleAiMcpServer::listActions(const QJsonObject &arguments, bool *error)
+{
+    *error = true;
+    const QJsonValue filterValue = arguments.value(QLatin1String("filter"));
+    if (!filterValue.isUndefined() && !filterValue.isNull() && !filterValue.isString()) {
+        return toolError(QStringLiteral("\"filter\" must be a string."));
+    }
+    if (!m_viewActions.actions) {
+        return toolError(QStringLiteral("Orcinus cannot list its commands here."));
+    }
+    const QStringList words = filterValue.toString().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    QJsonArray actions;
+    for (const WhaleAiUiAction &action : allowedActions()) {
+        const QString haystack = action.name + QLatin1Char(' ') + action.text + QLatin1Char(' ') + action.menu + QLatin1Char(' ') + action.toolTip;
+        const bool matches = std::all_of(words.cbegin(), words.cend(), [&haystack](const QString &word) {
+            return haystack.contains(word, Qt::CaseInsensitive);
+        });
+        if (matches) {
+            actions.append(describe(action));
+        }
+    }
+    *error = false;
+    return {{QStringLiteral("count"), int(actions.size())}, {QStringLiteral("actions"), actions}};
+}
+
+QJsonObject WhaleAiMcpServer::triggerAction(const QJsonObject &arguments, bool *error)
+{
+    *error = true;
+    const QString name = arguments.value(QLatin1String("name")).toString();
+    if (name.isEmpty()) {
+        return toolError(QStringLiteral("\"name\" must be the name of a command (see list_actions)."));
+    }
+    const WhaleAiUiActions::Access access = WhaleAiUiActions::access(name);
+    if (access != WhaleAiUiActions::Access::Allowed) {
+        return toolError(QStringLiteral("\"%1\" is not available: %2").arg(name, WhaleAiUiActions::reason(access)));
+    }
+    const QJsonValue checkedValue = arguments.value(QLatin1String("checked"));
+    if (!checkedValue.isUndefined() && !checkedValue.isNull() && !checkedValue.isBool()) {
+        return toolError(QStringLiteral("\"checked\" must be true or false."));
+    }
+    const QJsonValue paneValue = arguments.value(QLatin1String("pane"));
+    int pane = -1;
+    if (!paneValue.isUndefined() && !paneValue.isNull()) {
+        if (paneValue.toString() == QLatin1String("left")) {
+            pane = 0;
+        } else if (paneValue.toString() == QLatin1String("right")) {
+            pane = 1;
+        } else {
+            return toolError(QStringLiteral("\"pane\" must be \"left\" or \"right\"."));
+        }
+    }
+    if (!m_viewActions.actions || !m_viewActions.trigger) {
+        return toolError(QStringLiteral("Orcinus cannot run its commands here."));
+    }
+    auto find = [this, &name]() -> std::optional<WhaleAiUiAction> {
+        const QList<WhaleAiUiAction> actions = allowedActions();
+        for (const WhaleAiUiAction &action : actions) {
+            if (action.name == name) {
+                return action;
+            }
+        }
+        return std::nullopt;
+    };
+    if (pane >= 0 && !(m_viewActions.activatePane && m_viewActions.activatePane(pane))) {
+        return toolError(QStringLiteral("There is no split view; leave out \"pane\"."));
+    }
+    // After choosing the view: whether a command is enabled can depend on it.
+    const std::optional<WhaleAiUiAction> before = find();
+    if (!before) {
+        return toolError(QStringLiteral("Unknown command \"%1\" (see list_actions).").arg(name));
+    }
+    if (!before->enabled) {
+        return toolError(QStringLiteral("\"%1\" is disabled at the moment.").arg(name));
+    }
+    if (checkedValue.isBool()) {
+        if (!before->checkable) {
+            return toolError(QStringLiteral("\"%1\" is not an on/off command; leave out \"checked\".").arg(name));
+        }
+        if (before->checked == checkedValue.toBool()) {
+            *error = false;
+            QJsonObject result = describe(*before);
+            result.insert(QStringLiteral("unchanged"), true);
+            return result;
+        }
+        if (before->exclusive && !checkedValue.toBool()) {
+            return toolError(QStringLiteral("\"%1\" is one of a group; turn on another one instead.").arg(name));
+        }
+    }
+    m_viewActions.trigger(name);
+    const WhaleAiUiAction after = find().value_or(*before);
+    *error = false;
+    Q_EMIT actionTriggered(after);
+    return describe(after);
 }
 
 QJsonObject WhaleAiMcpServer::location()

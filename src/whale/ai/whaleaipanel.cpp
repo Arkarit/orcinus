@@ -382,6 +382,15 @@ bool WhaleAiPanel::startSession()
         connect(mcp, &WhaleAiMcpServer::itemsSelected, this, [this](int count) {
             m_transcript->addNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
         });
+        connect(mcp, &WhaleAiMcpServer::actionTriggered, this, [this](const WhaleAiUiAction &action) {
+            const QString command = action.menu.isEmpty() ? action.text : action.menu + QStringLiteral(" ▸ ") + action.text;
+            if (action.checkable && !action.exclusive) {
+                m_transcript->addNotice(action.checked ? i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned on %1.", command)
+                                                       : i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned off %1.", command));
+            } else {
+                m_transcript->addNotice(i18nc("@info %1 is a command, e.g. View ▸ View Mode ▸ Details", "The agent used %1.", command));
+            }
+        });
         mcpServers.append(mcp->mcpServer(relay));
     }
     m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2.", agent.name, directory));

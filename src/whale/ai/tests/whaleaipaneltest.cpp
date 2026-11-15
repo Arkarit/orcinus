@@ -967,10 +967,11 @@ void WhaleAiPanelTest::backChannel()
     // The agent starts orcinus-mcp from session/new and asks where the user is.
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
     QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items;mcp={\"folder\":\"%1\","
-                                                  "\"otherFolder\":\"%2\"};")
-                                       .arg(m_work.path(), other)),
-             qPrintable(texts(panel)));
+    QVERIFY2(
+        texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items,list_actions,trigger_action;mcp={\"folder\":\"%1\","
+                                             "\"otherFolder\":\"%2\"};")
+                                  .arg(m_work.path(), other)),
+        qPrintable(texts(panel)));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_selection")));
     QVERIFY(waitForReady(panel));
     QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"count\":1,\"folder\":\"%1\",\"items\":[\"%2\"],\"truncated\":false};").arg(m_work.path(), selected)),
@@ -979,12 +980,14 @@ void WhaleAiPanelTest::backChannel()
     // The agent changes the view through the window; the transcript says so.
     QStringList opened;
     QStringList selection;
-    panel.setViewActions({[&](const QString &folder) {
-                              opened.append(folder);
-                          },
-                          [&](const QStringList &paths) {
-                              selection = paths;
-                          }});
+    WhaleAiViewActions viewActions;
+    viewActions.openFolder = [&](const QString &folder) {
+        opened.append(folder);
+    };
+    viewActions.select = [&](const QStringList &paths) {
+        selection = paths;
+    };
+    panel.setViewActions(viewActions);
     QFile file(selected);
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.close();
@@ -997,6 +1000,28 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY2(all.contains(QStringLiteral("The agent opened %1.").arg(m_work.filePath(QStringLiteral("sub")))), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("The agent selected 1 item.")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("\"notFound\":[\"missing\"],\"selected\":1")), qPrintable(all));
+
+    // Commands of the window (AI9b): the transcript names the command with its menu.
+    QStringList triggered;
+    bool hidden = false;
+    viewActions.actions = [&] {
+        return QList<WhaleAiUiAction>{
+            {QStringLiteral("details"), QStringLiteral("Details"), {}, QStringLiteral("View ▸ View Mode"), true, !triggered.isEmpty(), true, true},
+            {QStringLiteral("show_hidden_files"), QStringLiteral("Show Hidden Files"), {}, QStringLiteral("View"), true, hidden, true, false},
+        };
+    };
+    viewActions.trigger = [&](const QString &name) {
+        triggered.append(name);
+        hidden = hidden != (name == QLatin1String("show_hidden_files"));
+    };
+    panel.setViewActions(viewActions);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details mcp:trigger_action:show_hidden_files mcp:trigger_action:deletefile")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(triggered, (QStringList{QStringLiteral("details"), QStringLiteral("show_hidden_files")}));
+    all = texts(panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent used View ▸ View Mode ▸ Details.")), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("The agent turned on View ▸ Show Hidden Files.")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("not available")), qPrintable(all));
 
     // Requests for our own tools are answered at once, as each agent asks; others are not.
     for (const char *agent : {"claude", "codex", "opencode"}) {

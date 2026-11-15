@@ -96,6 +96,11 @@ public:
     void refreshContext();
     /** What the agent may do in the window through the back channel (AI6c). */
     void setViewActions(const WhaleAiViewActions &actions);
+    /** What the window lets the back channel do; for the tests. */
+    const WhaleAiViewActions &viewActions() const
+    {
+        return m_viewActions;
+    }
 
 Q_SIGNALS:
     /** The user wants to set up agents. */

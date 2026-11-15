@@ -77,6 +77,7 @@
 #include <KProtocolManager>
 #include <KRecentFilesAction>
 #include <KRuntimePlatform>
+#include <KSelectAction>
 #include <KService>
 #include <KShell>
 #include <KShortcutsDialog>
@@ -93,6 +94,7 @@
 
 #include <kwidgetsaddons_version.h>
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
@@ -2730,6 +2732,66 @@ void DolphinMainWindow::setupDockWidgets()
             if (!loading) {
                 view->updateViewState();
             }
+        },
+        // The commands of the window (AI9b); which ones the agent may use decides WhaleAiUiActions.
+        [this] {
+            // Where each action is in the menu bar, e.g. "View ▸ Sort By".
+            QHash<const QAction *, QString> menus;
+            std::function<void(const QMenu *, const QString &)> walk = [&menus, &walk](const QMenu *menu, const QString &path) {
+                for (const QAction *action : menu->actions()) {
+                    if (action->isSeparator()) {
+                        continue;
+                    }
+                    if (action->menu()) {
+                        walk(action->menu(), path + QStringLiteral(" ▸ ") + KLocalizedString::removeAcceleratorMarker(action->text()));
+                    }
+                    if (!menus.contains(action)) {
+                        menus.insert(action, path);
+                    }
+                }
+            };
+            for (const QAction *top : menuBar()->actions()) {
+                if (top->menu()) {
+                    walk(top->menu(), KLocalizedString::removeAcceleratorMarker(top->text()));
+                }
+            }
+            QList<WhaleAiUiAction> result;
+            const QList<QAction *> actions = actionCollection()->actions();
+            for (const QAction *action : actions) {
+                // Submenus: their entries are actions of their own. A few also act when clicked
+                // in a toolbar ("split_view"), but then a plain action does the same ("split_view_menu").
+                if (!action->isVisible() || action->isSeparator() || qobject_cast<const KActionMenu *>(action) || qobject_cast<const KSelectAction *>(action)) {
+                    continue;
+                }
+                WhaleAiUiAction entry;
+                entry.name = action->objectName();
+                entry.text = KLocalizedString::removeAcceleratorMarker(action->text());
+                entry.toolTip = action->toolTip();
+                entry.menu = menus.value(action);
+                entry.checkable = action->isCheckable();
+                entry.checked = action->isChecked();
+                entry.enabled = action->isEnabled();
+                entry.exclusive = action->actionGroup() && action->actionGroup()->isExclusive();
+                result.append(entry);
+            }
+            return result;
+        },
+        [this](const QString &name) {
+            if (QAction *action = actionCollection()->action(name)) {
+                action->trigger();
+            }
+        },
+        [this](int pane) {
+            DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+            if (!tabPage || !tabPage->splitViewEnabled()) {
+                return false;
+            }
+            DolphinViewContainer *container = pane == 0 ? tabPage->primaryViewContainer() : tabPage->secondaryViewContainer();
+            if (!container) {
+                return false;
+            }
+            container->setActive(true);
+            return true;
         },
     });
     // While the panel is hidden it asks when it is shown again.

@@ -1,6 +1,6 @@
 # AI support (AI0–AI9)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15; AI9b tools done 2026-11-15, real agent test open.
 
 ## Problem
 
@@ -831,6 +831,27 @@ agent's own tools. Back to the VM when something critical comes up. Tests use an
   specific tool).
 - **Real agent test** moves into AI9b (it needs the tools; prototyping them only for the spike
   would be double work).
+
+*AI9b status (2026-11-15).* `list_actions(filter)` and `trigger_action(name, checked?, pane?)`
+in `WhaleAiMcpServer`; policy in `whaleaiuiactions.{h,cpp}` (Core only, unit-tested), the window
+supplies plain `WhaleAiUiAction` data (menu path from walking the menu bar, KActionMenu /
+KSelectAction left out: their entries are actions of their own; `split_view_menu` stands in for
+the `split_view` toolbar menu). Blocked actions are not listed at all and refused with a reason.
+`checked` makes on/off commands idempotent; an exclusive one can only be turned on. Transcript:
+"The agent used View ▸ Sort By ▸ Size." / "The agent turned on View ▸ Show Hidden Files." Tests:
+`whaleaimcpservertest` (access, listActions, triggerAction), `whaleaipaneltest` (back channel),
+`dolphinmainwindowtest::testAiAgentCommands` (real window: ~140 actions, unique names, menu
+paths, trigger, pane).
+- **Found in the real window, missed by the static spike:** the file item actions are in the
+  collection too, e.g. `servicemenu_konsolerun.desktop::runInKonsole` ("Run In Konsole"),
+  `servicemenu_installfont.desktop::installFont`. Blocked by rule: prefix `servicemenu_` and any
+  name with `::`. Also blocked: `help_*` (dialogs, handbook, browser, What's This mode),
+  `edit_bookmarks` (another program), `add_bookmarks_list`, `switch_application_language`
+  (dialogs), `add_bookmark` (saved data).
+- **Weak point:** the block list is generic-allow. A new dangerous action added later is allowed
+  until it is listed. Review the list when adding actions (note in the header of
+  `whaleaiuiactions.h`).
+- Open in AI9b: test with a real agent (together with the user, on the host, isolated profile).
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).

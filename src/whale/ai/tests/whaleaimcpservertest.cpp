@@ -37,6 +37,9 @@ private Q_SLOTS:
     void selection();
     void setLocation();
     void selectItems();
+    void access();
+    void listActions();
+    void triggerAction();
     void ownTool();
     void socketFolder();
     void relay();
@@ -103,13 +106,19 @@ void WhaleAiMcpServerTest::toolsList()
         names.append(tool.toObject().value(QLatin1String("name")).toString());
         QCOMPARE(tool.toObject().value(QLatin1String("inputSchema")).toObject().value(QLatin1String("type")).toString(), QStringLiteral("object"));
         const QJsonObject annotations = tool.toObject().value(QLatin1String("annotations")).toObject();
-        // Only the get_ tools leave the view as it is; none of them changes a file.
-        QCOMPARE(annotations.value(QLatin1String("readOnlyHint")).toBool(), names.last().startsWith(QLatin1String("get_")));
+        // Only the get_ and list_ tools leave the view as it is; none of them changes a file.
+        QCOMPARE(annotations.value(QLatin1String("readOnlyHint")).toBool(),
+                 names.last().startsWith(QLatin1String("get_")) || names.last().startsWith(QLatin1String("list_")));
         QVERIFY(!annotations.value(QLatin1String("destructiveHint")).toBool());
         QVERIFY(!tool.toObject().value(QLatin1String("description")).toString().isEmpty());
     }
     QCOMPARE(names,
-             (QStringList{QStringLiteral("get_location"), QStringLiteral("get_selection"), QStringLiteral("set_location"), QStringLiteral("select_items")}));
+             (QStringList{QStringLiteral("get_location"),
+                          QStringLiteral("get_selection"),
+                          QStringLiteral("set_location"),
+                          QStringLiteral("select_items"),
+                          QStringLiteral("list_actions"),
+                          QStringLiteral("trigger_action")}));
     QCOMPARE(tools.at(2).toObject().value(QLatin1String("inputSchema")).toObject().value(QLatin1String("required")).toArray(),
              QJsonArray{QStringLiteral("path")});
 }
@@ -189,10 +198,11 @@ void WhaleAiMcpServerTest::setLocation()
     // Without the window: an error, nothing happens.
     setLocation(shared.path(), &error);
     QVERIFY(error);
-    server.setViewActions({[&](const QString &folder) {
-                               opened.append(folder);
-                           },
-                           {}});
+    WhaleAiViewActions actions;
+    actions.openFolder = [&](const QString &folder) {
+        opened.append(folder);
+    };
+    server.setViewActions(actions);
     QSignalSpy set(&server, &WhaleAiMcpServer::locationSet);
 
     QJsonObject result = setLocation(shared.filePath(QStringLiteral("sub/../sub/")), &error);
@@ -233,9 +243,11 @@ void WhaleAiMcpServerTest::selectItems()
         return WhaleAiContext{folder, {}, {}, {}};
     });
     QStringList selected;
-    server.setViewActions({{}, [&](const QStringList &paths) {
-                               selected = paths;
-                           }});
+    WhaleAiViewActions actions;
+    actions.select = [&](const QStringList &paths) {
+        selected = paths;
+    };
+    server.setViewActions(actions);
     QSignalSpy spy(&server, &WhaleAiMcpServer::itemsSelected);
     auto select = [&server](const QStringList &items, bool *error) {
         return toolResult(server, QStringLiteral("select_items"), {{QStringLiteral("items"), QJsonArray::fromStringList(items)}}, error);
@@ -286,6 +298,195 @@ void WhaleAiMcpServerTest::selectItems()
     QVERIFY(selected.isEmpty());
 }
 
+void WhaleAiMcpServerTest::access()
+{
+    using A = WhaleAiUiActions::Access;
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("details")), A::Allowed);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("show_hidden_files")), A::Allowed);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("deletefile")), A::FileOperation);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("edit_undo")), A::FileOperation);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("act_as_admin")), A::WayOut);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("open_terminal")), A::WayOut);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("options_configure")), A::Dialog);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("show_ai_panel")), A::Window);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("whale_save_last_style")), A::SavedData);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("whale_test_caps")), A::Window);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("servicemenu_konsolerun.desktop::runInKonsole")), A::WayOut);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("someplugin::doit")), A::WayOut);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("help_about_app")), A::Dialog);
+    QCOMPARE(WhaleAiUiActions::access(QStringLiteral("edit_bookmarks")), A::WayOut);
+    QVERIFY(WhaleAiUiActions::reason(A::Allowed).isEmpty());
+    QVERIFY(!WhaleAiUiActions::reason(A::FileOperation).isEmpty());
+}
+
+namespace
+{
+/** A window with a few commands: view modes (exclusive), hidden files (on/off), a disabled one, blocked ones. */
+struct FakeWindow {
+    QList<WhaleAiUiAction> actions{
+        {QStringLiteral("icons"), QStringLiteral("Icons"), {}, QStringLiteral("View ▸ View Mode"), true, true, true, true},
+        {QStringLiteral("details"), QStringLiteral("Details"), QStringLiteral("Details view"), QStringLiteral("View ▸ View Mode"), true, false, true, true},
+        {QStringLiteral("show_hidden_files"), QStringLiteral("Show Hidden Files"), {}, QStringLiteral("View"), true, false, true, false},
+        {QStringLiteral("go_back"), QStringLiteral("Back"), {}, QStringLiteral("Go"), false, false, false, false},
+        {QStringLiteral("go_home"), QStringLiteral("Home"), {}, QStringLiteral("Go"), false, false, true, false},
+        {QStringLiteral("deletefile"), QStringLiteral("Delete…"), {}, QStringLiteral("File"), false, false, true, false},
+        {QStringLiteral("options_configure"), QStringLiteral("Configure…"), {}, QStringLiteral("Settings"), false, false, true, false},
+    };
+    QStringList triggered;
+    QList<int> panes;
+    bool split = false;
+
+    WhaleAiViewActions viewActions()
+    {
+        WhaleAiViewActions result;
+        result.actions = [this] {
+            return actions;
+        };
+        result.trigger = [this](const QString &name) {
+            triggered.append(name);
+            for (WhaleAiUiAction &action : actions) {
+                if (action.name == name && action.checkable) {
+                    action.checked = action.exclusive ? true : !action.checked;
+                }
+            }
+            if (name == QLatin1String("details")) {
+                actions[0].checked = false;
+            }
+        };
+        result.activatePane = [this](int pane) {
+            panes.append(pane);
+            return split;
+        };
+        return result;
+    }
+};
+}
+
+void WhaleAiMcpServerTest::listActions()
+{
+    WhaleAiMcpServer server;
+    bool error = false;
+    // Without the window: an error.
+    toolResult(server, QStringLiteral("list_actions"), {}, &error);
+    QVERIFY(error);
+
+    FakeWindow window;
+    server.setViewActions(window.viewActions());
+    QJsonObject result = toolResult(server, QStringLiteral("list_actions"), {}, &error);
+    QVERIFY(!error);
+    QStringList names;
+    for (const QJsonValue &action : result.value(QLatin1String("actions")).toArray()) {
+        names.append(action.toObject().value(QLatin1String("name")).toString());
+    }
+    // Blocked ones are not offered at all.
+    QCOMPARE(names,
+             (QStringList{QStringLiteral("icons"),
+                          QStringLiteral("details"),
+                          QStringLiteral("show_hidden_files"),
+                          QStringLiteral("go_back"),
+                          QStringLiteral("go_home")}));
+    QCOMPARE(result.value(QLatin1String("count")).toInt(), 5);
+    const QJsonArray actions = result.value(QLatin1String("actions")).toArray();
+    // Short: no tooltip that only repeats the text, state only where it means something.
+    QCOMPARE(actions.at(1).toObject(),
+             (QJsonObject{{QStringLiteral("name"), QStringLiteral("details")},
+                          {QStringLiteral("text"), QStringLiteral("Details")},
+                          {QStringLiteral("menu"), QStringLiteral("View ▸ View Mode")},
+                          {QStringLiteral("tip"), QStringLiteral("Details view")},
+                          {QStringLiteral("checked"), false},
+                          {QStringLiteral("exclusive"), true}}));
+    QCOMPARE(actions.at(4).toObject(),
+             (QJsonObject{{QStringLiteral("name"), QStringLiteral("go_home")},
+                          {QStringLiteral("text"), QStringLiteral("Home")},
+                          {QStringLiteral("menu"), QStringLiteral("Go")}}));
+    QCOMPARE(actions.at(3).toObject().value(QLatin1String("enabled")), QJsonValue(false));
+
+    // Filter: all words, any case, in name, text, menu or tooltip.
+    result = toolResult(server, QStringLiteral("list_actions"), {{QStringLiteral("filter"), QStringLiteral("view MODE")}}, &error);
+    QCOMPARE(result.value(QLatin1String("count")).toInt(), 2);
+    result = toolResult(server, QStringLiteral("list_actions"), {{QStringLiteral("filter"), QStringLiteral("hidden view")}}, &error);
+    QCOMPARE(result.value(QLatin1String("count")).toInt(), 1);
+    result = toolResult(server, QStringLiteral("list_actions"), {{QStringLiteral("filter"), QStringLiteral("delete")}}, &error);
+    QCOMPARE(result.value(QLatin1String("count")).toInt(), 0);
+    toolResult(server, QStringLiteral("list_actions"), {{QStringLiteral("filter"), 3}}, &error);
+    QVERIFY(error);
+    QVERIFY(window.triggered.isEmpty());
+}
+
+void WhaleAiMcpServerTest::triggerAction()
+{
+    WhaleAiMcpServer server;
+    FakeWindow window;
+    auto trigger = [&server](const QJsonObject &arguments, bool *error) {
+        return toolResult(server, QStringLiteral("trigger_action"), arguments, error);
+    };
+    auto name = [](const QString &name) {
+        return QJsonObject{{QStringLiteral("name"), name}};
+    };
+    bool error = false;
+    // Without the window: an error, nothing happens.
+    trigger(name(QStringLiteral("details")), &error);
+    QVERIFY(error);
+    server.setViewActions(window.viewActions());
+    QSignalSpy spy(&server, &WhaleAiMcpServer::actionTriggered);
+
+    // Blocked, unknown, disabled, wrong arguments: errors, nothing triggered.
+    QJsonObject result = trigger(name(QStringLiteral("deletefile")), &error);
+    QVERIFY(error);
+    QVERIFY(result.value(QLatin1String("error")).toString().contains(QLatin1String("own tools")));
+    trigger(name(QStringLiteral("options_configure")), &error);
+    QVERIFY(error);
+    trigger(name(QStringLiteral("rm_rf")), &error);
+    QVERIFY(error);
+    trigger(name(QStringLiteral("go_back")), &error);
+    QVERIFY(error);
+    trigger({}, &error);
+    QVERIFY(error);
+    trigger({{QStringLiteral("name"), QStringLiteral("go_home")}, {QStringLiteral("checked"), true}}, &error);
+    QVERIFY(error);
+    trigger({{QStringLiteral("name"), QStringLiteral("show_hidden_files")}, {QStringLiteral("checked"), QStringLiteral("yes")}}, &error);
+    QVERIFY(error);
+    // One of a group cannot be turned off, only another one on.
+    trigger({{QStringLiteral("name"), QStringLiteral("icons")}, {QStringLiteral("checked"), false}}, &error);
+    QVERIFY(error);
+    QVERIFY(window.triggered.isEmpty());
+    QCOMPARE(spy.count(), 0);
+
+    // A plain command; the state afterwards comes back.
+    result = trigger(name(QStringLiteral("go_home")), &error);
+    QVERIFY(!error);
+    QCOMPARE(window.triggered, QStringList{QStringLiteral("go_home")});
+    QCOMPARE(spy.count(), 1);
+    // On/off with the state wanted: toggles once, then nothing.
+    result = trigger({{QStringLiteral("name"), QStringLiteral("show_hidden_files")}, {QStringLiteral("checked"), true}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("checked")), QJsonValue(true));
+    QCOMPARE(spy.count(), 2);
+    QCOMPARE(spy.last().first().value<WhaleAiUiAction>().checked, true);
+    result = trigger({{QStringLiteral("name"), QStringLiteral("show_hidden_files")}, {QStringLiteral("checked"), true}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("unchanged")), QJsonValue(true));
+    QCOMPARE(window.triggered.count(QStringLiteral("show_hidden_files")), 1);
+    QCOMPARE(spy.count(), 2);
+    // Exclusive: turning on another one.
+    result = trigger({{QStringLiteral("name"), QStringLiteral("details")}, {QStringLiteral("checked"), true}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("checked")), QJsonValue(true));
+    QCOMPARE(window.actions.at(0).checked, false);
+
+    // Pane: only in split view, and chosen before the command.
+    trigger({{QStringLiteral("name"), QStringLiteral("go_home")}, {QStringLiteral("pane"), QStringLiteral("right")}}, &error);
+    QVERIFY(error);
+    QCOMPARE(window.panes, QList<int>{1});
+    trigger({{QStringLiteral("name"), QStringLiteral("go_home")}, {QStringLiteral("pane"), QStringLiteral("middle")}}, &error);
+    QVERIFY(error);
+    window.split = true;
+    trigger({{QStringLiteral("name"), QStringLiteral("go_home")}, {QStringLiteral("pane"), QStringLiteral("left")}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(window.panes, (QList<int>{1, 0}));
+    QCOMPARE(window.triggered.count(QStringLiteral("go_home")), 2);
+}
+
 void WhaleAiMcpServerTest::ownTool()
 {
     // As the agents of AI6b ask.
@@ -305,6 +506,9 @@ void WhaleAiMcpServerTest::ownTool()
     opencode.title = QStringLiteral("orcinus_select_items");
     opencode.kind = QStringLiteral("other");
     QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("select_items"));
+    opencode.title = QStringLiteral("orcinus_trigger_action");
+    QCOMPARE(WhaleAiMcpServer::ownTool(opencode), QStringLiteral("trigger_action"));
+    opencode.title = QStringLiteral("orcinus_select_items");
 
     // Not ours: another server, an unknown tool, a command titled like ours, files named.
     WhaleAcpToolCall other = claude;
