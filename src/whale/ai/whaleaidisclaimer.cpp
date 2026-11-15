@@ -138,17 +138,26 @@ WhaleAiDisclaimer::WhaleAiDisclaimer(QWidget *parent)
 void WhaleAiDisclaimer::showLicense()
 {
     // The application's license (GPL 2 or later); the plain GPL 2 where there is none (tests).
-    const QList<KAboutLicense> licenses = KAboutData::applicationData().licenses();
-    KAboutLicense license = KAboutLicense::byKeyword(QStringLiteral("GPLV2"));
+    // A KAboutLicense refers to its KAboutData for the copyright line of text(): keep the copy
+    // that applicationData() returns alive until the text is read.
+    const KAboutData about = KAboutData::applicationData();
+    const QList<KAboutLicense> licenses = about.licenses();
+    QString name;
+    QString text;
     if (!licenses.isEmpty() && licenses.first().key() != KAboutLicense::Unknown) {
-        license = licenses.first();
+        name = licenses.first().name(KAboutLicense::FullName);
+        text = licenses.first().text();
+    } else {
+        const KAboutLicense gpl = KAboutLicense::byKeyword(QStringLiteral("GPLV2"));
+        name = gpl.name(KAboutLicense::FullName);
+        text = gpl.text();
     }
 
     auto *dialog = new QDialog(window());
     dialog->setObjectName(QStringLiteral("licenseDialog"));
     dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->setWindowTitle(license.name(KAboutLicense::FullName));
-    auto *view = new QPlainTextEdit(license.text(), dialog);
+    dialog->setWindowTitle(name);
+    auto *view = new QPlainTextEdit(text, dialog);
     view->setReadOnly(true);
     view->setLineWrapMode(QPlainTextEdit::NoWrap);
     QFont font = view->font();

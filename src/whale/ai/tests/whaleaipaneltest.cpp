@@ -16,6 +16,7 @@
 #include "whaleaisettingspage.h"
 #include "whaleaitranscript.h"
 
+#include <KAboutData>
 #include <KActionCollection>
 #include <KActionMenu>
 #include <KSharedConfig>
@@ -179,6 +180,9 @@ void WhaleAiPanelTest::disclaimer()
     const QString text = shown->findChild<QLabel *>(QStringLiteral("text"))->text();
     QVERIFY(text.contains(QLatin1String("Your system, your responsibility.")));
     QVERIFY(text.contains(QLatin1String("sections 11 and 12")));
+    // With the application's license, as in Orcinus (its text refers to the KAboutData).
+    KAboutData about(QStringLiteral("whaleaipaneltest"), QStringLiteral("Test"), QStringLiteral("1.0"), QString(), KAboutLicense::GPL);
+    KAboutData::setApplicationData(about);
     shown->findChild<QToolButton *>(QStringLiteral("viewLicense"))->click();
     auto *licenseDialog = panel.findChild<QDialog *>(QStringLiteral("licenseDialog"));
     QVERIFY(licenseDialog);
