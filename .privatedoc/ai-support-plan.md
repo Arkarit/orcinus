@@ -1,6 +1,6 @@
-# AI support (AI0–AI7)
+# AI support (AI0–AI8)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. Next AI7 (documentation).
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). Next AI5e (access follows the view), then AI8 (documentation).
 
 ## Problem
 
@@ -593,6 +593,73 @@ conversation (`WhaleAiPanel::greet()`), without the agent. Without a greeting to
 answers in the language the user writes in, so `greetingInstruction()`, `fullSystemPrompt()`, the
 back-channel tool `remember_language` and `WhaleAiAgents::language()` / `setLanguage()` are gone.
 The chat also got a gear button to the AI settings next to "New Conversation".
+
+**AI5e – Access follows the view.** Planned 2026-11-15 (user): the "Access:" combo, the start
+folder and the list of shared folders were confusing. The sandbox stays (user: the agents' own
+modes are promises of the agent, the sandbox holds against prompt injection from the files it
+reads and for any ACP agent; and it can simply be switched off). New model:
+
+- *What you see is what it reaches.* With the sandbox on, the agent reaches the folder shown in
+  the view and its subfolders, reading and writing. When the user changes the folder, the access
+  moves along (live add/remove of AI5d3). The user sees what the agent can reach from the path and
+  the view. Folder chips and "Give Access" remain only for extra folders, which stay until removed
+  or until a new conversation.
+- *"Sandbox" checkbox* next to "Mode:", replacing the "Access:" combo ("This folder and
+  subfolders" / "All folders"): two states need no combo, and it saves room. On by default,
+  marked red (KColorScheme NegativeText, also in dark schemes) when off. Stored per agent as
+  before (`allFolders`). The sandbox is set up when the agent starts, so the checkbox must say
+  right there that a change applies from the next conversation (or offer a restart), not only
+  in a transcript notice. The operating system's own protections stay in force either way;
+  admin mode (kio-admin) comes later.
+- *Decided (1b): a neutral working directory.* In the sandbox the agent's `cwd` (helper
+  `--chdir`, ACP `session/new` `cwd`) is an empty, read-only folder of the sandbox, not a shared
+  folder. Keeping the start folder as `cwd` breaks and leaks: `unshare()` removes the mount point
+  afterwards, so every shell call would fail with a missing `cwd`; and `umount2(MNT_DETACH)`
+  leaves a process whose `cwd` (or open file) is inside the folder with access to it, the agent
+  itself included. Each message keeps naming the folder shown and the reachable folders
+  (`WhaleAiContext::reachable`), and the system prompt explains the model. Without the sandbox
+  the `cwd` is the folder shown at the start, as now.
+- *Decided (2): folder change while the agent works.* The new folder is shared at once; the old
+  one is taken back when the running turn has ended (and no permission request is open), and the
+  panel shows that it is still reachable until then. Alternative considered: no folder change
+  while the agent works (rejected for now: too restrictive).
+- *Known limit.* Because of `MNT_DETACH`, any long-lived process of the agent whose `cwd` or open
+  file is inside a folder taken back keeps reaching that folder until it ends. 1b removes the
+  case that is always there (the agent's own `cwd`); a background process started inside a
+  folder can still hold it. Later option: on `remove`, the helper looks through the sandbox's
+  `/proc` (`cwd`, `root`, `fd`) and reports or ends such processes.
+- *Honest wording* (tooltip of the checkbox and AI8 docs): the sandbox protects the rest of the
+  user's data, not the reachable folders. The network is open, so what the agent may read can
+  leave the computer; its own configuration folder (e.g. `~/.claude`) is writable; system files
+  are readable.
+
+Open, need longer thought before deciding (user, 2026-11-15: big consequences either way):
+
+- *Split view:* only the active view, or both visible views (copying between them is a typical
+  task, and both are "what you see"; the "other view" chip of AI4 would then be automatic).
+- *Home folder and above* (`~`, `/home`, `/`): sharing them shares `~/.ssh`, `~/.gnupg`, the
+  keyring and browser profiles, hidden in the view, which is exactly where "what you see" holds
+  least. Options: no automatic share there (hint + "Give Access"), or share with the sensitive
+  dotfiles masked by empty mounts (a list to maintain).
+- *Non-local locations* (sftp, trash, search, later admin:/): nothing is shared, with a visible
+  hint; for a search possibly its base folder later.
+
+Steps:
+
+- *AI5e1 – Spike, before building.* The agents' own "workspace" is their `cwd`: Codex
+  `workspace-write` says "ask before writing outside the workspace", and Claude's `acceptEdits`
+  presumably accepts edits only inside its working directory. With a neutral `cwd`, these modes
+  may ask for every write (the full-access modes would then be the natural partner of the
+  sandbox). Also: does Claude Code still load a project's `CLAUDE.md` when it is not in `cwd` or
+  its parents (it may only see it when it reads the folder)? Check with real Claude, Codex and
+  OpenCode in the VM sandbox; the outcome may change decision 1b.
+- *AI5e2 – Neutral `cwd`* in the sandbox; system prompt and context say where the user is.
+- *AI5e3 – Access follows the folder shown,* with the delayed take-back during a turn; the
+  "shared" line and the chips show only extra folders.
+- *AI5e4 – "Sandbox" checkbox* instead of the combo, red when off, wording as above.
+- *AI5e5 – Tests* (fake agent in the sandbox: folder change shares and takes back, delayed while
+  a turn runs; the agent's `set_location` still cannot leave what it reaches, otherwise it could
+  widen its own access by navigating) and a GUI check in the VM.
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
