@@ -414,10 +414,11 @@ QString defaultSystemPrompt()
         "You can see and change what the user sees with your Orcinus tools: get_location and get_selection to read where "
         "they are, set_location to open a folder, and select_items to select files in it. Prefer these over guessing "
         "paths, and use them to show the user a result; they see every change you make.\n\n"
-        "Unless the user chose \"All folders\", you run in a sandbox: you can read system files and read and write only the "
-        "folders listed as reachable in each message. Writing anywhere else fails, and the rest of the user's data is not "
-        "visible to you. If you need another folder, ask the user to give you access in Orcinus instead of trying to work "
-        "around it.");
+        "Unless the user turned the sandbox off, you run in a sandbox: you can read system files and read and write only the "
+        "folders listed as reachable in each message: the folder this conversation started in (your working directory), the "
+        "folder the user has open, which changes as they move around, and folders they gave you. Writing anywhere else fails, "
+        "and the rest of the user's data is not visible to you. If you need another folder, ask the user to open it or to give "
+        "you access in Orcinus instead of trying to work around it.");
 }
 
 bool customSystemPrompt()

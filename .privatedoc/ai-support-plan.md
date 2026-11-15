@@ -667,13 +667,37 @@ Steps:
   middle modes ask for every read and write in the folder shown, and the project's instruction
   files are not loaded at all. Decision 1b needs to be reconsidered (user). OpenCode not tried
   (needs LM Studio on the host).
-- *AI5e2 – Neutral `cwd`* in the sandbox; system prompt and context say where the user is.
-- *AI5e3 – Access follows the folder shown,* with the delayed take-back during a turn; the
-  "shared" line and the chips show only extra folders.
-- *AI5e4 – "Sandbox" checkbox* instead of the combo, red when off, wording as above.
-- *AI5e5 – Tests* (fake agent in the sandbox: folder change shares and takes back, delayed while
-  a turn runs; the agent's `set_location` still cannot leave what it reaches, otherwise it could
-  widen its own access by navigating) and a GUI check in the VM.
+- *Decided after AI5e1 (user, 2026-11-15), replacing 1b:* the agent's `cwd` stays the folder the
+  conversation started in, and that folder stays reachable for the whole conversation (never
+  taken back, so neither a missing `cwd` nor the `MNT_DETACH` leak for it). In addition the
+  access follows the folder shown. In the start folder the agents work as their modes promise
+  and load the project's instruction files; in folders outside it they ask, as for folders the
+  user gave. Later option: offer "New Conversation here" when the user is far from the start
+  folder and the agent is idle.
+- *AI5e2 – Done 2026-11-15:* `WhaleAiPanel::followView()` (called from `refreshContext()`, so on
+  every folder change, also while the panel is hidden, and after each answer):
+  `followTarget()` is the folder of the active view unless it is inside the start folder, a
+  folder the user gave, or what the agent reaches anyway (system, its own folders), or not a
+  local folder. Shares made for it are `m_sessionFollowed` (pending: `m_followAdding`,
+  `m_followRemoving`), told to the agent as reachable with each message, no transcript notice.
+  While the agent works (`Prompting` or a message waiting for a mode) nothing is taken back, and a
+  folder inside or above a followed one waits too (one above would cover that share's mount
+  point, which could then not be unmounted). Afterwards old shares go first, then the new one
+  (the helper works in order). Navigating into a subfolder of a followed folder shrinks the share
+  to the subfolder once the agent is idle.
+  *Provisional* (open question above): the home folder and anything above it are not followed;
+  the folder chip offers "Give Access" there instead.
+  The "shared" line: start folder "(started here)", followed folder "(open)" or "(until this
+  answer ends)", user-given folders with "(remove)". The folder chip shows only when the agent
+  cannot reach the folder shown (with "Give Access"); the folder still goes with every message.
+  Checkbox "Sandbox" next to "Mode:" instead of the combo: red (KColorScheme NegativeText) when
+  off, "Sandbox (next conversation)" while it differs from the running conversation, tooltip with
+  the honest limits. System prompt and the start notice describe the model. Tests: panel test
+  `sandbox()` (follow, take back, delayed take-back during a turn, home not followed, give/remove
+  via the other-view chip), `accessChoice()` (checkbox), `contextChips()`.
+  Known edge (old, also for "Give Access"): removing a user-given folder while a share above it
+  covers its mount point fails with an error notice; harmless, it stays reachable through the
+  share above.
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).

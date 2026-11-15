@@ -21,6 +21,7 @@
 #include <KSharedConfig>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QDragEnterEvent>
@@ -746,9 +747,17 @@ void WhaleAiPanelTest::contextChips()
         return window;
     });
     QVERIFY(panel->contextChips()->isVisibleTo(panel.get()));
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a"));
+    // The folder shown needs no chip while the agent reaches it (AI5e): what it reaches is what
+    // the user sees. It still goes with the message.
+    QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder")));
+    QCOMPARE(panel->contextChips()->context().folder, a);
+    // As for an agent in its sandbox that reaches none of them:
+    panel->contextChips()->setAccess([](const QString &) {
+        return false;
+    });
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a (no access)"));
     QCOMPARE(chipText(*panel, QStringLiteral("chip-selection")), QStringLiteral("Selected: 2 items"));
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-other")), QStringLiteral("Other view: b"));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-other")), QStringLiteral("Other view: b (no access)"));
     QCOMPARE(panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection"))->toolTip(),
              a + QStringLiteral("/x.jpg\n") + a + QStringLiteral("/y.jpg"));
 
@@ -778,21 +787,21 @@ void WhaleAiPanelTest::contextChips()
     window.selection.clear();
     window.otherFolder.clear();
     panel->refreshContext();
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: b"));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: b (no access)"));
     QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection")));
     QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-other")));
 
     // A folder with a trailing slash (as views give it) is named, not shown as a path.
     window.folder = a + QLatin1Char('/');
     panel->refreshContext();
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a"));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a (no access)"));
     QCOMPARE(panel->contextChips()->context().folder, a);
 
     // A long name does not widen the panel: the chip elides it.
     const QString longName = QString(200, QLatin1Char('x'));
     window.folder = dir.filePath(longName);
     panel->refreshContext();
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: ") + longName);
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: ") + longName + QStringLiteral(" (no access)"));
     QVERIFY2(panel->contextChips()->minimumSizeHint().width() < 200, qPrintable(QString::number(panel->contextChips()->minimumSizeHint().width())));
     QVERIFY(panel->minimumSizeHint().width() < 400);
 
@@ -894,27 +903,33 @@ QTEST_MAIN(WhaleAiPanelTest)
 void WhaleAiPanelTest::accessChoice()
 {
     std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
-    auto *access = panel->findChild<QComboBox *>(QStringLiteral("access"));
-    QVERIFY(access);
-    // fakeAgent() runs without the sandbox.
-    QCOMPARE(access->currentData().toBool(), true);
+    auto *sandbox = panel->findChild<QCheckBox *>(QStringLiteral("sandbox"));
+    QVERIFY(sandbox);
+    // fakeAgent() runs without the sandbox: off, and marked.
+    QVERIFY(!sandbox->isChecked());
+    const QColor normal = panel->palette().color(QPalette::WindowText);
+    QVERIFY(sandbox->palette().color(QPalette::WindowText) != normal);
 
     // Chosen in the panel, stored for the agent, kept by its settings.
-    access->setCurrentIndex(access->findData(false));
-    Q_EMIT access->activated(access->currentIndex());
+    sandbox->click();
+    QVERIFY(sandbox->isChecked());
     QVERIFY(!WhaleAiAgents::agent(QStringLiteral("basic")).allFolders);
+    QCOMPARE(sandbox->palette().color(QPalette::WindowText), normal);
     WhaleAiAgent agent = WhaleAiAgents::agent(QStringLiteral("basic"));
     agent.allFolders = true;
     WhaleAiAgents::setAgents({agent});
     panel->readSettings();
-    QCOMPARE(access->currentData().toBool(), true);
+    QVERIFY(!sandbox->isChecked());
 
-    // During a conversation it applies to the next one.
+    // During a conversation it applies to the next one, and the checkbox says so.
     QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
     QVERIFY(waitForReady(*panel));
-    access->setCurrentIndex(access->findData(false));
-    Q_EMIT access->activated(access->currentIndex());
+    QCOMPARE(sandbox->text(), QStringLiteral("Sandbox"));
+    sandbox->click();
     QVERIFY(texts(*panel).contains(QLatin1String("The new access applies from the next conversation")));
+    QCOMPARE(sandbox->text(), QStringLiteral("Sandbox (next conversation)"));
+    panel->newConversation();
+    QCOMPARE(sandbox->text(), QStringLiteral("Sandbox"));
 }
 
 void WhaleAiPanelTest::sandbox()
@@ -931,7 +946,7 @@ void WhaleAiPanelTest::sandbox()
         // E.g. Ubuntu without the AppArmor profile: not started, and why.
         QVERIFY(!panel.sendPrompt(QStringLiteral("hello")));
         QVERIFY(!panel.session());
-        QVERIFY(texts(panel).contains(QLatin1String("Fake basic was not started: it may only reach this folder")));
+        QVERIFY(texts(panel).contains(QLatin1String("Fake basic was not started: it is to run in Orcinus' sandbox")));
         QSKIP(qPrintable(QStringLiteral("The sandbox does not run here: ") + problem));
     }
 
@@ -951,9 +966,9 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission readfile:%1 readfile:%2 writefile:%3").arg(inside.fileName(), secret.fileName(), written)));
     QVERIFY(waitForReady(panel));
     const QString all = texts(panel);
-    QVERIFY2(
-        all.contains(QStringLiteral("Fake basic works in %1: it reads and writes this folder and its subfolders and can read system files").arg(m_work.path())),
-        qPrintable(all));
+    QVERIFY2(all.contains(
+                 QStringLiteral("Fake basic works in %1: it reads and writes this folder, the folder you have open and their subfolders").arg(m_work.path())),
+             qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("read=inside;")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("read=missing;")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("written=yes;")), qPrintable(all));
@@ -978,17 +993,12 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(shared && shared->isVisibleTo(&panel));
     QVERIFY(!shared->text().contains(QLatin1String("remove:")));
 
-    // Another folder: the chip says the agent does not reach it, and gives access.
+    // The folder shown: the access follows it (AI5e), with no chip and no notice for it.
     panel.setUrl(QUrl::fromLocalFile(outside.path()));
-    panel.refreshContext();
-    QWidget *chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
-    QVERIFY(chip && chip->property("noAccess").toBool());
-    chip->findChild<QToolButton *>(QStringLiteral("giveAccess"))->click();
-    QTRY_VERIFY(texts(panel).contains(QStringLiteral("The agent may now also reach %1, reading and writing.").arg(outside.path())));
-    chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
-    QVERIFY(!chip->property("noAccess").toBool());
-    QVERIFY(!chip->findChild<QToolButton *>(QStringLiteral("giveAccess")));
-    QVERIFY(shared->text().contains(QLatin1String("remove:")));
+    QTRY_VERIFY2(shared->text().contains(QLatin1String("(open)")), qPrintable(shared->text()));
+    QVERIFY(shared->text().contains(QLatin1String("(started here)")));
+    QVERIFY(!panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder")));
+    QVERIFY(!texts(panel).contains(QLatin1String("The agent may now also reach")));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission readfile:%1").arg(secret.fileName())));
     QVERIFY(waitForReady(panel));
     QVERIFY2(texts(panel).contains(QLatin1String("read=secret;")), qPrintable(texts(panel)));
@@ -996,21 +1006,62 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(waitForReady(panel));
     QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":true,\"folder\":\"%1\"};").arg(outside.path())), qPrintable(texts(panel)));
 
-    // And takes it back.
-    Q_EMIT shared->linkActivated(QStringLiteral("remove:") + QString::fromLatin1(QUrl::toPercentEncoding(outside.path())));
-    QTRY_VERIFY(texts(panel).contains(QStringLiteral("The agent can no longer reach %1.").arg(outside.path())));
-    QVERIFY(panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->property("noAccess").toBool());
+    // Back in the folder of the conversation: taken back.
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QTRY_VERIFY2(!shared->text().contains(QLatin1String("(open)")), qPrintable(shared->text()));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission again readfile:%1").arg(secret.fileName())));
     QVERIFY(waitForReady(panel));
     QCOMPARE(texts(panel).count(QLatin1String("read=missing;")), 2);
-    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+
+    // While the agent works it keeps what it had until the answer ends; a new folder comes at once.
+    panel.setUrl(QUrl::fromLocalFile(outside.path()));
+    QTRY_VERIFY(shared->text().contains(QLatin1String("(open)")));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission waitforcancel")));
+    QVERIFY(QTest::qWaitFor(
+        [&] {
+            return panel.transcript()->findChild<QWidget *>(QStringLiteral("toolCall-t1")) != nullptr;
+        },
+        10000));
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QTest::qWait(200);
+    QVERIFY2(shared->text().contains(QLatin1String("(until this answer ends)")), qPrintable(shared->text()));
+    panel.stop();
     QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":false,\"folder\":\"%1\"};").arg(outside.path())), qPrintable(texts(panel)));
+    QTRY_VERIFY2(!shared->text().contains(QLatin1String("(until this answer ends)")), qPrintable(shared->text()));
+    QVERIFY(!shared->text().contains(QLatin1String("(open)")));
+
+    // Not the home folder (its hidden files are not in the view): the chip offers access instead.
+    panel.setUrl(QUrl::fromLocalFile(QDir::homePath()));
+    QWidget *chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
+    QVERIFY(chip && chip->property("noAccess").toBool());
+    QVERIFY(chip->findChild<QToolButton *>(QStringLiteral("giveAccess")));
+    QTest::qWait(200);
+    QVERIFY(!shared->text().contains(QLatin1String("(open)")));
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+
+    // Another folder, here of the other view: the chip says the agent does not reach it, and
+    // gives access; the list takes it back.
+    QTemporaryDir extra;
+    QVERIFY(extra.isValid());
+    panel.setContextProvider([&] {
+        return WhaleAiContext{m_work.path(), {}, extra.path(), {}, {}};
+    });
+    panel.refreshContext();
+    chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-other"));
+    QVERIFY(chip && chip->property("noAccess").toBool());
+    chip->findChild<QToolButton *>(QStringLiteral("giveAccess"))->click();
+    QTRY_VERIFY(texts(panel).contains(QStringLiteral("The agent may now also reach %1, reading and writing.").arg(extra.path())));
+    chip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-other"));
+    QVERIFY(!chip->property("noAccess").toBool());
+    QVERIFY(shared->text().contains(QLatin1String("remove:")));
+    Q_EMIT shared->linkActivated(QStringLiteral("remove:") + QString::fromLatin1(QUrl::toPercentEncoding(extra.path())));
+    QTRY_VERIFY(texts(panel).contains(QStringLiteral("The agent can no longer reach %1.").arg(extra.path())));
+    QVERIFY(panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-other"))->property("noAccess").toBool());
 
     // A new conversation starts with its folder only.
     panel.newConversation();
     QVERIFY(!shared->isVisibleTo(&panel));
-    QVERIFY(!panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->property("noAccess").toBool());
+    QVERIFY(!panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-other"))->property("noAccess").toBool());
 }
 
 void WhaleAiPanelTest::backChannel()

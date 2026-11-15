@@ -325,7 +325,9 @@ void WhaleAiContextChips::rebuild()
         delete item;
     }
 
-    if (!m_window.folder.isEmpty() && !m_folderRemoved) {
+    // The folder shown goes with every message; its chip only shows when the agent cannot reach
+    // it, to give access (AI5e): what the agent reaches is what the user sees.
+    if (!m_window.folder.isEmpty() && !m_folderRemoved && m_reaches && !m_reaches(m_window.folder)) {
         flow->addWidget(createChip(QStringLiteral("chip-folder"),
                                    QStringLiteral("folder"),
                                    i18nc("@label chip in the AI panel, %1 is a folder name", "Folder: %1", fileName(m_window.folder)),

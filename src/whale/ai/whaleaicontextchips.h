@@ -27,7 +27,8 @@
  *
  * With setAccess() (an agent in its sandbox, AI5d3), the folder, other-view and added chips
  * whose path the agent does not reach say so (property "noAccess") and get a "giveAccess"
- * button, which emits accessRequested().
+ * button, which emits accessRequested(). The folder chip shows only then (AI5e): the folder
+ * shown goes with every message, and the agent's access follows it.
  */
 class WhaleAiContextChips : public QWidget
 {

@@ -12,9 +12,11 @@
 #include "whaleaisandbox.h"
 #include "whaleaitranscript.h"
 
+#include <KColorScheme>
 #include <KLocalizedString>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
@@ -84,26 +86,13 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_modes->setMinimumContentsLength(8);
     auto *modesLabel = new QLabel(i18nc("@label:listbox what an AI agent may do on its own", "Mode:"), chat);
     modesLabel->setBuddy(m_modes);
-    // What the agent may reach (AI5d): enforced by the sandbox, not by the agent.
-    m_access = new QComboBox(chat);
-    m_access->setObjectName(QStringLiteral("access"));
-    m_access->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-    m_access->setMinimumContentsLength(8);
-    m_access->addItem(QIcon::fromTheme(QStringLiteral("folder")), i18nc("@item:inlistbox what an AI agent may reach", "This folder and subfolders"), false);
-    m_access->setItemData(0,
-                          i18nc("@info:tooltip",
-                                "The agent sees only the folder it works in and its subfolders, besides its own settings and the system "
-                                "(read-only). Orcinus' sandbox enforces this, not the agent."),
-                          Qt::ToolTipRole);
-    m_access->addItem(QIcon::fromTheme(QStringLiteral("drive-harddisk")), i18nc("@item:inlistbox what an AI agent may reach", "All folders"), true);
-    m_access->setItemData(1, i18nc("@info:tooltip", "The agent can reach all your files, as far as its mode lets it."), Qt::ToolTipRole);
-    auto *accessLabel = new QLabel(i18nc("@label:listbox which folders an AI agent may reach", "Access:"), chat);
-    accessLabel->setBuddy(m_access);
+    // What the agent may reach (AI5d, AI5e): enforced by the sandbox, not by the agent.
+    m_sandbox = new QCheckBox(i18nc("@option:check keep an AI agent in Orcinus' sandbox", "Sandbox"), chat);
+    m_sandbox->setObjectName(QStringLiteral("sandbox"));
     auto *modesRow = new QGridLayout;
     modesRow->addWidget(modesLabel, 0, 0);
     modesRow->addWidget(m_modes, 0, 1);
-    modesRow->addWidget(accessLabel, 1, 0);
-    modesRow->addWidget(m_access, 1, 1);
+    modesRow->addWidget(m_sandbox, 0, 2);
     modesRow->setColumnStretch(1, 1);
 
     // What the agent in its sandbox reaches (AI5d3), with links to take added ones back.
@@ -113,7 +102,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_shared->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     m_shared->setTextFormat(Qt::RichText);
     m_shared->hide();
-    modesRow->addWidget(m_shared, 2, 0, 1, 2);
+    modesRow->addWidget(m_shared, 1, 0, 1, 3);
 
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
@@ -183,8 +172,8 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
         }
     });
     connect(m_chips, &WhaleAiContextChips::accessRequested, this, &WhaleAiPanel::giveAccess);
-    connect(m_access, &QComboBox::activated, this, [this](int index) {
-        chooseAccess(m_access->itemData(index).toBool());
+    connect(m_sandbox, &QCheckBox::clicked, this, [this](bool checked) {
+        chooseAccess(!checked);
     });
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
     connect(m_send, &QToolButton::clicked, this, [this] {
@@ -287,6 +276,8 @@ void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
 
 void WhaleAiPanel::refreshContext()
 {
+    // First: the chips then know the folder shown is being shared.
+    followView();
     m_chips->setContext(currentContext());
 }
 
@@ -341,7 +332,7 @@ bool WhaleAiPanel::sendPrompt(const QString &text)
     refreshContext();
     m_pendingContext = m_chips->context();
     if (m_control) {
-        m_pendingContext.reachable = m_sessionFolders + m_sessionAdded;
+        m_pendingContext.reachable = m_sessionFolders + m_sessionAdded + m_sessionFollowed;
     }
     m_transcript->addUserMessage(prompt, WhaleAiContextPrompt::summary(m_pendingContext));
     m_chips->messageSent();
@@ -398,8 +389,8 @@ bool WhaleAiPanel::startSession()
                             QStringLiteral("sudo apparmor_parser -r ") + QDir::cleanPath(profile));
             }
             m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent",
-                                          "%1 was not started: it may only reach this folder, and the sandbox for that does not work here. "
-                                          "Choose “All folders” under Access to start it without the sandbox.",
+                                          "%1 was not started: it is to run in Orcinus' sandbox, which does not work here. "
+                                          "Turn “Sandbox” off to start it without.",
                                           agent.name),
                                     WhaleAiTranscript::Kind::Error,
                                     details);
@@ -430,6 +421,9 @@ bool WhaleAiPanel::startSession()
     m_sessionReach = reach;
     m_sessionFolders = shared;
     m_sessionAdded.clear();
+    m_sessionFollowed.clear();
+    m_followAdding.clear();
+    m_followRemoving.clear();
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     m_shownMode.clear();
@@ -473,8 +467,8 @@ bool WhaleAiPanel::startSession()
             i18nc("@info %1 is the name of an AI agent", "%1 works in an empty folder of its sandbox: this location is not a local folder.", agent.name));
     } else {
         m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder",
-                                      "%1 works in %2: it reads and writes this folder and its subfolders and can read system files, but the rest "
-                                      "of your data is out of reach. Orcinus' sandbox enforces this, not the agent.",
+                                      "%1 works in %2: it reads and writes this folder, the folder you have open and their subfolders, and can "
+                                      "read system files, but the rest of your data is out of reach. Orcinus' sandbox enforces this, not the agent.",
                                       agent.name,
                                       directory));
     }
@@ -551,13 +545,15 @@ bool WhaleAiPanel::startSession()
             m_transcript->addNotice(i18nc("@info", "The agent could not answer."), WhaleAiTranscript::Kind::Error, m_session->errorString());
         }
         updateState();
+        // What the answer kept can go now.
+        followView();
     });
 
     m_session->start(run, directory, mcpServers);
     if (control) {
         control->childStarted();
         m_chips->setAccess([this](const QString &path) {
-            return WhaleAiSandbox::reaches(path, m_sessionReach, false);
+            return reachesSoon(path);
         });
     }
     updateShared();
@@ -747,6 +743,9 @@ void WhaleAiPanel::endSession()
     m_sessionReach.clear();
     m_sessionFolders.clear();
     m_sessionAdded.clear();
+    m_sessionFollowed.clear();
+    m_followAdding.clear();
+    m_followRemoving.clear();
     m_chips->setAccess({});
     updateShared();
     if (!m_session) {
@@ -828,11 +827,34 @@ void WhaleAiPanel::updateSessionInfo()
 
 void WhaleAiPanel::updateAccess()
 {
-    const QSignalBlocker blocker(m_access);
     const WhaleAiAgent agent = WhaleAiAgents::agent(m_session ? m_sessionAgentId : agentId());
-    m_access->setCurrentIndex(m_access->findData(agent.allFolders));
-    m_access->setEnabled(!agent.id.isEmpty());
-    m_access->setToolTip(m_access->currentData(Qt::ToolTipRole).toString());
+    m_sandbox->setChecked(!agent.allFolders);
+    m_sandbox->setEnabled(!agent.id.isEmpty());
+    // The sandbox is set up when the agent starts: say so right here.
+    const bool later = m_session && agent.allFolders != m_sessionAllFolders;
+    m_sandbox->setText(later ? i18nc("@option:check the sandbox setting changes with the next AI conversation", "Sandbox (next conversation)")
+                             : i18nc("@option:check keep an AI agent in Orcinus' sandbox", "Sandbox"));
+    // Off is the exception: it shows.
+    QPalette palette = m_sandbox->parentWidget()->palette();
+    if (agent.allFolders) {
+        const KColorScheme scheme(QPalette::Active, KColorScheme::Window);
+        palette.setColor(QPalette::WindowText, scheme.foreground(KColorScheme::NegativeText).color());
+        palette.setColor(QPalette::ButtonText, scheme.foreground(KColorScheme::NegativeText).color());
+    }
+    m_sandbox->setPalette(palette);
+    QString tooltip = agent.allFolders
+        ? i18nc("@info:tooltip", "Off: the agent can reach all your files, as far as its mode lets it.")
+        : i18nc("@info:tooltip",
+                "On: the agent reads and writes only the folder the conversation started in, the folder you have open and folders you "
+                "give it, with their subfolders. Orcinus' sandbox enforces this, not the agent.");
+    tooltip += QStringLiteral("\n\n")
+        + i18nc("@info:tooltip",
+                "The sandbox protects the rest of your data, not these folders: the network stays open, so what the agent may read can "
+                "leave this computer. It can also read system files and write its own settings.");
+    if (m_session) {
+        tooltip += QStringLiteral("\n\n") + i18nc("@info:tooltip", "A change applies from the next conversation (New Conversation).");
+    }
+    m_sandbox->setToolTip(tooltip);
 }
 
 void WhaleAiPanel::chooseAccess(bool allFolders)
@@ -906,26 +928,104 @@ void WhaleAiPanel::giveAccess(const QString &path)
 
 void WhaleAiPanel::sandboxChanged(bool added, const QString &path, const QString &error)
 {
+    // Shared or taken back for the folder shown (AI5e), or by the user (AI5d3).
+    const bool followed = added ? m_followAdding.removeOne(path) : m_followRemoving.removeOne(path);
     if (!error.isEmpty()) {
         m_transcript->addNotice(added ? i18nc("@info %1 is a path, %2 the reason", "%1 could not be shared with the agent: %2", path, error)
                                       : i18nc("@info %1 is a path, %2 the reason", "%1 could not be taken from the agent: %2", path, error),
                                 WhaleAiTranscript::Kind::Error);
+        updateShared();
         return;
     }
     if (added) {
-        m_sessionAdded.append(path);
+        (followed ? m_sessionFollowed : m_sessionAdded).append(path);
         m_sessionReach.append(path);
-        m_transcript->addNotice(i18nc("@info %1 is a path", "The agent may now also reach %1, reading and writing.", path));
+        if (!followed) {
+            m_transcript->addNotice(i18nc("@info %1 is a path", "The agent may now also reach %1, reading and writing.", path));
+        }
     } else {
-        m_sessionAdded.removeAll(path);
+        (followed ? m_sessionFollowed : m_sessionAdded).removeAll(path);
         m_sessionReach.removeAll(path);
-        m_transcript->addNotice(i18nc("@info %1 is a path", "The agent can no longer reach %1.", path));
+        if (!followed) {
+            m_transcript->addNotice(i18nc("@info %1 is a path", "The agent can no longer reach %1.", path));
+        }
     }
-    updateShared();
     // The chips say again what it reaches.
     m_chips->setAccess([this](const QString &path) {
-        return WhaleAiSandbox::reaches(path, m_sessionReach, false);
+        return reachesSoon(path);
     });
+    // A folder taken back may be the one shown, or make room for it.
+    followView();
+}
+
+QString WhaleAiPanel::followTarget() const
+{
+    if (!m_control) {
+        return QString();
+    }
+    const QString folder = currentContext().folder;
+    if (folder.isEmpty() || !QFileInfo(folder).isDir()) {
+        // Not a local folder: nothing to share.
+        return QString();
+    }
+    // For now not the home folder or above it: that would share its hidden files too (~/.ssh,
+    // keyrings, browser profiles), which the view does not show. "Give Access" on the folder
+    // chip still does it. Open question of AI5e.
+    if (WhaleAiSandbox::isInside(QDir::cleanPath(QDir::homePath()), {folder})) {
+        return QString();
+    }
+    // Inside the folder of the conversation or one the user gave: nothing more to share.
+    if (WhaleAiSandbox::isInside(folder, m_sessionFolders + m_sessionAdded)) {
+        return QString();
+    }
+    // The system and the agent's own folders it reaches anyway (the former read-only).
+    QStringList base = m_sessionReach;
+    for (const QString &path : m_sessionFollowed) {
+        base.removeAll(path);
+    }
+    if (WhaleAiSandbox::reaches(folder, base, false)) {
+        return QString();
+    }
+    return folder;
+}
+
+bool WhaleAiPanel::reachesSoon(const QString &path) const
+{
+    return WhaleAiSandbox::reaches(path, m_sessionReach + m_followAdding, false);
+}
+
+void WhaleAiPanel::followView()
+{
+    if (!m_control) {
+        return;
+    }
+    const QString target = followTarget();
+    // A running answer keeps what it had: taking a folder away in the middle of it would break
+    // what the agent does there. The new folder is shared at once.
+    const bool busy = m_session && (m_session->state() == WhaleAcpSession::State::Prompting || !m_pendingPrompt.isEmpty());
+    if (!busy) {
+        for (const QString &path : std::as_const(m_sessionFollowed)) {
+            if (path != target && !m_followRemoving.contains(path)) {
+                m_followRemoving.append(path);
+                m_control->remove(path);
+            }
+        }
+    }
+    // While the agent works, a folder inside one shared before is reached already, and one
+    // above it would cover that share's mount point (it could not be taken back then): both get
+    // their own share once the answer is done and the old one has gone.
+    bool wait = false;
+    if (busy && !target.isEmpty()) {
+        for (const QString &path : std::as_const(m_sessionFollowed)) {
+            wait = wait || WhaleAiSandbox::isInside(target, {path}) || WhaleAiSandbox::isInside(path, {target});
+        }
+    }
+    if (!target.isEmpty() && !wait && !m_sessionFollowed.contains(target) && !m_followAdding.contains(target)) {
+        // Asked after the take-backs: the helper does them in order.
+        m_followAdding.append(target);
+        m_control->add(target);
+    }
+    updateShared();
 }
 
 void WhaleAiPanel::updateShared()
@@ -937,11 +1037,19 @@ void WhaleAiPanel::updateShared()
     }
     auto name = [](const QString &path) {
         const QString fileName = QFileInfo(path).fileName();
-        return (fileName.isEmpty() ? path : fileName).toHtmlEscaped();
+        return QStringLiteral("<b>%1</b>").arg((fileName.isEmpty() ? path : fileName).toHtmlEscaped());
     };
+    const QString target = followTarget();
     QStringList parts;
     for (const QString &path : std::as_const(m_sessionFolders)) {
-        parts.append(QStringLiteral("<b>%1</b>").arg(name(path)));
+        parts.append(i18nc("@info %1 is the folder an AI conversation started in", "%1 (started here)", name(path)));
+    }
+    for (const QString &path : m_sessionFollowed + m_followAdding) {
+        if (m_followRemoving.contains(path)) {
+            continue;
+        }
+        parts.append(path == target ? i18nc("@info %1 is the folder the user has open", "%1 (open)", name(path))
+                                    : i18nc("@info %1 is a folder the AI agent keeps until its answer ends", "%1 (until this answer ends)", name(path)));
     }
     for (const QString &path : std::as_const(m_sessionAdded)) {
         parts.append(QStringLiteral("%1 <a href=\"remove:%2\">%3</a>")
@@ -951,7 +1059,7 @@ void WhaleAiPanel::updateShared()
                                       : i18nc("@info %1 is a list of folders",
                                               "The agent can read and write: %1. It can also read system files, nothing else of yours.",
                                               parts.join(QStringLiteral(", "))));
-    m_shared->setToolTip((m_sessionFolders + m_sessionAdded).join(QLatin1Char('\n')));
+    m_shared->setToolTip((m_sessionFolders + m_sessionFollowed + m_sessionAdded).join(QLatin1Char('\n')));
     m_shared->show();
 }
 
