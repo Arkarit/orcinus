@@ -312,8 +312,31 @@ QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
     entry->setProperty(KindProperty, QVariant::fromValue(int(kind)));
     // Before the stretch at the end.
     m_layout->insertWidget(m_layout->count() - 1, entry);
-    entry->show();
+    entry->setVisible(m_showActions || !isAction(kind));
     return entry;
+}
+
+bool WhaleAiTranscript::isAction(Kind kind)
+{
+    return kind == Kind::ToolCall || kind == Kind::Action;
+}
+
+void WhaleAiTranscript::setShowActions(bool show)
+{
+    if (m_showActions == show) {
+        return;
+    }
+    m_showActions = show;
+    for (QWidget *entry : entries()) {
+        if (isAction(kindOf(entry))) {
+            entry->setVisible(show);
+        }
+    }
+}
+
+bool WhaleAiTranscript::showActions() const
+{
+    return m_showActions;
 }
 
 void WhaleAiTranscript::addUserMessage(const QString &text, const QString &context)
@@ -584,7 +607,7 @@ void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString 
     label->setText(text);
     label->setToolTip(toolTip);
     QFont italic = label->font();
-    italic.setItalic(kind == Kind::Notice);
+    italic.setItalic(kind == Kind::Notice || kind == Kind::Action);
     label->setFont(italic);
     if (kind == Kind::Error) {
         QPalette palette = label->palette();

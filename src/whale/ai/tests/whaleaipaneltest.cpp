@@ -1043,6 +1043,34 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY2(all.contains(QStringLiteral("The agent opened “sub” in the right view.")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("\"activeView\":\"right\"")), qPrintable(all));
 
+    // The Actions filter hides what the agent did, also what comes later, and remembers it.
+    auto *showActions = panel.findChild<QCheckBox *>(QStringLiteral("showActions"));
+    QVERIFY(showActions && showActions->isChecked());
+    auto actionEntries = [&panel] {
+        QList<QWidget *> result;
+        for (QWidget *entry : panel.transcript()->entries()) {
+            if (WhaleAiTranscript::kindOf(entry) == WhaleAiTranscript::Kind::Action) {
+                result.append(entry);
+            }
+        }
+        return result;
+    };
+    QVERIFY(actionEntries().size() >= 4);
+    showActions->setChecked(false);
+    QVERIFY(!WhaleAiAgents::showActions());
+    for (QWidget *entry : panel.transcript()->entries()) {
+        const WhaleAiTranscript::Kind kind = WhaleAiTranscript::kindOf(entry);
+        QCOMPARE(entry->isHidden(), kind == WhaleAiTranscript::Kind::Action || kind == WhaleAiTranscript::Kind::ToolCall);
+    }
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(actionEntries().constLast()->isHidden());
+    showActions->setChecked(true);
+    QVERIFY(WhaleAiAgents::showActions());
+    for (QWidget *entry : actionEntries()) {
+        QVERIFY(!entry->isHidden());
+    }
+
     // Requests for our own tools are answered at once, as each agent asks; others are not.
     for (const char *agent : {"claude", "codex", "opencode"}) {
         QVERIFY(panel.sendPrompt(QStringLiteral("askorcinus-%1").arg(QString::fromLatin1(agent))));

@@ -15,6 +15,7 @@
 #include <KLocalizedString>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
@@ -90,6 +91,14 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     modesRow->addWidget(modesLabel, 0, 0);
     modesRow->addWidget(m_modes, 0, 1);
     modesRow->setColumnStretch(1, 1);
+    // A filter of the transcript: what the agent did (commands, tool calls) or only the conversation.
+    // Permission requests stay: they are how the user controls the agent.
+    m_showActions = new QCheckBox(i18nc("@option:check show what an AI agent did in the transcript", "Actions"), chat);
+    m_showActions->setObjectName(QStringLiteral("showActions"));
+    m_showActions->setToolTip(
+        i18nc("@info:tooltip", "Show what the agent does: the commands it runs and the tools it uses. Permission requests are always shown."));
+    m_showActions->setChecked(WhaleAiAgents::showActions());
+    modesRow->addWidget(m_showActions, 0, 2);
 
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
@@ -180,6 +189,11 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
 
     setFocusProxy(m_input);
     m_transcript->setFocusReturn(m_input);
+    m_transcript->setShowActions(m_showActions->isChecked());
+    connect(m_showActions, &QCheckBox::toggled, this, [this](bool on) {
+        m_transcript->setShowActions(on);
+        WhaleAiAgents::setShowActions(on);
+    });
     fillAgents(WhaleAiAgents::defaultAgentId());
     greet();
     updateState();
@@ -269,6 +283,11 @@ void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
     if (m_mcp) {
         m_mcp->setViewActions(keepingInputFocus(actions));
     }
+}
+
+void WhaleAiPanel::addActionNotice(const QString &text, const QString &toolTip)
+{
+    m_transcript->addNotice(text, WhaleAiTranscript::Kind::Action, QString(), toolTip);
 }
 
 int WhaleAiPanel::activePane() const
@@ -424,42 +443,34 @@ bool WhaleAiPanel::startSession()
             const QString name = QDir(folder).dirName().isEmpty() ? folder : QDir(folder).dirName();
             switch (activePane()) {
             case 0:
-                m_transcript->addNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the left view.", name),
-                                        WhaleAiTranscript::Kind::Notice,
-                                        {},
-                                        folder);
+                addActionNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the left view.", name), folder);
                 break;
             case 1:
-                m_transcript->addNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the right view.", name),
-                                        WhaleAiTranscript::Kind::Notice,
-                                        {},
-                                        folder);
+                addActionNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the right view.", name), folder);
                 break;
             default:
-                m_transcript->addNotice(i18nc("@info %1 is a folder name", "The agent opened “%1”.", name), WhaleAiTranscript::Kind::Notice, {}, folder);
+                addActionNotice(i18nc("@info %1 is a folder name", "The agent opened “%1”.", name), folder);
             }
         });
         connect(mcp, &WhaleAiMcpServer::itemsSelected, this, [this](int count) {
             switch (activePane()) {
             case 0:
-                m_transcript->addNotice(
-                    i18ncp("@info", "The agent selected %1 item in the left view.", "The agent selected %1 items in the left view.", count));
+                addActionNotice(i18ncp("@info", "The agent selected %1 item in the left view.", "The agent selected %1 items in the left view.", count));
                 break;
             case 1:
-                m_transcript->addNotice(
-                    i18ncp("@info", "The agent selected %1 item in the right view.", "The agent selected %1 items in the right view.", count));
+                addActionNotice(i18ncp("@info", "The agent selected %1 item in the right view.", "The agent selected %1 items in the right view.", count));
                 break;
             default:
-                m_transcript->addNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
+                addActionNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
             }
         });
         connect(mcp, &WhaleAiMcpServer::actionTriggered, this, [this](const WhaleAiUiAction &action) {
             const QString command = action.menu.isEmpty() ? action.text : action.menu + QStringLiteral(" ▸ ") + action.text;
             if (action.checkable && !action.exclusive) {
-                m_transcript->addNotice(action.checked ? i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned on %1.", command)
-                                                       : i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned off %1.", command));
+                addActionNotice(action.checked ? i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned on %1.", command)
+                                               : i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned off %1.", command));
             } else {
-                m_transcript->addNotice(i18nc("@info %1 is a command, e.g. View ▸ View Mode ▸ Details", "The agent used %1.", command));
+                addActionNotice(i18nc("@info %1 is a command, e.g. View ▸ View Mode ▸ Details", "The agent used %1.", command));
             }
         });
         mcpServers.append(mcp->mcpServer(relay));

@@ -26,6 +26,7 @@ const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
 const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
+const char ShowActionsKey[] = "ShowActions";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -425,6 +426,18 @@ void setCustomSystemPrompt(bool custom)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(CustomSystemPromptKey, custom);
+    group.sync();
+}
+
+bool showActions()
+{
+    return aiGroup().readEntry(ShowActionsKey, true);
+}
+
+void setShowActions(bool show)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(ShowActionsKey, show);
     group.sync();
 }
 

@@ -16,6 +16,7 @@
 
 #include <QPointer>
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPlainTextEdit;
@@ -122,6 +123,8 @@ protected:
 private:
     /** @return @p actions, giving the focus back to the input if it had it (the user is typing). */
     WhaleAiViewActions keepingInputFocus(const WhaleAiViewActions &actions);
+    /** A line in the transcript about what the agent did in the window (hidden with the Actions filter). */
+    void addActionNotice(const QString &text, const QString &toolTip = QString());
     /** See WhaleAiViewActions::activePane. */
     int activePane() const;
     /** Where the user is: from the provider, else the panel's folder. */
@@ -161,6 +164,7 @@ private:
     QString m_sessionAgentId;
     bool m_systemPromptSent = false; ///< the system prompt is sent once, with the first message (AI)
     QPointer<WhaleAiMcpServer> m_mcp; ///< the back channel of the conversation (AI6)
+    QCheckBox *m_showActions = nullptr;
     WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;
     WhaleAiContext m_pendingContext;

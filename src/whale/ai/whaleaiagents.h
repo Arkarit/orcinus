@@ -147,6 +147,10 @@ void setCustomSystemPrompt(bool custom);
 /** @return Whether the user accepted the disclaimer about AI agents (AI5f, WhaleAiDisclaimer). */
 bool disclaimerAccepted();
 void setDisclaimerAccepted(bool accepted);
+
+/** @return Whether the transcript shows what the agent did (the panel's "Actions" filter). */
+bool showActions();
+void setShowActions(bool show);
 }
 
 #endif
