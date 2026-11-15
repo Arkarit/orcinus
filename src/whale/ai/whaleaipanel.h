@@ -16,14 +16,12 @@
 
 #include <QPointer>
 
-class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPlainTextEdit;
 class QStackedWidget;
 class QToolButton;
 class WhaleAiContextChips;
-class WhaleAiSandboxControl;
 class WhaleAiTranscript;
 
 /**
@@ -36,8 +34,7 @@ class WhaleAiTranscript;
  * button stops it (as does Escape).
  *
  * The agent is started with the first prompt, in the folder of the active view (the home
- * folder for non-local locations). In its sandbox (AI5d) it keeps that folder for the whole
- * conversation, and its access follows the folder the user has open (AI5e). Hiding the panel keeps the conversation; it ends with
+ * folder for non-local locations). Hiding the panel keeps the conversation; it ends with
  * "New Conversation", when another agent is chosen, or when the panel goes. If the agent
  * fails, the next prompt starts it again in a new conversation.
  *
@@ -138,46 +135,19 @@ private:
     void updateSessionInfo();
     void openLink(const QString &link);
     void updateModes();
-    void updateAccess();
-    void chooseAccess(bool allFolders);
-    bool answerOutsideRequest(const WhaleAcpPermissionRequest &request);
-    void giveAccess(const QString &path);
-    void sandboxChanged(bool added, const QString &path, const QString &error);
-    void updateShared();
-    /**
-     * Lets the sandbox follow the folder shown (AI5e): shares it if the agent does not reach it
-     * yet, and takes back folders shared for earlier ones, but only while the agent does not
-     * work (a running answer keeps what it had).
-     */
-    void followView();
-    /** @return The folder the sandbox should follow now: the one shown, if it is to be shared. */
-    QString followTarget() const;
-    /** @return Whether the agent reaches @p path, or will once a pending share is done. */
-    bool reachesSoon(const QString &path) const;
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
     QToolButton *m_newConversation = nullptr;
     QLabel *m_sessionInfo = nullptr;
     QComboBox *m_modes = nullptr;
-    QCheckBox *m_sandbox = nullptr;
-    QLabel *m_shared = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_send = nullptr;
 
     QPointer<WhaleAcpSession> m_session;
     QString m_sessionAgentId;
-    bool m_sessionAllFolders = true;
     bool m_systemPromptSent = false; ///< the system prompt is sent once, with the first message (AI)
-    QStringList m_sessionReach; ///< what the agent shares in its sandbox (AI5d)
-    QStringList m_sessionFolders; ///< the folder it started in (AI5d2)
-    QStringList m_sessionAdded; ///< what the user shared with it later (AI5d3)
-    QStringList m_sessionFollowed; ///< shared because the user had it open (AI5e)
-    QStringList m_followAdding; ///< asked to share for the folder shown, not done yet
-    QStringList m_followRemoving; ///< asked to take back, not done yet
-    QString m_followFailed; ///< could not be shared: not asked again until the user goes elsewhere
-    QPointer<WhaleAiSandboxControl> m_control;
     QPointer<WhaleAiMcpServer> m_mcp; ///< the back channel of the conversation (AI6)
     WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;

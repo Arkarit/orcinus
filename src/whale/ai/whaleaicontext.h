@@ -22,8 +22,6 @@ struct WhaleAiContext {
     QStringList selection; ///< what is selected in it
     QString otherFolder; ///< the folder of the other split view
     QStringList added; ///< files and folders the user dropped onto the input
-    /** What the agent's sandbox reaches besides the system (AI5d); empty: no sandbox. */
-    QStringList reachable;
 
     bool isEmpty() const
     {

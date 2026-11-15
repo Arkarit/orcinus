@@ -25,7 +25,7 @@
  * A prompt with "nopermission" asks nothing; with "askexecute" it asks to run a command, with
  * "askdiff" to make a change shown as a diff, with "askoutside" to read /orcinus-test-outside/secret.txt.
  * "readfile:PATH" and "writefile:PATH" in a prompt read or write that file and answer
- * "read=CONTENT" (or "read=missing") and "written=yes" / "written=no" (the sandbox, AI5d).
+ * "read=CONTENT" (or "read=missing") and "written=yes" / "written=no".
  * "mcp:TOOL" starts the MCP server "orcinus" from session/new, as real agents do, calls TOOL and
  * answers "tools=NAMES;mcp=TEXT;" (or "mcp=none;", "mcp=error:MESSAGE;"; the back channel, AI6);
  * "mcp:set_location:PATH" and "mcp:select_items:A,B" pass arguments. "askorcinus-claude",

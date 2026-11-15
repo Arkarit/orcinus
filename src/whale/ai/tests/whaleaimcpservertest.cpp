@@ -137,25 +137,14 @@ void WhaleAiMcpServerTest::location()
     QVERIFY(result.contains(QLatin1String("note")));
 
     server.setContextProvider([] {
-        return WhaleAiContext{QStringLiteral("/home/u/work"), {}, QStringLiteral("/home/u/private"), {}, {}};
+        return WhaleAiContext{QStringLiteral("/home/u/work"), {}, QStringLiteral("/home/u/private"), {}};
     });
     QSignalSpy called(&server, &WhaleAiMcpServer::toolCalled);
     result = toolResult(server, QStringLiteral("get_location"));
     QCOMPARE(result,
-             (QJsonObject{{QStringLiteral("folder"), QStringLiteral("/home/u/work")},
-                          {QStringLiteral("access"), true},
-                          {QStringLiteral("otherFolder"), QStringLiteral("/home/u/private")},
-                          {QStringLiteral("otherAccess"), true}}));
+             (QJsonObject{{QStringLiteral("folder"), QStringLiteral("/home/u/work")}, {QStringLiteral("otherFolder"), QStringLiteral("/home/u/private")}}));
     QCOMPARE(called.size(), 1);
     QCOMPARE(called.first().at(0).toString(), QStringLiteral("get_location"));
-
-    // In the sandbox: what the agent does not reach is marked.
-    server.setAccess([](const QString &path) {
-        return path.startsWith(QLatin1String("/home/u/work"));
-    });
-    result = toolResult(server, QStringLiteral("get_location"));
-    QVERIFY(result.value(QLatin1String("access")).toBool());
-    QVERIFY(!result.value(QLatin1String("otherAccess")).toBool());
 }
 
 void WhaleAiMcpServerTest::selection()
@@ -167,17 +156,12 @@ void WhaleAiMcpServerTest::selection()
     }
     QStringList selection{QStringLiteral("/w/a"), QStringLiteral("/elsewhere/b")};
     server.setContextProvider([&] {
-        return WhaleAiContext{QStringLiteral("/w"), selection, {}, {}, {}};
-    });
-    server.setAccess([](const QString &path) {
-        return path.startsWith(QLatin1String("/w/"));
+        return WhaleAiContext{QStringLiteral("/w"), selection, {}, {}};
     });
     QJsonObject result = toolResult(server, QStringLiteral("get_selection"));
     QCOMPARE(result.value(QLatin1String("count")).toInt(), 2);
     QVERIFY(!result.value(QLatin1String("truncated")).toBool());
-    QCOMPARE(result.value(QLatin1String("items")).toArray(),
-             (QJsonArray{QJsonObject{{QStringLiteral("path"), QStringLiteral("/w/a")}, {QStringLiteral("access"), true}},
-                         QJsonObject{{QStringLiteral("path"), QStringLiteral("/elsewhere/b")}, {QStringLiteral("access"), false}}}));
+    QCOMPARE(result.value(QLatin1String("items")).toArray(), (QJsonArray{QStringLiteral("/w/a"), QStringLiteral("/elsewhere/b")}));
 
     selection = many;
     result = toolResult(server, QStringLiteral("get_selection"));
@@ -189,10 +173,9 @@ void WhaleAiMcpServerTest::selection()
 void WhaleAiMcpServerTest::setLocation()
 {
     QTemporaryDir shared;
-    QTemporaryDir outside;
-    QVERIFY(shared.isValid() && outside.isValid());
+    QTemporaryDir other;
+    QVERIFY(shared.isValid() && other.isValid());
     QVERIFY(QDir(shared.path()).mkdir(QStringLiteral("sub")));
-    QVERIFY(QFile::link(outside.path(), shared.filePath(QStringLiteral("link"))));
     QFile file(shared.filePath(QStringLiteral("file.txt")));
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.close();
@@ -210,9 +193,6 @@ void WhaleAiMcpServerTest::setLocation()
                                opened.append(folder);
                            },
                            {}});
-    server.setAccess([&](const QString &path) {
-        return path == shared.path() || path.startsWith(shared.path() + QLatin1Char('/'));
-    });
     QSignalSpy set(&server, &WhaleAiMcpServer::locationSet);
 
     QJsonObject result = setLocation(shared.filePath(QStringLiteral("sub/../sub/")), &error);
@@ -221,12 +201,10 @@ void WhaleAiMcpServerTest::setLocation()
     QCOMPARE(opened, QStringList{shared.filePath(QStringLiteral("sub"))});
     QCOMPARE(set.size(), 1);
 
-    // Outside, existing or not, the same answer; a link inside to outside is outside.
-    const QString outsideAnswer = setLocation(outside.path(), &error).value(QLatin1String("error")).toString();
-    QVERIFY(error);
-    QCOMPARE(setLocation(outside.filePath(QStringLiteral("nothing")), &error).value(QLatin1String("error")).toString(), outsideAnswer);
-    QCOMPARE(setLocation(shared.filePath(QStringLiteral("link")), &error).value(QLatin1String("error")).toString(), outsideAnswer);
-    QCOMPARE(setLocation(shared.filePath(QStringLiteral("../")), &error).value(QLatin1String("error")).toString(), outsideAnswer);
+    // Any folder: there is no sandbox (removed after AI5e).
+    setLocation(other.path(), &error);
+    QVERIFY(!error);
+    QCOMPARE(opened.last(), other.path());
     // Inside: missing, a file, relative, no path.
     setLocation(shared.filePath(QStringLiteral("nothing")), &error);
     QVERIFY(error);
@@ -236,8 +214,8 @@ void WhaleAiMcpServerTest::setLocation()
     QVERIFY(error);
     toolResult(server, QStringLiteral("set_location"), {}, &error);
     QVERIFY(error);
-    QCOMPARE(opened.size(), 1);
-    QCOMPARE(set.size(), 1);
+    QCOMPARE(opened.size(), 2);
+    QCOMPARE(set.size(), 2);
 }
 
 void WhaleAiMcpServerTest::selectItems()
@@ -252,15 +230,12 @@ void WhaleAiMcpServerTest::selectItems()
     QString folder = shared.path();
     WhaleAiMcpServer server;
     server.setContextProvider([&] {
-        return WhaleAiContext{folder, {}, {}, {}, {}};
+        return WhaleAiContext{folder, {}, {}, {}};
     });
     QStringList selected;
     server.setViewActions({{}, [&](const QStringList &paths) {
                                selected = paths;
                            }});
-    server.setAccess([&](const QString &path) {
-        return path == shared.path() || path.startsWith(shared.path() + QLatin1Char('/'));
-    });
     QSignalSpy spy(&server, &WhaleAiMcpServer::itemsSelected);
     auto select = [&server](const QStringList &items, bool *error) {
         return toolResult(server, QStringLiteral("select_items"), {{QStringLiteral("items"), QJsonArray::fromStringList(items)}}, error);
@@ -296,7 +271,7 @@ void WhaleAiMcpServerTest::selectItems()
     QVERIFY(selected.isEmpty());
     QCOMPARE(spy.size(), 1);
 
-    // Too many, no list, or a folder the agent does not reach.
+    // Too many, no list, or no local folder.
     QStringList many;
     for (int i = 0; i <= WhaleAiMcpServer::MaxSelection; ++i) {
         many.append(QStringLiteral("a.txt"));
@@ -305,7 +280,7 @@ void WhaleAiMcpServerTest::selectItems()
     QVERIFY(error);
     toolResult(server, QStringLiteral("select_items"), {{QStringLiteral("items"), QStringLiteral("a.txt")}}, &error);
     QVERIFY(error);
-    folder = QDir::tempPath();
+    folder.clear();
     select({QStringLiteral("a.txt")}, &error);
     QVERIFY(error);
     QVERIFY(selected.isEmpty());
@@ -380,7 +355,7 @@ void WhaleAiMcpServerTest::relay()
     WhaleAiMcpServer server;
     QVERIFY(server.listen());
     server.setContextProvider([] {
-        return WhaleAiContext{QStringLiteral("/w"), {}, {}, {}, {}};
+        return WhaleAiContext{QStringLiteral("/w"), {}, {}, {}};
     });
     QProcess process;
     process.start(relay, server.mcpServer(relay).arguments);

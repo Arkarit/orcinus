@@ -262,6 +262,18 @@ Details (planned 2026-11-13, AI5 before AI4):
   AI6. (The idea that the bridge announces each call before the agent asks does not hold: an
   agent asks first and calls the tool only once allowed; see AI6c.)
 
+**Sandbox removed (user, 2026-11-15).** After AI5e the user decided to take the sandbox out
+completely: the agents' own sandboxes (Codex' bwrap, Claude's per-project settings) and Orcinus'
+one keep getting in each other's way, and every fix found the next conflict (AI5d4's remount,
+the start folder, the home folder). The code of AI5d/AI5e is in the history (last at 3506de209);
+removed: `orcinus-sandbox`, its AppArmor profile, `WhaleAiSandbox`, the "Sandbox" checkbox, the
+shared-folders line, "Give Access", access checks of the back channel (`access` fields, the
+reach check of `set_location`/`select_items`), `WhaleAiContext::reachable`, the per-agent
+`Access`/`SandboxPaths` keys (deleted when the agents are stored). `global-install-orcinus.sh`
+removes an installed profile and helper once. The folder and the selection have no chips (the
+view shows them). Instead: a disclaimer (AI5f). The agents' modes (AI5) stay the only control;
+the system prompt asks the agent to ask before changing anything beyond the request.
+
 **AI5d – Folder access (sandbox).** Planned 2026-11-13 after a test: the user gave Codex (mode
 "Read-only") a folder outside the current one to delete; Codex asked, but nothing *kept* it from
 the folder. The modes are promises of the agent; it reads anywhere in every mode. By default the

@@ -6,4 +6,4 @@
 # No Qt. See .privatedoc/ai-support-plan.md.
 
 add_executable(orcinus-mcp orcinus-mcp.cpp)
-install(TARGETS orcinus-mcp DESTINATION ${WHALE_SANDBOX_DIR})
+install(TARGETS orcinus-mcp DESTINATION ${WHALE_AI_LIBEXEC_DIR})

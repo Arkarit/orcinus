@@ -12,8 +12,8 @@
  *
  *   orcinus-mcp --socket PATH --token TOKEN
  *
- * The token is the first line on the socket. No Qt: it starts with every conversation, also
- * inside orcinus-sandbox. See .privatedoc/ai-support-plan.md (AI6).
+ * The token is the first line on the socket. No Qt: it starts with every conversation. See
+ * .privatedoc/ai-support-plan.md (AI6).
  */
 
 #include <cerrno>

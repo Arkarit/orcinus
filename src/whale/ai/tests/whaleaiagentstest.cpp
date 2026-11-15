@@ -224,10 +224,9 @@ void WhaleAiAgentsTest::startMode()
 
 void WhaleAiAgentsTest::systemPromptStorage()
 {
-    // Default until the user takes over; the built-in text mentions the sandbox and the tools.
+    // Default until the user takes over; the built-in text mentions the tools.
     QVERIFY(!WhaleAiAgents::customSystemPrompt());
     QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
-    QVERIFY(WhaleAiAgents::defaultSystemPrompt().contains(QLatin1String("sandbox")));
     QVERIFY(WhaleAiAgents::defaultSystemPrompt().contains(QLatin1String("set_location")));
 
     // A stored custom text is only used while editing is on.

@@ -65,8 +65,6 @@ public:
 
     /** Where the user is, as the panel sends it (folder, selection, other split view). */
     void setContextProvider(const std::function<WhaleAiContext()> &provider);
-    /** Whether the agent reaches a path (its sandbox); none: all of them. */
-    void setAccess(const std::function<bool(const QString &)> &access);
     /** What set_location and select_items do; without them they answer with an error. */
     void setViewActions(const WhaleAiViewActions &actions);
 
@@ -95,7 +93,6 @@ private:
     QJsonObject selection();
     QJsonObject setLocation(const QJsonObject &arguments, bool *error);
     QJsonObject selectItems(const QJsonObject &arguments, bool *error);
-    bool reaches(const QString &path) const;
 
     std::unique_ptr<QTemporaryDir> m_dir;
     QLocalServer *m_server = nullptr;
@@ -103,7 +100,6 @@ private:
     QString m_error;
     QHash<QLocalSocket *, bool> m_authorized;
     std::function<WhaleAiContext()> m_contextProvider;
-    std::function<bool(const QString &)> m_access;
     WhaleAiViewActions m_viewActions;
 };
 

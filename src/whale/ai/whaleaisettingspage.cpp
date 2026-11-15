@@ -90,9 +90,9 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     m_editPrompt = new QCheckBox(i18nc("@option:check", "Write my own instructions for every agent"), promptGroup);
     m_editPrompt->setObjectName(QStringLiteral("editPrompt"));
     auto *promptHint = new QLabel(i18nc("@info",
-                                        "These instructions lead the first message of every conversation: who the agent is, its Orcinus "
-                                        "tools and its sandbox. Orcinus keeps them up to date. You can write your own, but a weak prompt "
-                                        "can confuse the agent (the sandbox stays in force either way)."),
+                                        "These instructions lead the first message of every conversation: who the agent is and its Orcinus "
+                                        "tools. Orcinus keeps them up to date. You can write your own, but a weak prompt can confuse the "
+                                        "agent."),
                                   promptGroup);
     promptHint->setWordWrap(true);
     m_prompt = new QPlainTextEdit(promptGroup);
@@ -161,15 +161,12 @@ WhaleAiSettingsPage::~WhaleAiSettingsPage() = default;
 
 void WhaleAiSettingsPage::applySettings()
 {
-    // The start mode and the access are chosen in the panel, maybe while this page is open: keep
-    // the stored ones.
+    // The start mode is chosen in the panel, maybe while this page is open: keep the stored one.
     QList<WhaleAiAgent> agents = m_agents;
     for (WhaleAiAgent &agent : agents) {
         const WhaleAiAgent stored = WhaleAiAgents::agent(agent.id);
         if (!stored.id.isEmpty()) {
             agent.startMode = stored.startMode;
-            agent.allFolders = stored.allFolders;
-            agent.sandboxPaths = stored.sandboxPaths;
         }
     }
     WhaleAiAgents::setAgents(agents);
@@ -376,8 +373,7 @@ void WhaleAiSettingsPage::toggleEditPrompt(bool edit)
             KMessageBox::warningContinueCancel(this,
                                                i18nc("@info",
                                                      "You are about to write your own instructions for every agent, instead of the ones Orcinus keeps up to "
-                                                     "date. A weak or misleading prompt can confuse the agent or drop useful guidance. The sandbox and the "
-                                                     "folder limits stay in force either way. Continue?"),
+                                                     "date. A weak or misleading prompt can confuse the agent or drop useful guidance. Continue?"),
                                                i18nc("@title:window", "Edit the system prompt"),
                                                KStandardGuiItem::cont(),
                                                KStandardGuiItem::cancel(),

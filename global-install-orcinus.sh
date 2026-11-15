@@ -41,11 +41,6 @@ if [[ "${configured_prefix}" != "${prefix}" ]]; then
     exit 1
 fi
 
-# Ubuntu allows the AI sandbox (orcinus-sandbox) only with its AppArmor profile.
-if [[ -d /etc/apparmor.d ]]; then
-    cmake "${build_dir}" -DWHALE_INSTALL_APPARMOR_PROFILE=ON > /dev/null
-fi
-
 echo "==> Building"
 cmake --build "${build_dir}"
 
@@ -137,9 +132,18 @@ echo "==> Installing to ${prefix} (sudo)"
 sudo cmake --install "${build_dir}"
 sudo chown "$(id -un):$(id -gn)" "${build_dir}/install_manifest.txt"
 
-if [[ -f /etc/apparmor.d/orcinus-sandbox ]] && command -v apparmor_parser > /dev/null; then
-    echo "==> Loading the AppArmor profile of the AI sandbox"
-    sudo apparmor_parser -r /etc/apparmor.d/orcinus-sandbox
+# The AI sandbox is gone; an earlier installation left its helper and AppArmor profile.
+if [[ -f /etc/apparmor.d/orcinus-sandbox ]]; then
+    echo "==> Removing the AppArmor profile of the former AI sandbox"
+    if command -v apparmor_parser > /dev/null; then
+        sudo apparmor_parser -R /etc/apparmor.d/orcinus-sandbox || true
+    fi
+    sudo rm -f /etc/apparmor.d/orcinus-sandbox
+fi
+# Next to orcinus-mcp, which the installation just put there.
+mcp_relay="$(grep -m1 '/orcinus-mcp$' "${build_dir}/install_manifest.txt" || true)"
+if [[ -n "${mcp_relay}" && -e "$(dirname "${mcp_relay}")/orcinus-sandbox" ]]; then
+    sudo rm -f "$(dirname "${mcp_relay}")/orcinus-sandbox"
 fi
 
 echo "==> Refreshing caches"

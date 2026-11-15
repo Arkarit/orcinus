@@ -23,10 +23,6 @@ struct WhaleAiAgent {
     QString commandLine; ///< program and arguments, quoted as in a shell
     QStringList environment; ///< NAME=value, added to the environment of Orcinus
     QString startMode; ///< value of the "mode" option set after the start (AI5); empty: the agent's
-    /** What the agent may reach (AI5d): false, the default, only the folder it works in (sandbox). */
-    bool allFolders = false;
-    /** More files and folders the agent needs in its sandbox, read-write (e.g. its own settings). */
-    QStringList sandboxPaths = {};
 
     /**
      * @return The program (found in PATH unless absolute), its arguments and the environment;
@@ -54,7 +50,7 @@ struct WhaleAiAgentPreset {
     }
 };
 
-/** The known agents, recognised by their command line (AI5: login; AI5d: what the sandbox needs). */
+/** The known agents, recognised by their command line (AI5: login). */
 enum class WhaleAiAgentKind {
     Unknown,
     Claude,
@@ -97,8 +93,6 @@ WhaleAiAgent agent(const QString &id);
 
 /** Stores @p mode as the start mode of the agent @p id (empty: none); nothing if it is gone. */
 void setStartMode(const QString &id, const QString &mode);
-/** Stores what the agent @p id may reach (WhaleAiAgent::allFolders); nothing if it is gone. */
-void setAllFolders(const QString &id, bool allFolders);
 
 /**
  * @return The value of the first choice of @p modes (an option of category "mode") that is
@@ -136,7 +130,7 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);
 
 /**
- * @return Orcinus' built-in instructions for every agent (role, the Orcinus tools, the sandbox):
+ * @return Orcinus' built-in instructions for every agent (role, the Orcinus tools):
  *         the text a fresh setup sends and the settings page shows. It is in English, like the
  *         context of each message, because it goes to the agent; it grows with the features.
  */

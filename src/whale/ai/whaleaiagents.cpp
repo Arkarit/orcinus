@@ -25,6 +25,7 @@ const char NameKey[] = "Name";
 const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
+// Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
 const char ModeIdsKey[] = "ModeIds";
@@ -102,8 +103,6 @@ QList<WhaleAiAgent> agents()
         agent.commandLine = agentGroup.readEntry(CommandKey, QString());
         agent.environment = agentGroup.readEntry(EnvironmentKey, QStringList());
         agent.startMode = agentGroup.readEntry(StartModeKey, QString());
-        agent.allFolders = agentGroup.readEntry(AccessKey, QString()) == QLatin1String("all");
-        agent.sandboxPaths = agentGroup.readEntry(SandboxPathsKey, QStringList());
         list.append(agent);
     }
     return list;
@@ -128,16 +127,8 @@ void setAgents(const QList<WhaleAiAgent> &agents)
         } else {
             agentGroup.writeEntry(StartModeKey, agent.startMode);
         }
-        if (agent.allFolders) {
-            agentGroup.writeEntry(AccessKey, QStringLiteral("all"));
-        } else {
-            agentGroup.deleteEntry(AccessKey);
-        }
-        if (agent.sandboxPaths.isEmpty()) {
-            agentGroup.deleteEntry(SandboxPathsKey);
-        } else {
-            agentGroup.writeEntry(SandboxPathsKey, agent.sandboxPaths);
-        }
+        agentGroup.deleteEntry(AccessKey);
+        agentGroup.deleteEntry(SandboxPathsKey);
     }
     const QStringList groups = group.groupList();
     for (const QString &name : groups) {
@@ -191,18 +182,6 @@ void setStartMode(const QString &id, const QString &mode)
     for (WhaleAiAgent &agent : list) {
         if (agent.id == id) {
             agent.startMode = mode;
-            setAgents(list);
-            return;
-        }
-    }
-}
-
-void setAllFolders(const QString &id, bool allFolders)
-{
-    QList<WhaleAiAgent> list = agents();
-    for (WhaleAiAgent &agent : list) {
-        if (agent.id == id) {
-            agent.allFolders = allFolders;
             setAgents(list);
             return;
         }
@@ -407,18 +386,15 @@ QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents)
 QString defaultSystemPrompt()
 {
     // English, like the context of each message: it goes to the agent, not the user. Keep it in
-    // step with what the sandbox and the back channel (AI5d/AI6) actually do.
+    // step with what the back channel (AI6) actually does.
     return QStringLiteral(
         "You are an AI assistant working with the user's files through the Orcinus file manager. The user is working in "
         "Orcinus next to this chat, and each message tells you the folder they have open and what they have selected.\n\n"
         "You can see and change what the user sees with your Orcinus tools: get_location and get_selection to read where "
         "they are, set_location to open a folder, and select_items to select files in it. Prefer these over guessing "
         "paths, and use them to show the user a result; they see every change you make.\n\n"
-        "Unless the user turned the sandbox off, you run in a sandbox: you can read system files and read and write only the "
-        "folders listed as reachable in each message: the folder this conversation started in (your working directory), the "
-        "folder the user has open, which changes as they move around, and folders they gave you. Writing anywhere else fails, "
-        "and the rest of the user's data is not visible to you. If you need another folder, ask the user to open it or to give "
-        "you access in Orcinus instead of trying to work around it.");
+        "You work with the user's own permissions on their real files. Before you change, move or delete anything outside "
+        "what they asked for, or anything that is hard to undo, say what you will do and ask first.");
 }
 
 bool customSystemPrompt()

@@ -5,14 +5,9 @@
 # AI support: the AI panel talks to external agents through the Agent Client Protocol (ACP).
 # See .privatedoc/ai-support-plan.md.
 
-########### sandbox for the agents (AI5d) ###############
-
-set(WHALE_SANDBOX_DIR "${KDE_INSTALL_LIBEXECDIR}/${WHALE_COMPONENT}")
-set(WHALE_APPARMOR_DIR "/etc/apparmor.d" CACHE PATH "Where the AppArmor profile of orcinus-sandbox goes (WHALE_INSTALL_APPARMOR_PROFILE)")
-add_subdirectory(sandbox)
-
 ########### back channel of the agents (AI6) ###############
 
+set(WHALE_AI_LIBEXEC_DIR "${KDE_INSTALL_LIBEXECDIR}/${WHALE_COMPONENT}")
 add_subdirectory(mcp)
 
 ########### ACP client core (AI1) and agent settings (AI2), no widgets ###############
@@ -27,13 +22,10 @@ target_sources(whaleai PRIVATE
     whaleaiagenttest.cpp
     whaleaicontext.cpp
     whaleaimcpserver.cpp
-    whaleaisandbox.cpp
 )
 
-# Where the installed sandbox helper is; the build tree's one next to the program comes first.
-target_compile_definitions(whaleai PRIVATE WHALE_SANDBOX_INSTALLED="${CMAKE_INSTALL_PREFIX}/${WHALE_SANDBOX_DIR}/orcinus-sandbox")
-add_dependencies(whaleai orcinus-sandbox)
-target_compile_definitions(whaleai PRIVATE WHALE_MCP_INSTALLED="${CMAKE_INSTALL_PREFIX}/${WHALE_SANDBOX_DIR}/orcinus-mcp")
+# Where the installed relay is; the build tree's one next to the program comes first.
+target_compile_definitions(whaleai PRIVATE WHALE_MCP_INSTALLED="${CMAKE_INSTALL_PREFIX}/${WHALE_AI_LIBEXEC_DIR}/orcinus-mcp")
 add_dependencies(whaleai orcinus-mcp)
 
 ecm_qt_declare_logging_category(whaleai

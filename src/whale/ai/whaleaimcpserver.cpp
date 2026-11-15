@@ -110,19 +110,19 @@ QJsonArray tools()
         tool(QStringLiteral("get_location"),
              QStringLiteral("Get the folder shown in Orcinus"),
              QStringLiteral("Returns the folder the user has open in the active view of the Orcinus file manager, and the folder of the other "
-                            "split view if there is one. \"access\" says whether you can reach the folder."),
+                            "split view if there is one."),
              true),
         tool(QStringLiteral("get_selection"),
              QStringLiteral("Get the items selected in Orcinus"),
              QStringLiteral("Returns the paths of the files and folders the user has selected in the active view of the Orcinus file manager "
-                            "(at most %1). \"access\" says whether you can reach each one.")
+                            "(at most %1).")
                  .arg(WhaleAiMcpServer::MaxSelection),
              true),
         tool(
             QStringLiteral("set_location"),
             QStringLiteral("Open a folder in Orcinus"),
             QStringLiteral("Opens a folder in the active view of the Orcinus file manager, to show the user a result. It changes only what the "
-                           "user sees, no file. Only folders you can reach."),
+                           "user sees, no file."),
             false,
             {{QStringLiteral("path"),
               QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}, {QStringLiteral("description"), QStringLiteral("Absolute path of the folder")}}}},
@@ -271,11 +271,6 @@ void WhaleAiMcpServer::setContextProvider(const std::function<WhaleAiContext()> 
     m_contextProvider = provider;
 }
 
-void WhaleAiMcpServer::setAccess(const std::function<bool(const QString &)> &access)
-{
-    m_access = access;
-}
-
 void WhaleAiMcpServer::setViewActions(const WhaleAiViewActions &actions)
 {
     m_viewActions = actions;
@@ -408,11 +403,6 @@ QJsonObject WhaleAiMcpServer::setLocation(const QJsonObject &arguments, bool *er
         return toolError(QStringLiteral("\"path\" must be an absolute path."));
     }
     const QString clean = QDir::cleanPath(path);
-    // Before anything that tells whether it exists. A link inside that leads outside counts as outside.
-    const QString canonical = QFileInfo(clean).canonicalFilePath();
-    if (!reaches(clean) || (!canonical.isEmpty() && !reaches(canonical))) {
-        return toolError(QStringLiteral("You cannot reach this folder; the user can give you access in Orcinus."));
-    }
     if (!QFileInfo(clean).isDir()) {
         return toolError(QStringLiteral("Not an existing folder: %1").arg(clean));
     }
@@ -441,9 +431,6 @@ QJsonObject WhaleAiMcpServer::selectItems(const QJsonObject &arguments, bool *er
         return toolError(QStringLiteral("The active view does not show a local folder."));
     }
     const QString folder = QDir::cleanPath(context.folder);
-    if (!reaches(folder)) {
-        return toolError(QStringLiteral("You cannot reach the folder open in Orcinus; the user can give you access."));
-    }
     if (!m_viewActions.select) {
         return toolError(QStringLiteral("Orcinus cannot change its view here."));
     }
@@ -482,11 +469,9 @@ QJsonObject WhaleAiMcpServer::location()
         result.insert(QStringLiteral("note"), QStringLiteral("The active view does not show a local folder."));
     } else {
         result.insert(QStringLiteral("folder"), context.folder);
-        result.insert(QStringLiteral("access"), reaches(context.folder));
     }
     if (!context.otherFolder.isEmpty()) {
         result.insert(QStringLiteral("otherFolder"), context.otherFolder);
-        result.insert(QStringLiteral("otherAccess"), reaches(context.otherFolder));
     }
     return result;
 }
@@ -499,16 +484,11 @@ QJsonObject WhaleAiMcpServer::selection()
         if (items.size() == MaxSelection) {
             break;
         }
-        items.append(QJsonObject{{QStringLiteral("path"), path}, {QStringLiteral("access"), reaches(path)}});
+        items.append(path);
     }
     QJsonObject result{{QStringLiteral("count"), int(context.selection.size())},
                        {QStringLiteral("items"), items},
                        {QStringLiteral("truncated"), context.selection.size() > MaxSelection}};
     result.insert(QStringLiteral("folder"), context.folder.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(context.folder));
     return result;
-}
-
-bool WhaleAiMcpServer::reaches(const QString &path) const
-{
-    return !m_access || m_access(path);
 }
