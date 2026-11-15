@@ -81,6 +81,10 @@ WhaleAiDisclaimer::WhaleAiDisclaimer(QWidget *parent)
         + item(i18nc("@info lead of a list item", "Ask when unsure."),
                i18nc("@info", "If you do not understand an action or its consequences, ask the agent to explain before proceeding."))
         + item(i18nc("@info lead of a list item", "Keep backups."), i18nc("@info", "Protect important files before giving agents access to your system."))
+        + item(i18nc("@info lead of a list item", "No undo."),
+               i18nc("@info",
+                     "What an agent changes on your system bypasses Orcinus' Undo and Redo and cannot be taken back there. "
+                     "Only the agent itself may offer a way to reverse its changes."))
         + QStringLiteral("</ul>") + heading(i18nc("@title the user decides about AI agents and answers for it", "Your system, your responsibility."))
         + paragraph(i18nc("@info",
                           "You decide which agents to trust and what access to grant them. Orcinus is free software under the GNU "
