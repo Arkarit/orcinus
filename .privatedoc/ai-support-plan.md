@@ -1,6 +1,6 @@
 # AI support (AI0–AI9)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15.
 
 ## Problem
 
@@ -781,7 +781,56 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).
 
-Work happens in the VM, as real agents are attached.
+Work happens on the host (user, 2026-11-15): AI9 is UI only, file handling stays with the
+agent's own tools. Back to the VM when something critical comes up. Tests use an isolated profile
+(`whale-dev-session.sh --profile`), never the user's `orcinusrc`.
+
+*AI9a results (2026-11-15, read-only spike: offscreen dev instance + source).*
+- **Actions: about 180** in the window's `KActionCollection`. 148 of them are visible over D-Bus at
+  start; the rest are created later (panel toggles `show_*_panel` incl. `show_ai_panel`,
+  `closed_tabs`, `bookmarks`, `new_menu`, `panels`, toolbar elements, view plugins). So
+  `list_actions` must enumerate the collection in process, not use the D-Bus snapshot. Text,
+  tooltip, `checkable`/`checked` and `enabled` are all there; the menu path has to come from the
+  XMLGUI document. Many actions are grouped (`sort_by_*`, `group_*`, `show_*` columns, view modes)
+  → group them in the list so that the list stays short.
+- **Context.** Most view actions act on the *active* pane. In split view the agent has to choose
+  the pane first (`activate_pane`, or a `pane` argument on `trigger_action`). Actions of the file
+  view toolbars live in their own command scopes per pane (`whaleviewcommandscope`).
+- **Not a security boundary.** KXMLGUI exports every action of the window on the session bus
+  (`/orcinus/Orcinus_1/actions/<name>`, `trigger()`), as Dolphin does. An agent with a shell
+  could already trigger `deletefile` that way. The block list therefore protects against
+  *mistakes through our tools* and keeps the transcript honest. It is not protection against a
+  hostile agent (the disclaimer covers that).
+- **Block list (first round).** File operations: `edit_cut`, `edit_copy`, `edit_paste`,
+  `copy_to_inactive_split_view`, `move_to_inactive_split_view`, `create_dir`, `create_subdir`,
+  `create_file`, `new_menu`, `renamefile`, `movetotrash`, `deletefile`, `delete_shortcut`,
+  `duplicate`, `edit_undo`/`edit_redo` (they undo *file*
+  operations). Ways out / rights: `act_as_admin`, `open_terminal`, `open_terminal_here`,
+  `focus_terminal_panel`, `show_terminal_panel`, `compare_files`, `manage_disk_space`,
+  `open_preferred_search_tool`, scripts. Others: `file_quit`, `file_close` (closing the window
+  with the panel), `options_configure_keybinding`, `show_ai_panel` (the agent hiding itself).
+- **Dialogs / popups** (left out in the first round, maybe "open visibly" later):
+  `options_configure`, `options_configure_toolbars`, `view_properties`, `properties`,
+  `whale_save_style`, `show_filter_bar`/`edit_find` only focus (fine), `open_kcommand_bar`,
+  `hamburger_menu`, `copy_location` (clipboard: allowed, harmless). Action texts ending in "…"
+  are a good first hint but not reliable (`Cut…`/`Copy…` open no dialog).
+- **Settings: about 115 KConfigXT entries** (General 39, view properties 16, Details 13, context
+  menu 12, Icons 10, Compact 9, content display 5, panels 8, search 3, VCS 1) **plus ~35 hand-
+  written keys** (toolbars, viewer, styles, expansion tint, highlighting, AI).
+  The settings dialog applies them by `page->applySettings()` (writes the skeleton) followed by
+  `settingsChanged` → `DolphinMainWindow::refreshViews()`, which re-reads everything. So
+  "write the skeleton + save + `refreshViews()`" is the same path as the dialog's Apply and is
+  live for every setting whose page has no side effects. Startup settings take effect only at the
+  next start (report that, don't hide it).
+- **Settings with side effects or outside Orcinus — excluded:**
+  confirmations (`kiorc`: ConfirmDelete, ConfirmTrash, *script execution* — global KIO settings,
+  an escalation path), trash (`trashrc`), service menus (`kservicemenurc`), preview plugins
+  (`kdeglobals`, shared with other apps), telemetry, **all AI settings** (agents, system prompt,
+  start modes: the agent must not change its own rules), home folder (needs a stat),
+  "same view for all folders" (`GeneralViewSettingsPage` copies view properties: later, as a
+  specific tool).
+- **Real agent test** moves into AI9b (it needs the tools; prototyping them only for the spike
+  would be double work).
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
