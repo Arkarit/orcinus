@@ -112,8 +112,12 @@ for library in liborcinusprivate.so.6 libdolphinvcs.so.6 "${view_api:-liborcinus
         collisions=1
     fi
 done
-if ! readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qF '[$ORIGIN/../lib/x86_64-linux-gnu/orcinus]' \
-    || ! readelf -d "${private_dir}/liborcinusprivate.so.6" | grep -qF '[$ORIGIN]'; then
+# Read readelf's output first: "readelf | grep -q" fails now and then under pipefail, when grep
+# stops at the match and readelf, still writing, dies of SIGPIPE.
+binary_dynamic="$(readelf -d "${stage_dir}${prefix}/bin/orcinus")"
+private_dynamic="$(readelf -d "${private_dir}/liborcinusprivate.so.6")"
+if ! grep -qF '[$ORIGIN/../lib/x86_64-linux-gnu/orcinus]' <<< "${binary_dynamic}" \
+    || ! grep -qF '[$ORIGIN]' <<< "${private_dynamic}"; then
     echo "Check: the staged binary or liborcinusprivate does not find the private library directory." >&2
     collisions=1
 fi
