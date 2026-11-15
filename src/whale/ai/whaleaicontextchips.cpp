@@ -178,16 +178,6 @@ QString fileName(const QString &path)
     const QString name = QFileInfo(clean).fileName();
     return name.isEmpty() ? clean : name;
 }
-
-QString pathList(const QStringList &paths)
-{
-    constexpr int MaxShown = 20;
-    QStringList shown = paths.mid(0, MaxShown);
-    if (paths.size() > MaxShown) {
-        shown.append(i18ncp("@info:tooltip", "… and one more", "… and %1 more", paths.size() - MaxShown));
-    }
-    return shown.join(QLatin1Char('\n'));
-}
 }
 
 WhaleAiContextChips::WhaleAiContextChips(QWidget *parent)
@@ -258,9 +248,6 @@ void WhaleAiContextChips::setContext(const WhaleAiContext &context)
     if (context.folder != m_window.folder) {
         m_folderRemoved = false;
     }
-    if (context.selection != m_window.selection) {
-        m_selectionRemoved = false;
-    }
     if (context.otherFolder != m_window.otherFolder) {
         m_otherRemoved = false;
     }
@@ -292,9 +279,7 @@ WhaleAiContext WhaleAiContextChips::context() const
     if (!m_folderRemoved) {
         context.folder = m_window.folder;
     }
-    if (!m_selectionRemoved) {
-        context.selection = m_window.selection;
-    }
+    context.selection = m_window.selection;
     if (!m_otherRemoved) {
         context.otherFolder = m_window.otherFolder;
     }
@@ -305,7 +290,6 @@ WhaleAiContext WhaleAiContextChips::context() const
 void WhaleAiContextChips::messageSent()
 {
     m_folderRemoved = false;
-    m_selectionRemoved = false;
     m_otherRemoved = false;
     m_added.clear();
     rebuild();
@@ -338,16 +322,7 @@ void WhaleAiContextChips::rebuild()
                                        m_folderRemoved = true;
                                    }));
     }
-    if (!m_window.selection.isEmpty() && !m_selectionRemoved) {
-        const QString text = m_window.selection.size() == 1
-            ? i18nc("@label chip in the AI panel, %1 is a file name", "Selected: %1", fileName(m_window.selection.first()))
-            : i18ncp("@label chip in the AI panel", "Selected: %1 item", "Selected: %1 items", m_window.selection.size());
-        const QString name = m_window.selection.size() == 1 ? fileName(m_window.selection.first()) : QString();
-        flow->addWidget(
-            createChip(QStringLiteral("chip-selection"), QStringLiteral("edit-select-all"), text, name, pathList(m_window.selection), QString(), [this] {
-                m_selectionRemoved = true;
-            }));
-    }
+    // The selection goes with every message but has no chip: the user sees it in the view.
     if (!m_window.otherFolder.isEmpty() && !m_otherRemoved) {
         flow->addWidget(createChip(QStringLiteral("chip-other"),
                                    QStringLiteral("view-split-left-right"),

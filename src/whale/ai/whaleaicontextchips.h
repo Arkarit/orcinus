@@ -18,11 +18,12 @@
  * @brief The context of the next message of the AI panel, as removable chips (AI4).
  *
  * The window's part (folder, selection, other split view) comes from setContext(); files the
- * user drops onto the input come from addFiles(). A removed folder, selection or other-view
- * chip stays away for the next message only: it comes back after messageSent(), or when its
- * content changes. Added files are used by the next message and then go.
+ * user drops onto the input come from addFiles(). The selection has no chip: the user sees it
+ * in the view, and it goes with every message. A removed folder or other-view chip stays away
+ * for the next message only: it comes back after messageSent(), or when its content changes.
+ * Added files are used by the next message and then go.
  *
- * Each chip has the object name "chip-folder", "chip-selection", "chip-other" or "chip-added",
+ * Each chip has the object name "chip-folder", "chip-other" or "chip-added",
  * and a "remove" button. Without chips the widget hides itself.
  *
  * With setAccess() (an agent in its sandbox, AI5d3), the folder, other-view and added chips
@@ -82,7 +83,6 @@ private:
     WhaleAiContext m_window;
     QStringList m_added;
     bool m_folderRemoved = false;
-    bool m_selectionRemoved = false;
     bool m_otherRemoved = false;
     std::function<bool(const QString &)> m_reaches;
 };

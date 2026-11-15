@@ -435,6 +435,7 @@ bool WhaleAiPanel::startSession()
     m_sessionFollowed.clear();
     m_followAdding.clear();
     m_followRemoving.clear();
+    m_followFailed.clear();
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     m_shownMode.clear();
@@ -764,6 +765,7 @@ void WhaleAiPanel::endSession()
     m_sessionFollowed.clear();
     m_followAdding.clear();
     m_followRemoving.clear();
+    m_followFailed.clear();
     m_chips->setAccess({});
     updateShared();
     if (!m_session) {
@@ -949,6 +951,10 @@ void WhaleAiPanel::sandboxChanged(bool added, const QString &path, const QString
     // Shared or taken back for the folder shown (AI5e), or by the user (AI5d3).
     const bool followed = added ? m_followAdding.removeOne(path) : m_followRemoving.removeOne(path);
     if (!error.isEmpty()) {
+        if (followed && added) {
+            // Said once; asked again when the user comes back to it.
+            m_followFailed = path;
+        }
         m_transcript->addNotice(added ? i18nc("@info %1 is a path, %2 the reason", "%1 could not be shared with the agent: %2", path, error)
                                       : i18nc("@info %1 is a path, %2 the reason", "%1 could not be taken from the agent: %2", path, error),
                                 WhaleAiTranscript::Kind::Error);
@@ -1018,6 +1024,9 @@ void WhaleAiPanel::followView()
         return;
     }
     const QString target = followTarget();
+    if (target != m_followFailed) {
+        m_followFailed.clear();
+    }
     // A running answer keeps what it had: taking a folder away in the middle of it would break
     // what the agent does there. The new folder is shared at once.
     const bool busy = m_session && (m_session->state() == WhaleAcpSession::State::Prompting || !m_pendingPrompt.isEmpty());
@@ -1038,7 +1047,7 @@ void WhaleAiPanel::followView()
             wait = wait || WhaleAiSandbox::isInside(target, {path}) || WhaleAiSandbox::isInside(path, {target});
         }
     }
-    if (!target.isEmpty() && !wait && !m_sessionFollowed.contains(target) && !m_followAdding.contains(target)) {
+    if (!target.isEmpty() && !wait && target != m_followFailed && !m_sessionFollowed.contains(target) && !m_followAdding.contains(target)) {
         // Asked after the take-backs: the helper does them in order.
         m_followAdding.append(target);
         m_control->add(target);

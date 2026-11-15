@@ -690,6 +690,17 @@ Steps:
   held only for following, a conversation started in `~` still shared all of it as its start
   folder. Now the start folder is not shared either when it is the home folder or above; the
   agent's `cwd` is still that path (its sandbox view: only its own folders), a notice says why.
+  Second find of the user the same day: no folder could be shared any more ("no place for it:
+  Read-only file system"). AI5d4 remounted the sandbox root read-only without `MS_BIND`, which
+  reaches the tmpfs itself, so the holder could not make mount points either; tests only shared
+  folders in `/tmp`, whose places lie in the agent's own writable `/tmp`. Fixed with
+  `MS_REMOUNT | MS_BIND | MS_RDONLY`; `whaleaisandboxtest::addFolders` and the panel test now
+  share folders outside `/tmp`. A share that fails is not asked again until the user goes
+  elsewhere (it was retried on every refresh, one error notice each). A folder inside a path
+  bound read-only for the agent (e.g. its installation) is not shared: it is readable already,
+  and the place could not be made there.
+  The "Selected:" chip is gone (user): the view shows the selection; it still goes with every
+  message.
   The "shared" line: start folder "(started here)", followed folder "(open)" or "(until this
   answer ends)", user-given folders with "(remove)". The folder chip shows only when the agent
   cannot reach the folder shown (with "Give Access"); the folder still goes with every message.

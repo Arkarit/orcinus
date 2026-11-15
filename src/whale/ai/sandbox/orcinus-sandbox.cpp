@@ -395,8 +395,9 @@ int waitFor(pid_t child)
     // this throwaway tmpfs and looking like it worked (the agent cannot tell the empty home from
     // the real one). Only the agent's view: this is a slave of the holder's mount namespace, so
     // the holder keeps writing here to make mount points for folders added later (AI5d3), which
-    // propagate in as read-write mounts.
-    if (mount(nullptr, "/", nullptr, MS_REMOUNT | MS_RDONLY | MS_NOSUID | MS_NODEV, nullptr) != 0) {
+    // propagate in as read-write mounts. MS_BIND makes only this mount read-only: without it the
+    // remount reaches the tmpfs itself, and the holder could not make those mount points either.
+    if (mount(nullptr, "/", nullptr, MS_REMOUNT | MS_BIND | MS_RDONLY | MS_NOSUID | MS_NODEV, nullptr) != 0) {
         fail("cannot make the sandbox root read-only");
     }
     if (!directory.empty() && chdir(directory.c_str()) != 0) {

@@ -6,6 +6,7 @@
 
 #include "whaleaisandbox.h"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QProcess>
 #include <QSignalSpy>
@@ -229,8 +230,11 @@ void WhaleAiSandboxTest::addFolders()
         QSKIP(qPrintable(QStringLiteral("The sandbox does not run here: ") + problem));
     }
     QTemporaryDir inside;
-    QTemporaryDir later;
+    // Not in /tmp: the agent has its own writable /tmp, so a place there would be made in it. Here
+    // the place is made in the sandbox's root, which the agent sees read-only (AI5d4).
+    QTemporaryDir later(QCoreApplication::applicationDirPath() + QStringLiteral("/addfolders-XXXXXX"));
     QVERIFY(inside.isValid() && later.isValid());
+    QVERIFY(!later.path().startsWith(QLatin1String("/tmp/")));
     QFile file(later.filePath(QStringLiteral("f.txt")));
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.write("later");

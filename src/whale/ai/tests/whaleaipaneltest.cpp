@@ -406,10 +406,9 @@ void WhaleAiPanelTest::panelInMainWindow()
     // A file in an answer: its folder with the file selected.
     Q_EMIT panel->localUrlActivated(QUrl::fromLocalFile(dir.path() + QStringLiteral("/a.txt")));
     QTRY_COMPARE(mainWindow.activeViewContainer()->view()->selectedItems().count(), 1);
-    // The selection is context of the next message.
-    QTRY_VERIFY(panel->findChild<QWidget *>(QStringLiteral("chip-selection")));
-    QCOMPARE(panel->findChild<QWidget *>(QStringLiteral("chip-selection"))->findChild<QLabel *>(QStringLiteral("text"))->text(),
-             QStringLiteral("Selected: a.txt"));
+    // The selection is context of the next message (without a chip: the view shows it).
+    QTRY_COMPARE(panel->contextChips()->context().selection, QStringList{dir.path() + QStringLiteral("/a.txt")});
+    QVERIFY(!panel->findChild<QWidget *>(QStringLiteral("chip-selection")));
     QCOMPARE(panel->contextChips()->context().folder, dir.path());
     QCOMPARE(panel->contextChips()->context().selection, QStringList{dir.path() + QStringLiteral("/a.txt")});
     QVERIFY(panel->contextChips()->context().otherFolder.isEmpty());
@@ -756,27 +755,28 @@ void WhaleAiPanelTest::contextChips()
         return false;
     });
     QCOMPARE(chipText(*panel, QStringLiteral("chip-folder")), QStringLiteral("Folder: a (no access)"));
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-selection")), QStringLiteral("Selected: 2 items"));
     QCOMPARE(chipText(*panel, QStringLiteral("chip-other")), QStringLiteral("Other view: b (no access)"));
-    QCOMPARE(panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection"))->toolTip(),
-             a + QStringLiteral("/x.jpg\n") + a + QStringLiteral("/y.jpg"));
+    // The selection has no chip (the view shows it) but goes along.
+    QVERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection")));
+    QCOMPARE(panel->contextChips()->context().selection.size(), 2);
 
     // Removed for the next message.
-    panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection"))->findChild<QToolButton *>(QStringLiteral("remove"))->click();
-    QTRY_VERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-selection")));
-    QVERIFY(panel->contextChips()->context().selection.isEmpty());
+    panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-other"))->findChild<QToolButton *>(QStringLiteral("remove"))->click();
+    QTRY_VERIFY(!panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-other")));
+    QVERIFY(panel->contextChips()->context().otherFolder.isEmpty());
 
     QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
     QVERIFY(waitForReady(*panel));
     const QString all = texts(*panel);
-    QVERIFY2(all.contains(QStringLiteral("With: folder “a”, other view “b”")), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("With: folder “a”, 2 selected items")), qPrintable(all));
+    QVERIFY(!all.contains(QLatin1String("other view “b”")));
     // The first message carries the system prompt, then the live context.
-    QVERIFY(all.contains(QStringLiteral("text=nopermission;links=2;context=")));
+    QVERIFY(all.contains(QStringLiteral("text=nopermission;links=3;context=")));
     QVERIFY2(all.contains(QLatin1String("Context from the file manager Orcinus")), qPrintable(all));
     QVERIFY(all.contains(QStringLiteral("- Current folder: %1 (subfolders: sub)").arg(a)));
-    QVERIFY(!all.contains(QLatin1String("x.jpg")));
+    QVERIFY(all.contains(QLatin1String("x.jpg")));
     // Back for the message after.
-    QCOMPARE(chipText(*panel, QStringLiteral("chip-selection")), QStringLiteral("Selected: 2 items"));
+    QCOMPARE(chipText(*panel, QStringLiteral("chip-other")), QStringLiteral("Other view: b (no access)"));
 
     // A removed chip comes back when its content changes.
     panel->contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"))->findChild<QToolButton *>(QStringLiteral("remove"))->click();
@@ -814,7 +814,7 @@ void WhaleAiPanelTest::contextChips()
     panel->resize(300, 260);
     panel->show();
     QVERIFY(QTest::qWaitForWindowExposed(panel.get()));
-    for (const QString &name : {QStringLiteral("chip-folder"), QStringLiteral("chip-selection"), QStringLiteral("chip-other")}) {
+    for (const QString &name : {QStringLiteral("chip-folder"), QStringLiteral("chip-other")}) {
         QWidget *chip = panel->contextChips()->findChild<QWidget *>(name);
         QTRY_VERIFY2(panel->contextChips()->rect().contains(chip->geometry()), qPrintable(name));
     }
@@ -1073,9 +1073,16 @@ void WhaleAiPanelTest::sandbox()
     QVERIFY(shared->text().contains(QLatin1String("none of your folders")));
     QWidget *homeChip = panel.contextChips()->findChild<QWidget *>(QStringLiteral("chip-folder"));
     QVERIFY(homeChip && homeChip->property("noAccess").toBool());
-    // A folder inside it is followed as usual.
-    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    // A folder inside it is followed as usual. Not in /tmp (the agent's own /tmp would hold its
+    // mount point): the place is made in the sandbox's read-only root.
+    QTemporaryDir inHome(QDir::homePath() + QStringLiteral("/.qttest/aipanel-sandbox-XXXXXX"));
+    QVERIFY(inHome.isValid());
+    panel.setUrl(QUrl::fromLocalFile(inHome.path()));
     QTRY_VERIFY2(shared->text().contains(QLatin1String("(open)")), qPrintable(shared->text()));
+    QVERIFY(!texts(panel).contains(QLatin1String("could not be shared")));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"access\":true,\"folder\":\"%1\"};").arg(inHome.path())), qPrintable(texts(panel)));
 }
 
 void WhaleAiPanelTest::backChannel()

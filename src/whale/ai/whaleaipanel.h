@@ -176,6 +176,7 @@ private:
     QStringList m_sessionFollowed; ///< shared because the user had it open (AI5e)
     QStringList m_followAdding; ///< asked to share for the folder shown, not done yet
     QStringList m_followRemoving; ///< asked to take back, not done yet
+    QString m_followFailed; ///< could not be shared: not asked again until the user goes elsewhere
     QPointer<WhaleAiSandboxControl> m_control;
     QPointer<WhaleAiMcpServer> m_mcp; ///< the back channel of the conversation (AI6)
     WhaleAiViewActions m_viewActions;
