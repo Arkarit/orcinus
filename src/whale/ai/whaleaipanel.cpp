@@ -167,7 +167,8 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_stack->insertWidget(ChatPage, chat);
     m_stack->insertWidget(SetupPage, setup);
     auto *layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+    // Some room to the dock's edges, for the chat and the setup page alike.
+    layout->setContentsMargins(4, 4, 4, 4);
     layout->addWidget(m_stack);
 
     connect(setupButton, &QPushButton::clicked, this, &WhaleAiPanel::configureRequested);
