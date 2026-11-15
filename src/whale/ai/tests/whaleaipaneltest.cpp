@@ -175,6 +175,9 @@ void WhaleAiPanelTest::setupWithoutAgents()
     panel.readSettings();
     QCOMPARE(stack->currentIndex(), 0);
     QCOMPARE(panel.agentId(), QStringLiteral("basic"));
+    // The chat has its own way to the settings.
+    panel.findChild<QToolButton *>(QStringLiteral("configure"))->click();
+    QCOMPARE(configure.size(), 2);
 }
 
 void WhaleAiPanelTest::promptTurn()
@@ -204,11 +207,18 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(!send->property("busy").toBool());
 
     using Kind = WhaleAiTranscript::Kind;
-    // Notice of the folder, the message, the mode, the thought, the answer, the tool call, the
-    // request, and the answer after it as an entry of its own.
-    QCOMPARE(
-        kinds(panel),
-        (QList<Kind>{Kind::Notice, Kind::UserMessage, Kind::Notice, Kind::Thought, Kind::AgentMessage, Kind::ToolCall, Kind::Permission, Kind::AgentMessage}));
+    // Orcinus' greeting, notice of the folder, the message, the mode, the thought, the answer, the
+    // tool call, the request, and the answer after it as an entry of its own.
+    QCOMPARE(kinds(panel),
+             (QList<Kind>{Kind::Notice,
+                          Kind::Notice,
+                          Kind::UserMessage,
+                          Kind::Notice,
+                          Kind::Thought,
+                          Kind::AgentMessage,
+                          Kind::ToolCall,
+                          Kind::Permission,
+                          Kind::AgentMessage}));
     const QString all = texts(panel);
     // Without a stored start mode: the read-only one, before the message went out.
     QVERIFY2(all.contains(QStringLiteral("The agent works in the mode “Plan”.")), qPrintable(all));
@@ -219,7 +229,7 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(all.contains(QLatin1String("Answered: Yes")));
     QVERIFY(!all.contains(QLatin1String("WRONG SESSION")));
     // The thought is folded.
-    QVERIFY(!panel.transcript()->entries().at(3)->findChildren<QLabel *>().first()->isVisibleTo(panel.transcript()->entries().at(3)));
+    QVERIFY(!panel.transcript()->entries().at(4)->findChildren<QLabel *>().first()->isVisibleTo(panel.transcript()->entries().at(4)));
 
     QWidget *toolCall = panel.transcript()->findChild<QWidget *>(QStringLiteral("toolCall-t1"));
     QVERIFY(toolCall);
@@ -241,11 +251,8 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(texts(panel).contains(QStringLiteral("cwd=%1;mcp=orcinus:%2;text=nopermission again").arg(m_work.path(), WhaleAiMcpServer::relay())));
 
     // The system prompt leads the first message of the conversation, once: the agent echoes the
-    // briefing and the greeting instruction before the first message, and nothing of it before
-    // the second.
-    const QString sent = texts(panel);
-    QCOMPARE(sent.count(QLatin1String("working with the user's files through the Orcinus file manager")), 1);
-    QVERIFY2(sent.contains(QLatin1String("Begin the conversation with a single short sentence")), qPrintable(sent));
+    // briefing before the first message, and nothing of it before the second.
+    QCOMPARE(texts(panel).count(QLatin1String("working with the user's files through the Orcinus file manager")), 1);
 }
 
 void WhaleAiPanelTest::enterAndShiftEnter()
@@ -334,7 +341,12 @@ void WhaleAiPanelTest::newConversation()
     QVERIFY(waitForReady(panel));
     panel.findChild<QToolButton *>(QStringLiteral("newConversation"))->click();
     QVERIFY(!panel.session());
-    QVERIFY(panel.transcript()->entries().isEmpty());
+    // Only Orcinus' own greeting is left, as in a fresh panel; the agent is not started for it.
+    QCOMPARE(kinds(panel), QList<WhaleAiTranscript::Kind>{WhaleAiTranscript::Kind::Notice});
+    QVERIFY(texts(panel).startsWith(QLatin1String("Ask the agent about your files.")));
+    WhaleAiPanel fresh;
+    QCOMPARE(texts(fresh), texts(panel));
+    QVERIFY(!fresh.session());
 }
 
 void WhaleAiPanelTest::removedAgentEndsConversation()
@@ -1015,10 +1027,9 @@ void WhaleAiPanelTest::backChannel()
     // The agent starts orcinus-mcp from session/new and asks where the user is.
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
     QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(
-                 QStringLiteral("tools=get_location,get_selection,set_location,select_items,remember_language;mcp={\"access\":true,\"folder\":\"%1\","
-                                "\"otherAccess\":true,\"otherFolder\":\"%2\"};")
-                     .arg(m_work.path(), other)),
+    QVERIFY2(texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items;mcp={\"access\":true,\"folder\":\"%1\","
+                                                  "\"otherAccess\":true,\"otherFolder\":\"%2\"};")
+                                       .arg(m_work.path(), other)),
              qPrintable(texts(panel)));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_selection")));
     QVERIFY(waitForReady(panel));
@@ -1056,23 +1067,7 @@ void WhaleAiPanelTest::backChannel()
     }
     QCOMPARE(texts(panel).count(QLatin1String("permission=yes;")), 3);
     QVERIFY(panel.sendPrompt(QStringLiteral("askorcinus-spoof")));
-    QWidget *spoof = waitForPermission(panel);
-    QVERIFY2(spoof, qPrintable(texts(panel).right(1500)));
-    spoof->findChild<QPushButton *>(QStringLiteral("option-no"))->click();
-    QVERIFY(waitForReady(panel));
-
-    // The agent reports the user's language; Orcinus remembers it and says so.
-    KSharedConfig::openConfig()->group(QStringLiteral("AI")).deleteEntry(QStringLiteral("Language"));
-    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:remember_language:Esperanto")));
-    QVERIFY(waitForReady(panel));
-    QCOMPARE(WhaleAiAgents::language(), QStringLiteral("Esperanto"));
-    QVERIFY2(texts(panel).contains(QStringLiteral("The agent will greet you in Esperanto from now on.")), qPrintable(texts(panel)));
-
-    // The next conversation greets in the remembered language.
-    panel.newConversation();
-    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
-    QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(QLatin1String("single short sentence, in Esperanto")), qPrintable(texts(panel)));
+    QVERIFY2(waitForPermission(panel), qPrintable(texts(panel).right(1500)));
 
     // Each conversation has its own socket; it goes with the conversation.
     const QString socket = panel.session()->findChild<WhaleAiMcpServer *>()->socketPath();

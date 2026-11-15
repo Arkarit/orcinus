@@ -60,9 +60,16 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_newConversation->setToolTip(i18nc("@info:tooltip", "New Conversation"));
     m_newConversation->setAutoRaise(true);
 
+    auto *configure = new QToolButton(chat);
+    configure->setObjectName(QStringLiteral("configure"));
+    configure->setIcon(QIcon::fromTheme(QStringLiteral("configure")));
+    configure->setToolTip(i18nc("@info:tooltip", "Configure AI Agents…"));
+    configure->setAutoRaise(true);
+
     auto *top = new QHBoxLayout;
     top->addWidget(m_agents, 1);
     top->addWidget(m_newConversation);
+    top->addWidget(configure);
 
     m_sessionInfo = new QLabel(chat);
     m_sessionInfo->setObjectName(QStringLiteral("sessionInfo"));
@@ -164,6 +171,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     layout->addWidget(m_stack);
 
     connect(setupButton, &QPushButton::clicked, this, &WhaleAiPanel::configureRequested);
+    connect(configure, &QToolButton::clicked, this, &WhaleAiPanel::configureRequested);
     connect(m_agents, &QComboBox::activated, this, &WhaleAiPanel::agentChosen);
     connect(m_modes, &QComboBox::activated, this, [this](int index) {
         chooseMode(m_modes->itemData(index).toString());
@@ -195,6 +203,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
 
     setFocusProxy(m_input);
     fillAgents(WhaleAiAgents::defaultAgentId());
+    greet();
     updateState();
     updateSessionInfo();
 }
@@ -415,7 +424,7 @@ bool WhaleAiPanel::startSession()
     }
 
     m_sessionAgentId = agent.id;
-    m_sessionGreeted = false;
+    m_systemPromptSent = false;
     m_sessionAllFolders = agent.allFolders;
     m_sessionReach = reach;
     m_sessionFolders = shared;
@@ -435,10 +444,6 @@ bool WhaleAiPanel::startSession()
             return currentContext();
         });
         mcp->setViewActions(m_viewActions);
-        mcp->setRememberLanguage([this](const QString &language) {
-            WhaleAiAgents::setLanguage(language);
-            m_transcript->addNotice(i18nc("@info %1 is the name of a language", "The agent will greet you in %1 from now on.", language));
-        });
         connect(mcp, &WhaleAiMcpServer::locationSet, this, [this](const QString &folder) {
             m_transcript->addNotice(i18nc("@info %1 is a folder", "The agent opened %1.", folder));
         });
@@ -565,11 +570,11 @@ void WhaleAiPanel::sendPending()
         return;
     }
     QJsonArray blocks = WhaleAiContextPrompt::blocks(std::exchange(m_pendingContext, {}), std::exchange(m_pendingPrompt, QString()));
-    if (!m_sessionGreeted) {
+    if (!m_systemPromptSent) {
         // The system prompt leads the first message of the conversation (ACP has no system
         // prompt of its own); later messages carry only the live context.
-        m_sessionGreeted = true;
-        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::fullSystemPrompt(WhaleAiAgents::language())));
+        m_systemPromptSent = true;
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::systemPrompt()));
     }
     m_session->prompt(blocks);
     updateState();
@@ -762,7 +767,17 @@ void WhaleAiPanel::newConversation()
 {
     endSession();
     m_transcript->clear();
+    greet();
     m_input->setFocus();
+}
+
+void WhaleAiPanel::greet()
+{
+    // From Orcinus, not from the agent: every agent gets the same briefing, and the agent starts
+    // only with the first message.
+    m_transcript->addNotice(i18nc("@info",
+                                  "Ask the agent about your files. It sees the folder you have open and what you selected, and it can open "
+                                  "folders and select files for you."));
 }
 
 void WhaleAiPanel::updateState()

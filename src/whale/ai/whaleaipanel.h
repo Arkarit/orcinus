@@ -123,6 +123,8 @@ private:
     void agentChosen();
     bool startSession();
     void endSession();
+    /** Shows Orcinus' own greeting at the top of an empty conversation. */
+    void greet();
     void sendPending();
     void applyStartMode();
     void requestMode(const QString &value, bool byUser);
@@ -155,7 +157,7 @@ private:
     QPointer<WhaleAcpSession> m_session;
     QString m_sessionAgentId;
     bool m_sessionAllFolders = true;
-    bool m_sessionGreeted = false; ///< the system prompt is sent once, with the first message (AI)
+    bool m_systemPromptSent = false; ///< the system prompt is sent once, with the first message (AI)
     QStringList m_sessionReach; ///< what the agent shares in its sandbox (AI5d)
     QStringList m_sessionFolders; ///< the folder it started in (AI5d2)
     QStringList m_sessionAdded; ///< what the user shared with it later (AI5d3)

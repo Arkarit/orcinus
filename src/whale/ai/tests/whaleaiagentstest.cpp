@@ -238,16 +238,6 @@ void WhaleAiAgentsTest::systemPromptStorage()
     QCOMPARE(WhaleAiAgents::systemPrompt(), QStringLiteral("Be brief."));
     WhaleAiAgents::setCustomSystemPrompt(false);
     QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
-
-    // The greeting instruction names the language and leads the whole first message.
-    const QString appendix = WhaleAiAgents::greetingInstruction(QStringLiteral("Esperanto"));
-    QVERIFY(appendix.contains(QLatin1String("Esperanto")));
-    QVERIFY(appendix.contains(QLatin1String("one sentence")) || appendix.contains(QLatin1String("single short sentence")));
-    const QString full = WhaleAiAgents::fullSystemPrompt(QStringLiteral("Esperanto"));
-    QVERIFY(full.startsWith(WhaleAiAgents::systemPrompt()));
-    QVERIFY(full.endsWith(appendix));
-    // No language given: the system language, whatever it is, is non-empty.
-    QVERIFY(!WhaleAiAgents::greetingInstruction().isEmpty());
 }
 
 void WhaleAiAgentsTest::restrictiveMode()
