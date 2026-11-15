@@ -29,6 +29,7 @@ set(WHALE_HOMEPAGE "https://arkarit.github.io/orcinus/")
 option(WHALE_PROVIDE_FILEMANAGER1 "Register org.freedesktop.FileManager1 for Orcinus" OFF)
 option(WHALE_INSTALL_DOLPHIN_EXTRAS "Install Dolphin-named compatibility artifacts (may conflict with Dolphin)" OFF)
 option(WHALE_DEV_BUILD "Development build: shows \"Orcinus-Dev\" in window titles to tell it apart from the regular Orcinus" OFF)
+option(WHALE_ENABLE_AI "AI panel talking to external agents (ACP); off at runtime until the user sets up an agent" ON)
 option(WHALE_ENABLE_DEV_MCP "Development only: UI test automation over D-Bus (started with WHALE_DEV_MCP=1), see src/whale/devmcp" OFF)
 
 set(QT_MIN_VERSION "6.4.0")

@@ -59,17 +59,35 @@ fi
 echo "==> Staging the installation"
 DESTDIR="${stage_dir}" cmake --install "${build_dir}" > /dev/null
 
+# A pre-existing file at a path this loop staged is only a true collision when it belongs to
+# another package. If it belongs to no package and the path is an Orcinus one (every installed
+# path contains "orcinus"), it is a leftover of an earlier Orcinus install: replace it. This is
+# what lets the install recover when ../build-whale-system lost its install_manifest.txt (e.g.
+# the build directory was reconfigured) while Orcinus is still installed in the prefix, instead
+# of mistaking its own files for foreign ones.
+is_orcinus_path() {
+    [[ "${1,,}" == *orcinus* ]]
+}
+
 collisions=0
+reused=0
 while IFS= read -r file; do
     file="${file#.}"
     if dpkg -S "${file}" > /dev/null 2>&1; then
         echo "Collision: ${file} belongs to package $(dpkg -S "${file}" 2>/dev/null | cut -d: -f1)" >&2
         collisions=1
     elif [[ -e "${file}" || -L "${file}" ]] && ! grep -qxF "${file}" "${previous_manifest}"; then
-        echo "Collision: ${file} already exists and was not installed by Orcinus" >&2
-        collisions=1
+        if is_orcinus_path "${file}"; then
+            reused=$((reused + 1))
+        else
+            echo "Collision: ${file} already exists and was not installed by Orcinus" >&2
+            collisions=1
+        fi
     fi
 done < <(cd "${stage_dir}" && find . ! -type d)
+if [[ ${reused} -gt 0 ]]; then
+    echo "    ${reused} file(s) of an earlier Orcinus install will be replaced (not in the saved manifest)" >&2
+fi
 
 # Installed files may only carry RUNPATHs relative to themselves ($ORIGIN, the private library
 # directory of B2/B3), never an absolute path such as the private development prefix.
@@ -94,8 +112,12 @@ for library in liborcinusprivate.so.6 libdolphinvcs.so.6 "${view_api:-liborcinus
         collisions=1
     fi
 done
-if ! readelf -d "${stage_dir}${prefix}/bin/orcinus" | grep -qF '[$ORIGIN/../lib/x86_64-linux-gnu/orcinus]' \
-    || ! readelf -d "${private_dir}/liborcinusprivate.so.6" | grep -qF '[$ORIGIN]'; then
+# Read readelf's output first: "readelf | grep -q" fails now and then under pipefail, when grep
+# stops at the match and readelf, still writing, dies of SIGPIPE.
+binary_dynamic="$(readelf -d "${stage_dir}${prefix}/bin/orcinus")"
+private_dynamic="$(readelf -d "${private_dir}/liborcinusprivate.so.6")"
+if ! grep -qF '[$ORIGIN/../lib/x86_64-linux-gnu/orcinus]' <<< "${binary_dynamic}" \
+    || ! grep -qF '[$ORIGIN]' <<< "${private_dynamic}"; then
     echo "Check: the staged binary or liborcinusprivate does not find the private library directory." >&2
     collisions=1
 fi
@@ -113,6 +135,20 @@ fi
 echo "==> Installing to ${prefix} (sudo)"
 sudo cmake --install "${build_dir}"
 sudo chown "$(id -un):$(id -gn)" "${build_dir}/install_manifest.txt"
+
+# The AI sandbox is gone; an earlier installation left its helper and AppArmor profile.
+if [[ -f /etc/apparmor.d/orcinus-sandbox ]]; then
+    echo "==> Removing the AppArmor profile of the former AI sandbox"
+    if command -v apparmor_parser > /dev/null; then
+        sudo apparmor_parser -R /etc/apparmor.d/orcinus-sandbox || true
+    fi
+    sudo rm -f /etc/apparmor.d/orcinus-sandbox
+fi
+# Next to orcinus-mcp, which the installation just put there.
+mcp_relay="$(grep -m1 '/orcinus-mcp$' "${build_dir}/install_manifest.txt" || true)"
+if [[ -n "${mcp_relay}" && -e "$(dirname "${mcp_relay}")/orcinus-sandbox" ]]; then
+    sudo rm -f "$(dirname "${mcp_relay}")/orcinus-sandbox"
+fi
 
 echo "==> Refreshing caches"
 sudo update-desktop-database "${prefix}/share/applications"

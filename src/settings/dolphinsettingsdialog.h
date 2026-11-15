@@ -27,6 +27,8 @@ public:
     ~DolphinSettingsDialog() override;
 
     KPageWidgetItem *trashSettings;
+    /** Whale: the "AI Agents" page (AI2), nullptr without WHALE_ENABLE_AI. */
+    KPageWidgetItem *aiAgentsSettings = nullptr;
 
 Q_SIGNALS:
     void settingsChanged();

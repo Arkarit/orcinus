@@ -28,6 +28,9 @@
 #include "panels/folders/folderspanel.h"
 #include "panels/places/placespanel.h"
 #include "panels/terminal/terminalpanel.h"
+#if WHALE_ENABLE_AI
+#include "whaleaipanel.h"
+#endif
 #include "search/dolphinquery.h"
 #include "selectionmode/actiontexthelper.h"
 #if KIO_VERSION >= QT_VERSION_CHECK(6, 24, 0)
@@ -59,6 +62,7 @@
 #include <KColorSchemeMenu>
 #include <KConfig>
 #include <KConfigGui>
+#include <KCoreDirLister>
 #include <KDialogJobUiDelegate>
 #include <KDualAction>
 #include <KFileItemListProperties>
@@ -2654,6 +2658,122 @@ void DolphinMainWindow::setupDockWidgets()
     } // endif "shell_access" allowed
 #endif // HAVE_TERMINAL
 
+#if WHALE_ENABLE_AI
+    // Whale: AI3, the AI panel; see .privatedoc/ai-support-plan.md.
+    DolphinDockWidget *aiDock = new DolphinDockWidget(i18nc("@title:window", "AI Assistant"));
+    aiDock->setLocked(lock);
+    aiDock->setObjectName(QStringLiteral("aiDock"));
+    auto *aiPanel = new WhaleAiPanel(aiDock);
+    aiPanel->setCustomContextMenuActions({lockLayoutAction});
+    aiDock->setWidget(aiPanel);
+    createPanelAction(QIcon::fromTheme(QStringLiteral("dialog-messages")), Qt::Key_F8, aiDock, QStringLiteral("show_ai_panel"));
+    addDockWidget(Qt::RightDockWidgetArea, aiDock);
+    // Hidden until the user opens it, also for users whose saved window state does not know it
+    // yet; a saved state that has it open shows it again.
+    aiDock->hide();
+    connect(this, &DolphinMainWindow::urlChanged, aiPanel, &WhaleAiPanel::setUrl);
+    connect(this, &DolphinMainWindow::settingsChanged, aiPanel, &WhaleAiPanel::readSettings);
+    connect(aiPanel, &WhaleAiPanel::configureRequested, this, [this] {
+        editSettings();
+        if (m_settingsDialog && m_settingsDialog->aiAgentsSettings) {
+            m_settingsDialog->setCurrentPage(m_settingsDialog->aiAgentsSettings);
+        }
+    });
+    // The context of a message (AI4): folder and selection of the active view, folder of the
+    // other split view. Local paths only; the agent works on the local file system.
+    aiPanel->setContextProvider([this] {
+        WhaleAiContext context;
+        if (!m_activeViewContainer) {
+            return context;
+        }
+        const QUrl url = m_activeViewContainer->url();
+        context.folder = url.isLocalFile() ? url.toLocalFile() : m_activeViewContainer->rootItem().localPath();
+        const KFileItemList selection = m_activeViewContainer->view()->selectedItems();
+        for (const KFileItem &item : selection) {
+            const QString path = item.localPath();
+            if (!path.isEmpty()) {
+                context.selection.append(path);
+            }
+        }
+        DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+        if (tabPage && tabPage->splitViewEnabled() && tabPage->inactiveViewContainer()) {
+            DolphinViewContainer *other = tabPage->inactiveViewContainer();
+            const QUrl otherUrl = other->url();
+            context.otherFolder = otherUrl.isLocalFile() ? otherUrl.toLocalFile() : other->rootItem().localPath();
+        }
+        return context;
+    });
+    // The back channel of the agent (AI6c): only the active view, as the user would.
+    aiPanel->setViewActions({
+        [this](const QString &folder) {
+            if (m_activeViewContainer) {
+                changeUrl(QUrl::fromLocalFile(folder));
+            }
+        },
+        [this](const QStringList &paths) {
+            if (!m_activeViewContainer || paths.isEmpty()) {
+                return;
+            }
+            DolphinView *view = m_activeViewContainer->view();
+            QList<QUrl> urls;
+            for (const QString &path : paths) {
+                urls.append(QUrl::fromLocalFile(path));
+            }
+            view->clearSelection();
+            view->markUrlAsCurrent(urls.constFirst());
+            view->markUrlsAsSelected(urls);
+            // While the folder loads (set_location just before), the view applies it at the end.
+            const auto listers = view->findChildren<KCoreDirLister *>();
+            const bool loading = std::any_of(listers.cbegin(), listers.cend(), [](const KCoreDirLister *lister) {
+                return !lister->isFinished();
+            });
+            if (!loading) {
+                view->updateViewState();
+            }
+        },
+    });
+    // While the panel is hidden it asks when it is shown again.
+    auto refreshAiContext = [aiPanel] {
+        if (aiPanel->isVisible()) {
+            aiPanel->refreshContext();
+        }
+    };
+    connect(this, &DolphinMainWindow::selectionChanged, aiPanel, refreshAiContext);
+    // The other view can change its folder while it is not active (linked views).
+    auto otherViewConnection = std::make_shared<QMetaObject::Connection>();
+    connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, aiPanel, [this, aiPanel, refreshAiContext, otherViewConnection] {
+        QObject::disconnect(*otherViewConnection);
+        DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+        if (tabPage && tabPage->inactiveViewContainer()) {
+            *otherViewConnection = connect(tabPage->inactiveViewContainer()->view(), &DolphinView::urlChanged, aiPanel, refreshAiContext);
+        }
+        refreshAiContext();
+    });
+    connect(aiPanel, &WhaleAiPanel::attentionRequested, aiDock, [aiDock] {
+        aiDock->show();
+        aiDock->raise();
+    });
+    connect(aiPanel, &WhaleAiPanel::localUrlActivated, this, [this](const QUrl &url) {
+        if (QFileInfo(url.toLocalFile()).isDir()) {
+            changeUrl(url);
+            return;
+        }
+        changeUrl(url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash));
+        m_activeViewContainer->view()->markUrlsAsSelected({url});
+        m_activeViewContainer->view()->markUrlAsCurrent(url);
+    });
+    actionCollection()
+        ->action(QStringLiteral("show_ai_panel"))
+        ->setWhatsThis(xi18nc("@info:whatsthis",
+                              "<para>This toggles the <emphasis>AI Assistant</emphasis> panel.</para>"
+                              "<para>It talks to an AI agent installed on this computer, such as Claude Code, Codex or "
+                              "OpenCode, set up in <interface>Configure Orcinus… > AI Agents</interface>.</para>"));
+    aiDock->setWhatsThis(xi18nc("@info:whatsthis",
+                                "<para>This is the <emphasis>AI Assistant</emphasis> panel. Write to the AI agent chosen at the top; "
+                                "it works in the folder shown when the conversation started.</para>")
+                         + panelWhatsThis);
+#endif
+
     if (GeneralSettings::version() < 200) {
         infoDock->hide();
         foldersDock->hide();
@@ -2743,6 +2863,9 @@ void DolphinMainWindow::setupDockWidgets()
 #endif
     panelsMenu->addAction(ac->action(QStringLiteral("show_folders_panel")));
     panelsMenu->addAction(ac->action(QStringLiteral("show_terminal_panel")));
+#if WHALE_ENABLE_AI
+    panelsMenu->addAction(ac->action(QStringLiteral("show_ai_panel")));
+#endif
     panelsMenu->addSeparator();
     panelsMenu->addAction(lockLayoutAction);
     panelsMenu->addSeparator();
