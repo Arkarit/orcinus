@@ -653,6 +653,20 @@ Steps:
   sandbox). Also: does Claude Code still load a project's `CLAUDE.md` when it is not in `cwd` or
   its parents (it may only see it when it reads the folder)? Check with real Claude, Codex and
   OpenCode in the VM sandbox; the outcome may change decision 1b.
+  *Result (2026-11-15, VM, own ACP client, sandbox as in AI5d, Claude `acceptEdits`, Codex
+  `workspace-write`; project folder with `CLAUDE.md` + `AGENTS.md` "end every answer with
+  NARWHAL"; prompts: 2+2, read `notes.txt` in the project, write `result.txt` there; requests
+  allowed once and logged):*
+
+  | `cwd` | Claude | Codex |
+  |---|---|---|
+  | project folder | no request; NARWHAL in every answer | no request; NARWHAL in every answer |
+  | neutral (empty, read-only) | asks for the **read** and the write; no NARWHAL, also not after reading the folder | asks for `cat` and the write (shell commands with `cwd` neutral); no NARWHAL |
+
+  Both wrote the file once allowed (the sandbox shared the folder). So with a neutral `cwd` the
+  middle modes ask for every read and write in the folder shown, and the project's instruction
+  files are not loaded at all. Decision 1b needs to be reconsidered (user). OpenCode not tried
+  (needs LM Studio on the host).
 - *AI5e2 – Neutral `cwd`* in the sandbox; system prompt and context say where the user is.
 - *AI5e3 – Access follows the folder shown,* with the delayed take-back during a turn; the
   "shared" line and the chips show only extra folders.
