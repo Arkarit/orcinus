@@ -920,6 +920,14 @@ Steps:
     without follow-ups (before 7/15).
 - **AI10c started 2026-11-16 (ea654c79a):** 7 more host scenarios (viewer, panel width, split
   share, error message, new tab, question, English prompt); dev state `agentWindow`.
+  - Full round 2026-11-16 (12 scenarios × 3, start mode plan, new prompt): 34/36 PASS; all
+    window/viewer/panel/split/message/tab/English scenarios 3/3. Outlier `biggest-file` ("Welche
+    Datei ist hier die größte?"): without shell (denied in the test config) the agent has no way to
+    get file sizes; it read files and guessed sizes from grep errors, 1 of 3 right in a rerun
+    (one typo'd path outside asked for and rejected, one timeout). An OpenCode subagent (`task`)
+    hung until the timeout; subagents are now off in the test config. Proposal for the user: a
+    read-only back-channel tool listing the shown items with name, type, size and date (what the
+    user sees), also usable in plan mode; and report the sort order (see above). Candidates for AI9c.
 - **AI10b – Runner + first scenarios** (`src/whale/devmcp/tests/ai/`, Python, not in ctest):
   per scenario a fresh offscreen instance, new conversation, prompt, wait, collect state +
   transcript, judge, quit. About 5 scenarios with OpenCode/Qwen.

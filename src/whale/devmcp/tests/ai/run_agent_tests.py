@@ -115,7 +115,8 @@ def opencode_config(path, base_url, model):
         }},
         # Look, never change: the tests run on the host.
         "permission": {"edit": "deny", "bash": "deny", "webfetch": "deny"},
-        "tools": {"write": False, "edit": False, "patch": False, "bash": False, "webfetch": False},
+        # No subagents either: without bash, a subagent asked to run `ls` hung until the timeout.
+        "tools": {"write": False, "edit": False, "patch": False, "bash": False, "webfetch": False, "task": False},
         "autoupdate": False,
         "share": "disabled",
     }, indent=1))
