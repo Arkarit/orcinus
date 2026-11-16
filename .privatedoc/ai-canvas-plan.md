@@ -1,6 +1,6 @@
 # AI canvas and tools (CV0–CV5)
 
-Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike), CV1 and CV2 done 2026-11-16.
+Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike), CV1, CV2 and CV3 done 2026-11-16 (CV3's real-agent run pending).
 
 ## Problem
 
@@ -214,6 +214,32 @@ folder (or the agent writes them itself; the tool folder is reachable in its cwd
 with the API and the manifest format. Agent test scenarios (AI10 runner): present an image, sound
 triage from the example prompt (the agent writes it, reloads until it loads without errors,
 invokes Next / Keep and checks the copy).
+
+*CV3 results (done 2026-11-16).* `WhaleAiToolTools` (11 MCP tools) and `WhaleAiToolGuide`.
+Decision (user, 2026-11-16): the agent writes tool files **only through `tool_write_file`**
+(documented in the guide and the MCP instructions); a shell can still write them, which the
+fingerprint catches for kept tools. As built:
+- Reading (every mode): `tool_guide` (the how-to: files, QML rules, the API, the loop),
+  `tool_list` (also folders with a broken manifest), `tool_read_file`, `tool_log`,
+  `tool_inspect` (the root's declared properties + every item with an objectName: type,
+  visible, enabled, text, checked, value, ...), `tool_screenshot` (PNG, at most 1024 px wide, as
+  an MCP image content block: window tools may return `_mcpImage`, the server turns it into
+  `{"type": "image"}` before the text), `tool_close`.
+- Changing (refused in a read-only mode like `set_setting`, message "Canvas tools cannot be
+  written, opened or used"): `tool_write_file` (text files .qml .js .mjs .json .md .txt .svg .py,
+  256 KiB, 50 files, no hidden or outside paths; answers whether the manifest is valid),
+  `tool_delete_file`, `tool_open` (opens, or loads again when open; there is no separate
+  `tool_reload`), `tool_invoke` (click by objectName as a real mouse click, key sequences, or a
+  root function with arguments).
+- Writing into a *kept* tool through these tools un-keeps it (with a note for the agent and a
+  transcript line), so the agent can iterate and the user keeps it again at the end; changes
+  behind Orcinus' back still block a kept tool at the next start.
+- The log is per load (cleared on load); `console.log` of the tool's files goes into it (a
+  message handler that knows the tools' folders; engine warnings no longer go to stderr).
+- Dev state `canvas` (blocks, open tools with log and inspect, tool ids) for the AI10 runner.
+  Scenarios `canvas-image`, `canvas-compare` and `tool-sound-triage` (the user's prompt, plus "test
+  it, copy nothing yet"; 30 min timeout; play folder has `Sounds/` with three short WAVs).
+  Real-agent run: pending (needs LM Studio, ask the user first).
 
 **CV4 – Backends.** Process lifecycle (start on open, stop on close and on Orcinus quit, restart
 button, crash shown in the tab with stderr), JSON channel (`orcinus.backend.send()`, signal

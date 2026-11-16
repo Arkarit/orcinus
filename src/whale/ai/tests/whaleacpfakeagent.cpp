@@ -29,7 +29,7 @@
  * "mcp:TOOL" starts the MCP server "orcinus" from session/new, as real agents do, calls TOOL and
  * answers "tools=NAMES;mcp=TEXT;" (or "mcp=none;", "mcp=error:MESSAGE;"; the back channel, AI6);
  * "mcp:set_location:PATH", "mcp:select_items:A,B", "mcp:trigger_action:NAME" and
- * "mcp:list_actions:FILTER" and "mcp:set_setting:KEY=VALUE" pass arguments. "askorcinus-claude",
+ * "mcp:list_actions:FILTER", "mcp:set_setting:KEY=VALUE" and "mcp:tool_*:ID" pass arguments. "askorcinus-claude",
  * "askorcinus-codex" and "askorcinus-opencode" ask for get_location as those agents do,
  * "askorcinus-spoof" asks to run a command titled like it (AI6c).
  */
@@ -369,6 +369,9 @@ void handlePrompt(const QJsonObject &message)
             toolArguments.insert(QStringLiteral("name"), match.captured(2));
         } else if (match.captured(1) == QLatin1String("list_actions") && !match.captured(2).isEmpty()) {
             toolArguments.insert(QStringLiteral("filter"), match.captured(2));
+        } else if (match.captured(1).startsWith(QLatin1String("tool_")) && !match.captured(2).isEmpty()) {
+            // The canvas tools (CV3): the tool's id.
+            toolArguments.insert(QStringLiteral("tool"), match.captured(2));
         } else if (match.captured(1) == QLatin1String("set_setting")) {
             // KEY=VALUE; VALUE as JSON (true, 3) or else a string.
             const QString argument = match.captured(2);

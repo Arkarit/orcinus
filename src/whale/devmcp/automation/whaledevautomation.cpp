@@ -24,6 +24,10 @@
 #include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
 #include "whaleaiwindowtools.h"
+#if HAVE_AI_CANVAS
+#include "whaleaicanvaspanel.h"
+#include "whaleaicanvastools.h"
+#endif
 #include "whalecommandrouter.h"
 #include "whaledevai.h"
 #include "whaledevautomationdbus.h"
@@ -790,6 +794,11 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("ai"), m_ai->state()},
         // AI10c: the window as the agent's get_window_state shows it (panels, split share, messages).
         {QStringLiteral("agentWindow"), WhaleAiWindowTools::state(m_window)},
+#if HAVE_AI_CANVAS
+        // CV3: the AI canvas, its blocks and open tools.
+        {QStringLiteral("canvas"),
+         m_window->findChild<WhaleAiCanvasPanel *>() ? WhaleAiCanvasTools::state(m_window->findChild<WhaleAiCanvasPanel *>()) : QJsonValue(QJsonValue::Null)},
+#endif
     };
 }
 

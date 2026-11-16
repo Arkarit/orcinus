@@ -257,7 +257,19 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    // CV1: the AI canvas; shows files, never changes them.
                                    QStringLiteral("canvas_show"),
                                    QStringLiteral("canvas_clear"),
-                                   QStringLiteral("get_canvas")};
+                                   QStringLiteral("get_canvas"),
+                                   // CV3: writing canvas tools (their own files only, in Orcinus' data folder).
+                                   QStringLiteral("tool_guide"),
+                                   QStringLiteral("tool_list"),
+                                   QStringLiteral("tool_read_file"),
+                                   QStringLiteral("tool_write_file"),
+                                   QStringLiteral("tool_delete_file"),
+                                   QStringLiteral("tool_open"),
+                                   QStringLiteral("tool_close"),
+                                   QStringLiteral("tool_log"),
+                                   QStringLiteral("tool_inspect"),
+                                   QStringLiteral("tool_invoke"),
+                                   QStringLiteral("tool_screenshot")};
     return names;
 }
 
@@ -456,8 +468,11 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
              {QStringLiteral("instructions"),
               QStringLiteral("Tools of the Orcinus file manager the user is chatting with you from. They show where the user is, and change how Orcinus shows "
                              "it. They never change the user's files, so they are allowed in every mode, also in a plan or read-only mode; "
-                             "only set_setting and save_profile (Orcinus' own saved settings and profiles) are refused in a read-only mode. "
-                             "Operate Orcinus only through them, never through D-Bus or input automation.")}});
+                             "only set_setting and save_profile (Orcinus' own saved settings and profiles) and writing, opening or using "
+                             "canvas tools (tool_write_file, tool_delete_file, tool_open, tool_invoke) are refused in a read-only mode. "
+                             "Show your work (images, sounds, file lists, texts) on the AI canvas with canvas_show; to build a tool the user "
+                             "keeps, read tool_guide first. Operate Orcinus only through these tools, never through D-Bus or input "
+                             "automation.")}});
     }
     if (method == QLatin1String("ping")) {
         return response(id, QJsonObject());
@@ -511,11 +526,21 @@ QJsonObject WhaleAiMcpServer::callTool(const QString &name, const QJsonObject &a
     for (const WhaleAiWindowTool &windowTool : windowTools()) {
         if (windowTool.name == name) {
             QString notice;
-            const QJsonObject result = windowTool.call(arguments, &error, &notice);
+            QJsonObject result = windowTool.call(arguments, &error, &notice);
             if (!error && !notice.isEmpty()) {
                 Q_EMIT windowToolUsed(notice);
             }
-            return toolResult(error && !result.contains(QLatin1String("error")) ? toolError(QStringLiteral("It did not work.")) : result, error);
+            // An image (CV3, tool_screenshot) goes as an image content block, not as text.
+            const QJsonObject image = result.take(QLatin1String("_mcpImage")).toObject();
+            QJsonObject wrapped = toolResult(error && !result.contains(QLatin1String("error")) ? toolError(QStringLiteral("It did not work.")) : result, error);
+            if (!image.isEmpty()) {
+                QJsonArray content = wrapped.value(QLatin1String("content")).toArray();
+                content.prepend(QJsonObject{{QStringLiteral("type"), QStringLiteral("image")},
+                                            {QStringLiteral("data"), image.value(QLatin1String("data"))},
+                                            {QStringLiteral("mimeType"), image.value(QLatin1String("mimeType"))}});
+                wrapped.insert(QStringLiteral("content"), content);
+            }
+            return wrapped;
         }
     }
     *known = false;

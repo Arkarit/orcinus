@@ -59,6 +59,13 @@ def png(width, height, rgb):
             + chunk(b"IDAT", zlib.compress(row * height)) + chunk(b"IEND", b""))
 
 
+def wav(seconds):
+    """Silence, 8 kHz 8 bit mono."""
+    data = b"\x80" * int(8000 * seconds)
+    return (b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, 8000, 8000, 1, 8)
+            + b"data" + struct.pack("<I", len(data)) + data)
+
+
 def make_play_folder(folder):
     """The same small folder for every run: files of distinct sizes and dates, two subfolders."""
     folder.mkdir(parents=True)
@@ -82,6 +89,10 @@ def make_play_folder(folder):
     (folder / "Bilder" / "Portrait.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"j" * 3000)
     (folder / "Dokumente").mkdir()
     (folder / "Dokumente" / "Lebenslauf.txt").write_text("Lebenslauf\n")
+    # Sounds for the canvas tool scenario (CV3): short silent WAVs, one in a subfolder.
+    (folder / "Sounds" / "Mehr").mkdir(parents=True)
+    for name in ("Sounds/Tür.wav", "Sounds/Applaus.wav", "Sounds/Mehr/Zischen.wav"):
+        (folder / name).write_bytes(wav(0.5))
 
 
 def snapshot(folder):
@@ -149,7 +160,8 @@ class Run:
         sent = self.tool("ai_send_prompt", text=text)
         if not sent.get("ok", True):
             raise Failure(f"prompt not sent: {sent}")
-        deadline = time.monotonic() + self.args.timeout
+        # Building a canvas tool (CV3) takes longer than a view change.
+        deadline = time.monotonic() + max(self.args.timeout, self.scenario.get("timeout", 0))
         while True:
             remaining = int((deadline - time.monotonic()) * 1000)
             if remaining <= 0:

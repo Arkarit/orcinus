@@ -543,6 +543,29 @@ void WhaleAiMcpServerTest::windowTools()
     QVERIFY(error);
     QVERIFY(!result.value(QLatin1String("error")).toString().isEmpty());
     QCOMPARE(used.count(), 1);
+
+    // An image (CV3, tool_screenshot) comes as an image content block first, the rest as text.
+    WhaleAiWindowTool screenshot;
+    screenshot.name = QStringLiteral("tool_screenshot");
+    screenshot.title = screenshot.name;
+    screenshot.description = QStringLiteral("A tool");
+    screenshot.readOnly = true;
+    screenshot.call = [](const QJsonObject &, bool *, QString *) {
+        return QJsonObject{{QStringLiteral("width"), 2},
+                           {QStringLiteral("_mcpImage"),
+                            QJsonObject{{QStringLiteral("data"), QStringLiteral("iVBORw0K")}, {QStringLiteral("mimeType"), QStringLiteral("image/png")}}}};
+    };
+    actions.windowTools = {screenshot};
+    server.setViewActions(actions);
+    const QJsonObject image =
+        request(server, QStringLiteral("tools/call"), {{QStringLiteral("name"), QStringLiteral("tool_screenshot")}}).value(QLatin1String("result")).toObject();
+    const QJsonArray content = image.value(QLatin1String("content")).toArray();
+    QCOMPARE(content.size(), 2);
+    QCOMPARE(content.at(0).toObject().value(QLatin1String("type")).toString(), QStringLiteral("image"));
+    QCOMPARE(content.at(0).toObject().value(QLatin1String("data")).toString(), QStringLiteral("iVBORw0K"));
+    QCOMPARE(content.at(1).toObject().value(QLatin1String("type")).toString(), QStringLiteral("text"));
+    QVERIFY(!image.value(QLatin1String("structuredContent")).toObject().contains(QLatin1String("_mcpImage")));
+    QCOMPARE(image.value(QLatin1String("structuredContent")).toObject().value(QLatin1String("width")).toInt(), 2);
 }
 
 void WhaleAiMcpServerTest::ownTool()

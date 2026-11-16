@@ -8,6 +8,7 @@
 
 #include "whaleaicanvasmodel.h"
 #include "whaleaicanvaspanel.h"
+#include "whaleaitooltab.h"
 
 #include <KLocalizedString>
 
@@ -137,4 +138,24 @@ QList<WhaleAiWindowTool> WhaleAiCanvasTools::create(WhaleAiCanvasPanel *panel, c
              return {{QStringLiteral("blocks"), guard->model()->toJson()}, {QStringLiteral("visible"), guard->isVisible()}};
          }},
     };
+}
+
+QJsonObject WhaleAiCanvasTools::state(WhaleAiCanvasPanel *panel)
+{
+    QJsonArray tools;
+    for (const QString &id : panel->openTools()) {
+        WhaleAiToolTab *tab = panel->toolTab(id);
+        tools.append(QJsonObject{{QStringLiteral("id"), id},
+                                 {QStringLiteral("name"), tab->tool().name},
+                                 {QStringLiteral("loaded"), tab->isLoaded()},
+                                 {QStringLiteral("blocked"), tab->isBlocked()},
+                                 {QStringLiteral("kept"), panel->toolStore().pinned().contains(id)},
+                                 {QStringLiteral("log"), QJsonArray::fromStringList(tab->log())},
+                                 {QStringLiteral("inspect"), tab->inspect()}});
+    }
+    return {{QStringLiteral("visible"), panel->isVisible()},
+            {QStringLiteral("blocks"), panel->model()->toJson()},
+            {QStringLiteral("tools"), tools},
+            {QStringLiteral("toolIds"), QJsonArray::fromStringList(panel->toolStore().ids())},
+            {QStringLiteral("toolsFolder"), panel->toolStore().root()}};
 }

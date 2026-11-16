@@ -37,6 +37,7 @@
 #if HAVE_AI_CANVAS
 #include "whaleaicanvaspanel.h"
 #include "whaleaicanvastools.h"
+#include "whaleaitooltools.h"
 #endif
 #endif
 #include "search/dolphinquery.h"
@@ -2866,6 +2867,11 @@ void DolphinMainWindow::setupDockWidgets()
                                              aiCanvasDock->show();
                                              aiCanvasDock->raise();
                                          })
+            + WhaleAiToolTools::create(aiCanvas,
+                                       [aiCanvasDock] {
+                                           aiCanvasDock->show();
+                                           aiCanvasDock->raise();
+                                       })
 #endif
             ,
         [this] {

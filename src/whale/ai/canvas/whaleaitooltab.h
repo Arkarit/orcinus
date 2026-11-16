@@ -10,6 +10,8 @@
 #include "whaleaitoolapi.h"
 #include "whaleaitoolstore.h"
 
+#include <QImage>
+#include <QJsonObject>
 #include <QWidget>
 
 class KMessageWidget;
@@ -52,6 +54,18 @@ public:
     void block(const QString &message);
     bool isBlocked() const;
 
+    // ---- for the agent's development loop (CV3) ----
+    /** The root's own properties and the items with an objectName (type, text, enabled, ...). */
+    QJsonObject inspect() const;
+    /**
+     * Acts in the tool as the user would: {"click": objectName}, {"keys": "Right"} (a key
+     * sequence) or {"function": name, "arguments": [...]} (a function of the root).
+     * @return What happened, or nothing with @p error set (English).
+     */
+    QJsonObject invoke(const QJsonObject &arguments, QString *error);
+    /** What the tool shows now, or a null image when it is not loaded. */
+    QImage screenshot() const;
+
 Q_SIGNALS:
     void loaded(bool ok);
     void logChanged();
@@ -68,8 +82,10 @@ protected:
     void showEvent(QShowEvent *event) override;
     void hideEvent(QHideEvent *event) override;
 
-private:
+private Q_SLOTS:
     void addLog(const QString &line);
+
+private:
     void showMessage(const QString &text, int type, const QList<QAction *> &actions = {});
     void unload();
 

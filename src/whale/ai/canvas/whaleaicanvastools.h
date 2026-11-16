@@ -21,6 +21,9 @@ class WhaleAiCanvasPanel;
 namespace WhaleAiCanvasTools
 {
 QList<WhaleAiWindowTool> create(WhaleAiCanvasPanel *panel, const std::function<void()> &showPanel);
+
+/** The canvas for the development automation (AI10 tests): blocks, open tools, their logs. */
+QJsonObject state(WhaleAiCanvasPanel *panel);
 }
 
 #endif

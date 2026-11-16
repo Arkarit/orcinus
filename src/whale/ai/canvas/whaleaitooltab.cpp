@@ -14,10 +14,121 @@
 #include <KMessageWidget>
 
 #include <QAction>
+#include <QApplication>
+#include <QJsonArray>
+#include <QKeySequence>
+#include <QMouseEvent>
+#include <QMutex>
+#include <QPointer>
 #include <QQmlContext>
 #include <QQmlEngine>
+#include <QQuickItem>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include <functional>
+
+namespace
+{
+// console.log of a tool goes into its log (CV3): the QML engine tells the file it comes from.
+QMutex s_tabsMutex;
+QList<std::pair<QString, QPointer<WhaleAiToolTab>>> s_tabs;
+QtMessageHandler s_previousHandler = nullptr;
+
+void routeConsole(QtMsgType type, const QMessageLogContext &context, const QString &message)
+{
+    const QByteArray category(context.category ? context.category : "");
+    if (context.file && (category == "js" || category == "qml")) {
+        const QString file = QString::fromUtf8(context.file);
+        QMutexLocker locker(&s_tabsMutex);
+        for (const auto &[prefix, tab] : std::as_const(s_tabs)) {
+            if (tab && file.startsWith(prefix)) {
+                const QString line = QStringLiteral("console: %1 (%2:%3)").arg(message, file.mid(prefix.size())).arg(context.line);
+                QMetaObject::invokeMethod(tab.data(), "addLog", Qt::QueuedConnection, Q_ARG(QString, line));
+                break;
+            }
+        }
+    }
+    if (s_previousHandler) {
+        s_previousHandler(type, context, message);
+    }
+}
+
+void watchConsole(WhaleAiToolTab *tab, const QString &folder)
+{
+    QMutexLocker locker(&s_tabsMutex);
+    if (!s_previousHandler) {
+        s_previousHandler = qInstallMessageHandler(routeConsole);
+    }
+    s_tabs.removeIf([tab](const auto &entry) {
+        return !entry.second || entry.second == tab;
+    });
+    s_tabs.append({QUrl::fromLocalFile(folder).toString() + QLatin1Char('/'), tab});
+}
+
+void unwatchConsole(WhaleAiToolTab *tab)
+{
+    QMutexLocker locker(&s_tabsMutex);
+    s_tabs.removeIf([tab](const auto &entry) {
+        return !entry.second || entry.second == tab;
+    });
+}
+
+/** @p value for JSON, shortened: long strings and lists are cut. */
+QJsonValue shortJson(const QVariant &value)
+{
+    QVariant plain = value;
+    if (value.canConvert<QJSValue>() && value.metaType() == QMetaType::fromType<QJSValue>()) {
+        plain = qvariant_cast<QJSValue>(value).toVariant();
+    }
+    QJsonValue json = QJsonValue::fromVariant(plain);
+    if (json.isString() && json.toString().size() > 500) {
+        return QJsonValue(QString(json.toString().left(500) + QStringLiteral("…")));
+    }
+    if (json.isArray() && json.toArray().size() > 50) {
+        QJsonArray cut;
+        const QJsonArray all = json.toArray();
+        for (int i = 0; i < 50; ++i) {
+            cut.append(all.at(i));
+        }
+        cut.append(QStringLiteral("… %1 in all").arg(all.size()));
+        return cut;
+    }
+    return json;
+}
+
+QString typeName(const QObject *object)
+{
+    QString name = QString::fromLatin1(object->metaObject()->className());
+    for (const QLatin1String suffix : {QLatin1String("_QMLTYPE_"), QLatin1String("_QML_")}) {
+        const int at = name.indexOf(suffix);
+        if (at > 0) {
+            name.truncate(at);
+        }
+    }
+    if (name.startsWith(QLatin1String("QQuick"))) {
+        name = name.mid(6);
+    }
+    return name;
+}
+
+QQuickItem *findNamed(QQuickItem *item, const QString &objectName)
+{
+    if (!item) {
+        return nullptr;
+    }
+    if (item->objectName() == objectName) {
+        return item;
+    }
+    const auto children = item->childItems();
+    for (QQuickItem *child : children) {
+        if (QQuickItem *found = findNamed(child, objectName)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+}
 
 WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &store, const WhaleAiToolHost &host, QWidget *parent)
     : QWidget(parent)
@@ -42,6 +153,7 @@ WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &
 
 WhaleAiToolTab::~WhaleAiToolTab()
 {
+    unwatchConsole(this);
     unload();
 }
 
@@ -125,6 +237,9 @@ void WhaleAiToolTab::load()
     m_blocked = false;
     unload();
     m_message->hide();
+    // The log is the one of this load: what the agent reads after a change.
+    m_log.clear();
+    Q_EMIT logChanged();
 
     QString error;
     const auto tool = m_store.tool(m_tool.id, &error);
@@ -145,6 +260,9 @@ void WhaleAiToolTab::load()
     m_quick = new WhaleAiQuickWidget(this);
     QQmlEngine *engine = m_quick->engine();
     WhaleAiQmlGuard::install(engine);
+    // Warnings go into the log only (below), console.log too.
+    engine->setOutputWarningsToStandardError(false);
+    watchConsole(this, m_tool.folder);
     connect(engine, &QQmlEngine::warnings, this, [this](const QList<QQmlError> &warnings) {
         for (const QQmlError &warning : warnings) {
             addLog(warning.toString());
@@ -209,6 +327,121 @@ void WhaleAiToolTab::hideEvent(QHideEvent *event)
         m_api->player()->stop();
     }
     QWidget::hideEvent(event);
+}
+
+QJsonObject WhaleAiToolTab::inspect() const
+{
+    QQuickItem *root = m_quick ? m_quick->rootObject() : nullptr;
+    if (!root) {
+        return {{QStringLiteral("loaded"), false}};
+    }
+    // The root's own properties: those its QML declares, after the ones of its type.
+    QJsonObject properties;
+    const QMetaObject *meta = root->metaObject();
+    const int first = meta->superClass() ? meta->superClass()->propertyCount() : meta->propertyOffset();
+    for (int i = first; i < meta->propertyCount(); ++i) {
+        const QMetaProperty property = meta->property(i);
+        properties.insert(QString::fromLatin1(property.name()), shortJson(property.read(root)));
+    }
+    QJsonArray items;
+    std::function<void(QQuickItem *)> walk = [&walk, &items](QQuickItem *item) {
+        if (items.size() >= 200) {
+            return;
+        }
+        if (!item->objectName().isEmpty()) {
+            QJsonObject entry{{QStringLiteral("name"), item->objectName()},
+                              {QStringLiteral("type"), typeName(item)},
+                              {QStringLiteral("visible"), item->isVisible()},
+                              {QStringLiteral("enabled"), item->isEnabled()}};
+            for (const char *name : {"text", "checked", "value", "currentIndex", "count", "source"}) {
+                const int index = item->metaObject()->indexOfProperty(name);
+                if (index >= 0) {
+                    entry.insert(QString::fromLatin1(name), shortJson(item->metaObject()->property(index).read(item)));
+                }
+            }
+            items.append(entry);
+        }
+        const auto children = item->childItems();
+        for (QQuickItem *child : children) {
+            walk(child);
+        }
+    };
+    walk(root);
+    return {{QStringLiteral("loaded"), m_loaded}, {QStringLiteral("properties"), properties}, {QStringLiteral("items"), items}};
+}
+
+QJsonObject WhaleAiToolTab::invoke(const QJsonObject &arguments, QString *error)
+{
+    QQuickItem *root = m_quick ? m_quick->rootObject() : nullptr;
+    if (!root) {
+        *error = QStringLiteral("The tool is not loaded (see tool_log).");
+        return {};
+    }
+    if (arguments.contains(QLatin1String("click"))) {
+        const QString name = arguments.value(QLatin1String("click")).toString();
+        QQuickItem *item = findNamed(root, name);
+        if (!item) {
+            *error = QStringLiteral("No item with the objectName \"%1\" (see tool_inspect).").arg(name);
+            return {};
+        }
+        if (!item->isVisible() || !item->isEnabled()) {
+            *error = QStringLiteral("\"%1\" is not visible or not enabled.").arg(name);
+            return {};
+        }
+        // A real click where the item is, as the user would make it.
+        const QPointF centre = item->mapToScene(QPointF(item->width() / 2, item->height() / 2));
+        const QPointF global = m_quick->mapToGlobal(centre);
+        QMouseEvent press(QEvent::MouseButtonPress, centre, global, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(m_quick, &press);
+        QMouseEvent release(QEvent::MouseButtonRelease, centre, global, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(m_quick, &release);
+        return {{QStringLiteral("clicked"), name}};
+    }
+    if (arguments.contains(QLatin1String("keys"))) {
+        const QKeySequence sequence(arguments.value(QLatin1String("keys")).toString());
+        if (sequence.isEmpty()) {
+            *error = QStringLiteral("\"keys\" must be a key sequence such as \"Right\", \"K\" or \"Ctrl+S\".");
+            return {};
+        }
+        m_quick->setFocus();
+        for (int i = 0; i < sequence.count(); ++i) {
+            const QKeyCombination combination = sequence[i];
+            const QString text = combination.keyboardModifiers() & ~Qt::ShiftModifier ? QString() : QKeySequence(combination.key()).toString().toLower();
+            QKeyEvent press(QEvent::KeyPress, combination.key(), combination.keyboardModifiers(), text.size() == 1 ? text : QString());
+            QCoreApplication::sendEvent(m_quick, &press);
+            QKeyEvent release(QEvent::KeyRelease, combination.key(), combination.keyboardModifiers(), text.size() == 1 ? text : QString());
+            QCoreApplication::sendEvent(m_quick, &release);
+        }
+        return {{QStringLiteral("pressed"), sequence.toString()}};
+    }
+    if (arguments.contains(QLatin1String("function"))) {
+        const QString name = arguments.value(QLatin1String("function")).toString();
+        QQmlEngine *engine = m_quick->engine();
+        QQmlEngine::setObjectOwnership(root, QQmlEngine::CppOwnership);
+        QJSValue self = engine->newQObject(root);
+        QJSValue function = self.property(name);
+        if (!function.isCallable()) {
+            *error = QStringLiteral("The root has no function \"%1\".").arg(name);
+            return {};
+        }
+        QJSValueList values;
+        for (const QJsonValue &value : arguments.value(QLatin1String("arguments")).toArray()) {
+            values.append(engine->toScriptValue(value.toVariant()));
+        }
+        const QJSValue result = function.callWithInstance(self, values);
+        if (result.isError()) {
+            *error = QStringLiteral("The function threw: %1").arg(result.toString());
+            return {};
+        }
+        return {{QStringLiteral("called"), name}, {QStringLiteral("returned"), shortJson(result.toVariant())}};
+    }
+    *error = QStringLiteral("Give \"click\" (an objectName), \"keys\" or \"function\".");
+    return {};
+}
+
+QImage WhaleAiToolTab::screenshot() const
+{
+    return m_quick && m_quick->rootObject() ? m_quick->grabFramebuffer() : QImage();
 }
 
 #include "moc_whaleaitooltab.cpp"

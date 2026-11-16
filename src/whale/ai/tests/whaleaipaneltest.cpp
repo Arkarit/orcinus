@@ -1053,6 +1053,28 @@ void WhaleAiPanelTest::backChannel()
     QCOMPARE(settingCalls, 0);
     all = texts(panel);
     QVERIFY2(all.contains(QLatin1String("cannot be saved in the read-only mode")), qPrintable(all));
+    // Canvas tools (CV3): writing, opening and using them is refused there too; reading is not.
+    int toolCalls = 0;
+    auto canvasTool = [&toolCalls](const QString &name, bool readOnly) {
+        return WhaleAiWindowTool{name, name, QStringLiteral("A canvas tool"), readOnly, {}, {}, [&toolCalls](const QJsonObject &, bool *, QString *) {
+                                     ++toolCalls;
+                                     return QJsonObject{{QStringLiteral("ok"), true}};
+                                 }};
+    };
+    const QList<WhaleAiWindowTool> settingTools = viewActions.windowTools;
+    viewActions.windowTools = settingTools
+        + QList<WhaleAiWindowTool>{canvasTool(QStringLiteral("tool_open"), false),
+                                   canvasTool(QStringLiteral("tool_write_file"), false),
+                                   canvasTool(QStringLiteral("tool_invoke"), false),
+                                   canvasTool(QStringLiteral("tool_log"), true)};
+    panel.setViewActions(viewActions);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:tool_open:counter mcp:tool_write_file:counter mcp:tool_invoke:counter mcp:tool_log:counter")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(toolCalls, 1);
+    all = texts(panel);
+    QVERIFY2(all.contains(QLatin1String("Canvas tools cannot be written, opened or used in the read-only mode")), qPrintable(all));
+    viewActions.windowTools = settingTools;
+    panel.setViewActions(viewActions);
     // The other modes by the names of the Mode list (the fake agent's "Ask" and "Auto").
     QVERIFY2(all.contains(QLatin1String("(\\\"Ask\\\", \\\"Auto\\\")")), qPrintable(all));
     panel.chooseMode(QStringLiteral("auto"));

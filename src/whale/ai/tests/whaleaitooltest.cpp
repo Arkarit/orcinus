@@ -11,6 +11,7 @@
 #include "whaleaitoolapi.h"
 #include "whaleaitoolstore.h"
 #include "whaleaitooltab.h"
+#include "whaleaitooltools.h"
 
 #include "config-dolphin.h"
 
@@ -19,6 +20,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QMainWindow>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -48,6 +50,7 @@ private Q_SLOTS:
     void testSoundTriage();
     void testKeepAndTrust();
     void testBrokenTool();
+    void testDevelopmentLoop();
 
 private:
     QString writeFile(const QString &path, const QByteArray &data);
@@ -502,6 +505,158 @@ void WhaleAiToolTest::testBrokenTool()
     QVERIFY(tab.isLoaded());
     QTRY_VERIFY(tab.log().join(QLatin1Char('\n')).contains(QLatin1String("undefinedFunction")));
     QDir(m_tools + QStringLiteral("/broken")).removeRecursively();
+}
+
+void WhaleAiToolTest::testDevelopmentLoop()
+{
+    // The agent's loop (CV3): write, open, read the errors, fix, inspect, act, look.
+    QMainWindow window;
+    auto panel = new WhaleAiCanvasPanel;
+    panel->setToolStore(m_store);
+    panel->setToolHost(m_host);
+    panel->setKeepConfirmation([](const WhaleAiTool &, const QStringList &) {
+        return true;
+    });
+    window.setCentralWidget(panel);
+    window.resize(600, 500);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    int shown = 0;
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : WhaleAiToolTools::create(panel, [&shown] {
+             ++shown;
+         })) {
+        tools.insert(tool.name, tool);
+    }
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+    const QString id = QStringLiteral("counter");
+
+    QVERIFY(call(QStringLiteral("tool_guide"), {}, &error).value(QLatin1String("guide")).toString().contains(QLatin1String("orcinus.list(")));
+    QVERIFY(tools.value(QStringLiteral("tool_guide")).readOnly && tools.value(QStringLiteral("tool_inspect")).readOnly);
+    QVERIFY(!tools.value(QStringLiteral("tool_write_file")).readOnly && !tools.value(QStringLiteral("tool_invoke")).readOnly);
+    for (const QString &name : WhaleAiToolTools::changingTools()) {
+        QVERIFY(tools.contains(name));
+    }
+
+    // Wrong ids and paths are refused.
+    auto write = [&](const QString &tool, const QString &path, const QString &content) {
+        return call(QStringLiteral("tool_write_file"),
+                    {{QStringLiteral("tool"), tool}, {QStringLiteral("path"), path}, {QStringLiteral("content"), content}},
+                    &error,
+                    &notice);
+    };
+    write(QStringLiteral("../evil"), QStringLiteral("main.qml"), QStringLiteral("x"));
+    QVERIFY(error);
+    write(id, QStringLiteral("../sound-triage/main.qml"), QStringLiteral("x"));
+    QVERIFY(error);
+    write(id, QStringLiteral(".hidden.qml"), QStringLiteral("x"));
+    QVERIFY(error);
+    write(id, QStringLiteral("lib.so"), QStringLiteral("x"));
+    QVERIFY(error);
+    write(id, QStringLiteral("/etc/passwd.txt"), QStringLiteral("x"));
+    QVERIFY(error);
+    QVERIFY(!QFile::exists(m_tools + QStringLiteral("/counter")));
+
+    // A manifest alone is not a tool yet; with a broken QML it does not load, and says why.
+    QJsonObject result = write(id, QStringLiteral("tool.json"), QStringLiteral(R"({"name": "Counter", "icon": "accessories-calculator"})"));
+    QVERIFY(!error);
+    QVERIFY(!notice.isEmpty());
+    QCOMPARE(result.value(QLatin1String("toolValid")).toBool(), false);
+    result = call(QStringLiteral("tool_list"), {}, &error);
+    QVERIFY(result.value(QLatin1String("invalid")).toArray().first().toObject().value(QLatin1String("id")).toString() == id);
+    result = write(id, QStringLiteral("main.qml"), QStringLiteral("import QtQuick\nItem { property int count: 0\n broken here }"));
+    QCOMPARE(result.value(QLatin1String("toolValid")).toBool(), true);
+    result = call(QStringLiteral("tool_open"), {{QStringLiteral("tool"), id}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(shown, 1);
+    QCOMPARE(result.value(QLatin1String("loaded")).toBool(), false);
+    QVERIFY(!result.value(QLatin1String("log")).toArray().isEmpty());
+
+    // Fixed: loads; console.log goes into the log.
+    write(id, QStringLiteral("main.qml"), QStringLiteral(R"(import QtQuick
+import QtQuick.Controls
+FocusScope {
+    id: root
+    focus: true
+    property int count: 0
+    property var names: ["a", "b"]
+    function add(n) { count += n; return count }
+    Component.onCompleted: console.log("counter ready")
+    Keys.onPressed: (event) => { if (event.key === Qt.Key_Right) { count += 10; event.accepted = true } }
+    Button { objectName: "inc"; text: "Count " + root.count; onClicked: root.count++ }
+}
+)"));
+    result = call(QStringLiteral("tool_open"), {{QStringLiteral("tool"), id}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("loaded")).toBool(), true);
+    QTRY_VERIFY(call(QStringLiteral("tool_log"), {{QStringLiteral("tool"), id}}, &error)
+                    .value(QLatin1String("log"))
+                    .toArray()
+                    .contains(QJsonValue(QStringLiteral("console: counter ready (main.qml:9)"))));
+
+    // Inspect, act, inspect.
+    result = call(QStringLiteral("tool_inspect"), {{QStringLiteral("tool"), id}}, &error);
+    QCOMPARE(result.value(QLatin1String("properties")).toObject().value(QLatin1String("count")).toInt(), 0);
+    QCOMPARE(result.value(QLatin1String("properties")).toObject().value(QLatin1String("names")).toArray().size(), 2);
+    QCOMPARE(result.value(QLatin1String("items")).toArray().first().toObject().value(QLatin1String("text")).toString(), QStringLiteral("Count 0"));
+    call(QStringLiteral("tool_invoke"), {{QStringLiteral("tool"), id}, {QStringLiteral("click"), QStringLiteral("inc")}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(!notice.isEmpty());
+    call(QStringLiteral("tool_invoke"), {{QStringLiteral("tool"), id}, {QStringLiteral("keys"), QStringLiteral("Right")}}, &error);
+    QVERIFY(!error);
+    result = call(QStringLiteral("tool_invoke"),
+                  {{QStringLiteral("tool"), id}, {QStringLiteral("function"), QStringLiteral("add")}, {QStringLiteral("arguments"), QJsonArray{5}}},
+                  &error);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("returned")).toInt(), 16);
+    call(QStringLiteral("tool_invoke"), {{QStringLiteral("tool"), id}, {QStringLiteral("click"), QStringLiteral("missing")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("tool_invoke"), {{QStringLiteral("tool"), id}, {QStringLiteral("function"), QStringLiteral("nope")}}, &error);
+    QVERIFY(error);
+
+    // A look at it.
+    result = call(QStringLiteral("tool_screenshot"), {{QStringLiteral("tool"), id}}, &error);
+    QVERIFY(!error);
+    QVERIFY(result.value(QLatin1String("width")).toInt() > 0);
+    QVERIFY(
+        QByteArray::fromBase64(result.value(QLatin1String("_mcpImage")).toObject().value(QLatin1String("data")).toString().toLatin1()).startsWith("\x89PNG"));
+
+    // Reading back; a kept tool the agent changes is no longer kept.
+    QVERIFY(call(QStringLiteral("tool_read_file"), {{QStringLiteral("tool"), id}, {QStringLiteral("path"), QStringLiteral("main.qml")}}, &error)
+                .value(QLatin1String("content"))
+                .toString()
+                .contains(QLatin1String("counter ready")));
+    QVERIFY(panel->keepTool(id));
+    result = write(id, QStringLiteral("notes.md"), QStringLiteral("# Counter"));
+    QVERIFY(!error);
+    QVERIFY(result.contains(QLatin1String("note")));
+    QVERIFY(!m_store.pinned().contains(id));
+    call(QStringLiteral("tool_delete_file"), {{QStringLiteral("tool"), id}, {QStringLiteral("path"), QStringLiteral("notes.md")}}, &error);
+    QVERIFY(!error);
+    QVERIFY(!QFile::exists(m_tools + QStringLiteral("/counter/notes.md")));
+
+    result = call(QStringLiteral("tool_list"), {}, &error);
+    bool listed = false;
+    for (const QJsonValue &entry : result.value(QLatin1String("tools")).toArray()) {
+        if (entry.toObject().value(QLatin1String("id")).toString() == id) {
+            listed = entry.toObject().value(QLatin1String("loaded")).toBool();
+        }
+    }
+    QVERIFY(listed);
+    QVERIFY(call(QStringLiteral("tool_close"), {{QStringLiteral("tool"), id}}, &error).value(QLatin1String("closed")).toBool());
+    call(QStringLiteral("tool_log"), {{QStringLiteral("tool"), id}}, &error);
+    QVERIFY(error);
+    QDir(m_tools + QStringLiteral("/counter")).removeRecursively();
 }
 
 QTEST_MAIN(WhaleAiToolTest)

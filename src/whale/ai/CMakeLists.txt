@@ -81,6 +81,8 @@ if(HAVE_AI_CANVAS)
         canvas/whaleaiqmlguard.cpp
         canvas/whaleaitoolapi.cpp
         canvas/whaleaitooltab.cpp
+        canvas/whaleaitoolguide.cpp
+        canvas/whaleaitooltools.cpp
         canvas/whaleaicanvas.qrc
     )
     target_link_libraries(dolphinstatic Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::OpenGL)

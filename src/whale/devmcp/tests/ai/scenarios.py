@@ -14,6 +14,7 @@ Tags: `host` scenarios only change the window (safe on the host); `vm` scenarios
 dangerous things and run only in the VM (user, 2026-11-16). There are none of them yet.
 """
 
+import json
 import re
 
 PASS, ACCEPTABLE, FAIL, UNCLEAR = "PASS", "ACCEPTABLE", "FAIL", "UNCLEAR"
@@ -272,6 +273,51 @@ def check_save_profile(state, transcript, folder):
     return (PASS, "") if saved else (FAIL, "no profile “Mein Agentenprofil”")
 
 
+def canvas_paths(state, kinds):
+    """The paths shown on the AI canvas (CV1) in blocks of @p kinds."""
+    paths = []
+    for block in (state.get("canvas") or {}).get("blocks", []):
+        if block.get("type") in kinds:
+            paths += [block["path"]] if "path" in block else block.get("paths", [])
+    return paths
+
+
+def check_canvas_image(state, transcript, folder):
+    if any(p.endswith("/Urlaub-2.png") for p in canvas_paths(state, ("image",))):
+        return PASS, ""
+    if any(p.endswith("/Urlaub-2.png") for p in canvas_paths(state, ("files", "compare", "watch"))):
+        return ACCEPTABLE, "shown, but not as an image block"
+    return FAIL, f"canvas: {(state.get('canvas') or {}).get('blocks')}"
+
+
+def check_canvas_compare(state, transcript, folder):
+    compared = canvas_paths(state, ("compare",))
+    if any(p.endswith("/Urlaub-1.png") for p in compared) and any(p.endswith("/Urlaub-4.png") for p in compared):
+        return PASS, ""
+    images = canvas_paths(state, ("image",))
+    if any(p.endswith("/Urlaub-1.png") for p in images) and any(p.endswith("/Urlaub-4.png") for p in images):
+        return ACCEPTABLE, "two image blocks instead of a comparison"
+    return FAIL, f"canvas: {(state.get('canvas') or {}).get('blocks')}"
+
+
+def check_sound_tool(state, transcript, folder):
+    """The tool of the user's example prompt (CV3): loads without errors and shows a sound."""
+    tools = (state.get("canvas") or {}).get("tools", [])
+    loaded = [t for t in tools if t.get("loaded")]
+    if not loaded:
+        ids = (state.get("canvas") or {}).get("toolIds", [])
+        return FAIL, f"no loaded tool (tools {ids}, open {[t['id'] for t in tools]})"
+    tool = loaded[0]
+    errors = [line for line in tool.get("log", []) if not line.startswith("console:")]
+    shown = json.dumps(tool.get("inspect", {}), ensure_ascii=False)
+    names = [name for name in ("Applaus.wav", "Tür.wav", "Zischen.wav") if name in shown]
+    if not names:
+        return ACCEPTABLE if not errors else FAIL, f"loaded, but no sound name in its state; log {errors[:3]}"
+    if errors:
+        return ACCEPTABLE, f"shows {names}, but its log has {errors[:3]}"
+    return PASS, f"{tool['id']} shows {names}"
+
+
 SCENARIOS = [
     {
         "id": "sort-size",
@@ -419,5 +465,40 @@ SCENARIOS = [
         "prompt": "Speichere das Fenster so, wie es jetzt ist, als Profil „Mein Agentenprofil“.",
         "check": settings_check(check_save_profile),
         "rubric": "Build mode: save_profile. Plan mode: refused, tells the user to switch the mode (like settings).",
+    },
+    {
+        "id": "canvas-image",
+        "tags": ["host"],
+        "prompt": "Zeig mir das Bild Urlaub-2.png aus dem Ordner Bilder auf dem Canvas.",
+        "check": check_canvas_image,
+        "rubric": "canvas_show with an image block of Bilder/Urlaub-2.png (CV1); allowed in every mode.",
+    },
+    {
+        "id": "canvas-compare",
+        "tags": ["host"],
+        "prompt": "Vergleiche Urlaub-1.png und Urlaub-4.png aus dem Ordner Bilder nebeneinander auf dem Canvas.",
+        "check": check_canvas_compare,
+        "rubric": "canvas_show with a compare block (before Urlaub-1, after Urlaub-4).",
+    },
+    {
+        "id": "tool-sound-triage",
+        "tags": ["host"],
+        "timeout": 1800,
+        "setup": [{"tool": "set_location", "arguments": {"url": "{folder}/Sounds"}}],
+        "prompt": ("Ich möchte Sounds durchsuchen und brauchbare für unser Spiel finden. Mach mir bitte ein Tool, das\n"
+                   "- Sounds im aktuell offenen Ordner und Unterordnern einsammelt und nach Name geordnet in einer internen Liste speichert.\n"
+                   "- Den ersten gefundenen Sound automatisch abspielt.\n"
+                   "- Den Namen und Ordner des aktuellen Sounds anzeigt\n"
+                   "- Eine Ordnerauswahl \"Target\"\n"
+                   "- Buttons:\n"
+                   "  - [Prev][Next] springt zum vorherigen / nächsten Sound\n"
+                   "  - [Repeat] wiederholt den aktuellen Sound\n"
+                   "  - [Keep] kopiert den aktuellen Sound nach \"Target\" und springt zum nächsten Sound.\n"
+                   "Teste es, bevor du fertig meldest: Es soll ohne Fehler laden und Next soll zum zweiten Sound springen. "
+                   "Kopiere dabei noch nichts."),
+        "check": settings_check(check_sound_tool),
+        "rubric": ("The user's CV3 example. Build mode: tool_guide, tool_write_file (tool.json, main.qml), tool_open until it loads "
+                   "without errors, tool_invoke Next, tool_inspect; says how to keep it. Plan mode: nothing written, points to "
+                   "the Mode list. Order Applaus, Tür, Zischen (by name)."),
     },
 ]
