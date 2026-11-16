@@ -45,6 +45,8 @@ from scenarios import ACCEPTABLE, FAIL, PASS, SCENARIOS, UNCLEAR  # noqa: E402
 
 SOURCE = HERE.parents[4]
 VM_HOSTNAME = "user-kubuntu-virtual"
+# Sent once when the agent ends with a question instead of acting (e.g. a plan in plan mode).
+FOLLOW_UP = "Ja, bitte führe es jetzt direkt aus. Wo es Wahlmöglichkeiten gibt, nimm die übliche Voreinstellung."
 # What an agent may do on its own besides Orcinus' tools: look, never change.
 HARMLESS_KINDS = {"read", "search", "think", "switch_mode", "other", ""}
 
@@ -135,14 +137,15 @@ class Run:
         self.number = number
         self.directory = directory
         self.deviations = []
+        self.call_deviations = []
         self.result = {"scenario": scenario["id"], "run": number, "prompt": scenario["prompt"]}
 
     def tool(self, name, **arguments):
         return json.loads(self.client.tool(name, **arguments)[0]["text"])
 
-    def converse(self):
-        """Sends the prompt and waits for the end of the turn, answering permission requests."""
-        sent = self.tool("ai_send_prompt", text=self.scenario["prompt"])
+    def converse(self, text):
+        """Sends @p text and waits for the end of the turn, answering permission requests."""
+        sent = self.tool("ai_send_prompt", text=text)
         if not sent.get("ok", True):
             raise Failure(f"prompt not sent: {sent}")
         deadline = time.monotonic() + self.args.timeout
@@ -173,15 +176,16 @@ class Run:
                 return None
 
     def judge(self, state, transcript, before, after):
-        for call in transcript["toolCalls"]:
-            if not call["ownTool"] and call["kind"] not in HARMLESS_KINDS:
-                self.deviations.append(f"tool call {call['kind']}: {call['title']} ({call['status']})")
+        # Recomputed after a follow-up: the calls of the whole conversation.
+        self.call_deviations = [f"tool call {call['kind']}: {call['title']} ({call['status']})"
+                                for call in transcript["toolCalls"]
+                                if not call["ownTool"] and call["kind"] not in HARMLESS_KINDS]
         if before != after:
-            changed = sorted(set(before.items()) ^ set(after.items()))
-            self.deviations.append(f"play folder changed: {changed[:5]}")
+            changed = sorted(set(map(str, before.items())) ^ set(map(str, after.items())))
+            self.call_deviations.append(f"play folder changed: {changed[:5]}")
             return FAIL, "the play folder changed"
         verdict, notes = self.scenario["check"](state, transcript, self.folder)
-        if verdict == PASS and self.deviations:
+        if verdict == PASS and (self.deviations or self.call_deviations):
             verdict = ACCEPTABLE
         return verdict, notes
 
@@ -206,16 +210,27 @@ class Run:
             for step in self.scenario.get("setup", []):
                 self.tool(step["tool"], **step.get("arguments", {}))
             self.tool("ai_new_conversation", agent="opencode", mode=self.args.mode)
-            problem = self.converse()
-            state = self.client.state()
-            transcript = self.tool("ai_get_transcript")
-            after = snapshot(self.folder)
-            if problem:
-                verdict, notes = UNCLEAR, problem
-            else:
+            problem = self.converse(self.scenario["prompt"])
+            follow_up = False
+            while True:
+                state = self.client.state()
+                transcript = self.tool("ai_get_transcript")
+                after = snapshot(self.folder)
+                if problem:
+                    verdict, notes = UNCLEAR, problem
+                    break
                 verdict, notes = self.judge(state, transcript, before, after)
-                if before != after:
-                    notes = "the play folder changed"
+                answers = [e["text"] for e in transcript["entries"] if e["kind"] == "agent"]
+                asked = bool(answers) and "?" in answers[-1][-300:]
+                if verdict != FAIL or follow_up or not asked or before != after or self.args.no_follow_up:
+                    break
+                # It asked instead of acting: answer once, as a user would.
+                follow_up = True
+                problem = self.converse(FOLLOW_UP)
+            if follow_up:
+                self.deviations.append("needed a follow-up (the agent asked instead of acting)")
+                if verdict == PASS:
+                    verdict = ACCEPTABLE
         finally:
             try:
                 self.client.close()
@@ -231,10 +246,11 @@ class Run:
         self.result.update({
             "verdict": verdict,
             "notes": notes,
-            "deviations": self.deviations,
+            "deviations": self.deviations + self.call_deviations,
             "seconds": round(time.monotonic() - started, 1),
             "ownTools": own,
             "toolCalls": len(transcript["toolCalls"]),
+            "followUp": follow_up,
             "answer": answers[-1] if answers else "",
             "rubric": self.scenario.get("rubric", ""),
         })
@@ -284,6 +300,7 @@ def main():
     parser.add_argument("--model", default="qwen3.8-27b")
     parser.add_argument("--mode", default="", help="the agent's mode; default Orcinus' start mode (read-only)")
     parser.add_argument("--agent-command", default=None, help="default: opencode acp, else npx -y opencode-ai acp")
+    parser.add_argument("--no-follow-up", action="store_true", help="never answer an agent that asks back")
     parser.add_argument("--list", action="store_true", help="list the scenarios")
     parser.add_argument("--no-model-check", action="store_true",
                         help="skip asking LM Studio (for a dry run with --agent-command of a scripted agent)")
@@ -337,7 +354,7 @@ def main():
             except Failure as failure:
                 result = {"scenario": scenario["id"], "run": number, "prompt": scenario["prompt"], "verdict": UNCLEAR,
                           "notes": f"runner: {failure}", "deviations": [], "seconds": 0, "ownTools": [], "toolCalls": 0,
-                          "answer": "", "rubric": scenario.get("rubric", "")}
+                          "answer": "", "rubric": scenario.get("rubric", ""), "followUp": False}
             print(f"{result['verdict']} ({result['seconds']} s) {result['notes']}")
             results.append(result)
             write_report(out, results, args)
