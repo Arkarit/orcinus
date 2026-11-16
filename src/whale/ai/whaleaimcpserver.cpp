@@ -253,7 +253,11 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    // AI9e4: the user's profiles; applying and saving go into the change log.
                                    QStringLiteral("list_profiles"),
                                    QStringLiteral("apply_profile"),
-                                   QStringLiteral("save_profile")};
+                                   QStringLiteral("save_profile"),
+                                   // CV1: the AI canvas; shows files, never changes them.
+                                   QStringLiteral("canvas_show"),
+                                   QStringLiteral("canvas_clear"),
+                                   QStringLiteral("get_canvas")};
     return names;
 }
 

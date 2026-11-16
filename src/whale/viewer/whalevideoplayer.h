@@ -50,7 +50,7 @@ public:
     void setOptions(const Options &options);
     const Options &options() const;
 
-    /** Plays @p url (a local file) instead of the file before; paused unless autoplay. */
+    /** Plays @p url (a local file, or a network stream) instead of the file before; paused unless autoplay. */
     void load(const QUrl &url);
     /** Stops and forgets the file. */
     void stop();

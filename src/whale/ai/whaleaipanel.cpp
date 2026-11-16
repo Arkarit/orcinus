@@ -797,6 +797,7 @@ void WhaleAiPanel::newConversation()
     m_transcript->clear();
     greet();
     m_input->setFocus();
+    Q_EMIT conversationCleared();
 }
 
 void WhaleAiPanel::undoAgentChanges()

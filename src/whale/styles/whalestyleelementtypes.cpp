@@ -1039,11 +1039,14 @@ struct Panel {
     QLatin1String dock;
 };
 
-constexpr std::array<Panel, 4> panels{{
+// The AI panels (AI3, CV1) exist only in builds with AI support; a profile without them leaves them as they are.
+constexpr std::array<Panel, 6> panels{{
     {QLatin1String("places"), QLatin1String("placesDock")},
     {QLatin1String("folders"), QLatin1String("foldersDock")},
     {QLatin1String("information"), QLatin1String("infoDock")},
     {QLatin1String("terminal"), QLatin1String("terminalDock")},
+    {QLatin1String("ai"), QLatin1String("aiDock")},
+    {QLatin1String("canvas"), QLatin1String("aiCanvasDock")},
 }};
 
 class PanelsElement : public WhaleStyleElement
@@ -1097,6 +1100,10 @@ public:
                 shown.append(i18nc("@item:intext panel", "Information"));
             } else if (name == QLatin1String("terminal")) {
                 shown.append(i18nc("@item:intext panel", "Terminal"));
+            } else if (name == QLatin1String("ai")) {
+                shown.append(i18nc("@item:intext panel", "AI Assistant"));
+            } else if (name == QLatin1String("canvas")) {
+                shown.append(i18nc("@item:intext panel", "AI Canvas"));
             }
         }
         return shown.isEmpty() ? i18nc("@item:intext style element value", "None shown")

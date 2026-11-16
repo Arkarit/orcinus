@@ -64,6 +64,22 @@ target_sources(dolphinstatic PRIVATE
 )
 target_link_libraries(dolphinstatic whaleai)
 
+########### AI canvas (CV1), part of the application ###############
+
+# See .privatedoc/ai-canvas-plan.md.
+if(HAVE_AI_CANVAS)
+    target_sources(whaleai PRIVATE canvas/whaleaicanvasmodel.cpp)
+    target_include_directories(whaleai PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/canvas)
+    target_sources(dolphinstatic PRIVATE
+        canvas/whaleaicanvasmedia.cpp
+        canvas/whaleaicanvaspanel.cpp
+        canvas/whaleaicanvastools.cpp
+        canvas/whaleaiquickwidget.cpp
+        canvas/whaleaicanvas.qrc
+    )
+    target_link_libraries(dolphinstatic Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::OpenGL)
+endif()
+
 if(BUILD_TESTING)
     add_subdirectory(tests)
 endif()

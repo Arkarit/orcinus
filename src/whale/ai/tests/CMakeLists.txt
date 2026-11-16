@@ -48,3 +48,15 @@ ecm_add_test(whaleaimcpservertest.cpp
     LINK_LIBRARIES whaleai Qt6::Test)
 target_compile_definitions(whaleaimcpservertest PRIVATE WHALE_MCP_RELAY="$<TARGET_FILE:orcinus-mcp>")
 add_dependencies(whaleaimcpservertest orcinus-mcp)
+
+# The AI canvas (CV1).
+if(HAVE_AI_CANVAS)
+    ecm_add_test(whaleaicanvasmodeltest.cpp
+        TEST_NAME whaleaicanvasmodeltest
+        LINK_LIBRARIES whaleai Qt6::Gui Qt6::Test)
+
+    ecm_add_test(whaleaicanvaspaneltest.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+        TEST_NAME whaleaicanvaspaneltest
+        LINK_LIBRARIES dolphinstatic Qt6::Test)
+    target_include_directories(whaleaicanvaspaneltest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+endif()

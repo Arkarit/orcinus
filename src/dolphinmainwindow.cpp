@@ -34,6 +34,10 @@
 #include "whaleaiprofiletools.h"
 #include "whaleaisettingstools.h"
 #include "whaleaiwindowtools.h"
+#if HAVE_AI_CANVAS
+#include "whaleaicanvaspanel.h"
+#include "whaleaicanvastools.h"
+#endif
 #endif
 #include "search/dolphinquery.h"
 #include "selectionmode/actiontexthelper.h"
@@ -2665,6 +2669,19 @@ void DolphinMainWindow::setupDockWidgets()
 #endif // HAVE_TERMINAL
 
 #if WHALE_ENABLE_AI
+#if HAVE_AI_CANVAS
+    // Whale: CV1, the AI canvas, where the agent shows its work; see .privatedoc/ai-canvas-plan.md.
+    DolphinDockWidget *aiCanvasDock = new DolphinDockWidget(i18nc("@title:window", "AI Canvas"));
+    aiCanvasDock->setLocked(lock);
+    aiCanvasDock->setObjectName(QStringLiteral("aiCanvasDock"));
+    auto *aiCanvas = new WhaleAiCanvasPanel(aiCanvasDock);
+    aiCanvas->setCustomContextMenuActions({lockLayoutAction});
+    aiCanvasDock->setWidget(aiCanvas);
+    createPanelAction(QIcon::fromTheme(QStringLiteral("view-preview")), QKeySequence(), aiCanvasDock, QStringLiteral("show_ai_canvas_panel"));
+    addDockWidget(Qt::LeftDockWidgetArea, aiCanvasDock);
+    // Hidden until the user opens it or the agent shows something, as the AI panel.
+    aiCanvasDock->hide();
+#endif
     // Whale: AI3, the AI panel; see .privatedoc/ai-support-plan.md.
     DolphinDockWidget *aiDock = new DolphinDockWidget(i18nc("@title:window", "AI Assistant"));
     aiDock->setLocked(lock);
@@ -2842,7 +2859,15 @@ void DolphinMainWindow::setupDockWidgets()
             }
             return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
         },
-        WhaleAiWindowTools::create(this) + WhaleAiSettingsTools::create(this) + WhaleAiProfileTools::create(this),
+        WhaleAiWindowTools::create(this) + WhaleAiSettingsTools::create(this) + WhaleAiProfileTools::create(this)
+#if HAVE_AI_CANVAS
+            + WhaleAiCanvasTools::create(aiCanvas,
+                                         [aiCanvasDock] {
+                                             aiCanvasDock->show();
+                                             aiCanvasDock->raise();
+                                         })
+#endif
+            ,
         [this] {
             return WhaleAiWindowTools::activeViewState(this);
         },
@@ -2868,7 +2893,7 @@ void DolphinMainWindow::setupDockWidgets()
         aiDock->show();
         aiDock->raise();
     });
-    connect(aiPanel, &WhaleAiPanel::localUrlActivated, this, [this](const QUrl &url) {
+    auto showLocalUrl = [this](const QUrl &url) {
         if (QFileInfo(url.toLocalFile()).isDir()) {
             changeUrl(url);
             return;
@@ -2876,7 +2901,22 @@ void DolphinMainWindow::setupDockWidgets()
         changeUrl(url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash));
         m_activeViewContainer->view()->markUrlsAsSelected({url});
         m_activeViewContainer->view()->markUrlAsCurrent(url);
-    });
+    };
+    connect(aiPanel, &WhaleAiPanel::localUrlActivated, this, showLocalUrl);
+#if HAVE_AI_CANVAS
+    connect(aiCanvas, &WhaleAiCanvasPanel::localUrlActivated, this, showLocalUrl);
+    connect(aiPanel, &WhaleAiPanel::conversationCleared, aiCanvas, &WhaleAiCanvasPanel::clear);
+    actionCollection()
+        ->action(QStringLiteral("show_ai_canvas_panel"))
+        ->setWhatsThis(xi18nc("@info:whatsthis",
+                              "<para>This toggles the <emphasis>AI Canvas</emphasis> panel.</para>"
+                              "<para>There the AI agent of the <emphasis>AI Assistant</emphasis> panel shows its work: images, "
+                              "videos, sounds, texts and files.</para>"));
+    aiCanvasDock->setWhatsThis(xi18nc("@info:whatsthis",
+                                      "<para>This is the <emphasis>AI Canvas</emphasis> panel. The AI agent shows its work here; "
+                                      "click a file to show it in the view. A new conversation clears it.</para>")
+                               + panelWhatsThis);
+#endif
     actionCollection()
         ->action(QStringLiteral("show_ai_panel"))
         ->setWhatsThis(xi18nc("@info:whatsthis",
@@ -2980,6 +3020,9 @@ void DolphinMainWindow::setupDockWidgets()
     panelsMenu->addAction(ac->action(QStringLiteral("show_terminal_panel")));
 #if WHALE_ENABLE_AI
     panelsMenu->addAction(ac->action(QStringLiteral("show_ai_panel")));
+#if HAVE_AI_CANVAS
+    panelsMenu->addAction(ac->action(QStringLiteral("show_ai_canvas_panel")));
+#endif
 #endif
     panelsMenu->addSeparator();
     panelsMenu->addAction(lockLayoutAction);

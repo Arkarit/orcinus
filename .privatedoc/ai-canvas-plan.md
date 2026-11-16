@@ -1,6 +1,6 @@
 # AI canvas and tools (CV0–CV5)
 
-Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike) done 2026-11-16.
+Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike) done 2026-11-16; CV1 done 2026-11-16.
 
 ## Problem
 
@@ -135,6 +135,33 @@ image of a folder, for renders and generated images) and stream (URL played by m
 udp). `canvas_clear`; the canvas belongs to the conversation (cleared on "New Conversation").
 Profile "AI Workbench" in `whaledefaultstyles.cpp`. Tests: blocks rendered offscreen, MCP tool
 round trip, profile applies.
+
+*CV1 results (done 2026-11-16).* `src/whale/ai/canvas/`: `WhaleAiCanvasModel` (in `whaleai`:
+blocks checked by `parse()`, all or nothing per call; max 50 blocks, 200 files, 64 KiB text;
+watch = `KDirWatch` on the folder, newest image/video by mtime, a revision counter reloads a file
+overwritten in place), `WhaleAiCanvasPanel` (dock `aiCanvasDock`, action `show_ai_canvas_panel`
+without default shortcut, Panels menu, left area, hidden by default; tab bar with one tab for
+now, auto-hidden), `Canvas.qml` (qrc `/orcinus/ai/canvas/`), `WhaleAiCanvasPlayer` +
+`WhaleAiCanvasVideo` (QML module `org.kde.orcinus.canvas`, `VideoOutput`), `WhaleAiQuickWidget`,
+`WhaleAiCanvasTools` (`canvas_show`, `canvas_clear`, `get_canvas`; allowed in every mode, a
+hidden canvas is shown by `canvas_show`). Cleared by `WhaleAiPanel::conversationCleared`. Clicks
+on files and local links select them in the view; other links only http(s). Nothing plays while
+the canvas is hidden. Build: `WHALE_ENABLE_AI_CANVAS` → `HAVE_AI_CANVAS` (needs Qt Qml, Quick,
+QuickWidgets, OpenGL); packaging gained qt6-declarative(-dev) and the qml6 QtQuick, Controls,
+Layouts modules (Debian, Arch, CI container). Findings while building it:
+- The ShortcutOverride of a `QQuickWidget` does not reach the widget: Qt sends it to the focused
+  item of its Qt Quick window. `WhaleAiQuickWidget` therefore catches it with an application event
+  filter (only for its own window/items while it has the focus), delivers it, and then keeps plain
+  keys. Test: Delete in the canvas does not trigger a window action, F5 does.
+- mpv's `vo=libmpv` fails to open a video when no render context exists yet: a video block now
+  waits until its `VideoOutput` reports the render context (`videoReady`, fallback after 1.5 s:
+  sound only). Audio loads at once. Verified in headless KWin: the test video plays in the canvas.
+- `Image.sourceSize` scales small images *up*; not used. Images show at most at their own size.
+- The list follows the end while images load (content height grows) until the user scrolls.
+- Profiles: the "panels" element knows `ai` and `canvas` now (only where those docks exist); the
+  shipped profile *AI Workbench* (Details, canvas + chat, no other panel) exists only for new
+  users (profiles are seeded once). The default-setup e2e test takes `--ai-canvas`.
+- Docs: only the shipped profile is mentioned (docs §5); the canvas itself goes into AI8.
 
 **CV2 – QML tools.** Tool folder with manifest `tool.json` (id, name, icon, entry QML, optional
 backend, declared write targets, settings with defaults), tool tabs, open / close / pin, trust

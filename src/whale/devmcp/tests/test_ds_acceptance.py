@@ -79,7 +79,8 @@ def run(args, work):
             "styles.lastStyle": "compact",
             "styles.menu": ["whale_style_" + id for id in SHIPPED] + MENU_TAIL,
             "styles.current.split": "false", "styles.current.statusBar": "FullWidth",
-            "styles.current.panels": "places=true,folders=false,information=false,terminal=false",
+            "styles.current.panels": "places=true,folders=false,information=false,terminal=false"
+                                     + (",ai=false,canvas=false" if args.ai_canvas else ""),
             "styles.menuBarVisible": False,
             "toolbars.global.layout": MAIN_DEFAULT}, focus=False)
         # The location bar is in the row of its toolbar where there is room (offscreen windows start small).
@@ -133,7 +134,10 @@ def main():
     parser.add_argument("--plugin-dir", required=True, help="build tree's view plugins (plugins/)")
     parser.add_argument("--platform", default="offscreen", help='QT_QPA_PLATFORM for Whale ("" = the session\'s)')
     parser.add_argument("--keep", action="store_true", help="keep the temporary folder")
+    parser.add_argument("--ai-canvas", action="store_true", help="built with the AI canvas (CV1): one more shipped profile and panel")
     args = parser.parse_args()
+    if args.ai_canvas:
+        SHIPPED.append("ai-workbench")
     if not shutil.which("dbus-run-session"):
         print("skipped: dbus-run-session is missing")
         return 77
