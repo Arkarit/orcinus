@@ -494,3 +494,8 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
          })},
     };
 }
+
+QJsonObject WhaleAiWindowTools::state(DolphinMainWindow *window)
+{
+    return getWindowState(window);
+}

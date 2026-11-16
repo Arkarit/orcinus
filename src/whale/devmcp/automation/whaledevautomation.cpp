@@ -23,6 +23,7 @@
 #include "search/bar.h"
 #include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
+#include "whaleaiwindowtools.h"
 #include "whalecommandrouter.h"
 #include "whaledevai.h"
 #include "whaledevautomationdbus.h"
@@ -787,6 +788,8 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("viewer"), viewerState()},
         // AI10a: the AI panel; the transcript is ai_get_transcript.
         {QStringLiteral("ai"), m_ai->state()},
+        // AI10c: the window as the agent's get_window_state shows it (panels, split share, messages).
+        {QStringLiteral("agentWindow"), WhaleAiWindowTools::state(m_window)},
     };
 }
 

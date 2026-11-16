@@ -208,7 +208,11 @@ class Run:
             wait_for_instance(self.client, whale)
             self.tool("set_window_size", width=1400, height=900)
             for step in self.scenario.get("setup", []):
-                self.tool(step["tool"], **step.get("arguments", {}))
+                arguments = {key: value.replace("{folder}", self.folder.as_uri()) if isinstance(value, str) else value
+                             for key, value in step.get("arguments", {}).items()}
+                self.tool(step["tool"], **arguments)
+            if self.scenario.get("setup"):
+                time.sleep(1)  # let the set-up settle (folder listing, message)
             self.tool("ai_new_conversation", agent="opencode", mode=self.args.mode)
             problem = self.converse(self.scenario["prompt"])
             follow_up = False

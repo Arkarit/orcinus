@@ -23,6 +23,9 @@ class DolphinMainWindow;
 namespace WhaleAiWindowTools
 {
 QList<WhaleAiWindowTool> create(DolphinMainWindow *window);
+
+/** What get_window_state answers the agent; also for the development automation (AI10). */
+QJsonObject state(DolphinMainWindow *window);
 }
 
 #endif

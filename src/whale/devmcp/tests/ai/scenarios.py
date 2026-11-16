@@ -77,6 +77,86 @@ def check_split_bilder(state, transcript, folder):
     return verdict, "; ".join(notes)
 
 
+def agent_window(state):
+    return state.get("agentWindow", {})
+
+
+def panel(state, panel_id):
+    return next((p for p in agent_window(state).get("panels", []) if p["id"] == panel_id), {})
+
+
+def check_viewer_next(state, transcript, folder):
+    viewer = state.get("viewer", {})
+    if not viewer.get("open"):
+        return FAIL, "viewer not open"
+    name = folder_name(viewer.get("url", "")) or viewer.get("name", "")
+    if name == "Urlaub-2.png":
+        return PASS, ""
+    if name.startswith("Urlaub-") and name != "Urlaub-1.png":
+        return ACCEPTABLE, f"shows {name}"
+    return FAIL, f"viewer shows {name}"
+
+
+def check_info_panel_width(state, transcript, folder):
+    info = panel(state, "information")
+    if not info.get("visible"):
+        return FAIL, "information panel hidden"
+    width = info.get("width", 0)
+    if abs(width - 400) <= 40:
+        return PASS, f"{width} px"
+    if abs(width - 400) <= 100:
+        return ACCEPTABLE, f"{width} px"
+    return FAIL, f"{width} px"
+
+
+def check_split_two_thirds(state, transcript, folder):
+    split = agent_window(state).get("splitView", {})
+    if not split.get("enabled"):
+        return FAIL, "no split view"
+    share = split.get("leftShare", 0)
+    if abs(share - 0.67) <= 0.05:
+        return PASS, f"left {share}"
+    if abs(share - 0.67) <= 0.12:
+        return ACCEPTABLE, f"left {share}"
+    return FAIL, f"left {share}"
+
+
+def check_message_dismissed(state, transcript, folder):
+    if agent_window(state).get("messages"):
+        return FAIL, "message still shown"
+    used = [c["ownTool"] for c in transcript["toolCalls"]]
+    if "dismiss_message" in used:
+        return PASS, ""
+    return ACCEPTABLE, "message gone without dismiss_message (e.g. another folder opened)"
+
+
+def check_new_tab(state, transcript, folder):
+    tabs = state.get("tabs", {})
+    url = state.get("url", "")
+    if tabs.get("count") != 2:
+        return FAIL, f"{tabs.get('count')} tabs"
+    if folder_name(url) != "Dokumente":
+        return FAIL, f"current tab shows {url}"
+    return PASS, ""
+
+
+def check_biggest_file(state, transcript, folder):
+    answers = [e["text"] for e in transcript["entries"] if e["kind"] == "agent"]
+    answer = answers[-1] if answers else ""
+    if "Musik.mp3" in answer:
+        return PASS, ""
+    return FAIL, "Musik.mp3 not named"
+
+
+def check_icons_type(state, transcript, folder):
+    p = pane(state)
+    if p["viewMode"] != "icons":
+        return FAIL, f"view mode {p['viewMode']}"
+    if p["sort"]["field"] != "type":
+        return (ACCEPTABLE, "sorted by extension") if p["sort"]["field"] == "extension" else (FAIL, f"sorted by {p['sort']['field']}")
+    return PASS, ""
+
+
 SCENARIOS = [
     {
         "id": "sort-size",
@@ -112,5 +192,56 @@ SCENARIOS = [
         "prompt": "Ich möchte rechts den Ordner Bilder sehen, in der Symbolansicht und nach Datum sortiert. Links soll der aktuelle Ordner bleiben.",
         "check": check_split_bilder,
         "rubric": "Split view on; right = Bilder, icons, by date; left unchanged. Several steps in one request.",
+    },
+    {
+        "id": "viewer-next",
+        "tags": ["host"],
+        "setup": [{"tool": "set_location", "arguments": {"url": "{folder}/Bilder"}}],
+        "prompt": "Zeig mir Urlaub-1.png im Viewer und blättere dann zum nächsten Bild.",
+        "check": check_viewer_next,
+        "rubric": "Opens the viewer on Urlaub-1.png, goes to the next image (Urlaub-2.png by name).",
+    },
+    {
+        "id": "info-panel-width",
+        "tags": ["host"],
+        "prompt": "Blende das Informationspanel ein und mach es ungefähr 400 Pixel breit.",
+        "check": check_info_panel_width,
+        "rubric": "Shows Information (Panels ▸ Information), then set_panel_width about 400.",
+    },
+    {
+        "id": "split-two-thirds",
+        "tags": ["host"],
+        "prompt": "Teile die Ansicht und gib der linken Seite etwa zwei Drittel der Breite.",
+        "check": check_split_two_thirds,
+        "rubric": "Split view on, set_split_ratio about 0.67.",
+    },
+    {
+        "id": "dismiss-message",
+        "tags": ["host"],
+        "setup": [{"tool": "set_location", "arguments": {"url": "{folder}/gibtsnicht"}}],
+        "prompt": "Mach die Fehlermeldung weg.",
+        "check": check_message_dismissed,
+        "rubric": "Closes the message with dismiss_message; may offer to go back to an existing folder.",
+    },
+    {
+        "id": "new-tab",
+        "tags": ["host"],
+        "prompt": "Öffne den Ordner Dokumente in einem neuen Tab.",
+        "check": check_new_tab,
+        "rubric": "New tab, then opens Dokumente in it; the first tab keeps the play folder.",
+    },
+    {
+        "id": "biggest-file",
+        "tags": ["host"],
+        "prompt": "Welche Datei ist hier die größte?",
+        "check": check_biggest_file,
+        "rubric": "Names Musik.mp3 (about 90 KB). A question: changing the view is not needed but harmless.",
+    },
+    {
+        "id": "icons-type-en",
+        "tags": ["host"],
+        "prompt": "Switch to the icon view and sort by type.",
+        "check": check_icons_type,
+        "rubric": "English prompt, English answer. Icons + sorted by type.",
     },
 ]
