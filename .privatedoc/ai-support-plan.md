@@ -931,7 +931,9 @@ Steps:
   - Both proposals done (user, 2026-11-16; 7ef674d10): window tool `list_items` (read-only, items
     in shown order with type, size, modified; paged) and the views' state (folder, mode, sorting,
     hidden files) in `get_window_state` and in the answer of `trigger_action`. sort-size checks
-    that the answer names the right order. Real-agent rerun pending (LM Studio stopped).
+    that the answer names the right order. Rerun 2026-11-16: sort-size 3/3 and biggest-file 3/3 PASS (was 1/3,
+    30–75 s); answers name the right order and real sizes. Remark: once the agent opened the
+    subfolders one after another with set_location to look into them (it came back).
   - `whale_dev_mcp_m9_e2e` is flaky (about half the runs, `shell.itemInfoUrl` after a treemap
     hover), also with the new dev state parts switched off: not caused by AI10.
 - **AI10b – Runner + first scenarios** (`src/whale/devmcp/tests/ai/`, Python, not in ctest):
