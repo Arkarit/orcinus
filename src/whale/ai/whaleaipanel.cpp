@@ -6,6 +6,7 @@
 
 #include "whaleaipanel.h"
 #include "whaleaiagents.h"
+#include "whaleaichangelog.h"
 #include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
 #include "whaleaidisclaimer.h"
@@ -63,6 +64,13 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_newConversation->setToolTip(i18nc("@info:tooltip", "New Conversation"));
     m_newConversation->setAutoRaise(true);
 
+    m_undoChanges = new QToolButton(chat);
+    m_undoChanges->setObjectName(QStringLiteral("undoChanges"));
+    m_undoChanges->setIcon(QIcon::fromTheme(QStringLiteral("edit-undo")));
+    m_undoChanges->setToolTip(i18nc("@info:tooltip", "Undo the Agent's Changes (settings, folder views, profiles)"));
+    m_undoChanges->setAutoRaise(true);
+    m_undoChanges->setEnabled(false);
+
     auto *configure = new QToolButton(chat);
     configure->setObjectName(QStringLiteral("configure"));
     configure->setIcon(QIcon::fromTheme(QStringLiteral("configure")));
@@ -72,6 +80,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     auto *top = new QHBoxLayout;
     top->addWidget(m_agents, 1);
     top->addWidget(m_newConversation);
+    top->addWidget(m_undoChanges);
     top->addWidget(configure);
 
     m_sessionInfo = new QLabel(chat);
@@ -172,6 +181,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
         chooseMode(m_modes->itemData(index).toString());
     });
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
+    connect(m_undoChanges, &QToolButton::clicked, this, &WhaleAiPanel::undoAgentChanges);
     connect(m_send, &QToolButton::clicked, this, [this] {
         if (m_send->property("busy").toBool()) {
             stop();
@@ -385,6 +395,7 @@ void WhaleAiPanel::agentChosen()
 {
     if (m_session && m_sessionAgentId != agentId()) {
         endSession();
+        WhaleAiChangeLog::of(window())->clear();
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent", "Now talking to %1. The next message starts a new conversation.", m_agents->currentText()));
     }
@@ -456,6 +467,8 @@ bool WhaleAiPanel::startSession()
     m_shownMode.clear();
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
+    // The panel is in its window by now (not yet when it is created).
+    connect(WhaleAiChangeLog::of(window()), &WhaleAiChangeLog::changed, this, &WhaleAiPanel::updateState, Qt::UniqueConnection);
     m_mcp = mcp;
     QList<WhaleAcpMcpServer> mcpServers;
     if (mcp) {
@@ -779,9 +792,22 @@ void WhaleAiPanel::endSession()
 void WhaleAiPanel::newConversation()
 {
     endSession();
+    // What the agent changed stays; it can no longer be undone from here (user, 2026-11-16).
+    WhaleAiChangeLog::of(window())->clear();
     m_transcript->clear();
     greet();
     m_input->setFocus();
+}
+
+void WhaleAiPanel::undoAgentChanges()
+{
+    const QStringList undone = WhaleAiChangeLog::of(window())->undo();
+    if (!undone.isEmpty()) {
+        m_transcript->addNotice(i18nc("@info %1 is a list of things, e.g. the setting “Status bar”, the view of “Pictures”",
+                                      "Undid the agent's changes: %1.",
+                                      undone.join(i18nc("@info separator of a list", ", "))));
+    }
+    updateState();
 }
 
 void WhaleAiPanel::greet()
@@ -809,6 +835,9 @@ void WhaleAiPanel::updateState()
         m_send->setEnabled(!m_input->toPlainText().trimmed().isEmpty() && !agentId().isEmpty());
     }
     m_send->setProperty("busy", busy);
+    // Not while the agent works: it may be changing the same things.
+    const auto *log = window()->findChild<WhaleAiChangeLog *>(QString(), Qt::FindDirectChildrenOnly);
+    m_undoChanges->setEnabled(!busy && log && log->count() > 0);
 }
 
 void WhaleAiPanel::updateSessionInfo()

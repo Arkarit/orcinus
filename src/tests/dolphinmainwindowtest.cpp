@@ -29,6 +29,7 @@
 #include "views/dolphinitemlistview.h"
 #include "views/viewproperties.h"
 #include "views/zoomlevelinfo.h"
+#include "whaleaichangelog.h"
 #include "whaleaipanel.h"
 #include "whaleaisettingstools.h"
 #include "whalesplitviewstartup.h"
@@ -3098,6 +3099,13 @@ void DolphinMainWindowTest::testAiSettingsTools()
     QVERIFY(statusBar.value(QLatin1String("choices")).toArray().contains(QStringLiteral("Disabled")));
     QCOMPARE(statusBar.value(QLatin1String("applies")).toString(), QStringLiteral("now"));
     const QString previous = statusBar.value(QLatin1String("value")).toString();
+    auto listedValue = [&] {
+        bool unused = false;
+        const QJsonArray all = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("General/ShowStatusBar")}}, &unused)
+                                   .value(QLatin1String("settings"))
+                                   .toArray();
+        return all.isEmpty() ? QString() : all.first().toObject().value(QLatin1String("value")).toString();
+    };
 
     // Wrong keys and values: errors, nothing changes.
     call(QStringLiteral("set_setting"),
@@ -3136,6 +3144,23 @@ void DolphinMainWindowTest::testAiSettingsTools()
     QVERIFY(notice.isEmpty());
     call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), previous}}, &error);
     QVERIFY(!error);
+    QTRY_VERIFY(statusBarWidget->isVisible());
+
+    // Undo (AI9e): back to the value before the agent's first change, also after several.
+    WhaleAiChangeLog::of(m_mainWindow.data())->clear();
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Small")}},
+         &error);
+    QVERIFY(!error);
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Disabled")}},
+         &error);
+    QVERIFY(!error);
+    QTRY_VERIFY(!statusBarWidget->isVisible());
+    QCOMPARE(WhaleAiChangeLog::of(m_mainWindow.data())->count(), 1);
+    panel->undoAgentChanges();
+    QCOMPARE(WhaleAiChangeLog::of(m_mainWindow.data())->count(), 0);
+    QCOMPARE(listedValue(), previous);
     QTRY_VERIFY(statusBarWidget->isVisible());
 
     // Booleans; and an entry that acts next time says so.

@@ -70,6 +70,8 @@ public:
     void stop();
     /** Ends the conversation and clears the transcript. */
     void newConversation();
+    /** Puts back what the agent changed lastingly in this conversation (AI9e). */
+    void undoAgentChanges();
 
     /**
      * Switches the conversation to the mode @p value and remembers it as the start mode of the
@@ -154,6 +156,7 @@ private:
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
     QToolButton *m_newConversation = nullptr;
+    QToolButton *m_undoChanges = nullptr; ///< "Undo the agent's changes" (AI9e)
     QLabel *m_sessionInfo = nullptr;
     QComboBox *m_modes = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;

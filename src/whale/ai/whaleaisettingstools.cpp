@@ -16,6 +16,7 @@
 #include "dolphin_placespanelsettings.h"
 #include "dolphinmainwindow.h"
 #include "dolphinurlnavigatorscontroller.h"
+#include "whaleaichangelog.h"
 
 #include <KCoreConfigSkeleton>
 #include <KLocalizedString>
@@ -315,6 +316,19 @@ QJsonObject setSetting(DolphinMainWindow *window, const QJsonObject &arguments, 
     const QJsonValue previous = valueOf(entry);
     QJsonObject result{{QStringLiteral("key"), entry.key}, {QStringLiteral("previous"), previous}};
     if (entry.item->property() != newValue) {
+        // Undo goes back to the value before the agent's first change of it (AI9e).
+        QPointer<DolphinMainWindow> guard(window);
+        const QVariant old = entry.item->property();
+        WhaleAiChangeLog::of(window)->record(QStringLiteral("setting:") + entry.key,
+                                             i18nc("@info %1 is the name of a setting", "the setting “%1”", labelOf(entry.item)),
+                                             [guard, entry, old] {
+                                                 entry.item->setProperty(old);
+                                                 entry.skeleton->save();
+                                                 if (guard) {
+                                                     QMetaObject::invokeMethod(guard.data(), "refreshViews");
+                                                 }
+                                                 DolphinUrlNavigatorsController::slotReadSettings();
+                                             });
         entry.item->setProperty(newValue);
         // As the settings dialog's Apply: save, then the window reads everything again.
         entry.skeleton->save();

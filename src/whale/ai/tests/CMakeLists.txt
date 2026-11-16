@@ -15,6 +15,10 @@ ecm_add_test(whaleacpsessiontest.cpp
 target_compile_definitions(whaleacpsessiontest PRIVATE WHALE_ACP_FAKE_AGENT="$<TARGET_FILE:whaleacpfakeagent>")
 add_dependencies(whaleacpsessiontest whaleacpfakeagent)
 
+ecm_add_test(whaleaichangelogtest.cpp
+    TEST_NAME whaleaichangelogtest
+    LINK_LIBRARIES whaleai Qt6::Test)
+
 ecm_add_test(whaleaiagentstest.cpp
     TEST_NAME whaleaiagentstest
     LINK_LIBRARIES whaleai Qt6::Test)

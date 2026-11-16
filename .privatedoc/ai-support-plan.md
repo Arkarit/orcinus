@@ -821,7 +821,11 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   mode the agent guessed mode names that do not exist ("Execute", "normal"; OpenCode has build).
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).
-  Plan 2026-11-16 (draft, decisions open):
+  Decisions (user, 2026-11-16): undo covers the lasting changes only (settings, view properties,
+  profiles; not window, panels, split, tabs); the log ends with the conversation (New
+  Conversation, another agent); tools: set_filter, list/apply profiles AND saving profiles (so
+  the profile store goes into the log too: its copy before the agent's first save).
+  Plan 2026-11-16:
   - *What the agent can change that lasts:* (1) settings (set_setting), (2) the per-folder view
     properties: trigger_action on view mode, sorting, hidden files, grouping, previews, zoom writes
     them for the folder (or the global ones), (3) profiles: applying one changes the window and the
@@ -833,14 +837,15 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
     the panel's top row, edit-undo, enabled while the log is not empty) restores them in reverse
     order: settings via the skeleton + the dialog's apply path, view properties via
     `setDirProperties(data)` + save, then the views showing those folders read them again. The
-    transcript says what was undone. New Conversation keeps the button for the previous log? (open)
+    transcript says what was undone. The log is cleared with the conversation.
   - *Classes (final):* show/arrange (location, selection, view commands, window, panels, viewer,
     filter, apply a profile): every mode, undoable where lasting; saved settings (set_setting,
-    later saving a profile): not in the read-only mode, undoable; dangerous: blocked.
-  - *Specific tools:* set_filter (text, or empty to clear; shows the filter bar), list_profiles +
-    apply_profile; saving profiles and "same view for all folders" stay with the user.
+    saving a profile): not in the read-only mode, undoable; dangerous: blocked.
+  - *Specific tools:* set_filter (text, or empty to clear; shows the filter bar), list_profiles,
+    apply_profile, save_profile; "same view for all folders" stays with the user.
   - Steps: AI9e1 change log + undo for settings; AI9e2 view properties in the log; AI9e3
-    set_filter; AI9e4 profiles; then AI10 scenarios for each (undo checked through the dev MCP).
+    set_filter; AI9e4 profiles (apply: undo re-applies a capture of the window taken before; save:
+    undo restores the store); then AI10 scenarios for each (undo checked through the dev MCP).
 
 Work happens on the host (user, 2026-11-15): AI9 is UI only, file handling stays with the
 agent's own tools. Back to the VM when something critical comes up. Tests use an isolated profile
