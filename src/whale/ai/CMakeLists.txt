@@ -20,8 +20,10 @@ target_sources(whaleai PRIVATE
     whaleacptypes.cpp
     whaleaiagents.cpp
     whaleaiagenttest.cpp
+    whaleaichangelog.cpp
     whaleaicontext.cpp
     whaleaimcpserver.cpp
+    whaleaiuiactions.cpp
 )
 
 # Where the installed relay is; the build tree's one next to the program comes first.
@@ -55,7 +57,10 @@ target_sources(dolphinstatic PRIVATE
     whaleaidisclaimer.cpp
     whaleaipanel.cpp
     whaleaisettingspage.cpp
+    whaleaisettingstools.cpp
+    whaleaiprofiletools.cpp
     whaleaitranscript.cpp
+    whaleaiwindowtools.cpp
 )
 target_link_libraries(dolphinstatic whaleai)
 

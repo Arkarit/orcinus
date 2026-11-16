@@ -18,6 +18,7 @@
 #include <optional>
 
 class DolphinMainWindow;
+class WhaleDevAi;
 class DolphinTabWidget;
 class DolphinViewContainer;
 class QMimeData;
@@ -313,6 +314,12 @@ public:
      */
     QJsonObject answerDialog(const QString &text);
 
+    /// AI10a: the AI panel, see WhaleDevAi.
+    WhaleDevAi *ai() const
+    {
+        return m_ai;
+    }
+
 private:
     DolphinTabWidget *tabWidget() const;
     QList<DolphinViewContainer *> panes() const;
@@ -344,6 +351,7 @@ private:
     void recordActivation(DolphinViewContainer *container);
 
     DolphinMainWindow *const m_window;
+    WhaleDevAi *const m_ai;
 
     struct Activation {
         int seq;

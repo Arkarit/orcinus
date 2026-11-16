@@ -28,7 +28,8 @@
  * "read=CONTENT" (or "read=missing") and "written=yes" / "written=no".
  * "mcp:TOOL" starts the MCP server "orcinus" from session/new, as real agents do, calls TOOL and
  * answers "tools=NAMES;mcp=TEXT;" (or "mcp=none;", "mcp=error:MESSAGE;"; the back channel, AI6);
- * "mcp:set_location:PATH" and "mcp:select_items:A,B" pass arguments. "askorcinus-claude",
+ * "mcp:set_location:PATH", "mcp:select_items:A,B", "mcp:trigger_action:NAME" and
+ * "mcp:list_actions:FILTER" and "mcp:set_setting:KEY=VALUE" pass arguments. "askorcinus-claude",
  * "askorcinus-codex" and "askorcinus-opencode" ask for get_location as those agents do,
  * "askorcinus-spoof" asks to run a command titled like it (AI6c).
  */
@@ -364,6 +365,18 @@ void handlePrompt(const QJsonObject &message)
             toolArguments.insert(QStringLiteral("path"), match.captured(2));
         } else if (match.captured(1) == QLatin1String("select_items")) {
             toolArguments.insert(QStringLiteral("items"), QJsonArray::fromStringList(match.captured(2).split(QLatin1Char(','))));
+        } else if (match.captured(1) == QLatin1String("trigger_action")) {
+            toolArguments.insert(QStringLiteral("name"), match.captured(2));
+        } else if (match.captured(1) == QLatin1String("list_actions") && !match.captured(2).isEmpty()) {
+            toolArguments.insert(QStringLiteral("filter"), match.captured(2));
+        } else if (match.captured(1) == QLatin1String("set_setting")) {
+            // KEY=VALUE; VALUE as JSON (true, 3) or else a string.
+            const QString argument = match.captured(2);
+            const int equals = argument.indexOf(QLatin1Char('='));
+            toolArguments.insert(QStringLiteral("key"), argument.left(equals));
+            const QString value = argument.mid(equals + 1);
+            const QJsonDocument parsed = QJsonDocument::fromJson(QStringLiteral("[%1]").arg(value).toUtf8());
+            toolArguments.insert(QStringLiteral("value"), parsed.isArray() ? parsed.array().first() : QJsonValue(value));
         }
         chunk(QStringLiteral("agent_message_chunk"), callMcp(match.captured(1), toolArguments));
     }

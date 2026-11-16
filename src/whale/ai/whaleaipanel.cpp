@@ -6,6 +6,7 @@
 
 #include "whaleaipanel.h"
 #include "whaleaiagents.h"
+#include "whaleaichangelog.h"
 #include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
 #include "whaleaidisclaimer.h"
@@ -15,6 +16,7 @@
 #include <KLocalizedString>
 
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDesktopServices>
 #include <QDir>
@@ -27,6 +29,7 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalBlocker>
 #include <QStackedWidget>
 #include <QTimer>
@@ -61,6 +64,13 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_newConversation->setToolTip(i18nc("@info:tooltip", "New Conversation"));
     m_newConversation->setAutoRaise(true);
 
+    m_undoChanges = new QToolButton(chat);
+    m_undoChanges->setObjectName(QStringLiteral("undoChanges"));
+    m_undoChanges->setIcon(QIcon::fromTheme(QStringLiteral("edit-undo")));
+    m_undoChanges->setToolTip(i18nc("@info:tooltip", "Undo the Agent's Changes (settings, folder views, profiles)"));
+    m_undoChanges->setAutoRaise(true);
+    m_undoChanges->setEnabled(false);
+
     auto *configure = new QToolButton(chat);
     configure->setObjectName(QStringLiteral("configure"));
     configure->setIcon(QIcon::fromTheme(QStringLiteral("configure")));
@@ -70,6 +80,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     auto *top = new QHBoxLayout;
     top->addWidget(m_agents, 1);
     top->addWidget(m_newConversation);
+    top->addWidget(m_undoChanges);
     top->addWidget(configure);
 
     m_sessionInfo = new QLabel(chat);
@@ -89,6 +100,14 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     modesRow->addWidget(modesLabel, 0, 0);
     modesRow->addWidget(m_modes, 0, 1);
     modesRow->setColumnStretch(1, 1);
+    // A filter of the transcript: what the agent did (commands, tool calls) or only the conversation.
+    // Permission requests stay: they are how the user controls the agent.
+    m_showActions = new QCheckBox(i18nc("@option:check show what an AI agent did in the transcript", "Actions"), chat);
+    m_showActions->setObjectName(QStringLiteral("showActions"));
+    m_showActions->setToolTip(
+        i18nc("@info:tooltip", "Show what the agent does: the commands it runs and the tools it uses. Permission requests are always shown."));
+    m_showActions->setChecked(WhaleAiAgents::showActions());
+    modesRow->addWidget(m_showActions, 0, 2);
 
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
@@ -162,6 +181,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
         chooseMode(m_modes->itemData(index).toString());
     });
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
+    connect(m_undoChanges, &QToolButton::clicked, this, &WhaleAiPanel::undoAgentChanges);
     connect(m_send, &QToolButton::clicked, this, [this] {
         if (m_send->property("busy").toBool()) {
             stop();
@@ -178,6 +198,12 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     });
 
     setFocusProxy(m_input);
+    m_transcript->setFocusReturn(m_input);
+    m_transcript->setShowActions(m_showActions->isChecked());
+    connect(m_showActions, &QCheckBox::toggled, this, [this](bool on) {
+        m_transcript->setShowActions(on);
+        WhaleAiAgents::setShowActions(on);
+    });
     fillAgents(WhaleAiAgents::defaultAgentId());
     greet();
     updateState();
@@ -265,8 +291,81 @@ void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
 {
     m_viewActions = actions;
     if (m_mcp) {
-        m_mcp->setViewActions(actions);
+        m_mcp->setViewActions(keepingInputFocus(actions));
     }
+}
+
+void WhaleAiPanel::addActionNotice(const QString &text, const QString &toolTip)
+{
+    m_transcript->addNotice(text, WhaleAiTranscript::Kind::Action, QString(), toolTip);
+}
+
+int WhaleAiPanel::activePane() const
+{
+    return m_viewActions.activePane ? m_viewActions.activePane() : -1;
+}
+
+WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &actions)
+{
+    // What the agent does in the window (open a folder, switch the view, choose a split view)
+    // moves the focus there, as it would for the user. The user is typing here, though: if the
+    // input had the focus, it gets it back, also after what the window does later on its own.
+    auto wrap = [this](auto function) {
+        return [this, function](auto &&...arguments) {
+            // Also while the user is in another window: then it has no focus, but is the focus widget.
+            const bool hadFocus = m_input->hasFocus() || m_input->window()->focusWidget() == m_input;
+            auto restore = qScopeGuard([this, hadFocus] {
+                if (hadFocus) {
+                    m_input->setFocus(Qt::OtherFocusReason);
+                    QTimer::singleShot(0, m_input, [input = m_input] {
+                        input->setFocus(Qt::OtherFocusReason);
+                    });
+                }
+            });
+            return function(std::forward<decltype(arguments)>(arguments)...);
+        };
+    };
+    WhaleAiViewActions result = actions;
+    if (actions.openFolder) {
+        result.openFolder = wrap(actions.openFolder);
+    }
+    if (actions.select) {
+        result.select = wrap(actions.select);
+    }
+    if (actions.trigger) {
+        result.trigger = wrap(actions.trigger);
+    }
+    if (actions.activatePane) {
+        result.activatePane = wrap(actions.activatePane);
+    }
+    for (WhaleAiWindowTool &tool : result.windowTools) {
+        if (tool.call) {
+            tool.call = wrap(tool.call);
+        }
+        if ((tool.name == QLatin1String("set_setting") || tool.name == QLatin1String("save_profile")) && tool.call) {
+            // Saved settings stay untouched in the read-only mode (user, 2026-11-16, until undo
+            // exists, AI9e); views and windows may still change there.
+            tool.call = [this, call = tool.call](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
+                const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
+                if (mode && !mode->currentValue.isEmpty() && mode->currentValue == WhaleAiAgents::restrictiveMode(*mode)) {
+                    // The names the user sees in the Mode list, so the agent does not guess them.
+                    QStringList others;
+                    for (const WhaleAcpConfigOption::Choice &choice : mode->choices) {
+                        if (choice.value != mode->currentValue) {
+                            others.append(QStringLiteral("\"%1\"").arg(choice.name.isEmpty() ? choice.value : choice.name));
+                        }
+                    }
+                    *error = true;
+                    return {{QStringLiteral("error"),
+                             QStringLiteral("Settings and profiles cannot be saved in the read-only mode \"%1\". Tell the user to choose another "
+                                            "mode in the Mode list of the AI panel (%2), then try again.")
+                                 .arg(modeName(mode->currentValue), others.join(QStringLiteral(", ")))}};
+                }
+                return call(arguments, error, notice);
+            };
+        }
+    }
+    return result;
 }
 
 void WhaleAiPanel::refreshContext()
@@ -296,6 +395,7 @@ void WhaleAiPanel::agentChosen()
 {
     if (m_session && m_sessionAgentId != agentId()) {
         endSession();
+        WhaleAiChangeLog::of(window())->clear();
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent", "Now talking to %1. The next message starts a new conversation.", m_agents->currentText()));
     }
@@ -367,6 +467,8 @@ bool WhaleAiPanel::startSession()
     m_shownMode.clear();
     m_session = new WhaleAcpSession(this);
     m_session->setProperty("workingDirectory", directory);
+    // The panel is in its window by now (not yet when it is created).
+    connect(WhaleAiChangeLog::of(window()), &WhaleAiChangeLog::changed, this, &WhaleAiPanel::updateState, Qt::UniqueConnection);
     m_mcp = mcp;
     QList<WhaleAcpMcpServer> mcpServers;
     if (mcp) {
@@ -375,12 +477,44 @@ bool WhaleAiPanel::startSession()
         mcp->setContextProvider([this] {
             return currentContext();
         });
-        mcp->setViewActions(m_viewActions);
+        mcp->setViewActions(keepingInputFocus(m_viewActions));
         connect(mcp, &WhaleAiMcpServer::locationSet, this, [this](const QString &folder) {
-            m_transcript->addNotice(i18nc("@info %1 is a folder", "The agent opened %1.", folder));
+            // The name only (paths get long); the path in the tooltip.
+            const QString name = QDir(folder).dirName().isEmpty() ? folder : QDir(folder).dirName();
+            switch (activePane()) {
+            case 0:
+                addActionNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the left view.", name), folder);
+                break;
+            case 1:
+                addActionNotice(i18nc("@info %1 is a folder name", "The agent opened “%1” in the right view.", name), folder);
+                break;
+            default:
+                addActionNotice(i18nc("@info %1 is a folder name", "The agent opened “%1”.", name), folder);
+            }
         });
         connect(mcp, &WhaleAiMcpServer::itemsSelected, this, [this](int count) {
-            m_transcript->addNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
+            switch (activePane()) {
+            case 0:
+                addActionNotice(i18ncp("@info", "The agent selected %1 item in the left view.", "The agent selected %1 items in the left view.", count));
+                break;
+            case 1:
+                addActionNotice(i18ncp("@info", "The agent selected %1 item in the right view.", "The agent selected %1 items in the right view.", count));
+                break;
+            default:
+                addActionNotice(i18ncp("@info", "The agent selected %1 item.", "The agent selected %1 items.", count));
+            }
+        });
+        connect(mcp, &WhaleAiMcpServer::windowToolUsed, this, [this](const QString &notice) {
+            addActionNotice(notice);
+        });
+        connect(mcp, &WhaleAiMcpServer::actionTriggered, this, [this](const WhaleAiUiAction &action) {
+            const QString command = action.menu.isEmpty() ? action.text : action.menu + QStringLiteral(" ▸ ") + action.text;
+            if (action.checkable && !action.exclusive) {
+                addActionNotice(action.checked ? i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned on %1.", command)
+                                               : i18nc("@info %1 is a command, e.g. View ▸ Show Hidden Files", "The agent turned off %1.", command));
+            } else {
+                addActionNotice(i18nc("@info %1 is a command, e.g. View ▸ View Mode ▸ Details", "The agent used %1.", command));
+            }
         });
         mcpServers.append(mcp->mcpServer(relay));
     }
@@ -658,9 +792,22 @@ void WhaleAiPanel::endSession()
 void WhaleAiPanel::newConversation()
 {
     endSession();
+    // What the agent changed stays; it can no longer be undone from here (user, 2026-11-16).
+    WhaleAiChangeLog::of(window())->clear();
     m_transcript->clear();
     greet();
     m_input->setFocus();
+}
+
+void WhaleAiPanel::undoAgentChanges()
+{
+    const QStringList undone = WhaleAiChangeLog::of(window())->undo();
+    if (!undone.isEmpty()) {
+        m_transcript->addNotice(i18nc("@info %1 is a list of things, e.g. the setting “Status bar”, the view of “Pictures”",
+                                      "Undid the agent's changes: %1.",
+                                      undone.join(i18nc("@info separator of a list", ", "))));
+    }
+    updateState();
 }
 
 void WhaleAiPanel::greet()
@@ -688,6 +835,9 @@ void WhaleAiPanel::updateState()
         m_send->setEnabled(!m_input->toPlainText().trimmed().isEmpty() && !agentId().isEmpty());
     }
     m_send->setProperty("busy", busy);
+    // Not while the agent works: it may be changing the same things.
+    const auto *log = window()->findChild<WhaleAiChangeLog *>(QString(), Qt::FindDirectChildrenOnly);
+    m_undoChanges->setEnabled(!busy && log && log->count() > 0);
 }
 
 void WhaleAiPanel::updateSessionInfo()

@@ -6,6 +6,7 @@
 
 #include "whaledevautomationdbus.h"
 
+#include "whaledevai.h"
 #include "whaledevautomation.h"
 
 #include <QDBusConnection>
@@ -281,6 +282,36 @@ QString WhaleDevAutomationDBus::SetViewerOptions(const QString &options)
 QByteArray WhaleDevAutomationDBus::ViewerScreenshot()
 {
     return m_automation->viewerScreenshot();
+}
+
+QString WhaleDevAutomationDBus::AiNewConversation(const QString &agentId, const QString &mode)
+{
+    return toJson(m_automation->ai()->newConversation(agentId, mode));
+}
+
+QString WhaleDevAutomationDBus::AiSendPrompt(const QString &text)
+{
+    return toJson(m_automation->ai()->sendPrompt(text));
+}
+
+QString WhaleDevAutomationDBus::AiState()
+{
+    return toJson(m_automation->ai()->state());
+}
+
+QString WhaleDevAutomationDBus::AiTranscript()
+{
+    return toJson(m_automation->ai()->transcript());
+}
+
+QString WhaleDevAutomationDBus::AiAnswerPermission(const QString &key, const QString &optionId)
+{
+    return toJson(m_automation->ai()->answerPermission(key, optionId));
+}
+
+QString WhaleDevAutomationDBus::AiStop()
+{
+    return toJson(m_automation->ai()->stop());
 }
 
 #include "moc_whaledevautomationdbus.cpp"

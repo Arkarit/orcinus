@@ -23,7 +23,9 @@
 #include "search/bar.h"
 #include "statusbar/dolphinstatusbar.h"
 #include "views/dolphinview.h"
+#include "whaleaiwindowtools.h"
 #include "whalecommandrouter.h"
+#include "whaledevai.h"
 #include "whaledevautomationdbus.h"
 #include "whaledevtoolbars.h"
 #include "whalefileoperations.h"
@@ -310,6 +312,7 @@ void WhaleDevAutomation::startIfRequested(DolphinMainWindow *window)
 WhaleDevAutomation::WhaleDevAutomation(DolphinMainWindow *window)
     : QObject(window)
     , m_window(window)
+    , m_ai(new WhaleDevAi(window))
 {
     connect(tabWidget(), &DolphinTabWidget::activeViewChanged, this, &WhaleDevAutomation::recordActivation);
     // The information panel listens to exactly this signal.
@@ -783,6 +786,10 @@ QJsonObject WhaleDevAutomation::uiState() const
         {QStringLiteral("toolbarDialog"), WhaleDevToolbars::dialogState(m_window)},
         {QStringLiteral("styles"), stylesState()},
         {QStringLiteral("viewer"), viewerState()},
+        // AI10a: the AI panel; the transcript is ai_get_transcript.
+        {QStringLiteral("ai"), m_ai->state()},
+        // AI10c: the window as the agent's get_window_state shows it (panels, split share, messages).
+        {QStringLiteral("agentWindow"), WhaleAiWindowTools::state(m_window)},
     };
 }
 

@@ -16,6 +16,7 @@
 
 #include <QPointer>
 
+class QCheckBox;
 class QComboBox;
 class QLabel;
 class QPlainTextEdit;
@@ -69,6 +70,8 @@ public:
     void stop();
     /** Ends the conversation and clears the transcript. */
     void newConversation();
+    /** Puts back what the agent changed lastingly in this conversation (AI9e). */
+    void undoAgentChanges();
 
     /**
      * Switches the conversation to the mode @p value and remembers it as the start mode of the
@@ -96,6 +99,11 @@ public:
     void refreshContext();
     /** What the agent may do in the window through the back channel (AI6c). */
     void setViewActions(const WhaleAiViewActions &actions);
+    /** What the window lets the back channel do; for the tests. */
+    const WhaleAiViewActions &viewActions() const
+    {
+        return m_viewActions;
+    }
 
 Q_SIGNALS:
     /** The user wants to set up agents. */
@@ -115,6 +123,12 @@ protected:
     void showEvent(QShowEvent *event) override;
 
 private:
+    /** @return @p actions, giving the focus back to the input if it had it (the user is typing). */
+    WhaleAiViewActions keepingInputFocus(const WhaleAiViewActions &actions);
+    /** A line in the transcript about what the agent did in the window (hidden with the Actions filter). */
+    void addActionNotice(const QString &text, const QString &toolTip = QString());
+    /** See WhaleAiViewActions::activePane. */
+    int activePane() const;
     /** Where the user is: from the provider, else the panel's folder. */
     WhaleAiContext currentContext() const;
     /** Answers a request for one of our own tools (AI6c). */
@@ -142,6 +156,7 @@ private:
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
     QToolButton *m_newConversation = nullptr;
+    QToolButton *m_undoChanges = nullptr; ///< "Undo the agent's changes" (AI9e)
     QLabel *m_sessionInfo = nullptr;
     QComboBox *m_modes = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
@@ -152,6 +167,7 @@ private:
     QString m_sessionAgentId;
     bool m_systemPromptSent = false; ///< the system prompt is sent once, with the first message (AI)
     QPointer<WhaleAiMcpServer> m_mcp; ///< the back channel of the conversation (AI6)
+    QCheckBox *m_showActions = nullptr;
     WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;
     WhaleAiContext m_pendingContext;

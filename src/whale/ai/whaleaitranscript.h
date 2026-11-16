@@ -10,6 +10,7 @@
 #include "whaleacptypes.h"
 
 #include <QHash>
+#include <QPointer>
 #include <QScrollArea>
 
 class QLabel;
@@ -40,6 +41,8 @@ public:
         ToolCall,
         Permission,
         Notice,
+        /** What the agent did in the window ("The agent opened …"). */
+        Action,
         Error,
     };
     Q_ENUM(Kind)
@@ -61,10 +64,15 @@ public:
      * @return False if there is no such request.
      */
     bool focusPermissionRequest(const QString &key);
+    /** Where the focus goes when a focused permission request is answered or withdrawn (the input). */
+    void setFocusReturn(QWidget *widget);
     /** The request @p key needs no answer any more: its buttons go. */
     void withdrawPermissionRequest(const QString &key);
+    /** Shows or hides what the agent did: tool calls and actions (the "Actions" filter). */
+    void setShowActions(bool show);
+    bool showActions() const;
     /** A message of the panel; @p details (plain text) can be unfolded. */
-    void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString());
+    void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString(), const QString &toolTip = QString());
     /** Ends the current answer and thought: what the agent sends next starts new entries. */
     void endTurn();
     void clear();
@@ -83,6 +91,7 @@ protected:
 
 private:
     QWidget *addEntry(Kind kind, QWidget *entry);
+    static bool isAction(Kind kind);
     QLabel *createTextLabel(Qt::TextFormat format);
     QWidget *createFoldable(const QString &title, QLabel *body, bool unfolded);
     void scrollToBottomLater();
@@ -102,6 +111,8 @@ private:
     QHash<QString, ToolCallEntry> m_toolCalls;
     QHash<QString, QWidget *> m_permissions;
     bool m_followBottom = true;
+    QPointer<QWidget> m_focusReturn;
+    bool m_showActions = true;
 };
 
 #endif

@@ -90,6 +90,14 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString SetViewerOptions(const QString &options);
     /// Empty while the viewer is closed.
     Q_SCRIPTABLE QByteArray ViewerScreenshot();
+    /// AI10a, see WhaleDevAi. Empty @p agentId or @p mode keep the current one.
+    Q_SCRIPTABLE QString AiNewConversation(const QString &agentId, const QString &mode);
+    Q_SCRIPTABLE QString AiSendPrompt(const QString &text);
+    /// The "ai" part of UiState() alone (cheap, for polling).
+    Q_SCRIPTABLE QString AiState();
+    Q_SCRIPTABLE QString AiTranscript();
+    Q_SCRIPTABLE QString AiAnswerPermission(const QString &key, const QString &optionId);
+    Q_SCRIPTABLE QString AiStop();
 
 private:
     WhaleDevAutomation *const m_automation;

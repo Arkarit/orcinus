@@ -122,6 +122,14 @@ if(Python3_FOUND AND NOT WIN32)
             --adapter ${CMAKE_CURRENT_SOURCE_DIR}/../adapter/whale_dev_mcp.py
             --plugin-dir ${WHALE_E2E_PLUGIN_DIRS}
             --platform offscreen)
+    # AI10a: the AI panel's tools, with the scripted agent instead of a real one.
+    add_test(NAME whale_dev_mcp_ai_e2e
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_ai_acceptance.py
+            --whale $<TARGET_FILE:dolphin>
+            --adapter ${CMAKE_CURRENT_SOURCE_DIR}/../adapter/whale_dev_mcp.py
+            --plugin-dir ${WHALE_E2E_PLUGIN_DIRS}
+            --fake-agent $<TARGET_FILE:whaleacpfakeagent>
+            --platform offscreen)
     add_test(NAME whale_dev_mcp_v1_e2e
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_v1_acceptance.py
             --whale $<TARGET_FILE:dolphin>
@@ -143,5 +151,5 @@ if(Python3_FOUND AND NOT WIN32)
     # 77: no D-Bus session bus (or no dbus-run-session) available.
     set_tests_properties(whale_dev_mcp_e2e whale_dev_mcp_m4_e2e whale_dev_mcp_m5_e2e whale_dev_mcp_m6_e2e whale_dev_mcp_m7_e2e
         whale_dev_mcp_m9_e2e whale_dev_mcp_t1_e2e whale_dev_mcp_t2_e2e whale_dev_mcp_o3_e2e whale_dev_mcp_f1_e2e whale_dev_mcp_tb_e2e whale_dev_mcp_lb_e2e
-        whale_dev_mcp_lk_e2e whale_dev_mcp_vs_e2e whale_dev_mcp_st_e2e whale_dev_mcp_tm_e2e whale_dev_mcp_ds_e2e whale_dev_mcp_v1_e2e whale_dev_mcp_v2_e2e whale_dev_mcp_v3_e2e PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+        whale_dev_mcp_lk_e2e whale_dev_mcp_vs_e2e whale_dev_mcp_st_e2e whale_dev_mcp_tm_e2e whale_dev_mcp_ds_e2e whale_dev_mcp_v1_e2e whale_dev_mcp_v2_e2e whale_dev_mcp_v3_e2e whale_dev_mcp_ai_e2e PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
 endif()

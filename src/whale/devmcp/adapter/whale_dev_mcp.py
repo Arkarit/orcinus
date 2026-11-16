@@ -24,6 +24,7 @@ import base64
 import json
 import os
 import sys
+import time
 
 import dbus
 
@@ -592,6 +593,58 @@ TOOLS = [
             "properties": {"save_path": {"type": "string"}, "target": {"type": "string", "enum": ["window", "viewer"]}},
         },
     },
+    {
+        "name": "ai_new_conversation",
+        "description": "AI10a: ends the AI panel's conversation as New Conversation does and shows the panel; "
+        "optionally chooses the agent (an id of ai.agents in get_ui_state) and its start mode first. The agent "
+        "starts with the first prompt. The panel's state is ai in get_ui_state.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"agent": {"type": "string"}, "mode": {"type": "string"}},
+        },
+    },
+    {
+        "name": "ai_send_prompt",
+        "description": "AI10a: sends a prompt through the AI panel as the user does (with the window's context). "
+        "Fails while the agent starts or works; needs the accepted disclaimer and a set-up agent.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"text": {"type": "string"}},
+            "required": ["text"],
+        },
+    },
+    {
+        "name": "ai_wait_idle",
+        "description": "AI10a: waits until the agent's turn ended (ai.busy false) or a permission request waits "
+        "for an answer, or the timeout ends (default 120 s, at most 30 min; local models are slow). Returns the "
+        "ai state plus timedOut and elapsedMs.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"timeout_ms": {"type": "integer", "minimum": 0, "maximum": 1800000, "default": 120000}},
+        },
+    },
+    {
+        "name": "ai_get_transcript",
+        "description": "AI10a: the AI panel's transcript (entries with kind and text as the user reads them), the "
+        "agent's tool calls (title, kind, status, ownTool = the Orcinus back-channel tool, rawInput), permission "
+        "requests with their answer (auto = answered by the panel) and the turns' stop reasons.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "ai_answer_permission",
+        "description": "AI10a: clicks an option (id from ai.pendingPermissions.N.options) of an open permission "
+        "request in the transcript, as the user does.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"key": {"type": "string"}, "option": {"type": "string"}},
+            "required": ["key", "option"],
+        },
+    },
+    {
+        "name": "ai_stop",
+        "description": "AI10a: stops the agent's turn, as the panel's stop button does.",
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -785,6 +838,28 @@ class Whale:
                      "video_sound": "videoSound", "video_loop": "videoLoop"}
             options = {names[key]: value for key, value in args.items() if key in names}
             return result(iface.SetViewerOptions(json.dumps(options)))
+        if tool == "ai_new_conversation":
+            return result(iface.AiNewConversation(args.get("agent", ""), args.get("mode", "")))
+        if tool == "ai_send_prompt":
+            return result(iface.AiSendPrompt(args["text"]))
+        if tool == "ai_wait_idle":
+            timeout = min(int(args.get("timeout_ms", 120000)), 1800000) / 1000
+            start = time.monotonic()
+            while True:
+                state = json.loads(str(iface.AiState()))
+                elapsed = time.monotonic() - start
+                done = not state.get("busy") or state.get("pendingPermissions")
+                if done or elapsed >= timeout:
+                    state["timedOut"] = not done
+                    state["elapsedMs"] = int(elapsed * 1000)
+                    return [{"type": "text", "text": json.dumps(state, indent=1)}]
+                time.sleep(0.25)
+        if tool == "ai_get_transcript":
+            return result(iface.AiTranscript())
+        if tool == "ai_answer_permission":
+            return result(iface.AiAnswerPermission(args["key"], args["option"]))
+        if tool == "ai_stop":
+            return result(iface.AiStop())
         if tool == "screenshot":
             if args.get("target", "window") == "viewer":
                 png = bytes(iface.ViewerScreenshot(byte_arrays=True))

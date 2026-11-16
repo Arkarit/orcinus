@@ -29,7 +29,11 @@
 #include "panels/places/placespanel.h"
 #include "panels/terminal/terminalpanel.h"
 #if WHALE_ENABLE_AI
+#include "whaleaichangelog.h"
 #include "whaleaipanel.h"
+#include "whaleaiprofiletools.h"
+#include "whaleaisettingstools.h"
+#include "whaleaiwindowtools.h"
 #endif
 #include "search/dolphinquery.h"
 #include "selectionmode/actiontexthelper.h"
@@ -77,6 +81,7 @@
 #include <KProtocolManager>
 #include <KRecentFilesAction>
 #include <KRuntimePlatform>
+#include <KSelectAction>
 #include <KService>
 #include <KShell>
 #include <KShortcutsDialog>
@@ -93,6 +98,7 @@
 
 #include <kwidgetsaddons_version.h>
 
+#include <QActionGroup>
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
@@ -2730,6 +2736,115 @@ void DolphinMainWindow::setupDockWidgets()
             if (!loading) {
                 view->updateViewState();
             }
+        },
+        // The commands of the window (AI9b); which ones the agent may use decides WhaleAiUiActions.
+        [this] {
+            // Where each action is in the menu bar, e.g. "View ▸ Sort By".
+            QHash<const QAction *, QString> menus;
+            std::function<void(const QMenu *, const QString &)> walk = [&menus, &walk](const QMenu *menu, const QString &path) {
+                for (const QAction *action : menu->actions()) {
+                    if (action->isSeparator()) {
+                        continue;
+                    }
+                    if (action->menu()) {
+                        walk(action->menu(), path + QStringLiteral(" ▸ ") + KLocalizedString::removeAcceleratorMarker(action->text()));
+                    }
+                    if (!menus.contains(action)) {
+                        menus.insert(action, path);
+                    }
+                }
+            };
+            for (const QAction *top : menuBar()->actions()) {
+                if (top->menu()) {
+                    walk(top->menu(), KLocalizedString::removeAcceleratorMarker(top->text()));
+                }
+            }
+            QList<WhaleAiUiAction> result;
+            const QList<QAction *> actions = actionCollection()->actions();
+            for (const QAction *action : actions) {
+                // Submenus: their entries are actions of their own. A few also act when clicked
+                // in a toolbar ("split_view"), but then a plain action does the same ("split_view_menu").
+                if (!action->isVisible() || action->isSeparator() || qobject_cast<const KActionMenu *>(action) || qobject_cast<const KSelectAction *>(action)) {
+                    continue;
+                }
+                WhaleAiUiAction entry;
+                entry.name = action->objectName();
+                entry.text = KLocalizedString::removeAcceleratorMarker(action->text());
+                entry.toolTip = action->toolTip();
+                entry.menu = menus.value(action);
+                entry.checkable = action->isCheckable();
+                entry.checked = action->isChecked();
+                entry.enabled = action->isEnabled();
+                entry.exclusive = action->actionGroup() && action->actionGroup()->isExclusive();
+                result.append(entry);
+            }
+            return result;
+        },
+        [this](const QString &name) {
+            QAction *action = actionCollection()->action(name);
+            if (!action) {
+                return;
+            }
+            // What the command writes down for the folder (view mode, sorting, ...) can be undone
+            // (AI9e): the style before the agent's first change there, if this one changed it.
+            QPointer<DolphinView> view = m_activeViewContainer ? m_activeViewContainer->view() : nullptr;
+            const DolphinView::StyleSnapshot before = view ? view->styleSnapshot() : DolphinView::StyleSnapshot();
+            action->trigger();
+            if (!view) {
+                return;
+            }
+            const DolphinView::StyleSnapshot after = view->styleSnapshot();
+            if (after.ownStyle != before.ownStyle || after.url != before.url || after.data == before.data) {
+                return;
+            }
+            const QString key = before.ownStyle ? QStringLiteral("view:own:%1").arg(quintptr(view.data()))
+                                                : QStringLiteral("view:%1:%2").arg(int(before.role)).arg(before.url.toString());
+            const QString folder = before.url.fileName().isEmpty() ? before.url.toDisplayString(QUrl::PreferLocalFile) : before.url.fileName();
+            QPointer<DolphinMainWindow> window(this);
+            WhaleAiChangeLog::of(this)->record(key, i18nc("@info %1 is a folder name", "the view of “%1”", folder), [window, view, before] {
+                if (before.ownStyle) {
+                    if (view) {
+                        view->restoreStyle(before);
+                    }
+                    return;
+                }
+                // Written down once, shown again by every view of the window at that folder and position.
+                bool written = false;
+                if (window) {
+                    for (DolphinViewContainer *container : window->viewContainers()) {
+                        container->view()->restoreStyle(before);
+                        written = true;
+                    }
+                }
+                if (!written) {
+                    ViewProperties props(before.url, before.role);
+                    props.setDirProperties(before.data);
+                    props.save();
+                }
+            });
+        },
+        [this](int pane) {
+            DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+            if (!tabPage || !tabPage->splitViewEnabled()) {
+                return false;
+            }
+            DolphinViewContainer *container = pane == 0 ? tabPage->primaryViewContainer() : tabPage->secondaryViewContainer();
+            if (!container) {
+                return false;
+            }
+            container->setActive(true);
+            return true;
+        },
+        [this] {
+            DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+            if (!tabPage || !tabPage->splitViewEnabled()) {
+                return -1;
+            }
+            return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
+        },
+        WhaleAiWindowTools::create(this) + WhaleAiSettingsTools::create(this) + WhaleAiProfileTools::create(this),
+        [this] {
+            return WhaleAiWindowTools::activeViewState(this);
         },
     });
     // While the panel is hidden it asks when it is shown again.

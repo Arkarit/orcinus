@@ -29,6 +29,7 @@
 #include <QDragEnterEvent>
 #include <QFile>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -38,6 +39,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QToolButton>
+#include <QVBoxLayout>
 
 #include <memory>
 
@@ -83,6 +85,7 @@ private Q_SLOTS:
     void elideChipText();
 
     void backChannel();
+    void inputKeepsFocus();
 
 private:
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
@@ -967,10 +970,11 @@ void WhaleAiPanelTest::backChannel()
     // The agent starts orcinus-mcp from session/new and asks where the user is.
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_location")));
     QVERIFY(waitForReady(panel));
-    QVERIFY2(texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items;mcp={\"folder\":\"%1\","
-                                                  "\"otherFolder\":\"%2\"};")
-                                       .arg(m_work.path(), other)),
-             qPrintable(texts(panel)));
+    QVERIFY2(
+        texts(panel).contains(QStringLiteral("tools=get_location,get_selection,set_location,select_items,list_actions,trigger_action;mcp={\"folder\":\"%1\","
+                                             "\"otherFolder\":\"%2\"};")
+                                  .arg(m_work.path(), other)),
+        qPrintable(texts(panel)));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:get_selection")));
     QVERIFY(waitForReady(panel));
     QVERIFY2(texts(panel).contains(QStringLiteral("mcp={\"count\":1,\"folder\":\"%1\",\"items\":[\"%2\"],\"truncated\":false};").arg(m_work.path(), selected)),
@@ -979,12 +983,14 @@ void WhaleAiPanelTest::backChannel()
     // The agent changes the view through the window; the transcript says so.
     QStringList opened;
     QStringList selection;
-    panel.setViewActions({[&](const QString &folder) {
-                              opened.append(folder);
-                          },
-                          [&](const QStringList &paths) {
-                              selection = paths;
-                          }});
+    WhaleAiViewActions viewActions;
+    viewActions.openFolder = [&](const QString &folder) {
+        opened.append(folder);
+    };
+    viewActions.select = [&](const QStringList &paths) {
+        selection = paths;
+    };
+    panel.setViewActions(viewActions);
     QFile file(selected);
     QVERIFY(file.open(QIODevice::WriteOnly));
     file.close();
@@ -994,9 +1000,108 @@ void WhaleAiPanelTest::backChannel()
     QCOMPARE(opened, QStringList{m_work.filePath(QStringLiteral("sub"))});
     QCOMPARE(selection, QStringList{selected});
     QString all = texts(panel);
-    QVERIFY2(all.contains(QStringLiteral("The agent opened %1.").arg(m_work.filePath(QStringLiteral("sub")))), qPrintable(all));
+    // The name only; the path in the tooltip.
+    QVERIFY2(all.contains(QStringLiteral("The agent opened “sub”.")), qPrintable(all));
+    bool tooltip = false;
+    for (const QLabel *label : panel.transcript()->findChildren<QLabel *>()) {
+        tooltip = tooltip || (label->text() == QStringLiteral("The agent opened “sub”.") && label->toolTip() == m_work.filePath(QStringLiteral("sub")));
+    }
+    QVERIFY(tooltip);
     QVERIFY2(all.contains(QLatin1String("The agent selected 1 item.")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("\"notFound\":[\"missing\"],\"selected\":1")), qPrintable(all));
+
+    // Commands of the window (AI9b): the transcript names the command with its menu.
+    QStringList triggered;
+    bool hidden = false;
+    viewActions.actions = [&] {
+        return QList<WhaleAiUiAction>{
+            {QStringLiteral("details"), QStringLiteral("Details"), {}, QStringLiteral("View ▸ View Mode"), true, !triggered.isEmpty(), true, true},
+            {QStringLiteral("show_hidden_files"), QStringLiteral("Show Hidden Files"), {}, QStringLiteral("View"), true, hidden, true, false},
+        };
+    };
+    viewActions.trigger = [&](const QString &name) {
+        triggered.append(name);
+        hidden = hidden != (name == QLatin1String("show_hidden_files"));
+    };
+    panel.setViewActions(viewActions);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details mcp:trigger_action:show_hidden_files mcp:trigger_action:deletefile")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(triggered, (QStringList{QStringLiteral("details"), QStringLiteral("show_hidden_files")}));
+    all = texts(panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent used View ▸ View Mode ▸ Details.")), qPrintable(all));
+    QVERIFY2(all.contains(QStringLiteral("The agent turned on View ▸ Show Hidden Files.")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("not available")), qPrintable(all));
+
+    // Settings (AI9d): refused in the read-only mode, allowed in another one (user, 2026-11-16).
+    int settingCalls = 0;
+    viewActions.windowTools = {{QStringLiteral("set_setting"),
+                                QStringLiteral("Change a setting"),
+                                QStringLiteral("Changes a setting"),
+                                false,
+                                {},
+                                {},
+                                [&settingCalls](const QJsonObject &, bool *, QString *notice) {
+                                    ++settingCalls;
+                                    *notice = QStringLiteral("The agent changed the setting “Status bar” to Disabled.");
+                                    return QJsonObject{{QStringLiteral("value"), QStringLiteral("Disabled")}};
+                                }}};
+    panel.setViewActions(viewActions);
+    panel.chooseMode(QStringLiteral("plan"));
+    QTRY_COMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("plan"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_setting:General/ShowStatusBar=Disabled")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(settingCalls, 0);
+    all = texts(panel);
+    QVERIFY2(all.contains(QLatin1String("cannot be saved in the read-only mode")), qPrintable(all));
+    // The other modes by the names of the Mode list (the fake agent's "Ask" and "Auto").
+    QVERIFY2(all.contains(QLatin1String("(\\\"Ask\\\", \\\"Auto\\\")")), qPrintable(all));
+    panel.chooseMode(QStringLiteral("auto"));
+    QTRY_COMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_setting:General/ShowStatusBar=Disabled")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(settingCalls, 1);
+    QVERIFY2(texts(panel).contains(QStringLiteral("The agent changed the setting “Status bar” to Disabled.")), qPrintable(texts(panel)));
+    viewActions.windowTools.clear();
+    panel.setViewActions(viewActions);
+
+    // In split view the notices say which view.
+    viewActions.activePane = [] {
+        return 1;
+    };
+    panel.setViewActions(viewActions);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_location:%1 mcp:get_location").arg(m_work.filePath(QStringLiteral("sub")))));
+    QVERIFY(waitForReady(panel));
+    all = texts(panel);
+    QVERIFY2(all.contains(QStringLiteral("The agent opened “sub” in the right view.")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("\"activeView\":\"right\"")), qPrintable(all));
+
+    // The Actions filter hides what the agent did, also what comes later, and remembers it.
+    auto *showActions = panel.findChild<QCheckBox *>(QStringLiteral("showActions"));
+    QVERIFY(showActions && showActions->isChecked());
+    auto actionEntries = [&panel] {
+        QList<QWidget *> result;
+        for (QWidget *entry : panel.transcript()->entries()) {
+            if (WhaleAiTranscript::kindOf(entry) == WhaleAiTranscript::Kind::Action) {
+                result.append(entry);
+            }
+        }
+        return result;
+    };
+    QVERIFY(actionEntries().size() >= 4);
+    showActions->setChecked(false);
+    QVERIFY(!WhaleAiAgents::showActions());
+    for (QWidget *entry : panel.transcript()->entries()) {
+        const WhaleAiTranscript::Kind kind = WhaleAiTranscript::kindOf(entry);
+        QCOMPARE(entry->isHidden(), kind == WhaleAiTranscript::Kind::Action || kind == WhaleAiTranscript::Kind::ToolCall);
+    }
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(actionEntries().constLast()->isHidden());
+    showActions->setChecked(true);
+    QVERIFY(WhaleAiAgents::showActions());
+    for (QWidget *entry : actionEntries()) {
+        QVERIFY(!entry->isHidden());
+    }
 
     // Requests for our own tools are answered at once, as each agent asks; others are not.
     for (const char *agent : {"claude", "codex", "opencode"}) {
@@ -1013,6 +1118,57 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY(QFileInfo::exists(socket));
     panel.newConversation();
     QTRY_VERIFY_WITH_TIMEOUT(!QFileInfo::exists(socket), 15000);
+}
+
+void WhaleAiPanelTest::inputKeepsFocus()
+{
+    // The window takes the focus when the agent runs a command; the user typing here keeps it.
+    QWidget window;
+    auto *layout = new QVBoxLayout(&window);
+    auto *view = new QLineEdit(&window);
+    auto *other = new QLineEdit(&window);
+    auto *panel = new WhaleAiPanel(&window);
+    layout->addWidget(view);
+    layout->addWidget(other);
+    layout->addWidget(panel);
+    panel->setUrl(QUrl::fromLocalFile(m_work.path()));
+    WhaleAiViewActions viewActions;
+    viewActions.actions = [] {
+        return QList<WhaleAiUiAction>{{QStringLiteral("details"), QStringLiteral("Details"), {}, QStringLiteral("View"), true, false, true, true}};
+    };
+    viewActions.trigger = [view](const QString &) {
+        view->setFocus();
+    };
+    panel->setViewActions(viewActions);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowActive(&window));
+    auto *input = panel->findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    QVERIFY(input);
+
+    input->setFocus();
+    QTRY_VERIFY(input->hasFocus());
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(*panel));
+    QTRY_VERIFY(input->hasFocus());
+
+    // Somewhere else: the command takes the focus, as it would for the user.
+    other->setFocus();
+    QTRY_VERIFY(other->hasFocus());
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(*panel));
+    QTRY_VERIFY(view->hasFocus());
+
+    // Answering a permission request on its focused button: the focus goes back to the input,
+    // not on to the next widget.
+    QVERIFY(panel->sendPrompt(QStringLiteral("hello")));
+    QWidget *permission = waitForPermission(*panel);
+    QVERIFY(permission);
+    auto *no = permission->findChild<QPushButton *>(QStringLiteral("option-no"));
+    no->setFocus();
+    QTRY_VERIFY(no->hasFocus());
+    no->click();
+    QTRY_VERIFY(input->hasFocus());
+    QVERIFY(waitForReady(*panel));
 }
 
 #include "whaleaipaneltest.moc"

@@ -116,6 +116,12 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `wait_for_state` | Waits inside Whale until conditions hold (or a timeout); use instead of sleeps |
 | `viewer_input` | V1d: input for the built-in viewer, events sent to its window: `action` `key` (`key` as in QKeySequence: Right, Left, PgDown, Home, End, Escape …), `wheel` (`delta`, 120 a notch, negative = next) or `click` (`where` `left`/`right` edge or `center`: nothing on images, pauses a video); V2e: keys `+`, `-`, `1`, `0` zoom, `zoom_wheel` (Ctrl+wheel, `delta`, `at` [x, y] fractions of the window) and `drag` (`dx`, `dy` with the middle button); V3d, videos: keys Left/Right seek, Space, M, `pointer` (the controls show) and `controls` (`target` `play` or a fraction of the progress). The viewer opens with `activate_items` on images |
 | `set_viewer_options` | V1d: the viewer's settings as its settings page writes them: `wrap_around`, `mime_types`, the hidden `multi_selection` (`keep`/`move`), (V2e) `upscale`, `smooth_zoom`, (V3d) `video_autoplay`, `video_sound`, `video_loop` |
+| `ai_new_conversation` | AI10a: "New Conversation" in the AI panel, optionally with `agent` (an id of `ai.agents`) and its start `mode`; shows the panel. State: `ai` in `get_ui_state` |
+| `ai_send_prompt` | AI10a: sends `text` through the panel as the user does (the window's context goes along) |
+| `ai_wait_idle` | AI10a: waits until the agent's turn ended or a permission request waits (`timeout_ms`, default 120 s, at most 30 min) |
+| `ai_get_transcript` | AI10a: the transcript as the user reads it, the agent's tool calls (`ownTool` = Orcinus back-channel tool), permission requests with their answer, stop reasons |
+| `ai_answer_permission` | AI10a: clicks option `option` of the open request `key` in the transcript |
+| `ai_stop` | AI10a: the panel's stop button |
 | `screenshot` | PNG of the main window, or with `target: viewer` of the open viewer, rendered by Whale itself (works on Wayland) |
 
 Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default).

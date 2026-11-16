@@ -494,6 +494,21 @@ public Q_SLOTS:
     QByteArray ownStyleData() const;
     void setOwnStyleData(const QByteArray &data);
 
+public:
+    /**
+     * Whale (AI9e): where a change of the view's style goes now, and what is there: the own style
+     * of the view (VS), or the view properties of its folder. For undoing what the AI agent changed.
+     */
+    struct StyleSnapshot;
+    StyleSnapshot styleSnapshot();
+    /**
+     * Whale (AI9e): writes @p snapshot back (the own style of this view, or the properties of its
+     * folder) and shows it again if this view shows it.
+     */
+    void restoreStyle(const StyleSnapshot &snapshot);
+
+public Q_SLOTS:
+
     /**
      * Whale (VS): the view mode of the own style, which differs from viewMode() where a place
      * with a style of its own or the dynamic view shows another one; nothing without an own style.
@@ -1255,6 +1270,14 @@ private:
     friend class DolphinMainWindowTest;
     friend class DolphinPart; // Accesses m_model
     void updateSelectionState();
+};
+
+/** Whale (AI9e): see DolphinView::styleSnapshot(). */
+struct DolphinView::StyleSnapshot {
+    bool ownStyle = false;
+    QUrl url;
+    PanelRole role = PanelRole::Left;
+    QByteArray data;
 };
 
 /// Allow using DolphinView::Mode in QVariant

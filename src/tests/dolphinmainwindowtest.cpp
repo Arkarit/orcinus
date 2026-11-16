@@ -24,24 +24,35 @@
 #include "search/bar.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "settings/viewpropertiesdialog.h"
+#include "statusbar/dolphinstatusbar.h"
 #include "testdir.h"
 #include "views/dolphinitemlistview.h"
 #include "views/viewproperties.h"
 #include "views/zoomlevelinfo.h"
+#include "whaleaichangelog.h"
+#include "whaleaipanel.h"
+#include "whaleaisettingstools.h"
 #include "whalesplitviewstartup.h"
+#include "whalestyles.h"
+#include "whaleviewer.h"
 
 #include <KActionCollection>
 #include <KConfig>
 #include <KConfigGui>
 #include <KFileItem>
+#include <KMessageWidget>
 #include <KProtocolManager>
 #include <KStandardAction>
 
 #include <QAccessible>
 #include <QApplication>
 #include <QComboBox>
+#include <QDockWidget>
 #include <QDomDocument>
 #include <QFileSystemWatcher>
+#include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QKeySequence>
 #include <QPixmap>
 #include <QScopeGuard>
@@ -52,6 +63,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUrlQuery>
+#include <QXmlStreamReader>
 
 #include "testhelpers.h"
 
@@ -128,6 +140,10 @@ private Q_SLOTS:
     void testActiveViewFollowsTheActivatedView();
     void testRestoreStateKeepsTheActiveSplitPane();
     void testFileItemActionsOutliveContextMenu();
+    void testAiAgentCommands();
+    void testAiWindowTools();
+    void testAiSettingsTools();
+    void testAiProfileTools();
     void cleanupTestCase();
 
 private:
@@ -2944,3 +2960,507 @@ int main(int argc, char *argv[])
 }
 
 #include "dolphinmainwindowtest.moc"
+void DolphinMainWindowTest::testAiAgentCommands()
+{
+    // The commands the window offers the agent's back channel (AI9b).
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createDir("a");
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    const WhaleAiViewActions &actions = panel->viewActions();
+    QVERIFY(actions.actions && actions.trigger && actions.activatePane && actions.activePane);
+
+    const QList<WhaleAiUiAction> all = actions.actions();
+    QHash<QString, WhaleAiUiAction> byName;
+    for (const WhaleAiUiAction &action : all) {
+        QVERIFY(!action.name.isEmpty());
+        QVERIFY2(!action.text.contains(QLatin1Char('&')), qPrintable(action.text));
+        byName.insert(action.name, action);
+    }
+    // Pure submenus are left out; their entries come with their menu path.
+    QVERIFY(!byName.contains(QStringLiteral("view_mode")));
+    QVERIFY(!byName.contains(QStringLiteral("sort")));
+    QVERIFY(!byName.contains(QStringLiteral("split_view")));
+    QVERIFY(byName.contains(QStringLiteral("split_view_menu")));
+    // Names are unique, so trigger_action knows what it triggers.
+    QCOMPARE(byName.size(), all.size());
+    QVERIFY(byName.contains(QStringLiteral("details")));
+    QVERIFY(byName.value(QStringLiteral("details")).exclusive);
+    QCOMPARE(byName.value(QStringLiteral("details")).menu, QStringLiteral("View"));
+    QVERIFY2(byName.value(QStringLiteral("sort_by_size")).menu.contains(QStringLiteral("Sort By")),
+             qPrintable(byName.value(QStringLiteral("sort_by_size")).menu));
+    // Created after the menus: the panel toggles are there too.
+    QVERIFY(byName.contains(QStringLiteral("show_places_panel")));
+    QVERIFY(byName.contains(QStringLiteral("show_ai_panel")));
+
+    // Triggering acts as the menu does.
+    const WhaleAiUiAction hidden = byName.value(QStringLiteral("show_hidden_files"));
+    QVERIFY(hidden.checkable);
+    actions.trigger(QStringLiteral("show_hidden_files"));
+    QCOMPARE(m_mainWindow->activeViewContainer()->view()->hiddenFilesShown(), !hidden.checked);
+    actions.trigger(QStringLiteral("show_hidden_files"));
+    QCOMPARE(m_mainWindow->activeViewContainer()->view()->hiddenFilesShown(), hidden.checked);
+    actions.trigger(QStringLiteral("no_such_action"));
+
+    // Undo (AI9e): what the commands wrote down for the folder goes back to before the agent's
+    // first change there; a command that changes no style records nothing.
+    DolphinView *agentView = m_mainWindow->activeViewContainer()->view();
+    WhaleAiChangeLog *log = WhaleAiChangeLog::of(m_mainWindow.data());
+    log->clear();
+    const DolphinView::Mode modeBefore = agentView->viewMode();
+    const QByteArray sortBefore = agentView->sortRole();
+    const Qt::SortOrder orderBefore = agentView->sortOrder();
+    actions.trigger(QStringLiteral("go_up"));
+    QCOMPARE(log->count(), 0); // another folder, no style changed
+    actions.trigger(QStringLiteral("go_back"));
+    QTRY_COMPARE(agentView->url(), testDir->url());
+    actions.trigger(modeBefore == DolphinView::DetailsView ? QStringLiteral("icons") : QStringLiteral("details"));
+    actions.trigger(QStringLiteral("sort_by_size"));
+    QCOMPARE(log->count(), 1);
+    QVERIFY(agentView->viewMode() != modeBefore);
+    QCOMPARE(agentView->sortRole(), QByteArray("size"));
+    panel->undoAgentChanges();
+    QCOMPARE(log->count(), 0);
+    QCOMPARE(agentView->viewMode(), modeBefore);
+    QCOMPARE(agentView->sortRole(), sortBefore);
+    QCOMPARE(agentView->sortOrder(), orderBefore);
+
+    // A view can be chosen only in split view.
+    QVERIFY(!actions.activatePane(1));
+    QCOMPARE(actions.activePane(), -1);
+    auto tabPage = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget")->currentTabPage();
+    tabPage->setSplitViewEnabled(true, WithoutAnimation);
+    QVERIFY(actions.activatePane(1));
+    QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->secondaryViewContainer());
+    QCOMPARE(actions.activePane(), 1);
+    QVERIFY(actions.activatePane(0));
+    QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->primaryViewContainer());
+}
+void DolphinMainWindowTest::testAiSettingsTools()
+{
+    // The settings of the agent's back channel (AI9d): an allow-list, applied as the dialog does.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createFile(QStringLiteral("a.txt"));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    QVERIFY(tools.contains(QStringLiteral("list_settings")) && tools.contains(QStringLiteral("set_setting")));
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+
+    // Only the allow-list: no confirmations, no home folder, no internal entries.
+    const QStringList keys = WhaleAiSettingsTools::keys();
+    QVERIFY(keys.size() > 50);
+    QVERIFY(keys.contains(QStringLiteral("General/ShowStatusBar")));
+    QVERIFY(keys.contains(QStringLiteral("IconsMode/IconSize")));
+    for (const QString &key : keys) {
+        QVERIFY2(!key.contains(QLatin1String("Confirm")) && !key.contains(QLatin1String("HomeUrl")) && !key.contains(QLatin1String("Version")),
+                 qPrintable(key));
+    }
+    // Every entry exists in the .kcfg files, and the choices of the enums are theirs, in their order.
+    QHash<QString, QStringList> kcfgEntries; // key -> choices
+    const QStringList kcfgFiles{QStringLiteral("settings/dolphin_generalsettings.kcfg"),
+                                QStringLiteral("settings/dolphin_contentdisplaysettings.kcfg"),
+                                QStringLiteral("settings/dolphin_detailsmodesettings.kcfg"),
+                                QStringLiteral("settings/dolphin_iconsmodesettings.kcfg"),
+                                QStringLiteral("settings/dolphin_compactmodesettings.kcfg"),
+                                QStringLiteral("settings/dolphin_contextmenusettings.kcfg"),
+                                QStringLiteral("panels/folders/dolphin_folderspanelsettings.kcfg"),
+                                QStringLiteral("panels/places/dolphin_placespanelsettings.kcfg")};
+    for (const QString &name : kcfgFiles) {
+        QFile file(QStringLiteral(QT_TESTCASE_SOURCEDIR "/../") + name);
+        QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.fileName()));
+        QXmlStreamReader xml(&file);
+        QString group;
+        QString entry;
+        while (!xml.atEnd()) {
+            if (xml.readNext() != QXmlStreamReader::StartElement) {
+                continue;
+            }
+            if (xml.name() == QLatin1String("group")) {
+                group = xml.attributes().value(QLatin1String("name")).toString();
+            } else if (xml.name() == QLatin1String("entry")) {
+                entry = group + QLatin1Char('/') + xml.attributes().value(QLatin1String("name")).toString();
+                kcfgEntries.insert(entry, {});
+            } else if (xml.name() == QLatin1String("choice")) {
+                kcfgEntries[entry].append(xml.attributes().value(QLatin1String("name")).toString());
+            }
+        }
+    }
+    for (const QString &key : keys) {
+        QVERIFY2(kcfgEntries.contains(key), qPrintable(key));
+        QCOMPARE(WhaleAiSettingsTools::choices(key), kcfgEntries.value(key));
+    }
+
+    QJsonObject listed = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("statusbar")}}, &error);
+    QVERIFY(!error);
+    const QJsonArray found = listed.value(QLatin1String("settings")).toArray();
+    QVERIFY(!found.isEmpty());
+    QJsonObject statusBar;
+    for (const QJsonValue &entry : found) {
+        if (entry.toObject().value(QLatin1String("key")).toString() == QLatin1String("General/ShowStatusBar")) {
+            statusBar = entry.toObject();
+        }
+    }
+    QCOMPARE(statusBar.value(QLatin1String("type")).toString(), QStringLiteral("enum"));
+    QVERIFY(statusBar.value(QLatin1String("choices")).toArray().contains(QStringLiteral("Disabled")));
+    QCOMPARE(statusBar.value(QLatin1String("applies")).toString(), QStringLiteral("now"));
+    const QString previous = statusBar.value(QLatin1String("value")).toString();
+    auto listedValue = [&] {
+        bool unused = false;
+        const QJsonArray all = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("General/ShowStatusBar")}}, &unused)
+                                   .value(QLatin1String("settings"))
+                                   .toArray();
+        return all.isEmpty() ? QString() : all.first().toObject().value(QLatin1String("value")).toString();
+    };
+
+    // Wrong keys and values: errors, nothing changes.
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ConfirmClosingMultipleTabs")}, {QStringLiteral("value"), false}},
+         &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Huge")}},
+         &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowZoomSlider")}, {QStringLiteral("value"), 1}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("IconsMode/IconSize")}, {QStringLiteral("value"), 1.5}}, &error);
+    QVERIFY(error);
+
+    // A change applies at once, as the dialog's Apply: the status bar goes, and comes back.
+    auto *statusBarWidget = m_mainWindow->activeViewContainer()->findChild<DolphinStatusBar *>();
+    QVERIFY(statusBarWidget);
+    QJsonObject result = call(QStringLiteral("set_setting"),
+                              {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Disabled")}},
+                              &error,
+                              &notice);
+    QVERIFY2(!error, qPrintable(QJsonDocument(result).toJson()));
+    QCOMPARE(result.value(QLatin1String("value")).toString(), QStringLiteral("Disabled"));
+    QCOMPARE(result.value(QLatin1String("previous")).toString(), previous);
+    QVERIFY(!notice.isEmpty());
+    QCOMPARE(GeneralSettings::showStatusBar(), int(GeneralSettings::EnumShowStatusBar::Disabled));
+    QTRY_VERIFY(!statusBarWidget->isVisible());
+    // The same value again: nothing to do, no transcript line.
+    result = call(QStringLiteral("set_setting"),
+                  {{QStringLiteral("key"), QStringLiteral("general/showstatusbar")}, {QStringLiteral("value"), QStringLiteral("disabled")}},
+                  &error,
+                  &notice);
+    QVERIFY(!error);
+    QVERIFY(result.value(QLatin1String("unchanged")).toBool());
+    QVERIFY(notice.isEmpty());
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), previous}}, &error);
+    QVERIFY(!error);
+    QTRY_VERIFY(statusBarWidget->isVisible());
+
+    // Undo (AI9e): back to the value before the agent's first change, also after several.
+    WhaleAiChangeLog::of(m_mainWindow.data())->clear();
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Small")}},
+         &error);
+    QVERIFY(!error);
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Disabled")}},
+         &error);
+    QVERIFY(!error);
+    QTRY_VERIFY(!statusBarWidget->isVisible());
+    QCOMPARE(WhaleAiChangeLog::of(m_mainWindow.data())->count(), 1);
+    panel->undoAgentChanges();
+    QCOMPARE(WhaleAiChangeLog::of(m_mainWindow.data())->count(), 0);
+    QCOMPARE(listedValue(), previous);
+    QTRY_VERIFY(statusBarWidget->isVisible());
+
+    // Booleans; and an entry that acts next time says so.
+    const bool zoomSlider = GeneralSettings::showZoomSlider();
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowZoomSlider")}, {QStringLiteral("value"), !zoomSlider}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(GeneralSettings::showZoomSlider(), !zoomSlider);
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowZoomSlider")}, {QStringLiteral("value"), zoomSlider}}, &error);
+    QVERIFY(!error);
+    listed = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("SplitViewAtStartup")}}, &error);
+    QCOMPARE(listed.value(QLatin1String("settings")).toArray().first().toObject().value(QLatin1String("applies")).toString(), QStringLiteral("next time"));
+}
+
+void DolphinMainWindowTest::testAiProfileTools()
+{
+    // The profiles of the agent's back channel (AI9e4): applying and saving can be undone.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createFile(QStringLiteral("a.txt"));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+    WhaleAiChangeLog *log = WhaleAiChangeLog::of(m_mainWindow.data());
+    log->clear();
+
+    call(QStringLiteral("apply_profile"), {{QStringLiteral("profile"), QStringLiteral("no such profile")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("save_profile"), {{QStringLiteral("name"), QString()}}, &error);
+    QVERIFY(error);
+    QCOMPARE(log->count(), 0);
+
+    // Save the window in the details view as a new profile; again under that name replaces it.
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    view->setViewMode(DolphinView::DetailsView);
+    const int before = WhaleStyles::self()->store().styles().size();
+    QJsonObject saved = call(QStringLiteral("save_profile"), {{QStringLiteral("name"), QStringLiteral("Agent Test")}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(notice.contains(QLatin1String("Agent Test")));
+    QCOMPARE(saved.value(QLatin1String("replaced")).toBool(), false);
+    QCOMPARE(WhaleStyles::self()->store().styles().size(), before + 1);
+    saved = call(QStringLiteral("save_profile"), {{QStringLiteral("name"), QStringLiteral("agent test")}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(saved.value(QLatin1String("replaced")).toBool(), true);
+    QCOMPARE(WhaleStyles::self()->store().styles().size(), before + 1);
+    QCOMPARE(log->count(), 1);
+    bool listed = false;
+    for (const QJsonValue &profile : call(QStringLiteral("list_profiles"), {}, &error).value(QLatin1String("profiles")).toArray()) {
+        listed = listed || profile.toObject().value(QLatin1String("name")).toString() == QLatin1String("Agent Test");
+    }
+    QVERIFY(listed);
+
+    // Apply it to the window in the icons view: details again.
+    view->setViewMode(DolphinView::IconsView);
+    call(QStringLiteral("apply_profile"), {{QStringLiteral("profile"), QStringLiteral("Agent Test")}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->view()->viewMode(), DolphinView::DetailsView);
+    QCOMPARE(log->count(), 2);
+
+    // Undo, newest first: the window's look before the profile, then the profiles before the save.
+    panel->undoAgentChanges();
+    QCOMPARE(log->count(), 0);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->view()->viewMode(), DolphinView::IconsView);
+    QCOMPARE(WhaleStyles::self()->store().styles().size(), before);
+}
+
+void DolphinMainWindowTest::testAiWindowTools()
+{
+    // The window tools of the agent (AI9): what the commands of the window do not cover.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    QImage image(16, 16, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(testDir->path() + QStringLiteral("/a.png")));
+    QVERIFY(image.save(testDir->path() + QStringLiteral("/b.png")));
+    testDir->createFile(QStringLiteral("c.txt"));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    QTRY_COMPARE(view->items().count(), 3);
+
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    QCOMPARE(QSet<QString>(tools.keyBegin(), tools.keyEnd()),
+             QSet<QString>(WhaleAiMcpServer::windowToolNames().cbegin(), WhaleAiMcpServer::windowToolNames().cend()));
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+
+    // State: window, panels, split view, messages, viewer.
+    QJsonObject state = call(QStringLiteral("get_window_state"), {}, &error);
+    QVERIFY(!error);
+    QCOMPARE(state.value(QLatin1String("window")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("normal"));
+    QCOMPARE(state.value(QLatin1String("splitView")).toObject().value(QLatin1String("enabled")).toBool(), false);
+    QVERIFY(state.value(QLatin1String("messages")).toArray().isEmpty());
+    QCOMPARE(state.value(QLatin1String("viewer")).toObject().value(QLatin1String("open")).toBool(), false);
+    QStringList panelIds;
+    for (const QJsonValue &entry : state.value(QLatin1String("panels")).toArray()) {
+        panelIds.append(entry.toObject().value(QLatin1String("id")).toString());
+    }
+    QVERIFY(panelIds.contains(QStringLiteral("places")));
+    QVERIFY(panelIds.contains(QStringLiteral("ai")));
+    // The views: folder, mode and sorting, so the agent can report what the user sees (AI10).
+    const QJsonArray viewStates = state.value(QLatin1String("views")).toArray();
+    QCOMPARE(viewStates.size(), 1);
+    QCOMPARE(viewStates.first().toObject().value(QLatin1String("folder")).toString(), testDir->path());
+    QCOMPARE(viewStates.first().toObject().value(QLatin1String("sort")).toObject().value(QLatin1String("by")).toString(), QStringLiteral("name"));
+    QVERIFY(viewStates.first().toObject().contains(QLatin1String("grouped")));
+    QVERIFY(viewStates.first().toObject().contains(QLatin1String("previews")));
+    QCOMPARE(viewStates.first().toObject().value(QLatin1String("filter")).toObject().value(QLatin1String("text")).toString(), QString());
+    // Tabs (AI9c): one, with its folder; the profile applied last (none in a fresh profile, or one).
+    const QJsonObject tabState = state.value(QLatin1String("tabs")).toObject();
+    QCOMPARE(tabState.value(QLatin1String("current")).toInt(), 0);
+    QCOMPARE(tabState.value(QLatin1String("list")).toArray().size(), 1);
+    QCOMPARE(tabState.value(QLatin1String("list")).toArray().first().toObject().value(QLatin1String("folders")).toArray().first().toString(), testDir->path());
+    QVERIFY(state.contains(QLatin1String("lastProfile")));
+    // A filter shows in the view's state.
+    view->setNameFilter(QStringLiteral("png"));
+    QCOMPARE(call(QStringLiteral("get_window_state"), {}, &error)
+                 .value(QLatin1String("views"))
+                 .toArray()
+                 .first()
+                 .toObject()
+                 .value(QLatin1String("filter"))
+                 .toObject()
+                 .value(QLatin1String("text"))
+                 .toString(),
+             QStringLiteral("png"));
+    view->setNameFilter(QString());
+    QTRY_COMPARE(view->items().count(), 3);
+
+    // set_filter (AI9e3): as typing into the filter bar; empty clears and closes it.
+    QJsonObject filtered = call(QStringLiteral("set_filter"), {{QStringLiteral("text"), QStringLiteral(".png")}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(notice.contains(QLatin1String(".png")));
+    QVERIFY(m_mainWindow->activeViewContainer()->isFilterBarVisible());
+    QTRY_COMPARE(view->items().count(), 2);
+    QCOMPARE(view->nameFilter(), QStringLiteral(".png"));
+    QCOMPARE(filtered.value(QLatin1String("filter")).toObject().value(QLatin1String("text")).toString(), QStringLiteral(".png"));
+    call(QStringLiteral("set_filter"), {{QStringLiteral("text"), 3}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_filter"), {{QStringLiteral("text"), QString()}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(!m_mainWindow->activeViewContainer()->isFilterBarVisible());
+    QTRY_COMPARE(view->items().count(), 3);
+
+    // Items in the order shown, with sizes; read-only, no transcript line.
+    view->setSortRole("size");
+    view->setSortOrder(Qt::DescendingOrder);
+    QJsonObject listed = call(QStringLiteral("list_items"), {}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(notice.isEmpty());
+    QCOMPARE(listed.value(QLatin1String("sort")).toObject().value(QLatin1String("by")).toString(), QStringLiteral("size"));
+    QCOMPARE(listed.value(QLatin1String("sort")).toObject().value(QLatin1String("order")).toString(), QStringLiteral("descending"));
+    QJsonArray listedItems = listed.value(QLatin1String("items")).toArray();
+    QCOMPARE(listedItems.size(), 3);
+    QStringList listedNames;
+    for (const QJsonValue &entry : listedItems) {
+        listedNames.append(entry.toObject().value(QLatin1String("name")).toString());
+        QVERIFY(entry.toObject().contains(QLatin1String("size")));
+        QVERIFY(entry.toObject().contains(QLatin1String("modified")));
+    }
+    QCOMPARE(listedNames.last(), QStringLiteral("c.txt")); // empty, so the smallest
+    QCOMPARE(listed.value(QLatin1String("truncated")).toBool(), false);
+    listed = call(QStringLiteral("list_items"), {{QStringLiteral("offset"), 1}, {QStringLiteral("limit"), 1}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(listed.value(QLatin1String("items")).toArray().size(), 1);
+    QCOMPARE(listed.value(QLatin1String("items")).toArray().first().toObject().value(QLatin1String("name")).toString(), listedNames.at(1));
+    QCOMPARE(listed.value(QLatin1String("truncated")).toBool(), true);
+    call(QStringLiteral("list_items"), {{QStringLiteral("view"), QStringLiteral("right")}}, &error);
+    QVERIFY(error);
+    view->setSortRole("text");
+    view->setSortOrder(Qt::AscendingOrder);
+
+    // Window: a size; no minimizing.
+    call(QStringLiteral("set_window_state"), {{QStringLiteral("width"), 700}, {QStringLiteral("height"), 500}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_COMPARE(m_mainWindow->size(), QSize(700, 500));
+    QVERIFY(notice.contains(QLatin1String("700")));
+    call(QStringLiteral("set_window_state"), {{QStringLiteral("state"), QStringLiteral("minimized")}}, &error);
+    QVERIFY(error);
+    QVERIFY(!m_mainWindow->isMinimized());
+    call(QStringLiteral("set_window_state"), {{QStringLiteral("width"), 900}}, &error);
+    QVERIFY(error);
+
+    // Panel width: only a visible panel.
+    auto *places = m_mainWindow->findChild<QDockWidget *>(QStringLiteral("placesDock"));
+    QVERIFY(places);
+    places->show();
+    QTRY_VERIFY(places->isVisible());
+    call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("places")}, {QStringLiteral("width"), 250}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_COMPARE(places->width(), 250);
+    places->hide();
+    call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("places")}, {QStringLiteral("width"), 200}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("nope")}, {QStringLiteral("width"), 200}}, &error);
+    QVERIFY(error);
+
+    // Split view.
+    call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.3}}, &error);
+    QVERIFY(error);
+    DolphinTabPage *tabPage = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget")->currentTabPage();
+    tabPage->setSplitViewEnabled(true, WithoutAnimation);
+    QTRY_VERIFY(tabPage->secondaryViewContainer() && tabPage->secondaryViewContainer()->isVisible());
+    call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.3}}, &error, &notice);
+    QVERIFY(!error);
+    auto leftShare = [&] {
+        bool unused = false;
+        return call(QStringLiteral("get_window_state"), {}, &unused).value(QLatin1String("splitView")).toObject().value(QLatin1String("leftShare")).toDouble();
+    };
+    QTRY_VERIFY(qAbs(leftShare() - 0.3) < 0.03);
+    call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.95}}, &error);
+    QVERIFY(error);
+
+    // Messages: listed with their view, closed like their close button.
+    DolphinViewContainer *right = tabPage->secondaryViewContainer();
+    right->showMessage(QStringLiteral("Something happened"), KMessageWidget::Warning);
+    QTRY_VERIFY(!call(QStringLiteral("get_window_state"), {}, &error).value(QLatin1String("messages")).toArray().isEmpty());
+    state = call(QStringLiteral("get_window_state"), {}, &error);
+    const QJsonObject message = state.value(QLatin1String("messages")).toArray().first().toObject();
+    QCOMPARE(message.value(QLatin1String("view")).toString(), QStringLiteral("right"));
+    QCOMPARE(message.value(QLatin1String("text")).toString(), QStringLiteral("Something happened"));
+    call(QStringLiteral("dismiss_message"), {{QStringLiteral("view"), QStringLiteral("left")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("dismiss_message"), {{QStringLiteral("view"), QStringLiteral("right")}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_VERIFY(call(QStringLiteral("get_window_state"), {}, &error).value(QLatin1String("messages")).toArray().isEmpty());
+    tabPage->setSplitViewEnabled(false, WithoutAnimation);
+
+    // Viewer: an image of the active view's folder, paging, closing; not a text file.
+    call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("next")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("open_in_viewer"), {{QStringLiteral("item"), QStringLiteral("c.txt")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("open_in_viewer"), {{QStringLiteral("item"), QStringLiteral("missing.png")}}, &error);
+    QVERIFY(error);
+    state = call(QStringLiteral("open_in_viewer"), {{QStringLiteral("item"), QStringLiteral("a.png")}}, &error, &notice);
+    QVERIFY2(!error, qPrintable(QJsonDocument(state).toJson()));
+    QVERIFY(WhaleViewer::instance());
+    QCOMPARE(state.value(QLatin1String("file")).toString(), testDir->path() + QStringLiteral("/a.png"));
+    state = call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("next")}}, &error, &notice);
+    QVERIFY(!error);
+    QCOMPARE(state.value(QLatin1String("file")).toString(), testDir->path() + QStringLiteral("/b.png"));
+    QVERIFY(notice.contains(QLatin1String("b.png")));
+    call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("pause")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("control_viewer"), {{QStringLiteral("action"), QStringLiteral("close")}}, &error);
+    QVERIFY(!error);
+    QTRY_VERIFY(!WhaleViewer::instance());
+}

@@ -26,6 +26,7 @@ const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
 const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
+const char ShowActionsKey[] = "ShowActions";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -391,8 +392,23 @@ QString defaultSystemPrompt()
         "You are an AI assistant working with the user's files through the Orcinus file manager. The user is working in "
         "Orcinus next to this chat, and each message tells you the folder they have open and what they have selected.\n\n"
         "You can see and change what the user sees with your Orcinus tools: get_location and get_selection to read where "
-        "they are, set_location to open a folder, and select_items to select files in it. Prefer these over guessing "
-        "paths, and use them to show the user a result; they see every change you make.\n\n"
+        "they are, set_location to open a folder, select_items to select files in it, and list_actions and trigger_action "
+        "to run the commands of the Orcinus window (view modes, sorting, panels, split view, profiles, ...), "
+        "get_window_state and the window tools for the window size, panel widths, the split, messages and the built-in "
+        "viewer, set_filter to filter a view by name, list_items for what a view shows (names, sizes, dates, in the order shown), list_settings and "
+        "set_setting for Orcinus' settings, and list_profiles, apply_profile and save_profile for the user's profiles. Prefer these "
+        "over guessing paths, and use them to show the user a result; they see every change you make.\n\n"
+        "Operate Orcinus only through these tools, never through D-Bus (qdbus, gdbus, busctl), keyboard or mouse "
+        "automation: other Orcinus windows of the user may be running. If a tool for what you want is missing, tell the "
+        "user instead of working around it.\n\n"
+        "Your Orcinus tools never change the user's files: they change what Orcinus shows (folder, selection, view, sorting, "
+        "window) and, with set_setting and save_profile, Orcinus' own settings and profiles. Except for these two they are "
+        "allowed in every mode, also in "
+        "a plan or read-only mode, so when the user asks you to show, sort, select or arrange something, do it with them right "
+        "away instead of presenting a plan. Settings are saved: change one only when the user asks for a setting, not for the "
+        "current view. In a plan or read-only mode Orcinus refuses set_setting and save_profile; then tell the user to choose another mode in "
+        "the AI panel's Mode list, and do not ask them to confirm instead. The user can take back your lasting changes "
+        "(settings, folder views, profiles) with \"Undo the Agent's Changes\" in the AI panel.\n\n"
         "You work with the user's own permissions on their real files. Before you change, move or delete anything outside "
         "what they asked for, or anything that is hard to undo, say what you will do and ask first.");
 }
@@ -421,6 +437,18 @@ void setCustomSystemPrompt(bool custom)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(CustomSystemPromptKey, custom);
+    group.sync();
+}
+
+bool showActions()
+{
+    return aiGroup().readEntry(ShowActionsKey, true);
+}
+
+void setShowActions(bool show)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(ShowActionsKey, show);
     group.sync();
 }
 
