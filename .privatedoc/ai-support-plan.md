@@ -853,6 +853,10 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   prompt names the undo button). Tests: whaleaichangelogtest, dolphinmainwindowtest
   testAiAgentCommands/testAiSettingsTools/testAiProfileTools/testAiWindowTools. AI10 scenarios
   filter-pdf, apply-profile, save-profile. Undo itself is the user's button, not an agent tool.
+  Agent run 2026-11-16 (qwen3.8-27b, ×3 each): plan mode 9/9 PASS (filter, profile applied,
+  saving refused with a pointer to the Mode list, without even trying), build mode 9/9 PASS
+  (24–58 s). With filter ".pdf" the folders stay visible (filter scope files), which the agent
+  noticed and explained.
 
 Work happens on the host (user, 2026-11-15): AI9 is UI only, file handling stays with the
 agent's own tools. Back to the VM when something critical comes up. Tests use an isolated profile
@@ -1036,6 +1040,9 @@ First scenario catalogue (from the AI9b findings):
   scenarios; the runner refuses scenarios tagged `vm` unless `hostname` is the VM.
 
 ## Open
+
+- Agent tests with Strata (the user's local inference server) as the model: later, user's wish
+  (2026-11-16); no cloud comparison needed.
 
 - Session persistence (ACP `session/load`) across restarts: later.
 - Several panels / windows: one session each; the MCP token keeps them apart.
