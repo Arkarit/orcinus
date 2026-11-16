@@ -915,6 +915,11 @@ Steps:
   - Soft finding: after Sort By ▸ Size the view sorts descending (Dolphin's default for size),
     but the agent claimed "ascending" in 4 of 4 answers: it never checks the result. The back
     channel's answer to trigger_action (or get_window_state) does not report the sort order.
+  - Decision (user, 2026-11-16): try a): system prompt + MCP instructions say Orcinus' tools never
+    change files and are allowed in every mode (b017f0fdb). Plan mode afterwards: 15/15 PASS
+    without follow-ups (before 7/15).
+- **AI10c started 2026-11-16 (ea654c79a):** 7 more host scenarios (viewer, panel width, split
+  share, error message, new tab, question, English prompt); dev state `agentWindow`.
 - **AI10b – Runner + first scenarios** (`src/whale/devmcp/tests/ai/`, Python, not in ctest):
   per scenario a fresh offscreen instance, new conversation, prompt, wait, collect state +
   transcript, judge, quit. About 5 scenarios with OpenCode/Qwen.
