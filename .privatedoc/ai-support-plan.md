@@ -900,6 +900,10 @@ Steps:
   `newConversation()`, `setAgentId()`, `chooseMode()`, `sendPrompt()`, so a prompt takes the real
   path panel → ACP → agent → `orcinus-mcp` → Orcinus. Tested in ctest with `whaleacpfakeagent`
   (no real agent, no quota). `test_m3` tool list updated.
+- **AI10a done 2026-11-16 (ab8bf170e).** Runner written 2026-11-16 (`src/whale/devmcp/tests/ai/run_agent_tests.py`,
+  `scenarios.py`); OpenCode's own config denies shell, edits and web access; the runner rejects every
+  permission request but Orcinus' own tools; dry run with the fake agent passed (its write request
+  rejected, folder unchanged). First real run waits for LM Studio.
 - **AI10b – Runner + first scenarios** (`src/whale/devmcp/tests/ai/`, Python, not in ctest):
   per scenario a fresh offscreen instance, new conversation, prompt, wait, collect state +
   transcript, judge, quit. About 5 scenarios with OpenCode/Qwen.
