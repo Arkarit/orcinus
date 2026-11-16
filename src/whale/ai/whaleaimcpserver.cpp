@@ -441,7 +441,8 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
               QJsonObject{{QStringLiteral("name"), QStringLiteral("orcinus")}, {QStringLiteral("version"), QCoreApplication::applicationVersion()}}},
              {QStringLiteral("instructions"),
               QStringLiteral("Tools of the Orcinus file manager the user is chatting with you from. They show where the user is, and change how Orcinus shows "
-                             "it. Operate Orcinus only through them, never through D-Bus or input automation.")}});
+                             "it. They never change files, so they are allowed in every mode, also in a plan or read-only mode. "
+                             "Operate Orcinus only through them, never through D-Bus or input automation.")}});
     }
     if (method == QLatin1String("ping")) {
         return response(id, QJsonObject());

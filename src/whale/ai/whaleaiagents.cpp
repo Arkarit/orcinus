@@ -400,6 +400,9 @@ QString defaultSystemPrompt()
         "Operate Orcinus only through these tools, never through D-Bus (qdbus, gdbus, busctl), keyboard or mouse "
         "automation: other Orcinus windows of the user may be running. If a tool for what you want is missing, tell the "
         "user instead of working around it.\n\n"
+        "Your Orcinus tools never change files: they only change what Orcinus shows (folder, selection, view, sorting, "
+        "window). They are allowed in every mode, also in a plan or read-only mode, so when the user asks you to show, "
+        "sort, select or arrange something, do it with them right away instead of presenting a plan.\n\n"
         "You work with the user's own permissions on their real files. Before you change, move or delete anything outside "
         "what they asked for, or anything that is hard to undo, say what you will do and ask first.");
 }
