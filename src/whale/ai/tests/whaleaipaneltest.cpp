@@ -1053,6 +1053,8 @@ void WhaleAiPanelTest::backChannel()
     QCOMPARE(settingCalls, 0);
     all = texts(panel);
     QVERIFY2(all.contains(QLatin1String("cannot be changed in the read-only mode")), qPrintable(all));
+    // The other modes by the names of the Mode list (the fake agent's "Ask" and "Auto").
+    QVERIFY2(all.contains(QLatin1String("(\\\"Ask\\\", \\\"Auto\\\")")), qPrintable(all));
     panel.chooseMode(QStringLiteral("auto"));
     QTRY_COMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_setting:General/ShowStatusBar=Disabled")));

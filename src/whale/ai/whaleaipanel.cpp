@@ -338,11 +338,18 @@ WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &act
             tool.call = [this, call = tool.call](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
                 const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
                 if (mode && !mode->currentValue.isEmpty() && mode->currentValue == WhaleAiAgents::restrictiveMode(*mode)) {
+                    // The names the user sees in the Mode list, so the agent does not guess them.
+                    QStringList others;
+                    for (const WhaleAcpConfigOption::Choice &choice : mode->choices) {
+                        if (choice.value != mode->currentValue) {
+                            others.append(QStringLiteral("\"%1\"").arg(choice.name.isEmpty() ? choice.value : choice.name));
+                        }
+                    }
                     *error = true;
                     return {{QStringLiteral("error"),
                              QStringLiteral("Settings cannot be changed in the read-only mode \"%1\". Tell the user to choose another "
-                                            "mode in the Mode list of the AI panel, then try again.")
-                                 .arg(modeName(mode->currentValue))}};
+                                            "mode in the Mode list of the AI panel (%2), then try again.")
+                                 .arg(modeName(mode->currentValue), others.join(QStringLiteral(", ")))}};
                 }
                 return call(arguments, error, notice);
             };
