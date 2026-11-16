@@ -782,7 +782,8 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   text/shown), the profile applied last (`lastProfile`, the window may have changed since), plus
   `list_items` from AI10. Shared core: the dev automation reads the agent's state as
   `agentWindow` instead of a common library; a full merge of both state readers did not pay off
-  (their formats serve different users). New AI10 scenario `tabs-question`.
+  (their formats serve different users). New AI10 scenario `tabs-question`: 3/3 PASS with one
+  get_window_state call (~26 s); full catalogue afterwards 13/13 PASS (2026-11-16, qwen3.8-27b, plan).
 - **AI9d – Settings.** `list_settings`, `set_setting` for the settings verified live.
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).
