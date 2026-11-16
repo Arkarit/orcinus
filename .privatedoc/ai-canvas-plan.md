@@ -1,6 +1,6 @@
 # AI canvas and tools (CV0–CV5)
 
-Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: plan only.
+Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike) done 2026-11-16.
 
 ## Problem
 
@@ -85,6 +85,48 @@ without Orcinus. Buttons that send commands to a backend ("Shuffle", "Render aga
   interceptor, XHR file access stays off (Qt 6 default). Check what remains possible and note it.
 - One crude tool end to end: QML with a button that calls a C++ `orcinus.copy()`.
 Result: notes in this plan, decisions for CV1–CV4.
+
+*CV0 results (done 2026-11-16).* Spike app in the session scratchpad (`cv0spike`: QMainWindow
+with QActions, a `QQuickWidget` in a dock, the viewer's `WhaleVideoPlayer` compiled in). Offscreen
+for keys, imports and KIO; video in a headless `kwin_wayland --virtual` (real OpenGL, no window on
+the user's desktop). All checks passed:
+- *Graphics:* `QQuickWidget` uses the OpenGL RHI on Wayland (software on "offscreen", as
+  expected).
+- *Video in QML works:* a `QQuickFramebufferObject` (`VideoOutput`) creates mpv's render context
+  in `createFramebufferObject()` (GL context current there), renders with `FLIP_Y = 0`, update
+  callback queued to `update()`; 24 frames in ~1 s of the test video, the grabbed framebuffer shows
+  the picture. It drives the *same* `WhaleVideoPlayer` as the viewer, so the QML player reuses
+  that class (`load`, pause, seek, position, loop); audio alone plays the same way. Offscreen (the
+  tests) the player has no output and the item stays empty, like the viewer's tests.
+  Caveat: the item needs the OpenGL RHI. If a user forces Vulkan (`QSG_RHI_BACKEND`), the video
+  item shows nothing; the canvas then says so (audio still plays).
+- *Keys:* with focus in the tool, a QML `Keys.onShortcutOverride` that accepts a key gets it, and
+  the window's action with the same shortcut does *not* fire (K, Right). Keys the tool does not
+  claim go to the window's actions: Delete and Ctrl+C fired the window's actions while the focus
+  was in the tool, which in Orcinus would delete the view's selection. QML `Shortcut` items work
+  inside the `QQuickWidget`. Focus back in the view, the window's shortcuts work again.
+  *Decision for CV2:* the canvas widget accepts ShortcutOverride for every key without
+  Ctrl/Alt/Meta (letters, digits, Space, Return, arrows, Delete, Backspace, …) while the focus is
+  in a tool, so plain keys never reach the window's actions; Ctrl/Alt combinations and F-keys pass
+  to the window unless the tool claims them.
+- *Imports:* a `QQmlAbstractUrlInterceptor` sees every `qmldir` lookup and can redirect it to a
+  missing file. With a deny list (`Qt/labs`, `QtQuick/LocalStorage`, `QtCore`, `QtMultimedia`,
+  `QtNetwork`, `QtWebEngine`, `QtWebView`, `QtWebChannel`, `QtTest`, `Qt5Compat`) these imports
+  fail with a load error, while `QtQuick`, `QtQuick.Controls` (+ Templates, impl, styles) and
+  `QtQuick.Layouts` load. Controls pulls in style modules (Fusion/Basic here; on Plasma
+  `org.kde.desktop`), so an allow list would have to follow styles: *decision: deny list*. A
+  relative directory import (`import "../../etc"`) loads, but only gives QML files of that folder,
+  no file access: harmless.
+- *Write holes in plain QtQuick:* `item.grabToImage(cb)` + `result.saveToFile(path)` **overwrote
+  an existing file** (PNG data) and cannot be intercepted; `Canvas.save()` wrote nothing here; XHR
+  `PUT` to `file://` is refused (Qt 6 default, `QML_XHR_ALLOW_FILE_WRITE` unset). This confirms
+  "guard rail, not sandbox": the trust dialog and the docs say that a tool can write files,
+  the `orcinus` API is the *intended* way (undo, trash). Orcinus never sets
+  `QML_XHR_ALLOW_FILE_WRITE`/`_READ`.
+- *KIO from QML:* a `Button` whose `onClicked` calls a C++ `orcinus.copy(urls, dest)` (a
+  `KIO::copy` recorded with `FileUndoManager::recordCopyJob`): a mouse click on the button ran the
+  job, the file arrived, and undo was offered ("Undo: Copy"). In Orcinus the jobs go through the
+  same helpers as AI9's file actions, so they also land in the agent's change log.
 
 **CV1 – Canvas panel and presenting.** Panel with tab bar and the "Canvas" tab; MCP tool
 `canvas_show` with typed blocks, no code execution: image, video, audio, text/Markdown, file list
