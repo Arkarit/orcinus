@@ -928,6 +928,12 @@ Steps:
     hung until the timeout; subagents are now off in the test config. Proposal for the user: a
     read-only back-channel tool listing the shown items with name, type, size and date (what the
     user sees), also usable in plan mode; and report the sort order (see above). Candidates for AI9c.
+  - Both proposals done (user, 2026-11-16; 7ef674d10): window tool `list_items` (read-only, items
+    in shown order with type, size, modified; paged) and the views' state (folder, mode, sorting,
+    hidden files) in `get_window_state` and in the answer of `trigger_action`. sort-size checks
+    that the answer names the right order. Real-agent rerun pending (LM Studio stopped).
+  - `whale_dev_mcp_m9_e2e` is flaky (about half the runs, `shell.itemInfoUrl` after a treemap
+    hover), also with the new dev state parts switched off: not caused by AI10.
 - **AI10b – Runner + first scenarios** (`src/whale/devmcp/tests/ai/`, Python, not in ctest):
   per scenario a fresh offscreen instance, new conversation, prompt, wait, collect state +
   transcript, judge, quit. About 5 scenarios with OpenCode/Qwen.
