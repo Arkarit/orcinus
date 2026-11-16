@@ -243,6 +243,7 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    QStringLiteral("set_window_state"),
                                    QStringLiteral("set_panel_width"),
                                    QStringLiteral("set_split_ratio"),
+                                   QStringLiteral("set_filter"),
                                    QStringLiteral("dismiss_message"),
                                    QStringLiteral("open_in_viewer"),
                                    QStringLiteral("control_viewer"),

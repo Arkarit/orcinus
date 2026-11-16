@@ -3274,6 +3274,21 @@ void DolphinMainWindowTest::testAiWindowTools()
     view->setNameFilter(QString());
     QTRY_COMPARE(view->items().count(), 3);
 
+    // set_filter (AI9e3): as typing into the filter bar; empty clears and closes it.
+    QJsonObject filtered = call(QStringLiteral("set_filter"), {{QStringLiteral("text"), QStringLiteral(".png")}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(notice.contains(QLatin1String(".png")));
+    QVERIFY(m_mainWindow->activeViewContainer()->isFilterBarVisible());
+    QTRY_COMPARE(view->items().count(), 2);
+    QCOMPARE(view->nameFilter(), QStringLiteral(".png"));
+    QCOMPARE(filtered.value(QLatin1String("filter")).toObject().value(QLatin1String("text")).toString(), QStringLiteral(".png"));
+    call(QStringLiteral("set_filter"), {{QStringLiteral("text"), 3}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_filter"), {{QStringLiteral("text"), QString()}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(!m_mainWindow->activeViewContainer()->isFilterBarVisible());
+    QTRY_COMPARE(view->items().count(), 3);
+
     // Items in the order shown, with sizes; read-only, no transcript line.
     view->setSortRole("size");
     view->setSortOrder(Qt::DescendingOrder);

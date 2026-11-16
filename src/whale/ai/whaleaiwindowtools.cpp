@@ -11,6 +11,7 @@
 #include "dolphintabpage.h"
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
+#include "filterbar/filterbar.h"
 #include "views/dolphinview.h"
 #include "whalestylemanager.h"
 #include "whalestyles.h"
@@ -456,6 +457,35 @@ QJsonObject listItems(DolphinMainWindow *window, const QJsonObject &arguments, b
     return result;
 }
 
+QJsonObject setFilter(DolphinMainWindow *window, const QJsonObject &arguments, bool *error, QString *notice)
+{
+    QJsonObject failure;
+    DolphinViewContainer *container = chosenView(window, arguments, error, &failure);
+    if (!container) {
+        return failure.isEmpty() ? failed(error, QStringLiteral("There is no view.")) : failure;
+    }
+    const QJsonValue textValue = arguments.value(QLatin1String("text"));
+    if (!textValue.isString()) {
+        return failed(error, QStringLiteral("\"text\" is the text to filter by, or empty to clear the filter."));
+    }
+    const QString text = textValue.toString();
+    auto *filterBar = container->findChild<FilterBar *>();
+    if (!filterBar) {
+        return failed(error, QStringLiteral("This view has no filter bar."));
+    }
+    if (text.isEmpty()) {
+        container->clearFilterBar();
+        container->setFilterBarVisible(false);
+        *notice = i18nc("@info", "The agent cleared the filter.");
+    } else {
+        // As the user types it: the bar opens and filters while the text changes.
+        container->setFilterBarVisible(true);
+        filterBar->setText(text);
+        *notice = i18nc("@info %1 is a text the view is filtered by", "The agent filtered the view by “%1”.", text);
+    }
+    return viewState(window, container);
+}
+
 QJsonObject dismissMessage(DolphinMainWindow *window, const QJsonObject &arguments, bool *error, QString *notice)
 {
     QJsonObject failure;
@@ -606,6 +636,15 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
          {{QStringLiteral("leftShare"), property(QStringLiteral("number"), QStringLiteral("Share of the left view, e.g. 0.5"))}},
          {QStringLiteral("leftShare")},
          bind(setSplitRatio)},
+        {QStringLiteral("set_filter"),
+         QStringLiteral("Filter a view of Orcinus by name"),
+         QStringLiteral("Shows only the items whose names contain the text (as the filter bar does; it opens), or clears the filter "
+                        "with an empty text. Only what is shown changes, nothing is saved. list_items lists what is left."),
+         false,
+         {{QStringLiteral("text"), property(QStringLiteral("string"), QStringLiteral("Text to filter by; empty clears the filter"))},
+          {QStringLiteral("view"), property(QStringLiteral("string"), pane, {QStringLiteral("left"), QStringLiteral("right")})}},
+         {QStringLiteral("text")},
+         bind(setFilter)},
         {QStringLiteral("dismiss_message"),
          QStringLiteral("Close a message in Orcinus"),
          QStringLiteral("Closes the messages shown above a view (as their close button does), e.g. \"Current location changed …\". "
