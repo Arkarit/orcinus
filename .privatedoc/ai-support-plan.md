@@ -814,6 +814,11 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   allows the tools in every mode (it names showing/sorting/arranging, not settings). Open
   decision for the user: say explicitly that set_setting is allowed in plan mode too, or let
   plan mode keep settings off (then the refusal is right).
+  Decision (user, 2026-11-16): b), settings stay unchanged in the read-only mode until AI9e;
+  enforced by the panel (set_setting refused there), said in prompt and MCP instructions
+  (ff3ff1dd1). Rerun ×3 each: plan mode 12/12 PASS (unchanged, pointed to the Mode list; the
+  confirmation refused), build mode 12/12 PASS (all three settings changed). Soft finding: in plan
+  mode the agent guessed mode names that do not exist ("Execute", "normal"; OpenCode has build).
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).
 
