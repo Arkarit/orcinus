@@ -30,6 +30,15 @@ def check_sort_size(state, transcript, folder):
     sort = pane(state)["sort"]
     if sort["field"] != "size":
         return FAIL, f"sorted by {sort['field']}"
+    # The answer must name the order the user sees, if it names one (it never checked, AI10b).
+    answers = [e["text"].lower() for e in transcript["entries"] if e["kind"] == "agent"]
+    answer = answers[-1] if answers else ""
+    claims_up = any(word in answer for word in ("aufsteigend", "ascending", "kleinste zuerst", "smallest first"))
+    claims_down = any(word in answer for word in ("absteigend", "descending", "größte zuerst", "largest first"))
+    if sort["order"] == "descending" and claims_up and not claims_down:
+        return ACCEPTABLE, "size, descending, but the answer says ascending"
+    if sort["order"] == "ascending" and claims_down and not claims_up:
+        return ACCEPTABLE, "size, ascending, but the answer says descending"
     return PASS, f"size, {sort['order']}"
 
 

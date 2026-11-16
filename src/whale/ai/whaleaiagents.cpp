@@ -395,7 +395,7 @@ QString defaultSystemPrompt()
         "they are, set_location to open a folder, select_items to select files in it, and list_actions and trigger_action "
         "to run the commands of the Orcinus window (view modes, sorting, panels, split view, profiles, ...), "
         "get_window_state and the window tools for the window size, panel widths, the split, messages and the built-in "
-        "viewer. Prefer these "
+        "viewer, and list_items for what a view shows (names, sizes, dates, in the order shown). Prefer these "
         "over guessing paths, and use them to show the user a result; they see every change you make.\n\n"
         "Operate Orcinus only through these tools, never through D-Bus (qdbus, gdbus, busctl), keyboard or mouse "
         "automation: other Orcinus windows of the user may be running. If a tool for what you want is missing, tell the "

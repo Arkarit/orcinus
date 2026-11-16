@@ -238,6 +238,7 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
 {
     // Each changes only what the user sees (or reads it), no file: answered without a click.
     static const QStringList names{QStringLiteral("get_window_state"),
+                                   QStringLiteral("list_items"),
                                    QStringLiteral("set_window_state"),
                                    QStringLiteral("set_panel_width"),
                                    QStringLiteral("set_split_ratio"),
@@ -679,7 +680,16 @@ QJsonObject WhaleAiMcpServer::triggerAction(const QJsonObject &arguments, bool *
     const WhaleAiUiAction after = find().value_or(*before);
     *error = false;
     Q_EMIT actionTriggered(after);
-    return describe(after);
+    QJsonObject result = describe(after);
+    // What the view is like now: a command can change more than it says (Sort By ▸ Size also
+    // sorts descending), and the agent should report what the user sees.
+    if (m_viewActions.viewState) {
+        const QJsonObject view = m_viewActions.viewState();
+        if (!view.isEmpty()) {
+            result.insert(QStringLiteral("view"), view);
+        }
+    }
+    return result;
 }
 
 QJsonObject WhaleAiMcpServer::location()

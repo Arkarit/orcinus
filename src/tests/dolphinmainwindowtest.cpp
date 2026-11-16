@@ -3057,6 +3057,39 @@ void DolphinMainWindowTest::testAiWindowTools()
     }
     QVERIFY(panelIds.contains(QStringLiteral("places")));
     QVERIFY(panelIds.contains(QStringLiteral("ai")));
+    // The views: folder, mode and sorting, so the agent can report what the user sees (AI10).
+    const QJsonArray viewStates = state.value(QLatin1String("views")).toArray();
+    QCOMPARE(viewStates.size(), 1);
+    QCOMPARE(viewStates.first().toObject().value(QLatin1String("folder")).toString(), testDir->path());
+    QCOMPARE(viewStates.first().toObject().value(QLatin1String("sort")).toObject().value(QLatin1String("by")).toString(), QStringLiteral("name"));
+
+    // Items in the order shown, with sizes; read-only, no transcript line.
+    view->setSortRole("size");
+    view->setSortOrder(Qt::DescendingOrder);
+    QJsonObject listed = call(QStringLiteral("list_items"), {}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(notice.isEmpty());
+    QCOMPARE(listed.value(QLatin1String("sort")).toObject().value(QLatin1String("by")).toString(), QStringLiteral("size"));
+    QCOMPARE(listed.value(QLatin1String("sort")).toObject().value(QLatin1String("order")).toString(), QStringLiteral("descending"));
+    QJsonArray listedItems = listed.value(QLatin1String("items")).toArray();
+    QCOMPARE(listedItems.size(), 3);
+    QStringList listedNames;
+    for (const QJsonValue &entry : listedItems) {
+        listedNames.append(entry.toObject().value(QLatin1String("name")).toString());
+        QVERIFY(entry.toObject().contains(QLatin1String("size")));
+        QVERIFY(entry.toObject().contains(QLatin1String("modified")));
+    }
+    QCOMPARE(listedNames.last(), QStringLiteral("c.txt")); // empty, so the smallest
+    QCOMPARE(listed.value(QLatin1String("truncated")).toBool(), false);
+    listed = call(QStringLiteral("list_items"), {{QStringLiteral("offset"), 1}, {QStringLiteral("limit"), 1}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(listed.value(QLatin1String("items")).toArray().size(), 1);
+    QCOMPARE(listed.value(QLatin1String("items")).toArray().first().toObject().value(QLatin1String("name")).toString(), listedNames.at(1));
+    QCOMPARE(listed.value(QLatin1String("truncated")).toBool(), true);
+    call(QStringLiteral("list_items"), {{QStringLiteral("view"), QStringLiteral("right")}}, &error);
+    QVERIFY(error);
+    view->setSortRole("text");
+    view->setSortOrder(Qt::AscendingOrder);
 
     // Window: a size; no minimizing.
     call(QStringLiteral("set_window_state"), {{QStringLiteral("width"), 700}, {QStringLiteral("height"), 500}}, &error, &notice);

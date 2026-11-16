@@ -53,6 +53,8 @@ struct WhaleAiViewActions {
     std::function<int()> activePane;
     /** Tools of the window (AI9); see WhaleAiWindowTool. */
     QList<WhaleAiWindowTool> windowTools;
+    /** The active view after a command: folder, mode, sorting (optional). */
+    std::function<QJsonObject()> viewState;
 };
 
 class QLocalServer;

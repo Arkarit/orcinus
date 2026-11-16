@@ -33,6 +33,9 @@
 
 namespace
 {
+constexpr int DefaultItemLimit = 200;
+constexpr int MaxItemLimit = 500;
+
 QJsonObject property(const QString &type, const QString &description, const QStringList &choices = {})
 {
     QJsonObject result{{QStringLiteral("type"), type}, {QStringLiteral("description"), description}};
@@ -158,6 +161,58 @@ QJsonObject viewerState()
     return state;
 }
 
+QString sortFieldName(const QByteArray &role)
+{
+    // The names of the Sort By menu, as the agent knows them from list_actions.
+    if (role == "text") {
+        return QStringLiteral("name");
+    }
+    if (role == "modificationtime") {
+        return QStringLiteral("modified");
+    }
+    if (role == "creationtime") {
+        return QStringLiteral("created");
+    }
+    if (role == "accesstime") {
+        return QStringLiteral("accessed");
+    }
+    return QString::fromLatin1(role);
+}
+
+QString viewModeName(DolphinView::Mode mode)
+{
+    switch (mode) {
+    case DolphinView::IconsView:
+        return QStringLiteral("icons");
+    case DolphinView::CompactView:
+        return QStringLiteral("compact");
+    case DolphinView::DetailsView:
+        return QStringLiteral("details");
+    }
+    return QString();
+}
+
+QString folderOf(DolphinViewContainer *container)
+{
+    return container->url().isLocalFile() ? container->url().toLocalFile() : container->rootItem().localPath();
+}
+
+/** What a view shows and how: its folder, mode, sorting and hidden files. */
+QJsonObject viewState(DolphinMainWindow *window, DolphinViewContainer *container)
+{
+    const DolphinView *view = container->view();
+    const QString folder = folderOf(container);
+    return {{QStringLiteral("view"), viewName(window, container)},
+            {QStringLiteral("folder"), folder.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(folder)},
+            {QStringLiteral("mode"), viewModeName(view->viewMode())},
+            {QStringLiteral("sort"),
+             QJsonObject{{QStringLiteral("by"), sortFieldName(view->sortRole())},
+                         {QStringLiteral("order"), view->sortOrder() == Qt::DescendingOrder ? QStringLiteral("descending") : QStringLiteral("ascending")},
+                         {QStringLiteral("foldersFirst"), view->sortFoldersFirst()}}},
+            {QStringLiteral("hiddenFiles"), view->hiddenFilesShown()},
+            {QStringLiteral("itemCount"), int(view->items().count())}};
+}
+
 QJsonObject getWindowState(DolphinMainWindow *window)
 {
     QJsonObject windowObject{{QStringLiteral("width"), window->width()},
@@ -206,7 +261,13 @@ QJsonObject getWindowState(DolphinMainWindow *window)
         }
     }
 
+    QJsonArray viewArray;
+    for (DolphinViewContainer *container : all) {
+        viewArray.append(viewState(window, container));
+    }
+
     return {{QStringLiteral("window"), windowObject},
+            {QStringLiteral("views"), viewArray},
             {QStringLiteral("panels"), panelArray},
             {QStringLiteral("splitView"), split},
             {QStringLiteral("messages"), messageArray},
@@ -321,6 +382,46 @@ DolphinViewContainer *chosenView(DolphinMainWindow *window, const QJsonObject &a
     return all.at(view == QLatin1String("left") ? 0 : 1);
 }
 
+QJsonObject listItems(DolphinMainWindow *window, const QJsonObject &arguments, bool *error, QString *)
+{
+    QJsonObject failure;
+    DolphinViewContainer *container = chosenView(window, arguments, error, &failure);
+    if (!container) {
+        return failure.isEmpty() ? failed(error, QStringLiteral("There is no view.")) : failure;
+    }
+    const QJsonValue offsetValue = arguments.value(QLatin1String("offset"));
+    const QJsonValue limitValue = arguments.value(QLatin1String("limit"));
+    if ((!offsetValue.isUndefined() && !offsetValue.isDouble()) || (!limitValue.isUndefined() && !limitValue.isDouble())) {
+        return failed(error, QStringLiteral("\"offset\" and \"limit\" are numbers."));
+    }
+    const int offset = qMax(0, offsetValue.toInt(0));
+    const int limit = qBound(1, limitValue.toInt(DefaultItemLimit), MaxItemLimit);
+
+    const QString folder = folderOf(container);
+    const KFileItemList items = container->view()->items();
+    QJsonArray entries;
+    for (int i = offset; i < items.count() && entries.size() < limit; ++i) {
+        const KFileItem &item = items.at(i);
+        // Expanded folders (details view) show their content too: relative to the view's folder.
+        const QString path = item.localPath();
+        const QString name = !folder.isEmpty() && !path.isEmpty() ? QDir(folder).relativeFilePath(path) : item.text();
+        QJsonObject entry{{QStringLiteral("name"), name}, {QStringLiteral("type"), item.isDir() ? QStringLiteral("folder") : item.mimeComment()}};
+        if (!item.isDir()) {
+            entry.insert(QStringLiteral("size"), double(item.size()));
+        }
+        const QDateTime modified = item.time(KFileItem::ModificationTime);
+        if (modified.isValid()) {
+            entry.insert(QStringLiteral("modified"), modified.toString(Qt::ISODate));
+        }
+        entries.append(entry);
+    }
+    QJsonObject result = viewState(window, container);
+    result.insert(QStringLiteral("offset"), offset);
+    result.insert(QStringLiteral("items"), entries);
+    result.insert(QStringLiteral("truncated"), offset + entries.size() < items.count());
+    return result;
+}
+
 QJsonObject dismissMessage(DolphinMainWindow *window, const QJsonObject &arguments, bool *error, QString *notice)
 {
     QJsonObject failure;
@@ -420,7 +521,8 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
     return {
         {QStringLiteral("get_window_state"),
          QStringLiteral("Get the state of the Orcinus window"),
-         QStringLiteral("Returns the Orcinus window the user is chatting from: size and state (normal, maximized, fullscreen), the panels "
+         QStringLiteral("Returns the Orcinus window the user is chatting from: size and state (normal, maximized, fullscreen), the views "
+                        "(folder, mode, sorting, hidden files), the panels "
                         "(id, visible, width), the split view (left share, active view), the messages shown above the views, and the "
                         "built-in viewer (open, file, index)."),
          true,
@@ -429,6 +531,17 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
          bind([](DolphinMainWindow *window, const QJsonObject &, bool *, QString *) {
              return getWindowState(window);
          })},
+        {QStringLiteral("list_items"),
+         QStringLiteral("List what a view of Orcinus shows"),
+         QStringLiteral("Returns the files and folders a view shows, in the order the user sees them, with type, size in bytes (files) "
+                        "and modification date, plus the view's folder, mode and sorting. Read-only: use it to answer questions about "
+                        "the folder (largest file, newest file, ...) or to check the result of a command. Pages with offset and limit."),
+         true,
+         {{QStringLiteral("view"), property(QStringLiteral("string"), pane, {QStringLiteral("left"), QStringLiteral("right")})},
+          {QStringLiteral("offset"), property(QStringLiteral("integer"), QStringLiteral("First item, default 0"))},
+          {QStringLiteral("limit"), property(QStringLiteral("integer"), QStringLiteral("At most this many items, default 200, at most 500"))}},
+         {},
+         bind(listItems)},
         {QStringLiteral("set_window_state"),
          QStringLiteral("Resize or maximize the Orcinus window"),
          QStringLiteral("Sets the Orcinus window to normal, maximized or fullscreen, or resizes it (width and height in pixels, normal "
@@ -498,4 +611,10 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
 QJsonObject WhaleAiWindowTools::state(DolphinMainWindow *window)
 {
     return getWindowState(window);
+}
+
+QJsonObject WhaleAiWindowTools::activeViewState(DolphinMainWindow *window)
+{
+    DolphinViewContainer *container = window->activeViewContainer();
+    return container ? viewState(window, container) : QJsonObject();
 }

@@ -2802,6 +2802,9 @@ void DolphinMainWindow::setupDockWidgets()
             return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
         },
         WhaleAiWindowTools::create(this),
+        [this] {
+            return WhaleAiWindowTools::activeViewState(this);
+        },
     });
     // While the panel is hidden it asks when it is shown again.
     auto refreshAiContext = [aiPanel] {

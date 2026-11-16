@@ -26,6 +26,9 @@ QList<WhaleAiWindowTool> create(DolphinMainWindow *window);
 
 /** What get_window_state answers the agent; also for the development automation (AI10). */
 QJsonObject state(DolphinMainWindow *window);
+
+/** The folder, mode, sorting and hidden files of the active view, as get_window_state shows a view. */
+QJsonObject activeViewState(DolphinMainWindow *window);
 }
 
 #endif

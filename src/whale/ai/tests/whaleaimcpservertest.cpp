@@ -358,6 +358,9 @@ struct FakeWindow {
             panes.append(pane);
             return split;
         };
+        result.viewState = [this] {
+            return QJsonObject{{QStringLiteral("mode"), actions[1].checked ? QStringLiteral("details") : QStringLiteral("icons")}};
+        };
         return result;
     }
 };
@@ -453,9 +456,10 @@ void WhaleAiMcpServerTest::triggerAction()
     QVERIFY(window.triggered.isEmpty());
     QCOMPARE(spy.count(), 0);
 
-    // A plain command; the state afterwards comes back.
+    // A plain command; the state afterwards comes back, with the view as it is now.
     result = trigger(name(QStringLiteral("go_home")), &error);
     QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("view")).toObject().value(QLatin1String("mode")).toString(), QStringLiteral("icons"));
     QCOMPARE(window.triggered, QStringList{QStringLiteral("go_home")});
     QCOMPARE(spy.count(), 1);
     // On/off with the state wanted: toggles once, then nothing.
