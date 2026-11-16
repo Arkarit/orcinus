@@ -12,6 +12,7 @@ target_sources(whaledevautomation PRIVATE
     automation/whaledevautomation.cpp
     automation/whaledevautomationdbus.cpp
     automation/whaledevtoolbars.cpp
+    automation/whaledevai.cpp
 )
 
 target_include_directories(whaledevautomation PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/automation)
