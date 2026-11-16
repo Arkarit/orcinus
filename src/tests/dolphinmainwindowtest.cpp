@@ -24,11 +24,13 @@
 #include "search/bar.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "settings/viewpropertiesdialog.h"
+#include "statusbar/dolphinstatusbar.h"
 #include "testdir.h"
 #include "views/dolphinitemlistview.h"
 #include "views/viewproperties.h"
 #include "views/zoomlevelinfo.h"
 #include "whaleaipanel.h"
+#include "whaleaisettingstools.h"
 #include "whalesplitviewstartup.h"
 #include "whaleviewer.h"
 
@@ -59,6 +61,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUrlQuery>
+#include <QXmlStreamReader>
 
 #include "testhelpers.h"
 
@@ -137,6 +140,7 @@ private Q_SLOTS:
     void testFileItemActionsOutliveContextMenu();
     void testAiAgentCommands();
     void testAiWindowTools();
+    void testAiSettingsTools();
     void cleanupTestCase();
 
 private:
@@ -3009,6 +3013,142 @@ void DolphinMainWindowTest::testAiAgentCommands()
     QVERIFY(actions.activatePane(0));
     QCOMPARE(m_mainWindow->activeViewContainer(), tabPage->primaryViewContainer());
 }
+void DolphinMainWindowTest::testAiSettingsTools()
+{
+    // The settings of the agent's back channel (AI9d): an allow-list, applied as the dialog does.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createFile(QStringLiteral("a.txt"));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    QVERIFY(tools.contains(QStringLiteral("list_settings")) && tools.contains(QStringLiteral("set_setting")));
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+
+    // Only the allow-list: no confirmations, no home folder, no internal entries.
+    const QStringList keys = WhaleAiSettingsTools::keys();
+    QVERIFY(keys.size() > 50);
+    QVERIFY(keys.contains(QStringLiteral("General/ShowStatusBar")));
+    QVERIFY(keys.contains(QStringLiteral("IconsMode/IconSize")));
+    for (const QString &key : keys) {
+        QVERIFY2(!key.contains(QLatin1String("Confirm")) && !key.contains(QLatin1String("HomeUrl")) && !key.contains(QLatin1String("Version")),
+                 qPrintable(key));
+    }
+    // Every entry exists in the .kcfg files, and the choices of the enums are theirs, in their order.
+    QHash<QString, QStringList> kcfgEntries; // key -> choices
+    const QStringList kcfgFiles{QStringLiteral("settings/dolphin_generalsettings.kcfg"),
+                                QStringLiteral("settings/dolphin_contentdisplaysettings.kcfg"),
+                                QStringLiteral("settings/dolphin_detailsmodesettings.kcfg"),
+                                QStringLiteral("settings/dolphin_iconsmodesettings.kcfg"),
+                                QStringLiteral("settings/dolphin_compactmodesettings.kcfg"),
+                                QStringLiteral("settings/dolphin_contextmenusettings.kcfg"),
+                                QStringLiteral("panels/folders/dolphin_folderspanelsettings.kcfg"),
+                                QStringLiteral("panels/places/dolphin_placespanelsettings.kcfg")};
+    for (const QString &name : kcfgFiles) {
+        QFile file(QStringLiteral(QT_TESTCASE_SOURCEDIR "/../") + name);
+        QVERIFY2(file.open(QIODevice::ReadOnly), qPrintable(file.fileName()));
+        QXmlStreamReader xml(&file);
+        QString group;
+        QString entry;
+        while (!xml.atEnd()) {
+            if (xml.readNext() != QXmlStreamReader::StartElement) {
+                continue;
+            }
+            if (xml.name() == QLatin1String("group")) {
+                group = xml.attributes().value(QLatin1String("name")).toString();
+            } else if (xml.name() == QLatin1String("entry")) {
+                entry = group + QLatin1Char('/') + xml.attributes().value(QLatin1String("name")).toString();
+                kcfgEntries.insert(entry, {});
+            } else if (xml.name() == QLatin1String("choice")) {
+                kcfgEntries[entry].append(xml.attributes().value(QLatin1String("name")).toString());
+            }
+        }
+    }
+    for (const QString &key : keys) {
+        QVERIFY2(kcfgEntries.contains(key), qPrintable(key));
+        QCOMPARE(WhaleAiSettingsTools::choices(key), kcfgEntries.value(key));
+    }
+
+    QJsonObject listed = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("statusbar")}}, &error);
+    QVERIFY(!error);
+    const QJsonArray found = listed.value(QLatin1String("settings")).toArray();
+    QVERIFY(!found.isEmpty());
+    QJsonObject statusBar;
+    for (const QJsonValue &entry : found) {
+        if (entry.toObject().value(QLatin1String("key")).toString() == QLatin1String("General/ShowStatusBar")) {
+            statusBar = entry.toObject();
+        }
+    }
+    QCOMPARE(statusBar.value(QLatin1String("type")).toString(), QStringLiteral("enum"));
+    QVERIFY(statusBar.value(QLatin1String("choices")).toArray().contains(QStringLiteral("Disabled")));
+    QCOMPARE(statusBar.value(QLatin1String("applies")).toString(), QStringLiteral("now"));
+    const QString previous = statusBar.value(QLatin1String("value")).toString();
+
+    // Wrong keys and values: errors, nothing changes.
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ConfirmClosingMultipleTabs")}, {QStringLiteral("value"), false}},
+         &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_setting"),
+         {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Huge")}},
+         &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowZoomSlider")}, {QStringLiteral("value"), 1}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("IconsMode/IconSize")}, {QStringLiteral("value"), 1.5}}, &error);
+    QVERIFY(error);
+
+    // A change applies at once, as the dialog's Apply: the status bar goes, and comes back.
+    auto *statusBarWidget = m_mainWindow->activeViewContainer()->findChild<DolphinStatusBar *>();
+    QVERIFY(statusBarWidget);
+    QJsonObject result = call(QStringLiteral("set_setting"),
+                              {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), QStringLiteral("Disabled")}},
+                              &error,
+                              &notice);
+    QVERIFY2(!error, qPrintable(QJsonDocument(result).toJson()));
+    QCOMPARE(result.value(QLatin1String("value")).toString(), QStringLiteral("Disabled"));
+    QCOMPARE(result.value(QLatin1String("previous")).toString(), previous);
+    QVERIFY(!notice.isEmpty());
+    QCOMPARE(GeneralSettings::showStatusBar(), int(GeneralSettings::EnumShowStatusBar::Disabled));
+    QTRY_VERIFY(!statusBarWidget->isVisible());
+    // The same value again: nothing to do, no transcript line.
+    result = call(QStringLiteral("set_setting"),
+                  {{QStringLiteral("key"), QStringLiteral("general/showstatusbar")}, {QStringLiteral("value"), QStringLiteral("disabled")}},
+                  &error,
+                  &notice);
+    QVERIFY(!error);
+    QVERIFY(result.value(QLatin1String("unchanged")).toBool());
+    QVERIFY(notice.isEmpty());
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowStatusBar")}, {QStringLiteral("value"), previous}}, &error);
+    QVERIFY(!error);
+    QTRY_VERIFY(statusBarWidget->isVisible());
+
+    // Booleans; and an entry that acts next time says so.
+    const bool zoomSlider = GeneralSettings::showZoomSlider();
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowZoomSlider")}, {QStringLiteral("value"), !zoomSlider}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(GeneralSettings::showZoomSlider(), !zoomSlider);
+    call(QStringLiteral("set_setting"), {{QStringLiteral("key"), QStringLiteral("General/ShowZoomSlider")}, {QStringLiteral("value"), zoomSlider}}, &error);
+    QVERIFY(!error);
+    listed = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("SplitViewAtStartup")}}, &error);
+    QCOMPARE(listed.value(QLatin1String("settings")).toArray().first().toObject().value(QLatin1String("applies")).toString(), QStringLiteral("next time"));
+}
+
 void DolphinMainWindowTest::testAiWindowTools()
 {
     // The window tools of the agent (AI9): what the commands of the window do not cover.

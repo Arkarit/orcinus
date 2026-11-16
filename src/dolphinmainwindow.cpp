@@ -30,6 +30,7 @@
 #include "panels/terminal/terminalpanel.h"
 #if WHALE_ENABLE_AI
 #include "whaleaipanel.h"
+#include "whaleaisettingstools.h"
 #include "whaleaiwindowtools.h"
 #endif
 #include "search/dolphinquery.h"
@@ -2801,7 +2802,7 @@ void DolphinMainWindow::setupDockWidgets()
             }
             return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
         },
-        WhaleAiWindowTools::create(this),
+        WhaleAiWindowTools::create(this) + WhaleAiSettingsTools::create(this),
         [this] {
             return WhaleAiWindowTools::activeViewState(this);
         },

@@ -785,6 +785,28 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   (their formats serve different users). New AI10 scenario `tabs-question`: 3/3 PASS with one
   get_window_state call (~26 s); full catalogue afterwards 13/13 PASS (2026-11-16, qwen3.8-27b, plan).
 - **AI9d – Settings.** `list_settings`, `set_setting` for the settings verified live.
+  Plan 2026-11-16: window tools (`whaleaisettingstools.{h,cpp}`), so the window applies them as the
+  settings dialog's Apply does: write the skeleton, save, `refreshViews()` (private slot, by
+  invokeMethod) and `DolphinUrlNavigatorsController::slotReadSettings()`. An **allow-list** of
+  KConfigXT entries whose dialog page only writes the value (no side effects), keys
+  `Group/Entry`; types bool, int/uint (with the item's min/max), enum (choice names), string only
+  where harmless. Each entry says `applies`: `now`, or `next time` (it acts on what happens next:
+  new windows/tabs, the next rename, ...). Excluded in this round: confirmations (Confirm*), home
+  folder (needs a stat), internal entries (Version, ModifiedStartupSettings, ViewPropsTimestamp),
+  GlobalViewProps (copies view properties), RememberOpenedTabs (off deletes the window state),
+  HighlightEntireRow and paddings (the page adjusts paddings), fonts, column positions,
+  DoubleClickView*(a custom action runs a command), LockPanels (read only when the docks are
+  created; the lock_panels action covers it), search, VCS plugins, Information panel (Baloo
+  only), all hand-written keys (toolbars, viewer, styles, tint, highlighting, AI). Transcript:
+  "The agent changed the setting “…” to ….". Undo is AI9e. The prompt no longer says "never change
+  files" alone: set_setting changes Orcinus' saved settings.
+  Done 2026-11-16: 67 entries (General 24, ContentDisplay 5, Details/Icons/Compact 7/8/7,
+  ContextMenu 12, Folders panel 3, Places panel 1); UrlCompletionMode left out too (no choices in
+  the .kcfg). Entries with a change signal are wrapped in KConfigCompilerSignallingItem, which hides
+  the ItemEnum: the enum choices are a table, checked against the .kcfg files by
+  `dolphinmainwindowtest::testAiSettingsTools` (also: status bar off/on live). Four AI10 scenarios
+  read the run's orcinusrc: status bar off, bigger icons (lasting), Copy/Move To in the context
+  menu, and a confirmation the agent must not turn off.
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).
 

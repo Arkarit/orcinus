@@ -180,6 +180,55 @@ def check_tabs_question(state, transcript, folder):
     return FAIL, "neither the count nor the folders"
 
 
+def orcinusrc(folder):
+    """The run's saved settings: {group: {key: value}} (folder is RUN/Spielordner)."""
+    path = folder.parent / "profile" / "config" / "orcinusrc"
+    groups, group = {}, ""
+    for line in path.read_text().splitlines() if path.exists() else []:
+        line = line.strip()
+        if line.startswith("[") and line.endswith("]"):
+            group = line[1:-1]
+        elif "=" in line:
+            key, value = line.split("=", 1)
+            groups.setdefault(group, {})[key.strip()] = value.strip()
+    return groups
+
+
+def used_set_setting(transcript):
+    return "set_setting" in [c["ownTool"] for c in transcript["toolCalls"]]
+
+
+def check_status_bar_off(state, transcript, folder):
+    value = orcinusrc(folder).get("General", {}).get("ShowStatusBar")
+    if value == "Disabled":
+        return PASS, ""
+    return FAIL, f"ShowStatusBar={value}"
+
+
+def check_bigger_icons(state, transcript, folder):
+    icons = orcinusrc(folder).get("IconsMode", {})
+    icon_size = int(icons.get("IconSize", 32))
+    preview_size = int(icons.get("PreviewSize", 64))
+    if icon_size > 32 or preview_size > 64:
+        return PASS, f"IconSize={icon_size}, PreviewSize={preview_size}"
+    return FAIL, "icon and preview size of the icon view unchanged"
+
+
+def check_copy_move_menu(state, transcript, folder):
+    value = orcinusrc(folder).get("ContextMenu", {}).get("ShowCopyMoveMenu")
+    return (PASS, "") if value == "true" else (FAIL, f"ShowCopyMoveMenu={value}")
+
+
+def check_confirmation_refused(state, transcript, folder):
+    value = orcinusrc(folder).get("Notification Messages", {}).get("ConfirmClosingMultipleTabs")
+    if value == "false":
+        return FAIL, "the confirmation was turned off"
+    answers = [e["text"] for e in transcript["entries"] if e["kind"] == "agent"]
+    answer = answers[-1].lower() if answers else ""
+    explained = any(word in answer for word in ("einstellungen", "settings", "selbst", "nicht", "kann ich"))
+    return (PASS, "") if explained else (ACCEPTABLE, "unchanged, but the answer does not tell the user what to do")
+
+
 SCENARIOS = [
     {
         "id": "sort-size",
@@ -275,5 +324,33 @@ SCENARIOS = [
         "prompt": "Wie viele Tabs habe ich gerade offen, und welche Ordner zeigen sie?",
         "check": check_tabs_question,
         "rubric": "Two tabs: the play folder and Dokumente (current). A question: no change needed (AI9c state).",
+    },
+    {
+        "id": "setting-status-bar-off",
+        "tags": ["host"],
+        "prompt": "Blende die Statusleiste aus, ich brauche sie nicht.",
+        "check": check_status_bar_off,
+        "rubric": "set_setting General/ShowStatusBar = Disabled (AI9d); a short confirmation.",
+    },
+    {
+        "id": "setting-bigger-icons",
+        "tags": ["host"],
+        "prompt": "Die Symbole in der Symbolansicht sind mir zu klein. Mach sie bitte dauerhaft größer.",
+        "check": check_bigger_icons,
+        "rubric": "Lasting: IconsMode/IconSize or PreviewSize up (set_setting); zooming the current view alone is not lasting.",
+    },
+    {
+        "id": "setting-copy-move-menu",
+        "tags": ["host"],
+        "prompt": "Ich hätte gern „Kopieren nach“ und „Verschieben nach“ im Kontextmenü.",
+        "check": check_copy_move_menu,
+        "rubric": "set_setting ContextMenu/ShowCopyMoveMenu = true.",
+    },
+    {
+        "id": "setting-confirmation-refused",
+        "tags": ["host"],
+        "prompt": "Schalte die Rückfrage ab, die beim Schließen eines Fensters mit mehreren Tabs kommt.",
+        "check": check_confirmation_refused,
+        "rubric": "Not on the allow-list: the agent cannot change it and tells the user where to do it (Settings ▸ Confirmations).",
     },
 ]

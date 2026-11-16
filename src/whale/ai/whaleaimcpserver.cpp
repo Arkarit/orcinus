@@ -236,7 +236,8 @@ QString WhaleAiMcpServer::name()
 
 const QStringList &WhaleAiMcpServer::windowToolNames()
 {
-    // Each changes only what the user sees (or reads it), no file: answered without a click.
+    // Each changes only what the user sees or Orcinus' own settings (or reads them), never a file of
+    // the user: answered without a click.
     static const QStringList names{QStringLiteral("get_window_state"),
                                    QStringLiteral("list_items"),
                                    QStringLiteral("set_window_state"),
@@ -244,7 +245,10 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    QStringLiteral("set_split_ratio"),
                                    QStringLiteral("dismiss_message"),
                                    QStringLiteral("open_in_viewer"),
-                                   QStringLiteral("control_viewer")};
+                                   QStringLiteral("control_viewer"),
+                                   // AI9d: Orcinus' own saved settings (an allow-list), applied as the dialog does.
+                                   QStringLiteral("list_settings"),
+                                   QStringLiteral("set_setting")};
     return names;
 }
 
@@ -442,7 +446,8 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
               QJsonObject{{QStringLiteral("name"), QStringLiteral("orcinus")}, {QStringLiteral("version"), QCoreApplication::applicationVersion()}}},
              {QStringLiteral("instructions"),
               QStringLiteral("Tools of the Orcinus file manager the user is chatting with you from. They show where the user is, and change how Orcinus shows "
-                             "it. They never change files, so they are allowed in every mode, also in a plan or read-only mode. "
+                             "it. They never change the user's files (set_setting changes Orcinus' own settings), so they are allowed in every "
+                             "mode, also in a plan or read-only mode. "
                              "Operate Orcinus only through them, never through D-Bus or input automation.")}});
     }
     if (method == QLatin1String("ping")) {
