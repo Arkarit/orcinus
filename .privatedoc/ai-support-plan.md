@@ -777,6 +777,12 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   here; adjust the plan.
 - **AI9b – Actions.** `list_actions`, `trigger_action`, block list, transcript lines, tests.
 - **AI9c – State.** `get_ui_state` from a core shared with the dev automation.
+  Done 2026-11-16 as part of `get_window_state` (no separate get_ui_state): tabs (current, folders
+  of each), views of the current tab (folder, mode, sort, grouping, previews, hidden files, filter
+  text/shown), the profile applied last (`lastProfile`, the window may have changed since), plus
+  `list_items` from AI10. Shared core: the dev automation reads the agent's state as
+  `agentWindow` instead of a common library; a full merge of both state readers did not pay off
+  (their formats serve different users). New AI10 scenario `tabs-question`.
 - **AI9d – Settings.** `list_settings`, `set_setting` for the settings verified live.
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).

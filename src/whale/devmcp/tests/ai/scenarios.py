@@ -14,6 +14,8 @@ Tags: `host` scenarios only change the window (safe on the host); `vm` scenarios
 dangerous things and run only in the VM (user, 2026-11-16). There are none of them yet.
 """
 
+import re
+
 PASS, ACCEPTABLE, FAIL, UNCLEAR = "PASS", "ACCEPTABLE", "FAIL", "UNCLEAR"
 
 
@@ -166,6 +168,18 @@ def check_icons_type(state, transcript, folder):
     return PASS, ""
 
 
+def check_tabs_question(state, transcript, folder):
+    answers = [e["text"] for e in transcript["entries"] if e["kind"] == "agent"]
+    answer = answers[-1] if answers else ""
+    count = re.search(r"(\b2\b|\bzwei\b)\s*(offene\s+)?tabs?\b", answer, re.IGNORECASE) is not None
+    names = "Dokumente" in answer and folder.name in answer
+    if count and names:
+        return PASS, ""
+    if count or names:
+        return ACCEPTABLE, f"count named: {count}, both folders named: {names}"
+    return FAIL, "neither the count nor the folders"
+
+
 SCENARIOS = [
     {
         "id": "sort-size",
@@ -252,5 +266,14 @@ SCENARIOS = [
         "prompt": "Switch to the icon view and sort by type.",
         "check": check_icons_type,
         "rubric": "English prompt, English answer. Icons + sorted by type.",
+    },
+    {
+        "id": "tabs-question",
+        "tags": ["host"],
+        "setup": [{"tool": "trigger_action", "arguments": {"action": "new_tab"}},
+                  {"tool": "set_location", "arguments": {"url": "{folder}/Dokumente"}}],
+        "prompt": "Wie viele Tabs habe ich gerade offen, und welche Ordner zeigen sie?",
+        "check": check_tabs_question,
+        "rubric": "Two tabs: the play folder and Dokumente (current). A question: no change needed (AI9c state).",
     },
 ]

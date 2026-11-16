@@ -12,6 +12,8 @@
 #include "dolphintabwidget.h"
 #include "dolphinviewcontainer.h"
 #include "views/dolphinview.h"
+#include "whalestylemanager.h"
+#include "whalestyles.h"
 #include "whaleviewer.h"
 #include "whaleviewerlist.h"
 #if HAVE_MPV
@@ -210,6 +212,9 @@ QJsonObject viewState(DolphinMainWindow *window, DolphinViewContainer *container
                          {QStringLiteral("order"), view->sortOrder() == Qt::DescendingOrder ? QStringLiteral("descending") : QStringLiteral("ascending")},
                          {QStringLiteral("foldersFirst"), view->sortFoldersFirst()}}},
             {QStringLiteral("hiddenFiles"), view->hiddenFilesShown()},
+            {QStringLiteral("grouped"), view->groupedSorting()},
+            {QStringLiteral("previews"), view->previewsShown()},
+            {QStringLiteral("filter"), QJsonObject{{QStringLiteral("shown"), container->isFilterBarVisible()}, {QStringLiteral("text"), view->nameFilter()}}},
             {QStringLiteral("itemCount"), int(view->items().count())}};
 }
 
@@ -266,8 +271,37 @@ QJsonObject getWindowState(DolphinMainWindow *window)
         viewArray.append(viewState(window, container));
     }
 
+    // The tabs: the views above are those of the current one.
+    QJsonArray tabArray;
+    int currentTab = -1;
+    if (auto *tabs = window->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))) {
+        currentTab = tabs->currentIndex();
+        for (int i = 0; i < tabs->count(); ++i) {
+            DolphinTabPage *page = tabs->tabPageAt(i);
+            if (!page) {
+                continue;
+            }
+            QJsonArray folders{folderOf(page->primaryViewContainer())};
+            if (page->splitViewEnabled() && page->secondaryViewContainer()) {
+                folders.append(folderOf(page->secondaryViewContainer()));
+            }
+            tabArray.append(QJsonObject{{QStringLiteral("index"), i}, {QStringLiteral("folders"), folders}});
+        }
+    }
+
+    // The profile applied or saved last; the window may have been changed since.
+    QJsonValue profile = QJsonValue::Null;
+    const QString profileId = WhaleStyleManager::ensure(window)->lastStyleId();
+    for (const WhaleStyle &style : WhaleStyles::self()->store().styles()) {
+        if (style.id == profileId) {
+            profile = QJsonObject{{QStringLiteral("id"), style.id}, {QStringLiteral("name"), style.name}};
+        }
+    }
+
     return {{QStringLiteral("window"), windowObject},
+            {QStringLiteral("tabs"), QJsonObject{{QStringLiteral("current"), currentTab}, {QStringLiteral("list"), tabArray}}},
             {QStringLiteral("views"), viewArray},
+            {QStringLiteral("lastProfile"), profile},
             {QStringLiteral("panels"), panelArray},
             {QStringLiteral("splitView"), split},
             {QStringLiteral("messages"), messageArray},
@@ -521,8 +555,9 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
     return {
         {QStringLiteral("get_window_state"),
          QStringLiteral("Get the state of the Orcinus window"),
-         QStringLiteral("Returns the Orcinus window the user is chatting from: size and state (normal, maximized, fullscreen), the views "
-                        "(folder, mode, sorting, hidden files), the panels "
+         QStringLiteral("Returns the Orcinus window the user is chatting from: size and state (normal, maximized, fullscreen), the tabs "
+                        "(folders of each), the views of the current tab (folder, mode, sorting, grouping, previews, hidden files, "
+                        "filter), the profile applied last, the panels "
                         "(id, visible, width), the split view (left share, active view), the messages shown above the views, and the "
                         "built-in viewer (open, file, index)."),
          true,

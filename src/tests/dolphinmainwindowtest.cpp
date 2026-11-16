@@ -3062,6 +3062,29 @@ void DolphinMainWindowTest::testAiWindowTools()
     QCOMPARE(viewStates.size(), 1);
     QCOMPARE(viewStates.first().toObject().value(QLatin1String("folder")).toString(), testDir->path());
     QCOMPARE(viewStates.first().toObject().value(QLatin1String("sort")).toObject().value(QLatin1String("by")).toString(), QStringLiteral("name"));
+    QVERIFY(viewStates.first().toObject().contains(QLatin1String("grouped")));
+    QVERIFY(viewStates.first().toObject().contains(QLatin1String("previews")));
+    QCOMPARE(viewStates.first().toObject().value(QLatin1String("filter")).toObject().value(QLatin1String("text")).toString(), QString());
+    // Tabs (AI9c): one, with its folder; the profile applied last (none in a fresh profile, or one).
+    const QJsonObject tabState = state.value(QLatin1String("tabs")).toObject();
+    QCOMPARE(tabState.value(QLatin1String("current")).toInt(), 0);
+    QCOMPARE(tabState.value(QLatin1String("list")).toArray().size(), 1);
+    QCOMPARE(tabState.value(QLatin1String("list")).toArray().first().toObject().value(QLatin1String("folders")).toArray().first().toString(), testDir->path());
+    QVERIFY(state.contains(QLatin1String("lastProfile")));
+    // A filter shows in the view's state.
+    view->setNameFilter(QStringLiteral("png"));
+    QCOMPARE(call(QStringLiteral("get_window_state"), {}, &error)
+                 .value(QLatin1String("views"))
+                 .toArray()
+                 .first()
+                 .toObject()
+                 .value(QLatin1String("filter"))
+                 .toObject()
+                 .value(QLatin1String("text"))
+                 .toString(),
+             QStringLiteral("png"));
+    view->setNameFilter(QString());
+    QTRY_COMPARE(view->items().count(), 3);
 
     // Items in the order shown, with sizes; read-only, no transcript line.
     view->setSortRole("size");
