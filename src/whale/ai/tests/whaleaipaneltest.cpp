@@ -1032,6 +1032,36 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY2(all.contains(QStringLiteral("The agent turned on View ▸ Show Hidden Files.")), qPrintable(all));
     QVERIFY2(all.contains(QLatin1String("not available")), qPrintable(all));
 
+    // Settings (AI9d): refused in the read-only mode, allowed in another one (user, 2026-11-16).
+    int settingCalls = 0;
+    viewActions.windowTools = {{QStringLiteral("set_setting"),
+                                QStringLiteral("Change a setting"),
+                                QStringLiteral("Changes a setting"),
+                                false,
+                                {},
+                                {},
+                                [&settingCalls](const QJsonObject &, bool *, QString *notice) {
+                                    ++settingCalls;
+                                    *notice = QStringLiteral("The agent changed the setting “Status bar” to Disabled.");
+                                    return QJsonObject{{QStringLiteral("value"), QStringLiteral("Disabled")}};
+                                }}};
+    panel.setViewActions(viewActions);
+    panel.chooseMode(QStringLiteral("plan"));
+    QTRY_COMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("plan"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_setting:General/ShowStatusBar=Disabled")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(settingCalls, 0);
+    all = texts(panel);
+    QVERIFY2(all.contains(QLatin1String("cannot be changed in the read-only mode")), qPrintable(all));
+    panel.chooseMode(QStringLiteral("auto"));
+    QTRY_COMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:set_setting:General/ShowStatusBar=Disabled")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(settingCalls, 1);
+    QVERIFY2(texts(panel).contains(QStringLiteral("The agent changed the setting “Status bar” to Disabled.")), qPrintable(texts(panel)));
+    viewActions.windowTools.clear();
+    panel.setViewActions(viewActions);
+
     // In split view the notices say which view.
     viewActions.activePane = [] {
         return 1;

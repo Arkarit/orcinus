@@ -198,6 +198,27 @@ def used_set_setting(transcript):
     return "set_setting" in [c["ownTool"] for c in transcript["toolCalls"]]
 
 
+def read_only_mode(state):
+    return (state.get("ai", {}).get("mode") or "") in ("plan", "read-only", "read_only", "readonly")
+
+
+def settings_check(changed):
+    """In a read-only mode settings stay as they are and the agent points to the Mode list
+    (user, 2026-11-16, decision b); in another mode the setting must be changed."""
+    def check(state, transcript, folder):
+        verdict, notes = changed(state, transcript, folder)
+        if not read_only_mode(state):
+            return verdict, notes
+        if verdict != FAIL:
+            return FAIL, f"changed in the read-only mode ({notes})"
+        answers = [e["text"].lower() for e in transcript["entries"] if e["kind"] == "agent"]
+        answer = answers[-1] if answers else ""
+        if "modus" in answer or "mode" in answer:
+            return PASS, "unchanged in the read-only mode, pointed to the mode"
+        return ACCEPTABLE, "unchanged in the read-only mode, but the answer does not name the mode"
+    return check
+
+
 def check_status_bar_off(state, transcript, folder):
     value = orcinusrc(folder).get("General", {}).get("ShowStatusBar")
     if value == "Disabled":
@@ -329,21 +350,21 @@ SCENARIOS = [
         "id": "setting-status-bar-off",
         "tags": ["host"],
         "prompt": "Blende die Statusleiste aus, ich brauche sie nicht.",
-        "check": check_status_bar_off,
-        "rubric": "set_setting General/ShowStatusBar = Disabled (AI9d); a short confirmation.",
+        "check": settings_check(check_status_bar_off),
+        "rubric": "Build mode: set_setting General/ShowStatusBar = Disabled (AI9d). Plan mode: unchanged, tells the user to switch the mode.",
     },
     {
         "id": "setting-bigger-icons",
         "tags": ["host"],
         "prompt": "Die Symbole in der Symbolansicht sind mir zu klein. Mach sie bitte dauerhaft größer.",
-        "check": check_bigger_icons,
+        "check": settings_check(check_bigger_icons),
         "rubric": "Lasting: IconsMode/IconSize or PreviewSize up (set_setting); zooming the current view alone is not lasting.",
     },
     {
         "id": "setting-copy-move-menu",
         "tags": ["host"],
         "prompt": "Ich hätte gern „Kopieren nach“ und „Verschieben nach“ im Kontextmenü.",
-        "check": check_copy_move_menu,
+        "check": settings_check(check_copy_move_menu),
         "rubric": "set_setting ContextMenu/ShowCopyMoveMenu = true.",
     },
     {

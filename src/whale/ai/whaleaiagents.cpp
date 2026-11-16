@@ -402,9 +402,11 @@ QString defaultSystemPrompt()
         "automation: other Orcinus windows of the user may be running. If a tool for what you want is missing, tell the "
         "user instead of working around it.\n\n"
         "Your Orcinus tools never change the user's files: they change what Orcinus shows (folder, selection, view, sorting, "
-        "window) and, with set_setting, Orcinus' own settings. They are allowed in every mode, also in a plan or read-only "
-        "mode, so when the user asks you to show, sort, select or arrange something, do it with them right away instead of "
-        "presenting a plan. Settings are saved: change one only when the user asks for a setting, not for the current view.\n\n"
+        "window) and, with set_setting, Orcinus' own settings. Except for set_setting they are allowed in every mode, also in "
+        "a plan or read-only mode, so when the user asks you to show, sort, select or arrange something, do it with them right "
+        "away instead of presenting a plan. Settings are saved: change one only when the user asks for a setting, not for the "
+        "current view. In a plan or read-only mode Orcinus refuses set_setting; then tell the user to choose another mode in "
+        "the AI panel's Mode list, and do not ask them to confirm instead.\n\n"
         "You work with the user's own permissions on their real files. Before you change, move or delete anything outside "
         "what they asked for, or anything that is hard to undo, say what you will do and ask first.");
 }
