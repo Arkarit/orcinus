@@ -31,6 +31,7 @@
 #if WHALE_ENABLE_AI
 #include "whaleaichangelog.h"
 #include "whaleaipanel.h"
+#include "whaleaiprofiletools.h"
 #include "whaleaisettingstools.h"
 #include "whaleaiwindowtools.h"
 #endif
@@ -2841,7 +2842,7 @@ void DolphinMainWindow::setupDockWidgets()
             }
             return tabPage->activeViewContainer() == tabPage->primaryViewContainer() ? 0 : 1;
         },
-        WhaleAiWindowTools::create(this) + WhaleAiSettingsTools::create(this),
+        WhaleAiWindowTools::create(this) + WhaleAiSettingsTools::create(this) + WhaleAiProfileTools::create(this),
         [this] {
             return WhaleAiWindowTools::activeViewState(this);
         },

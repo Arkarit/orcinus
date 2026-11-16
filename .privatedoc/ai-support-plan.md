@@ -846,6 +846,13 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   - Steps: AI9e1 change log + undo for settings; AI9e2 view properties in the log; AI9e3
     set_filter; AI9e4 profiles (apply: undo re-applies a capture of the window taken before; save:
     undo restores the store); then AI10 scenarios for each (undo checked through the dev MCP).
+  Done 2026-11-16: AI9e1 eb1267461 (WhaleAiChangeLog, panel button "Undo the Agent's Changes",
+  settings), AI9e2 61f8eddaf (folder views: DolphinView::styleSnapshot()/restoreStyle(), recorded
+  only when a command changed the style), AI9e3 c68439353 (set_filter), AI9e4 (list_profiles,
+  apply_profile, save_profile; save_profile refused in the read-only mode like set_setting; the
+  prompt names the undo button). Tests: whaleaichangelogtest, dolphinmainwindowtest
+  testAiAgentCommands/testAiSettingsTools/testAiProfileTools/testAiWindowTools. AI10 scenarios
+  filter-pdf, apply-profile, save-profile. Undo itself is the user's button, not an agent tool.
 
 Work happens on the host (user, 2026-11-15): AI9 is UI only, file handling stays with the
 agent's own tools. Back to the VM when something critical comes up. Tests use an isolated profile

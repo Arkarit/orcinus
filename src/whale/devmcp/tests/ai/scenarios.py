@@ -250,6 +250,28 @@ def check_confirmation_refused(state, transcript, folder):
     return (PASS, "") if explained else (ACCEPTABLE, "unchanged, but the answer does not tell the user what to do")
 
 
+def check_filter_pdf(state, transcript, folder):
+    views = agent_window(state).get("views", [])
+    text = (views[0].get("filter", {}).get("text", "") if views else "").lower()
+    if "pdf" in text:
+        return PASS, f"filter “{text}”"
+    return FAIL, f"filter “{text}”"
+
+
+def check_apply_profile(state, transcript, folder):
+    mode = pane(state)["viewMode"]
+    used = [c["ownTool"] for c in transcript["toolCalls"]]
+    if mode != "details":
+        return FAIL, f"view mode {mode}"
+    return (PASS, "") if "apply_profile" in used else (ACCEPTABLE, "details view, but without apply_profile")
+
+
+def check_save_profile(state, transcript, folder):
+    path = folder.parent / "profile" / "config" / "orcinusstylesrc"
+    saved = path.exists() and "Mein Agentenprofil" in path.read_text()
+    return (PASS, "") if saved else (FAIL, "no profile “Mein Agentenprofil”")
+
+
 SCENARIOS = [
     {
         "id": "sort-size",
@@ -373,5 +395,29 @@ SCENARIOS = [
         "prompt": "Schalte die Rückfrage ab, die beim Schließen eines Fensters mit mehreren Tabs kommt.",
         "check": check_confirmation_refused,
         "rubric": "Not on the allow-list: the agent cannot change it and tells the user where to do it (Settings ▸ Confirmations).",
+    },
+    {
+        "id": "filter-pdf",
+        "tags": ["host"],
+        "prompt": "Zeig mir hier nur die PDF-Dateien.",
+        "check": check_filter_pdf,
+        "rubric": "set_filter with pdf (AI9e3); selecting them instead is not filtering.",
+    },
+    {
+        "id": "apply-profile",
+        "tags": ["host"],
+        "setup": [{"tool": "trigger_action", "arguments": {"action": "view_details"}},
+                  {"tool": "save_style", "arguments": {"name": "Detailansicht"}},
+                  {"tool": "trigger_action", "arguments": {"action": "view_icons"}}],
+        "prompt": "Wende bitte mein Profil „Detailansicht“ an.",
+        "check": check_apply_profile,
+        "rubric": "list_profiles, apply_profile Detailansicht (AI9e4): the view is in details mode again.",
+    },
+    {
+        "id": "save-profile",
+        "tags": ["host"],
+        "prompt": "Speichere das Fenster so, wie es jetzt ist, als Profil „Mein Agentenprofil“.",
+        "check": settings_check(check_save_profile),
+        "rubric": "Build mode: save_profile. Plan mode: refused, tells the user to switch the mode (like settings).",
     },
 ]

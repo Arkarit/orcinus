@@ -1052,7 +1052,7 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY(waitForReady(panel));
     QCOMPARE(settingCalls, 0);
     all = texts(panel);
-    QVERIFY2(all.contains(QLatin1String("cannot be changed in the read-only mode")), qPrintable(all));
+    QVERIFY2(all.contains(QLatin1String("cannot be saved in the read-only mode")), qPrintable(all));
     // The other modes by the names of the Mode list (the fake agent's "Ask" and "Auto").
     QVERIFY2(all.contains(QLatin1String("(\\\"Ask\\\", \\\"Auto\\\")")), qPrintable(all));
     panel.chooseMode(QStringLiteral("auto"));

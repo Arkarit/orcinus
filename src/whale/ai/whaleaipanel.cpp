@@ -342,7 +342,7 @@ WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &act
         if (tool.call) {
             tool.call = wrap(tool.call);
         }
-        if (tool.name == QLatin1String("set_setting") && tool.call) {
+        if ((tool.name == QLatin1String("set_setting") || tool.name == QLatin1String("save_profile")) && tool.call) {
             // Saved settings stay untouched in the read-only mode (user, 2026-11-16, until undo
             // exists, AI9e); views and windows may still change there.
             tool.call = [this, call = tool.call](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
@@ -357,7 +357,7 @@ WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &act
                     }
                     *error = true;
                     return {{QStringLiteral("error"),
-                             QStringLiteral("Settings cannot be changed in the read-only mode \"%1\". Tell the user to choose another "
+                             QStringLiteral("Settings and profiles cannot be saved in the read-only mode \"%1\". Tell the user to choose another "
                                             "mode in the Mode list of the AI panel (%2), then try again.")
                                  .arg(modeName(mode->currentValue), others.join(QStringLiteral(", ")))}};
                 }

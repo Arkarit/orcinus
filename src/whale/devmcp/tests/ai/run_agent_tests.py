@@ -141,8 +141,8 @@ class Run:
         self.call_deviations = []
         self.result = {"scenario": scenario["id"], "run": number, "prompt": scenario["prompt"]}
 
-    def tool(self, name, **arguments):
-        return json.loads(self.client.tool(name, **arguments)[0]["text"])
+    def tool(self, tool_name, /, **arguments):  # a tool may have an argument "name"
+        return json.loads(self.client.tool(tool_name, **arguments)[0]["text"])
 
     def converse(self, text):
         """Sends @p text and waits for the end of the turn, answering permission requests."""

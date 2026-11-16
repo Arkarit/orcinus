@@ -33,6 +33,7 @@
 #include "whaleaipanel.h"
 #include "whaleaisettingstools.h"
 #include "whalesplitviewstartup.h"
+#include "whalestyles.h"
 #include "whaleviewer.h"
 
 #include <KActionCollection>
@@ -142,6 +143,7 @@ private Q_SLOTS:
     void testAiAgentCommands();
     void testAiWindowTools();
     void testAiSettingsTools();
+    void testAiProfileTools();
     void cleanupTestCase();
 
 private:
@@ -3195,6 +3197,74 @@ void DolphinMainWindowTest::testAiSettingsTools()
     QVERIFY(!error);
     listed = call(QStringLiteral("list_settings"), {{QStringLiteral("filter"), QStringLiteral("SplitViewAtStartup")}}, &error);
     QCOMPARE(listed.value(QLatin1String("settings")).toArray().first().toObject().value(QLatin1String("applies")).toString(), QStringLiteral("next time"));
+}
+
+void DolphinMainWindowTest::testAiProfileTools()
+{
+    // The profiles of the agent's back channel (AI9e4): applying and saving can be undone.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createFile(QStringLiteral("a.txt"));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QVERIFY(panel);
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
+        QString text;
+        *error = false;
+        const QJsonObject result = tools.value(name).call(arguments, error, &text);
+        if (notice) {
+            *notice = text;
+        }
+        return result;
+    };
+    bool error = false;
+    QString notice;
+    WhaleAiChangeLog *log = WhaleAiChangeLog::of(m_mainWindow.data());
+    log->clear();
+
+    call(QStringLiteral("apply_profile"), {{QStringLiteral("profile"), QStringLiteral("no such profile")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("save_profile"), {{QStringLiteral("name"), QString()}}, &error);
+    QVERIFY(error);
+    QCOMPARE(log->count(), 0);
+
+    // Save the window in the details view as a new profile; again under that name replaces it.
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    view->setViewMode(DolphinView::DetailsView);
+    const int before = WhaleStyles::self()->store().styles().size();
+    QJsonObject saved = call(QStringLiteral("save_profile"), {{QStringLiteral("name"), QStringLiteral("Agent Test")}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(notice.contains(QLatin1String("Agent Test")));
+    QCOMPARE(saved.value(QLatin1String("replaced")).toBool(), false);
+    QCOMPARE(WhaleStyles::self()->store().styles().size(), before + 1);
+    saved = call(QStringLiteral("save_profile"), {{QStringLiteral("name"), QStringLiteral("agent test")}}, &error);
+    QVERIFY(!error);
+    QCOMPARE(saved.value(QLatin1String("replaced")).toBool(), true);
+    QCOMPARE(WhaleStyles::self()->store().styles().size(), before + 1);
+    QCOMPARE(log->count(), 1);
+    bool listed = false;
+    for (const QJsonValue &profile : call(QStringLiteral("list_profiles"), {}, &error).value(QLatin1String("profiles")).toArray()) {
+        listed = listed || profile.toObject().value(QLatin1String("name")).toString() == QLatin1String("Agent Test");
+    }
+    QVERIFY(listed);
+
+    // Apply it to the window in the icons view: details again.
+    view->setViewMode(DolphinView::IconsView);
+    call(QStringLiteral("apply_profile"), {{QStringLiteral("profile"), QStringLiteral("Agent Test")}}, &error, &notice);
+    QVERIFY(!error);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->view()->viewMode(), DolphinView::DetailsView);
+    QCOMPARE(log->count(), 2);
+
+    // Undo, newest first: the window's look before the profile, then the profiles before the save.
+    panel->undoAgentChanges();
+    QCOMPARE(log->count(), 0);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->view()->viewMode(), DolphinView::IconsView);
+    QCOMPARE(WhaleStyles::self()->store().styles().size(), before);
 }
 
 void DolphinMainWindowTest::testAiWindowTools()

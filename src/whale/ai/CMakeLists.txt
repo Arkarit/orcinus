@@ -58,6 +58,7 @@ target_sources(dolphinstatic PRIVATE
     whaleaipanel.cpp
     whaleaisettingspage.cpp
     whaleaisettingstools.cpp
+    whaleaiprofiletools.cpp
     whaleaitranscript.cpp
     whaleaiwindowtools.cpp
 )
