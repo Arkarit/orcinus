@@ -904,6 +904,17 @@ Steps:
   `scenarios.py`); OpenCode's own config denies shell, edits and web access; the runner rejects every
   permission request but Orcinus' own tools; dry run with the fake agent passed (its write request
   rejected, folder unchanged). First real run waits for LM Studio.
+- **First real runs 2026-11-16** (OpenCode 1.x + LM Studio `qwen3.8-27b`, 5 host scenarios × 3):
+  - Mode `build` (shell/edit/web denied in OpenCode's config): 15/15 PASS, 25–110 s per run; the
+    play folder never changed, no permission request beyond Orcinus' tools.
+  - Start mode `plan` (Orcinus' default for OpenCode, AI5): 7/15 PASS. Sometimes it acts, often it
+    presents a correct plan and asks; after the runner's "yes, do it" it still refuses: "plan mode
+    forbids every change, even view settings, your confirmation does not lift it; switch plan mode
+    off". Same as Claude's plan mode in AI6c. Open decision for the user (Orcinus' view tools only
+    change the view, never files).
+  - Soft finding: after Sort By ▸ Size the view sorts descending (Dolphin's default for size),
+    but the agent claimed "ascending" in 4 of 4 answers: it never checks the result. The back
+    channel's answer to trigger_action (or get_window_state) does not report the sort order.
 - **AI10b – Runner + first scenarios** (`src/whale/devmcp/tests/ai/`, Python, not in ctest):
   per scenario a fresh offscreen instance, new conversation, prompt, wait, collect state +
   transcript, judge, quit. About 5 scenarios with OpenCode/Qwen.
