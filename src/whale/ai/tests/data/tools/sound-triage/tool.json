@@ -1,0 +1,8 @@
+{
+    "name": "Sound Triage",
+    "icon": "audio-x-generic",
+    "description": "Listen through the sounds of a folder and its subfolders and copy the useful ones to a target folder.",
+    "entry": "main.qml",
+    "writes": ["the Target folder (copies of the kept sounds)"],
+    "settings": {"target": ""}
+}

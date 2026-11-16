@@ -68,13 +68,19 @@ target_link_libraries(dolphinstatic whaleai)
 
 # See .privatedoc/ai-canvas-plan.md.
 if(HAVE_AI_CANVAS)
-    target_sources(whaleai PRIVATE canvas/whaleaicanvasmodel.cpp)
+    target_sources(whaleai PRIVATE
+        canvas/whaleaicanvasmodel.cpp
+        canvas/whaleaitoolstore.cpp
+    )
     target_include_directories(whaleai PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/canvas)
     target_sources(dolphinstatic PRIVATE
         canvas/whaleaicanvasmedia.cpp
         canvas/whaleaicanvaspanel.cpp
         canvas/whaleaicanvastools.cpp
         canvas/whaleaiquickwidget.cpp
+        canvas/whaleaiqmlguard.cpp
+        canvas/whaleaitoolapi.cpp
+        canvas/whaleaitooltab.cpp
         canvas/whaleaicanvas.qrc
     )
     target_link_libraries(dolphinstatic Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::OpenGL)

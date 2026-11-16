@@ -1,6 +1,6 @@
 # AI canvas and tools (CV0–CV5)
 
-Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike) done 2026-11-16; CV1 done 2026-11-16.
+Branch `ai-canvas`, planned 2026-11-16 (discussion with the user). Status: CV0 (spike), CV1 and CV2 done 2026-11-16.
 
 ## Problem
 
@@ -176,6 +176,35 @@ dialog. The `Orcinus` QML module:
 - UI: `pickFolder()`, `pickFiles()`, `player` (mpv: play, pause, seek, repeat, position), notify.
 - `settings`: per tool, persistent (e.g. Target, last position).
 Tests: API unit tests with a fake view; the sound triage tool written by hand as a fixture.
+
+*CV2 results (done 2026-11-16).* `WhaleAiToolStore` (`whaleai`: manifest, files, SHA-256
+fingerprint over names and contents without hidden files, kept tools in orcinusrc `[AI Tools]`
+`Pinned` + `Trusted_<id>`; a tool's own settings in `[AI Tool <id>]`, values as JSON),
+`WhaleAiToolApi` (the `orcinus` object), `WhaleAiToolTab` (one tab per tool, a fresh
+`WhaleAiQuickWidget`/engine per load, loaded when first shown), `WhaleAiQmlGuard` (deny list from
+CV0). The canvas got a tab bar with a Tools button (tools of the folder, "Show Tools Folder") and
+a tab context menu (Keep on Canvas, Reload, Show Folder, Close); kept tools have tabs again after
+a restart, a kept tool whose fingerprint changed is blocked ("Keep Again…" / "Remove from Canvas").
+Keeping asks with a list of the tool's files, what it runs (CV4) and where it says it writes.
+Decisions and deviations from the plan above:
+- API as built: `currentFolder()`, `selection()`, `otherFolder()`, signal `contextChanged`;
+  `list(url, {recursive, mime, hidden, limit, progress}, cb)` + `cancel(id)`, `item(url, cb)`,
+  `readText(url, cb, maxBytes)`; `copy`, `move`, `rename`, `trash`, `mkdir`,
+  `writeText(url, text, overwrite, cb)`; `reveal(url)` (also covers "go to folder"; no separate
+  `open`); `pickFolder(cb, start)`, `pickFiles(cb, {multiple, mime})`, `notify(text)`;
+  `setting(key, fallback)` / `setSetting(key, value)`; `player` (a `WhaleAiCanvasPlayer` per
+  tool, stopped when the tab is hidden); `toolName`, `toolFolder`. Callbacks: reads get
+  `(value, error)`, changes `(ok, error)`; always called later, never synchronously.
+- Undo: changes go into KIO's `FileUndoManager` (Orcinus' normal Undo), not the agent's change
+  log: a tool's change is made by the user clicking in the tool. `writeText` never overwrites
+  silently: with `overwrite` the old file goes to the trash first (undoable).
+- Log: QML load errors, engine warnings and errors thrown in callbacks go into the tab's log
+  (for CV3's `tool_log`). `console.log` is not captured yet (CV3).
+- Not blocked: network access from QML (e.g. an `Image` from http) — note for CV3/docs.
+- The example tool lives in `src/whale/ai/tests/data/tools/sound-triage/` as the test fixture
+  (the user copies it into the tools folder by hand later). `whaleaitooltest` runs it end to end:
+  sorted by name (natural), first one plays and is revealed, Keep (click) copies and goes on,
+  Right / K / Left keys while the tool has the focus.
 
 **CV3 – Development loop for the agent.** MCP tools: `tool_create` / write files into the tool
 folder (or the agent writes them itself; the tool folder is reachable in its cwd list),

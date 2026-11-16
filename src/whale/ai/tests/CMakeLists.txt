@@ -59,4 +59,11 @@ if(HAVE_AI_CANVAS)
         TEST_NAME whaleaicanvaspaneltest
         LINK_LIBRARIES dolphinstatic Qt6::Test)
     target_include_directories(whaleaicanvaspaneltest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+    # The tools of the canvas (CV2), with the example tool in data/tools.
+    ecm_add_test(whaleaitooltest.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
+        TEST_NAME whaleaitooltest
+        LINK_LIBRARIES dolphinstatic Qt6::Test)
+    target_include_directories(whaleaitooltest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_compile_definitions(whaleaitooltest PRIVATE WHALE_AI_TEST_TOOLS="${CMAKE_CURRENT_SOURCE_DIR}/data/tools")
 endif()

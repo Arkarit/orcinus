@@ -2906,6 +2906,34 @@ void DolphinMainWindow::setupDockWidgets()
 #if HAVE_AI_CANVAS
     connect(aiCanvas, &WhaleAiCanvasPanel::localUrlActivated, this, showLocalUrl);
     connect(aiPanel, &WhaleAiPanel::conversationCleared, aiCanvas, &WhaleAiCanvasPanel::clear);
+    // The tools of the canvas (CV2): what they may know of the window and show in it.
+    aiCanvas->setToolHost({
+        [this] {
+            return m_activeViewContainer ? m_activeViewContainer->url() : QUrl();
+        },
+        [this] {
+            QList<QUrl> urls;
+            if (m_activeViewContainer) {
+                const KFileItemList items = m_activeViewContainer->view()->selectedItems();
+                for (const KFileItem &item : items) {
+                    urls.append(item.url());
+                }
+            }
+            return urls;
+        },
+        [this] {
+            DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
+            if (tabPage && tabPage->splitViewEnabled() && tabPage->inactiveViewContainer()) {
+                return tabPage->inactiveViewContainer()->url();
+            }
+            return QUrl();
+        },
+        showLocalUrl,
+    });
+    connect(this, &DolphinMainWindow::urlChanged, aiCanvas, &WhaleAiCanvasPanel::contextChanged);
+    connect(this, &DolphinMainWindow::selectionChanged, aiCanvas, &WhaleAiCanvasPanel::contextChanged);
+    connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, aiCanvas, &WhaleAiCanvasPanel::contextChanged);
+    aiCanvas->restoreKeptTools();
     actionCollection()
         ->action(QStringLiteral("show_ai_canvas_panel"))
         ->setWhatsThis(xi18nc("@info:whatsthis",
