@@ -807,6 +807,13 @@ is. Reusable parts (mainly reading the UI state) move into a shared core used by
   `dolphinmainwindowtest::testAiSettingsTools` (also: status bar off/on live). Four AI10 scenarios
   read the run's orcinusrc: status bar off, bigger icons (lasting), Copy/Move To in the context
   menu, and a confirmation the agent must not turn off.
+  Agent run 2026-11-16 (qwen3.8-27b, plan mode, ×3): status bar off 3/3, bigger icons 3/3 (IconSize
+  32 → 48, lasting), confirmation refused 3/3 (unchanged, pointed the user to the settings),
+  Copy/Move To 0 PASS / 1 ACCEPTABLE / 2 FAIL: in plan mode the agent presented the plan and
+  refused "plan mode forbids changing settings, even when you confirm", although the prompt
+  allows the tools in every mode (it names showing/sorting/arranging, not settings). Open
+  decision for the user: say explicitly that set_setting is allowed in plan mode too, or let
+  plan mode keep settings off (then the refusal is right).
 - **AI9e – Undo and rights.** "Undo the agent's changes", final classes, specific tools
   (profiles, view properties, filter).
 
