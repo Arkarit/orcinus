@@ -29,6 +29,7 @@
 #include "panels/places/placespanel.h"
 #include "panels/terminal/terminalpanel.h"
 #if WHALE_ENABLE_AI
+#include "whaleaichangelog.h"
 #include "whaleaipanel.h"
 #include "whaleaisettingstools.h"
 #include "whaleaiwindowtools.h"
@@ -2779,9 +2780,47 @@ void DolphinMainWindow::setupDockWidgets()
             return result;
         },
         [this](const QString &name) {
-            if (QAction *action = actionCollection()->action(name)) {
-                action->trigger();
+            QAction *action = actionCollection()->action(name);
+            if (!action) {
+                return;
             }
+            // What the command writes down for the folder (view mode, sorting, ...) can be undone
+            // (AI9e): the style before the agent's first change there, if this one changed it.
+            QPointer<DolphinView> view = m_activeViewContainer ? m_activeViewContainer->view() : nullptr;
+            const DolphinView::StyleSnapshot before = view ? view->styleSnapshot() : DolphinView::StyleSnapshot();
+            action->trigger();
+            if (!view) {
+                return;
+            }
+            const DolphinView::StyleSnapshot after = view->styleSnapshot();
+            if (after.ownStyle != before.ownStyle || after.url != before.url || after.data == before.data) {
+                return;
+            }
+            const QString key = before.ownStyle ? QStringLiteral("view:own:%1").arg(quintptr(view.data()))
+                                                : QStringLiteral("view:%1:%2").arg(int(before.role)).arg(before.url.toString());
+            const QString folder = before.url.fileName().isEmpty() ? before.url.toDisplayString(QUrl::PreferLocalFile) : before.url.fileName();
+            QPointer<DolphinMainWindow> window(this);
+            WhaleAiChangeLog::of(this)->record(key, i18nc("@info %1 is a folder name", "the view of “%1”", folder), [window, view, before] {
+                if (before.ownStyle) {
+                    if (view) {
+                        view->restoreStyle(before);
+                    }
+                    return;
+                }
+                // Written down once, shown again by every view of the window at that folder and position.
+                bool written = false;
+                if (window) {
+                    for (DolphinViewContainer *container : window->viewContainers()) {
+                        container->view()->restoreStyle(before);
+                        written = true;
+                    }
+                }
+                if (!written) {
+                    ViewProperties props(before.url, before.role);
+                    props.setDirProperties(before.data);
+                    props.save();
+                }
+            });
         },
         [this](int pane) {
             DolphinTabPage *tabPage = m_tabWidget->currentTabPage();

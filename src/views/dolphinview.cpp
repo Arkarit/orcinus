@@ -1031,6 +1031,40 @@ QByteArray DolphinView::ownStyleData() const
     return m_ownStyle ? m_ownStyle->toData() : QByteArray();
 }
 
+DolphinView::StyleSnapshot DolphinView::styleSnapshot()
+{
+    const ViewProperties urlProps(viewPropertiesUrl(), m_panelRole);
+    if (ViewProperties *own = ownStyleFor(urlProps)) {
+        return {true, viewPropertiesUrl(), m_panelRole, own->toData()};
+    }
+    return {false, viewPropertiesUrl(), m_panelRole, urlProps.toData()};
+}
+
+void DolphinView::restoreStyle(const StyleSnapshot &snapshot)
+{
+    if (snapshot.ownStyle) {
+        ViewProperties *own = ownStyle();
+        if (!own) {
+            return;
+        }
+        own->setDirProperties(snapshot.data);
+        own->save();
+        const ViewProperties props(viewPropertiesUrl(), m_panelRole);
+        if (props.usesGlobalStyle()) {
+            applyViewProperties(*own);
+        }
+        return;
+    }
+    {
+        ViewProperties props(snapshot.url, snapshot.role);
+        props.setDirProperties(snapshot.data);
+        props.save();
+    }
+    if (viewPropertiesUrl() == snapshot.url && m_panelRole == snapshot.role) {
+        applyViewProperties();
+    }
+}
+
 std::optional<DolphinView::Mode> DolphinView::ownStyleViewMode() const
 {
     return m_ownStyle ? std::optional(m_ownStyle->viewMode()) : std::nullopt;

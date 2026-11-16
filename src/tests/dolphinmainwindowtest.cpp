@@ -3003,6 +3003,29 @@ void DolphinMainWindowTest::testAiAgentCommands()
     QCOMPARE(m_mainWindow->activeViewContainer()->view()->hiddenFilesShown(), hidden.checked);
     actions.trigger(QStringLiteral("no_such_action"));
 
+    // Undo (AI9e): what the commands wrote down for the folder goes back to before the agent's
+    // first change there; a command that changes no style records nothing.
+    DolphinView *agentView = m_mainWindow->activeViewContainer()->view();
+    WhaleAiChangeLog *log = WhaleAiChangeLog::of(m_mainWindow.data());
+    log->clear();
+    const DolphinView::Mode modeBefore = agentView->viewMode();
+    const QByteArray sortBefore = agentView->sortRole();
+    const Qt::SortOrder orderBefore = agentView->sortOrder();
+    actions.trigger(QStringLiteral("go_up"));
+    QCOMPARE(log->count(), 0); // another folder, no style changed
+    actions.trigger(QStringLiteral("go_back"));
+    QTRY_COMPARE(agentView->url(), testDir->url());
+    actions.trigger(modeBefore == DolphinView::DetailsView ? QStringLiteral("icons") : QStringLiteral("details"));
+    actions.trigger(QStringLiteral("sort_by_size"));
+    QCOMPARE(log->count(), 1);
+    QVERIFY(agentView->viewMode() != modeBefore);
+    QCOMPARE(agentView->sortRole(), QByteArray("size"));
+    panel->undoAgentChanges();
+    QCOMPARE(log->count(), 0);
+    QCOMPARE(agentView->viewMode(), modeBefore);
+    QCOMPARE(agentView->sortRole(), sortBefore);
+    QCOMPARE(agentView->sortOrder(), orderBefore);
+
     // A view can be chosen only in split view.
     QVERIFY(!actions.activatePane(1));
     QCOMPARE(actions.activePane(), -1);
