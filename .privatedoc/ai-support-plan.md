@@ -950,6 +950,21 @@ paths, trigger, pane).
   answered without a click), so a window cannot add tools by mistake. `get_window_state` is the
   start of AI9c (UI state).
 
+**AI11 – Agents within the agent's reach.** Planned 2026-11-17 (user): in a first real use the
+user asked Codex to add a local model to Orcinus' AI settings; it refused correctly (AI
+settings are not in `set_setting`'s list) and said so. Agent entries are command lines that run
+with the user's rights, so the agent may *read* them and *propose* one, never add, change or
+remove one itself:
+- `list_agents` (read-only, every mode): id, name, command line, start mode, default/current,
+  and the *names* of the environment variables only (values hold API keys). Arguments of the
+  command line that look like secrets (`--api-key x`, `--token=x`, ...) are shown as `…`.
+- `propose_agent` (every mode: nothing changes until the user acts): name, command line,
+  optional environment (`NAME` or `NAME=value`). The AI panel shows a bar "The agent suggests a
+  new agent: …" with [Add…] (opens the agent dialog filled in, the user edits and confirms) and
+  [Discard]. One proposal at a time; a new one replaces it. The answer tells the agent to remind
+  the user to enter API keys or other secrets in the dialog themselves (user wish).
+- Not in this step: a preset "OpenCode with LM Studio" in the agent settings (AI11b, later).
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 

@@ -393,7 +393,10 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    QStringLiteral("tool_log"),
                                    QStringLiteral("tool_inspect"),
                                    QStringLiteral("tool_invoke"),
-                                   QStringLiteral("tool_screenshot")};
+                                   QStringLiteral("tool_screenshot"),
+                                   // AI11: the agents of the AI panel, read and proposed.
+                                   QStringLiteral("list_agents"),
+                                   QStringLiteral("propose_agent")};
     return names;
 }
 
@@ -595,7 +598,8 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
                              "only set_setting and save_profile (Orcinus' own saved settings and profiles) and writing, opening or using "
                              "canvas tools (tool_write_file, tool_delete_file, tool_open, tool_invoke) are refused in a read-only mode. "
                              "Show your work (images, sounds, file lists, texts) on the AI canvas with canvas_show; to build a tool the user "
-                             "keeps, read tool_guide first. Operate Orcinus only through these tools, never through D-Bus or input "
+                             "keeps, read tool_guide first. list_agents shows the AI agents set up in Orcinus; propose_agent suggests a new one, "
+                             "which the user adds themselves. Operate Orcinus only through these tools, never through D-Bus or input "
                              "automation.")}});
     }
     if (method == QLatin1String("ping")) {

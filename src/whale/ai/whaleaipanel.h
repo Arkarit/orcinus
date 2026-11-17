@@ -9,13 +9,16 @@
 
 #include "panels/panel.h"
 #include "whaleacpsession.h"
+#include "whaleaiagents.h"
 #include "whaleaicontext.h"
 #include "whaleaimcpserver.h"
 
 #include <functional>
+#include <optional>
 
 #include <QPointer>
 
+class KMessageWidget;
 class QCheckBox;
 class QComboBox;
 class QLabel;
@@ -88,6 +91,10 @@ public:
 
     WhaleAcpSession *session() const;
     WhaleAiTranscript *transcript() const;
+    /** The agent the agent proposed (AI11), waiting for the user's Add… or Discard; nothing otherwise. */
+    std::optional<WhaleAiAgent> proposedAgent() const;
+    /** Adds the proposed agent as @p agent (what the user confirmed in the dialog). For the tests and the bar. */
+    void addProposedAgent(const WhaleAiAgent &agent);
     WhaleAiContextChips *contextChips() const;
 
     /**
@@ -136,6 +143,11 @@ private:
     /** Answers a request for one of our own tools (AI6c). */
     bool answerOwnToolRequest(const WhaleAcpPermissionRequest &request);
     void fillAgents(const QString &preferredId);
+    /** list_agents and propose_agent (AI11): the agent may read the agents and propose one. */
+    QList<WhaleAiWindowTool> agentTools();
+    void showProposal(const WhaleAiAgent &agent);
+    /** Add… of the proposal bar: the agent dialog, filled in, for the user to edit and confirm. */
+    void reviewProposal();
     /** The disclaimer until it is accepted (AI5f), then the setup without agents, else the chat. */
     void updatePage();
     void agentChosen();
@@ -157,6 +169,8 @@ private:
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
+    KMessageWidget *m_proposalBar = nullptr;
+    std::optional<WhaleAiAgent> m_proposal;
     QToolButton *m_newConversation = nullptr;
     QToolButton *m_undoChanges = nullptr; ///< "Undo the agent's changes" (AI9e)
     QLabel *m_sessionInfo = nullptr;

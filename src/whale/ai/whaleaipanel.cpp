@@ -5,6 +5,7 @@
  */
 
 #include "whaleaipanel.h"
+#include "whaleaiagentdialog.h"
 #include "whaleaiagents.h"
 #include "whaleaichangelog.h"
 #include "whaleaicontextchips.h"
@@ -14,6 +15,7 @@
 #include "whaleaitranscript.h"
 
 #include <KLocalizedString>
+#include <KMessageWidget>
 
 #include <QApplication>
 #include <QCheckBox>
@@ -24,6 +26,7 @@
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QJsonArray>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMimeData>
@@ -138,6 +141,25 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     chatLayout->addWidget(m_sessionInfo);
     chatLayout->addLayout(modesRow);
     chatLayout->addWidget(m_transcript, 1);
+    // A new agent the agent suggests (AI11); the user decides.
+    m_proposalBar = new KMessageWidget(chat);
+    m_proposalBar->setObjectName(QStringLiteral("agentProposal"));
+    m_proposalBar->setMessageType(KMessageWidget::Information);
+    m_proposalBar->setWordWrap(true);
+    m_proposalBar->setCloseButtonVisible(false);
+    m_proposalBar->hide();
+    auto *review = new QAction(QIcon::fromTheme(QStringLiteral("list-add")), i18nc("@action:button", "Add…"), m_proposalBar);
+    review->setObjectName(QStringLiteral("proposalAdd"));
+    connect(review, &QAction::triggered, this, &WhaleAiPanel::reviewProposal);
+    auto *discard = new QAction(QIcon::fromTheme(QStringLiteral("edit-delete-remove")), i18nc("@action:button", "Discard"), m_proposalBar);
+    discard->setObjectName(QStringLiteral("proposalDiscard"));
+    connect(discard, &QAction::triggered, this, [this] {
+        m_proposal.reset();
+        m_proposalBar->animatedHide();
+    });
+    m_proposalBar->addAction(review);
+    m_proposalBar->addAction(discard);
+    chatLayout->addWidget(m_proposalBar);
     chatLayout->addWidget(m_chips);
     chatLayout->addLayout(bottom);
 
@@ -290,9 +312,127 @@ void WhaleAiPanel::setContextProvider(const std::function<WhaleAiContext()> &pro
 void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
 {
     m_viewActions = actions;
+    m_viewActions.windowTools += agentTools();
     if (m_mcp) {
-        m_mcp->setViewActions(keepingInputFocus(actions));
+        m_mcp->setViewActions(keepingInputFocus(m_viewActions));
     }
+}
+
+QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
+{
+    QPointer<WhaleAiPanel> guard(this);
+    auto property = [](const QString &type, const QString &description) {
+        return QJsonObject{{QStringLiteral("type"), type}, {QStringLiteral("description"), description}};
+    };
+    return {
+        {QStringLiteral("list_agents"),
+         QStringLiteral("List the AI agents set up in Orcinus"),
+         QStringLiteral("Lists the AI agents of Orcinus' AI panel (Settings > AI Agents): id, name, command line, start mode, which one is "
+                        "the default and which one this conversation uses. Environment variables are listed by name only, and arguments "
+                        "that look like secrets as \"…\": API keys stay with the user."),
+         true,
+         {},
+         {},
+         [guard](const QJsonObject &, bool *error, QString *) -> QJsonObject {
+             if (!guard) {
+                 *error = true;
+                 return {{QStringLiteral("error"), QStringLiteral("The AI panel is gone.")}};
+             }
+             QJsonArray list;
+             const QString current = guard->agentId();
+             const QString standard = WhaleAiAgents::defaultAgentId();
+             for (const WhaleAiAgent &agent : WhaleAiAgents::agents()) {
+                 QJsonObject entry = WhaleAiAgents::describeForAgent(agent);
+                 entry.insert(QStringLiteral("default"), agent.id == standard);
+                 entry.insert(QStringLiteral("current"), agent.id == current);
+                 list.append(entry);
+             }
+             return {{QStringLiteral("agents"), list}};
+         }},
+        {QStringLiteral("propose_agent"),
+         QStringLiteral("Propose a new AI agent for Orcinus"),
+         QStringLiteral("Proposes a new agent for Orcinus' AI panel: an ACP agent program (e.g. \"opencode acp\", \"codex-acp\", "
+                        "\"claude-code-acp\") with its arguments and environment. Nothing is added by this: the user sees the proposal "
+                        "in the AI panel and adds it with Add… (where they can edit it) or discards it. You cannot add, change or remove "
+                        "agents yourself. Never put API keys or other secrets into it: list the variable by name (\"OPENAI_API_KEY\") "
+                        "and remind the user to enter the value in the dialog. Allowed in every mode."),
+         false,
+         {{QStringLiteral("name"), property(QStringLiteral("string"), QStringLiteral("Name shown in the agent list, e.g. \"OpenCode (Qwen local)\""))},
+          {QStringLiteral("command"), property(QStringLiteral("string"), QStringLiteral("Program and arguments, quoted as in a shell"))},
+          {QStringLiteral("environment"),
+           QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
+                       {QStringLiteral("items"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
+                       {QStringLiteral("description"), QStringLiteral("Optional: NAME=value, or NAME alone for a secret the user enters")}}}},
+         {QStringLiteral("name"), QStringLiteral("command")},
+         [guard](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
+             if (!guard) {
+                 *error = true;
+                 return {{QStringLiteral("error"), QStringLiteral("The AI panel is gone.")}};
+             }
+             QString problem;
+             const std::optional<WhaleAiAgent> agent = WhaleAiAgents::proposal(arguments, WhaleAiAgents::agents(), &problem);
+             if (!agent) {
+                 *error = true;
+                 return {{QStringLiteral("error"), problem}};
+             }
+             guard->showProposal(*agent);
+             *notice = i18nc("@info %1 is an agent's name", "The agent proposed a new agent: “%1”.", agent->name);
+             return {{QStringLiteral("proposed"), WhaleAiAgents::describeForAgent(*agent)},
+                     {QStringLiteral("note"),
+                      QStringLiteral("Nothing is added yet: the user adds it with Add… in the AI panel, or discards it. Tell them so, and "
+                                     "remind them to enter API keys or other secrets (the environment variables without a value) in "
+                                     "the dialog themselves, and that the agent may need its own login or configuration.")}};
+         },
+         {QStringLiteral("name"), QStringLiteral("command"), QStringLiteral("environment")}},
+    };
+}
+
+void WhaleAiPanel::showProposal(const WhaleAiAgent &agent)
+{
+    m_proposal = agent;
+    QStringList variables;
+    for (const QString &entry : agent.environment) {
+        variables.append(entry.section(QLatin1Char('='), 0, 0));
+    }
+    QString text = i18nc("@info %1 is an agent's name, %2 a command line",
+                         "The agent suggests a new agent: <b>%1</b><br/>%2",
+                         agent.name.toHtmlEscaped(),
+                         WhaleAiAgents::maskSecrets(agent.commandLine).toHtmlEscaped());
+    if (!variables.isEmpty()) {
+        text += QStringLiteral("<br/>") + i18nc("@info %1 is a list of names", "Environment: %1", variables.join(QStringLiteral(", ")).toHtmlEscaped());
+    }
+    m_proposalBar->setText(text);
+    m_proposalBar->animatedShow();
+}
+
+std::optional<WhaleAiAgent> WhaleAiPanel::proposedAgent() const
+{
+    return m_proposal;
+}
+
+void WhaleAiPanel::reviewProposal()
+{
+    if (!m_proposal) {
+        return;
+    }
+    WhaleAiAgentDialog dialog(*m_proposal, this);
+    if (dialog.exec() == QDialog::Accepted) {
+        addProposedAgent(dialog.agent());
+    }
+}
+
+void WhaleAiPanel::addProposedAgent(const WhaleAiAgent &agent)
+{
+    QList<WhaleAiAgent> agents = WhaleAiAgents::agents();
+    WhaleAiAgent added = agent;
+    added.id = WhaleAiAgents::uniqueId(agent.id.isEmpty() ? agent.name : agent.id, agents);
+    agents.append(added);
+    WhaleAiAgents::setAgents(agents);
+    m_proposal.reset();
+    m_proposalBar->animatedHide();
+    // The list changes; the conversation stays with its agent.
+    fillAgents(agentId());
+    m_transcript->addNotice(i18nc("@info %1 is an agent's name", "Added the agent “%1”. Choose it in the agent list to talk to it.", added.name));
 }
 
 void WhaleAiPanel::addActionNotice(const QString &text, const QString &toolTip)

@@ -19,6 +19,7 @@
 #include <KAboutData>
 #include <KActionCollection>
 #include <KActionMenu>
+#include <KMessageWidget>
 #include <KSharedConfig>
 
 #include <QApplication>
@@ -28,6 +29,8 @@
 #include <QDir>
 #include <QDragEnterEvent>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMimeData>
@@ -85,6 +88,7 @@ private Q_SLOTS:
     void elideChipText();
 
     void backChannel();
+    void agentTools();
     void inputKeepsFocus();
 
 private:
@@ -955,6 +959,80 @@ void WhaleAiPanelTest::elideChipText()
 }
 
 QTEST_MAIN(WhaleAiPanelTest)
+
+void WhaleAiPanelTest::agentTools()
+{
+    // AI11: the agent reads the agents and proposes one; the user adds it.
+    WhaleAiAgent secret = fakeAgent(QStringLiteral("secret"), QStringLiteral("basic"));
+    secret.environment = {QStringLiteral("OPENAI_API_KEY=sk-123")};
+    WhaleAiAgents::setAgents({fakeAgent(QStringLiteral("basic"), QStringLiteral("basic")), secret});
+    WhaleAiPanel panel;
+    panel.setViewActions({});
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel.viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    QVERIFY(tools.value(QStringLiteral("list_agents")).readOnly);
+    QVERIFY(!tools.value(QStringLiteral("propose_agent")).readOnly);
+    QVERIFY(WhaleAiMcpServer::windowToolNames().contains(QStringLiteral("list_agents")));
+    QVERIFY(WhaleAiMcpServer::windowToolNames().contains(QStringLiteral("propose_agent")));
+    bool error = false;
+    QString notice;
+    const QJsonObject listed = tools.value(QStringLiteral("list_agents")).call({}, &error, &notice);
+    QVERIFY(!error);
+    const QJsonArray agents = listed.value(QLatin1String("agents")).toArray();
+    QCOMPARE(agents.size(), 2);
+    QCOMPARE(agents.at(1).toObject().value(QLatin1String("environmentVariables")).toArray(), QJsonArray{QStringLiteral("OPENAI_API_KEY")});
+    QVERIFY(!QJsonDocument(listed).toJson().contains("sk-123"));
+    QVERIFY(agents.at(0).toObject().value(QLatin1String("current")).toBool());
+
+    // A proposal is only shown; nothing is added.
+    auto *bar = panel.findChild<KMessageWidget *>(QStringLiteral("agentProposal"));
+    QVERIFY(bar);
+    QVERIFY(bar->isHidden());
+    tools.value(QStringLiteral("propose_agent")).call({{QStringLiteral("name"), QStringLiteral("x")}}, &error, &notice);
+    QVERIFY(error);
+    QVERIFY(bar->isHidden());
+    error = false;
+    const QJsonObject proposed = tools.value(QStringLiteral("propose_agent"))
+                                     .call({{QStringLiteral("name"), QStringLiteral("Local Qwen")},
+                                            {QStringLiteral("command"), QStringLiteral("opencode acp")},
+                                            {QStringLiteral("environment"), QJsonArray{QStringLiteral("API_KEY")}}},
+                                           &error,
+                                           &notice);
+    QVERIFY(!error);
+    QVERIFY(proposed.value(QLatin1String("note")).toString().contains(QLatin1String("API keys")));
+    QVERIFY(notice.contains(QLatin1String("Local Qwen")));
+    QVERIFY(!bar->isHidden());
+    QVERIFY(bar->text().contains(QLatin1String("Local Qwen")));
+    QVERIFY(bar->text().contains(QLatin1String("API_KEY")));
+    QCOMPARE(WhaleAiAgents::agents().size(), 2);
+    QVERIFY(panel.proposedAgent());
+
+    // Discard forgets it.
+    QAction *discard = panel.findChild<QAction *>(QStringLiteral("proposalDiscard"));
+    QVERIFY(discard);
+    discard->trigger();
+    QVERIFY(!panel.proposedAgent());
+    QCOMPARE(WhaleAiAgents::agents().size(), 2);
+
+    // Proposed again and added (as the dialog returns it): in the list, the bar gone.
+    tools.value(QStringLiteral("propose_agent"))
+        .call({{QStringLiteral("name"), QStringLiteral("Local Qwen")}, {QStringLiteral("command"), QStringLiteral("opencode acp")}}, &error, &notice);
+    WhaleAiAgent confirmed = *panel.proposedAgent();
+    confirmed.environment = {QStringLiteral("API_KEY=typed by the user")};
+    panel.addProposedAgent(confirmed);
+    QTRY_VERIFY(bar->isHidden());
+    QCOMPARE(WhaleAiAgents::agents().size(), 3);
+    QCOMPARE(WhaleAiAgents::agents().last().name, QStringLiteral("Local Qwen"));
+    QCOMPARE(WhaleAiAgents::agents().last().id, QStringLiteral("local-qwen"));
+    QCOMPARE(WhaleAiAgents::agents().last().environment, QStringList{QStringLiteral("API_KEY=typed by the user")});
+    auto *combo = panel.findChild<QComboBox *>();
+    QVERIFY(combo);
+    QVERIFY(combo->findData(QStringLiteral("local-qwen")) >= 0);
+    QCOMPARE(panel.agentId(), QStringLiteral("basic"));
+    QVERIFY(texts(panel).contains(QLatin1String("Local Qwen")));
+}
 
 void WhaleAiPanelTest::backChannel()
 {

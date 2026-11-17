@@ -13,6 +13,7 @@
 
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QRegularExpression>
 #include <QStandardPaths>
 
@@ -364,6 +365,68 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
     return hint;
 }
 
+QString maskSecrets(const QString &commandLine)
+{
+    // --api-key x, --api-key=x, --token "x y", -password=x ...: the value goes, the option stays.
+    static const QRegularExpression secret(QStringLiteral(R"((-{1,2}[\w-]*(?:key|token|secret|password|passwd|auth)[\w-]*)(=|\s+)("[^"]*"|'[^']*'|\S+))"),
+                                           QRegularExpression::CaseInsensitiveOption);
+    QString masked = commandLine;
+    masked.replace(secret, QStringLiteral("\\1\\2…"));
+    return masked;
+}
+
+QJsonObject describeForAgent(const WhaleAiAgent &agent)
+{
+    QJsonArray variables;
+    for (const QString &entry : agent.environment) {
+        variables.append(entry.section(QLatin1Char('='), 0, 0).trimmed());
+    }
+    QJsonObject result{{QStringLiteral("id"), agent.id},
+                       {QStringLiteral("name"), agent.name},
+                       {QStringLiteral("command"), maskSecrets(agent.commandLine)},
+                       {QStringLiteral("environmentVariables"), variables}};
+    if (!agent.startMode.isEmpty()) {
+        result.insert(QStringLiteral("startMode"), agent.startMode);
+    }
+    return result;
+}
+
+std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<WhaleAiAgent> &agents, QString *error)
+{
+    auto fail = [error](const QString &message) -> std::optional<WhaleAiAgent> {
+        if (error) {
+            *error = message;
+        }
+        return std::nullopt;
+    };
+    WhaleAiAgent agent;
+    agent.name = arguments.value(QLatin1String("name")).toString().trimmed();
+    if (agent.name.isEmpty() || agent.name.size() > 80) {
+        return fail(QStringLiteral("\"name\" must have 1 to 80 characters."));
+    }
+    agent.commandLine = arguments.value(QLatin1String("command")).toString().trimmed();
+    KShell::Errors splitError = KShell::NoError;
+    if (agent.commandLine.isEmpty() || agent.commandLine.size() > 2000 || KShell::splitArgs(agent.commandLine, KShell::TildeExpand, &splitError).isEmpty()
+        || splitError != KShell::NoError) {
+        return fail(QStringLiteral("\"command\" must be the program and its arguments, quoted as in a shell."));
+    }
+    static const QRegularExpression variableName(QStringLiteral("^[A-Za-z_][A-Za-z0-9_]*$"));
+    const QJsonArray environment = arguments.value(QLatin1String("environment")).toArray();
+    if (environment.size() > 50) {
+        return fail(QStringLiteral("At most 50 environment variables."));
+    }
+    for (const QJsonValue &value : environment) {
+        const QString entry = value.toString().trimmed();
+        const QString name = entry.section(QLatin1Char('='), 0, 0);
+        if (!variableName.match(name).hasMatch()) {
+            return fail(QStringLiteral("Environment entries are NAME or NAME=value; \"%1\" is not.").arg(entry));
+        }
+        agent.environment.append(entry.contains(QLatin1Char('=')) ? entry : entry + QLatin1Char('='));
+    }
+    agent.id = uniqueId(agent.name, agents);
+    return agent;
+}
+
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents)
 {
     QString stem = base.toLower();
@@ -408,7 +471,9 @@ QString defaultSystemPrompt()
         "away instead of presenting a plan. Settings are saved: change one only when the user asks for a setting, not for the "
         "current view. In a plan or read-only mode Orcinus refuses set_setting and save_profile; then tell the user to choose another mode in "
         "the AI panel's Mode list, and do not ask them to confirm instead. The user can take back your lasting changes "
-        "(settings, folder views, profiles) with \"Undo the Agent's Changes\" in the AI panel.\n\n"
+        "(settings, folder views, profiles) with \"Undo the Agent's Changes\" in the AI panel. Orcinus' AI agents are not "
+        "settings: read them with list_agents and suggest a new one with propose_agent; the user adds it, and enters API "
+        "keys or other secrets themselves (remind them).\n\n"
         "You work with the user's own permissions on their real files. Before you change, move or delete anything outside "
         "what they asked for, or anything that is hard to undo, say what you will do and ask first.");
 }

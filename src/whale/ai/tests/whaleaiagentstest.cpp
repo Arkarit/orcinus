@@ -12,6 +12,8 @@
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -36,6 +38,7 @@ private Q_SLOTS:
     void presetsFound();
     void presetsThroughNpx();
     void uniqueId();
+    void forTheAgent();
     void startMode();
     void systemPromptStorage();
     void restrictiveMode();
@@ -206,6 +209,43 @@ void WhaleAiAgentsTest::presetsThroughNpx()
     QVERIFY(presets.at(0).viaNpx);
     QCOMPARE(presets.at(1).commandLine, QStringLiteral("npx -y @agentclientprotocol/codex-acp"));
     QCOMPARE(presets.at(2).commandLine, QStringLiteral("npx -y opencode-ai acp"));
+}
+
+void WhaleAiAgentsTest::forTheAgent()
+{
+    // AI11: what the agent sees of an agent, and what it may propose.
+    QCOMPARE(WhaleAiAgents::maskSecrets(QStringLiteral("x --api-key abc --token=def -password 'g h' --model qwen")),
+             QStringLiteral("x --api-key … --token=… -password … --model qwen"));
+    const WhaleAiAgent agent{QStringLiteral("o"),
+                             QStringLiteral("OpenCode"),
+                             QStringLiteral("opencode acp --auth-token secret1"),
+                             {QStringLiteral("OPENAI_API_KEY=secret2"), QStringLiteral("DEBUG=1")},
+                             QStringLiteral("plan")};
+    const QJsonObject described = WhaleAiAgents::describeForAgent(agent);
+    const QByteArray json = QJsonDocument(described).toJson();
+    QVERIFY(!json.contains("secret1"));
+    QVERIFY(!json.contains("secret2"));
+    QCOMPARE(described.value(QLatin1String("environmentVariables")).toArray(), (QJsonArray{QStringLiteral("OPENAI_API_KEY"), QStringLiteral("DEBUG")}));
+    QCOMPARE(described.value(QLatin1String("startMode")).toString(), QStringLiteral("plan"));
+
+    QString error;
+    const auto proposed =
+        WhaleAiAgents::proposal({{QStringLiteral("name"), QStringLiteral("OpenCode")},
+                                 {QStringLiteral("command"), QStringLiteral("opencode acp")},
+                                 {QStringLiteral("environment"), QJsonArray{QStringLiteral("LMSTUDIO_URL=http://localhost:1234"), QStringLiteral("API_KEY")}}},
+                                {agent},
+                                &error);
+    QVERIFY2(proposed, qPrintable(error));
+    QCOMPARE(proposed->id, QStringLiteral("opencode"));
+    QCOMPARE(proposed->environment, QStringList({QStringLiteral("LMSTUDIO_URL=http://localhost:1234"), QStringLiteral("API_KEY=")}));
+    QVERIFY(!WhaleAiAgents::proposal({{QStringLiteral("command"), QStringLiteral("x")}}, {}, &error));
+    QVERIFY(!WhaleAiAgents::proposal({{QStringLiteral("name"), QStringLiteral("x")}, {QStringLiteral("command"), QStringLiteral("x 'open")}}, {}, &error));
+    QVERIFY(error.contains(QLatin1String("quoted")));
+    QVERIFY(!WhaleAiAgents::proposal({{QStringLiteral("name"), QStringLiteral("x")},
+                                      {QStringLiteral("command"), QStringLiteral("x")},
+                                      {QStringLiteral("environment"), QJsonArray{QStringLiteral("1BAD=x")}}},
+                                     {},
+                                     &error));
 }
 
 void WhaleAiAgentsTest::startMode()

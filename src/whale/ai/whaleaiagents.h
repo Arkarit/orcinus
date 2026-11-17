@@ -9,10 +9,13 @@
 
 #include "whaleacpsession.h"
 
+#include <QJsonObject>
 #include <QList>
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+
+#include <optional>
 
 /**
  * @brief An AI agent the user set up: a program that speaks ACP on stdio.
@@ -128,6 +131,19 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
 
 /** @return An id based on @p base that none of @p agents has. */
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);
+
+// ---- for the agent (AI11): it may read the agents and propose one, never change them ----
+
+/** @return @p commandLine with the values of arguments that look like secrets (--api-key x, --token=x, ...) as "…". */
+QString maskSecrets(const QString &commandLine);
+/** @return @p agent for the agent: id, name, masked command line, start mode, and only the names of its environment variables. */
+QJsonObject describeForAgent(const WhaleAiAgent &agent);
+/**
+ * @return The agent an agent proposes with @p arguments ({"name", "command", "environment"}),
+ *         with an id none of @p agents has, or nothing with @p error set (English).
+ *         An environment entry "NAME" becomes "NAME=" for the user to fill in.
+ */
+std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<WhaleAiAgent> &agents, QString *error);
 
 /**
  * @return Orcinus' built-in instructions for every agent (role, the Orcinus tools):
