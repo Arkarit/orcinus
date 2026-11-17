@@ -254,6 +254,34 @@ JSON channel, crash with stderr, restart) and an agent scenario `tool-sound-chec
 agent writes UI and backend from the prompt, runs it and trims one file. Runs everywhere, CI
 included.
 
+*CV4 design (2026-11-17).* Decision (user): a backend starts only after the user confirms it
+once per version; kept tools the user trusts start directly. Reason: Orcinus answers its own MCP
+tools itself, so an agent in build mode could otherwise run any code through `tool_open` without
+the shell approval its agent asks for.
+- *Manifest:* `"backend": {"command": ["python3", "backend.py"]}` – a non-empty list of strings,
+  the program from `PATH` or a file in the tool's folder. Nothing else for now.
+- *Process:* working folder = the tool's folder; environment plus `ORCINUS_TOOL_ID`,
+  `ORCINUS_TOOL_FOLDER`, `ORCINUS_TOOL_SCRATCH` (`~/.local/share/orcinus/ai/scratch/tools/<id>/`,
+  created) and `PYTHONUNBUFFERED=1`. Started when the tool loads (messages sent before it runs
+  are queued), stopped when the tab closes, on reload (then started again), when the tool is
+  blocked and when Orcinus quits: stdin closed, after 2 s terminate, after 1 s more kill. No
+  automatic restart: a backend that ends shows a bar with its exit code, the last lines of stderr
+  and Restart.
+- *Channel:* newline-delimited JSON both ways. `orcinus.backend.send(value)`, signal
+  `message(value)`, `state` (`none`, `waiting`, `running`, `exited`), `exitCode`, `restart()`.
+  A stdout line that is not JSON and every stderr line go into the tab's log (`tool_log`). Lines
+  longer than 8 MiB are dropped with a log line.
+- *Confirmation:* a bar in the tab: "This tool runs a program: python3 backend.py. It runs with
+  your rights and can change files." [Start] [Not Now]. The approval is stored per tool as a
+  fingerprint of the backend command and of every file *except* `.qml` files (QML cannot start
+  programs and only talks to the approved backend), so the agent's work on the UI does not ask
+  again, a change of the backend does. The agent sees `waiting` in `tool_open`/`tool_inspect`.
+- *Steps:* CV4a `WhaleAiToolBackend` (process, channel, limits, environment) + manifest check,
+  unit tests with a Python fake backend (skipped without Python). CV4b approval, tab
+  integration, QML API, bars. CV4c agent side: guide, log, inspect/dev state, dev MCP hook that
+  confirms for the AI10 runner. CV4d the sound check tool as fixture (+ end-to-end test),
+  scenario `tool-sound-check`, real-agent run.
+
 **CV5 – Frame channel (optional).** Low-latency live preview: a local socket (per tool) over
 which a backend sends frames (encoded, or raw through shared memory / memfd), shown by a
 `LiveImage` item. Example: a Blender viewport rendered offscreen (`gpu.offscreen`), ComfyUI's
