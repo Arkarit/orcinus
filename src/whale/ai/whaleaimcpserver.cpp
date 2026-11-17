@@ -60,6 +60,78 @@ void removeLeftovers(const QString &base)
     }
 }
 
+QByteArray scalarJson(const QJsonValue &value)
+{
+    // QJsonDocument only writes arrays and objects; strip the brackets of a one-element array.
+    const QByteArray array = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    return array.mid(1, array.size() - 2);
+}
+
+void writeJson(const QJsonValue &value, QByteArray &out)
+{
+    if (value.isArray()) {
+        out += '[';
+        const QJsonArray array = value.toArray();
+        for (qsizetype i = 0; i < array.size(); ++i) {
+            if (i > 0) {
+                out += ',';
+            }
+            writeJson(array.at(i), out);
+        }
+        out += ']';
+        return;
+    }
+    if (!value.isObject()) {
+        out += scalarJson(value);
+        return;
+    }
+    const QJsonObject object = value.toObject();
+    const QString orderKey = WhaleAiMcpServer::propertyOrderKey();
+    QStringList order;
+    for (const QJsonValue &name : object.value(orderKey).toArray()) {
+        order.append(name.toString());
+    }
+    out += '{';
+    bool first = true;
+    for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+        if (it.key() == orderKey) {
+            continue;
+        }
+        if (!first) {
+            out += ',';
+        }
+        first = false;
+        out += scalarJson(it.key()) + ':';
+        if (it.key() != QLatin1String("properties") || order.isEmpty() || !it.value().isObject()) {
+            writeJson(it.value(), out);
+            continue;
+        }
+        // The listed properties first, in their order, then any others (sorted).
+        const QJsonObject properties = it.value().toObject();
+        QStringList names;
+        for (const QString &name : std::as_const(order)) {
+            if (properties.contains(name) && !names.contains(name)) {
+                names.append(name);
+            }
+        }
+        for (auto property = properties.constBegin(); property != properties.constEnd(); ++property) {
+            if (!names.contains(property.key())) {
+                names.append(property.key());
+            }
+        }
+        out += '{';
+        for (qsizetype i = 0; i < names.size(); ++i) {
+            if (i > 0) {
+                out += ',';
+            }
+            out += scalarJson(names.at(i)) + ':';
+            writeJson(properties.value(names.at(i)), out);
+        }
+        out += '}';
+    }
+    out += '}';
+}
+
 QJsonObject response(const QJsonValue &id, const QJsonObject &result)
 {
     return {{QStringLiteral("jsonrpc"), QStringLiteral("2.0")}, {QStringLiteral("id"), id}, {QStringLiteral("result"), result}};
@@ -227,6 +299,18 @@ WhaleAiMcpServer::~WhaleAiMcpServer()
     if (m_server) {
         m_server->close();
     }
+}
+
+QString WhaleAiMcpServer::propertyOrderKey()
+{
+    return QStringLiteral("x-orcinus-order");
+}
+
+QByteArray WhaleAiMcpServer::serialize(const QJsonObject &message)
+{
+    QByteArray out;
+    writeJson(message, out);
+    return out;
 }
 
 QString WhaleAiMcpServer::name()
@@ -432,7 +516,7 @@ void WhaleAiMcpServer::readConnection(QLocalSocket *socket)
             answer = handle(document.object());
         }
         if (!answer.isEmpty()) {
-            socket->write(QJsonDocument(answer).toJson(QJsonDocument::Compact) + '\n');
+            socket->write(serialize(answer) + '\n');
         }
     }
     if (socket->bytesAvailable() > MaxLine) {

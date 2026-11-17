@@ -85,7 +85,8 @@ void WhaleAiCanvasModelTest::testParse_data()
     QTest::newRow("video") << o({{"type", "video"}, {"path", m_dir.filePath(QStringLiteral("clip.mp4"))}}) << true;
     QTest::newRow("text") << o({{"type", "text"}, {"text", "# Hello"}}) << true;
     QTest::newRow("files") << o({{"type", "files"}, {"paths", QJsonArray{a, b, folder}}}) << true;
-    QTest::newRow("compare") << o({{"type", "compare"}, {"paths", QJsonArray{a, b}}}) << true;
+    QTest::newRow("compare") << o({{"type", "compare"}, {"before", a}, {"after", b}}) << true;
+    QTest::newRow("compare paths") << o({{"type", "compare"}, {"paths", QJsonArray{a, b}}}) << true;
     QTest::newRow("watch") << o({{"type", "watch"}, {"path", folder}}) << true;
     QTest::newRow("stream") << o({{"type", "stream"}, {"url", "rtsp://camera.local/live"}}) << true;
     // Invalid ones.
@@ -97,6 +98,9 @@ void WhaleAiCanvasModelTest::testParse_data()
     QTest::newRow("image two paths") << o({{"type", "image"}, {"paths", QJsonArray{a, b}}}) << false;
     QTest::newRow("watch a file") << o({{"type", "watch"}, {"path", a}}) << false;
     QTest::newRow("compare one") << o({{"type", "compare"}, {"paths", QJsonArray{a}}}) << false;
+    QTest::newRow("compare before only") << o({{"type", "compare"}, {"before", a}}) << false;
+    QTest::newRow("compare before and paths") << o({{"type", "compare"}, {"before", a}, {"paths", QJsonArray{a, b}}}) << false;
+    QTest::newRow("compare empty url") << o({{"type", "compare"}, {"url", ""}}) << false;
     QTest::newRow("files empty") << o({{"type", "files"}, {"paths", QJsonArray()}}) << false;
     QTest::newRow("text empty") << o({{"type", "text"}, {"text", "  "}}) << false;
     QTest::newRow("text too long") << o({{"type", "text"}, {"text", QString(WhaleAiCanvasModel::MaxText + 1, QLatin1Char('x'))}}) << false;
@@ -153,7 +157,7 @@ void WhaleAiCanvasModelTest::testJsonRoundTrip()
     const QString b = m_dir.filePath(QStringLiteral("b.png"));
     const QJsonArray given{
         QJsonObject{{QStringLiteral("type"), QStringLiteral("image")}, {QStringLiteral("path"), a}, {QStringLiteral("title"), QStringLiteral("Red")}},
-        QJsonObject{{QStringLiteral("type"), QStringLiteral("compare")}, {QStringLiteral("paths"), QJsonArray{a, b}}},
+        QJsonObject{{QStringLiteral("type"), QStringLiteral("compare")}, {QStringLiteral("before"), a}, {QStringLiteral("after"), b}},
         QJsonObject{{QStringLiteral("type"), QStringLiteral("files")}, {QStringLiteral("paths"), QJsonArray{a}}},
         QJsonObject{{QStringLiteral("type"), QStringLiteral("stream")}, {QStringLiteral("url"), QStringLiteral("https://example.org/live.m3u8")}},
     };

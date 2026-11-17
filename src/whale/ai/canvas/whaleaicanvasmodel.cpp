@@ -73,6 +73,9 @@ QJsonObject WhaleAiCanvasBlock::toJson() const
     }
     if (type == Type::Stream) {
         json.insert(QStringLiteral("url"), url.toString());
+    } else if (type == Type::Compare && paths.size() == 2) {
+        json.insert(QStringLiteral("before"), paths.at(0));
+        json.insert(QStringLiteral("after"), paths.at(1));
     } else if (paths.size() == 1 && type != Type::Files) {
         json.insert(QStringLiteral("path"), paths.constFirst());
     } else if (!paths.isEmpty()) {
@@ -148,6 +151,15 @@ std::optional<WhaleAiCanvasBlock> WhaleAiCanvasModel::parse(const QJsonObject &j
     for (const QJsonValue &value : json.value(QLatin1String("paths")).toArray()) {
         given.append(value.toString());
     }
+    // compare takes two plain strings, the easiest form for small local models; "paths" with two
+    // entries is still accepted.
+    if (block.type == Type::Compare) {
+        for (const QLatin1String key : {QLatin1String("before"), QLatin1String("after")}) {
+            if (json.contains(key)) {
+                given.append(json.value(key).toString());
+            }
+        }
+    }
     for (const QString &text : std::as_const(given)) {
         const QString path = localPath(text);
         if (path.isEmpty()) {
@@ -188,8 +200,10 @@ std::optional<WhaleAiCanvasBlock> WhaleAiCanvasModel::parse(const QJsonObject &j
         return std::nullopt;
     }
     if (wanted > 0 && block.paths.size() != wanted) {
-        *error =
-            wanted == 1 ? QStringLiteral("This block needs exactly one \"path\".") : QStringLiteral("compare needs exactly two \"paths\" (before, after).");
+        *error = wanted == 1
+            ? QStringLiteral("This block needs exactly one \"path\".")
+            : QStringLiteral(
+                  "compare needs \"before\" and \"after\", e.g. {\"type\": \"compare\", \"before\": \"/abs/path/a.png\", \"after\": \"/abs/path/b.png\"}.");
         return std::nullopt;
     }
     return block;

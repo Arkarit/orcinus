@@ -300,6 +300,24 @@ void WhaleAiCanvasPanelTest::testTools()
     }
     QCOMPARE(tools.size(), 3);
     QVERIFY(tools.value(QStringLiteral("get_canvas")).readOnly);
+    // A block's properties go out in the order a model writes them (local models only accept
+    // that order): sorted, "title" would leave only "url" to follow it.
+    const QByteArray schema = WhaleAiMcpServer::serialize(tools.value(QStringLiteral("canvas_show")).properties);
+    const auto position = [&schema](const QString &name) {
+        return schema.indexOf(QByteArray(QByteArray("\"") + name.toLatin1() + QByteArray("\":{")));
+    };
+    const QStringList order{QStringLiteral("type"),
+                            QStringLiteral("title"),
+                            QStringLiteral("path"),
+                            QStringLiteral("before"),
+                            QStringLiteral("after"),
+                            QStringLiteral("paths"),
+                            QStringLiteral("text"),
+                            QStringLiteral("url")};
+    QVERIFY(position(order.constFirst()) >= 0);
+    for (qsizetype i = 1; i < order.size(); ++i) {
+        QVERIFY2(position(order.at(i - 1)) < position(order.at(i)), qPrintable(order.at(i)));
+    }
     auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
         QString text;
         *error = false;

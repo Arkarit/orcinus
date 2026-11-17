@@ -279,6 +279,7 @@ def canvas_paths(state, kinds):
     for block in (state.get("canvas") or {}).get("blocks", []):
         if block.get("type") in kinds:
             paths += [block["path"]] if "path" in block else block.get("paths", [])
+            paths += [block[key] for key in ("before", "after") if key in block]
     return paths
 
 

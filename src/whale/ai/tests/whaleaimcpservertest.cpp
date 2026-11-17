@@ -32,6 +32,7 @@ class WhaleAiMcpServerTest : public QObject
 private Q_SLOTS:
     void initialize();
     void toolsList();
+    void serializeOrder();
     void errors();
     void location();
     void selection();
@@ -122,6 +123,40 @@ void WhaleAiMcpServerTest::toolsList()
                           QStringLiteral("trigger_action")}));
     QCOMPARE(tools.at(2).toObject().value(QLatin1String("inputSchema")).toObject().value(QLatin1String("required")).toArray(),
              QJsonArray{QStringLiteral("path")});
+}
+
+void WhaleAiMcpServerTest::serializeOrder()
+{
+    // Schema properties come out in their listed order (local models only accept that order),
+    // unlisted ones after them; the order key itself is not sent, and nothing else changes.
+    const QString orderKey = WhaleAiMcpServer::propertyOrderKey();
+    const QJsonObject item{{QStringLiteral("type"), QStringLiteral("object")},
+                           {QStringLiteral("properties"),
+                            QJsonObject{{QStringLiteral("after"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
+                                        {QStringLiteral("extra"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
+                                        {QStringLiteral("title"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
+                                        {QStringLiteral("type"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}}}},
+                           {orderKey, QJsonArray{QStringLiteral("type"), QStringLiteral("title"), QStringLiteral("missing"), QStringLiteral("after")}}};
+    const QJsonObject message{{QStringLiteral("id"), 7},
+                              {QStringLiteral("text"), QStringLiteral("\"quoted\" \u00e4\n")},
+                              {QStringLiteral("items"), QJsonArray{item, QJsonValue::Null, true, 1.5}}};
+    const QByteArray json = WhaleAiMcpServer::serialize(message);
+    QVERIFY(!json.contains('\n'));
+    QVERIFY(!json.contains(orderKey.toUtf8()));
+    const qsizetype type = json.indexOf("\"type\":{");
+    const qsizetype title = json.indexOf("\"title\":{");
+    const qsizetype after = json.indexOf("\"after\":{");
+    const qsizetype extra = json.indexOf("\"extra\":{");
+    QVERIFY(type >= 0 && type < title && title < after && after < extra);
+
+    QJsonParseError error;
+    const QJsonDocument parsed = QJsonDocument::fromJson(json, &error);
+    QCOMPARE(error.error, QJsonParseError::NoError);
+    QJsonObject expectedItem = item;
+    expectedItem.remove(orderKey);
+    QJsonObject expected = message;
+    expected.insert(QStringLiteral("items"), QJsonArray{expectedItem, QJsonValue::Null, true, 1.5});
+    QCOMPARE(parsed.object(), expected);
 }
 
 void WhaleAiMcpServerTest::errors()

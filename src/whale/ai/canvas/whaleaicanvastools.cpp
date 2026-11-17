@@ -50,11 +50,23 @@ QJsonObject blockSchema()
              {QStringLiteral("paths"),
               QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
                           {QStringLiteral("items"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
-                          {QStringLiteral("description"), QStringLiteral("Absolute local paths: files (1-200 files or folders), compare (before, after)")}}},
+                          {QStringLiteral("description"), QStringLiteral("files: absolute local paths, 1-200 files or folders")}}},
+             {QStringLiteral("before"), property(QStringLiteral("string"), QStringLiteral("compare: absolute local path of the first image (left)"))},
+             {QStringLiteral("after"), property(QStringLiteral("string"), QStringLiteral("compare: absolute local path of the second image (right)"))},
              {QStringLiteral("text"), property(QStringLiteral("string"), QStringLiteral("Markdown for text; a caption under the content for the others"))},
              {QStringLiteral("url"), property(QStringLiteral("string"), QStringLiteral("stream: http, https, rtsp, rtmp, srt or udp URL"))},
          }},
         {QStringLiteral("required"), QJsonArray{QStringLiteral("type")}},
+        // The order a model writes a block in; sorted, "title" would leave only "url" after it.
+        {WhaleAiMcpServer::propertyOrderKey(),
+         QJsonArray{QStringLiteral("type"),
+                    QStringLiteral("title"),
+                    QStringLiteral("path"),
+                    QStringLiteral("before"),
+                    QStringLiteral("after"),
+                    QStringLiteral("paths"),
+                    QStringLiteral("text"),
+                    QStringLiteral("url")}},
     };
 }
 }
