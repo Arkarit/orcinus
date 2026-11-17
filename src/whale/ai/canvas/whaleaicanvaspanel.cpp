@@ -9,6 +9,7 @@
 #include "whaleaicanvasmedia.h"
 #include "whaleaicanvasmodel.h"
 #include "whaleaiquickwidget.h"
+#include "whaleaitoolbackend.h"
 #include "whaleaitooltab.h"
 
 #include <KIO/JobUiDelegateFactory>
@@ -335,6 +336,10 @@ bool WhaleAiCanvasPanel::closeTool(const QString &id)
         return false;
     }
     m_tabs->removeTab(m_tabs->indexOf(tab));
+    // The backend ends in the background; only quitting Orcinus waits for it.
+    if (tab->backend()) {
+        tab->backend()->stop();
+    }
     delete tab;
     return true;
 }

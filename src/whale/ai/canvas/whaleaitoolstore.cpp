@@ -150,9 +150,22 @@ QStringList WhaleAiToolStore::files(const QString &id) const
 
 QString WhaleAiToolStore::fingerprint(const QString &id) const
 {
+    return fingerprint(id, true);
+}
+
+QString WhaleAiToolStore::backendFingerprint(const QString &id) const
+{
+    return fingerprint(id, false);
+}
+
+QString WhaleAiToolStore::fingerprint(const QString &id, bool withQml) const
+{
     QCryptographicHash hash(QCryptographicHash::Sha256);
     const QDir folder(QDir(m_root).filePath(id));
     for (const QString &relative : files(id)) {
+        if (!withQml && relative.endsWith(QLatin1String(".qml"))) {
+            continue;
+        }
         hash.addData(relative.toUtf8());
         hash.addData(QByteArrayView("\0", 1));
         QFile file(folder.filePath(relative));
@@ -200,6 +213,22 @@ bool WhaleAiToolStore::isTrusted(const QString &id) const
 {
     const QString trusted = group().readEntry(QStringLiteral("Trusted_%1").arg(id), QString());
     return !trusted.isEmpty() && pinned().contains(id) && trusted == fingerprint(id);
+}
+
+void WhaleAiToolStore::allowBackend(const QString &id)
+{
+    KConfigGroup config = group();
+    config.writeEntry(QStringLiteral("BackendAllowed_%1").arg(id), backendFingerprint(id));
+    config.sync();
+}
+
+bool WhaleAiToolStore::isBackendAllowed(const QString &id) const
+{
+    if (isTrusted(id)) {
+        return true;
+    }
+    const QString allowed = group().readEntry(QStringLiteral("BackendAllowed_%1").arg(id), QString());
+    return !allowed.isEmpty() && allowed == backendFingerprint(id);
 }
 
 KConfigGroup WhaleAiToolStore::settingsGroup(const QString &id) const

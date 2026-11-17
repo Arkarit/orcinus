@@ -9,6 +9,7 @@
 #include "whaleaiqmlguard.h"
 #include "whaleaiquickwidget.h"
 #include "whaleaitoolapi.h"
+#include "whaleaitoolbackend.h"
 #include "whaleaitoolstore.h"
 #include "whaleaitooltab.h"
 #include "whaleaitooltools.h"
@@ -17,11 +18,14 @@
 
 #include <KConfigGroup>
 #include <KIO/FileUndoManager>
+#include <KMessageWidget>
 
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QMainWindow>
+#include <QPointer>
+#include <QProcess>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QStandardPaths>
@@ -29,6 +33,7 @@
 #include <QTest>
 
 #include <functional>
+#include <memory>
 
 /**
  * The tools of the AI canvas (CV2): the store and the trust step, the "orcinus" object, the import
@@ -51,6 +56,7 @@ private Q_SLOTS:
     void testKeepAndTrust();
     void testBrokenTool();
     void testDevelopmentLoop();
+    void testBackend();
 
 private:
     QString writeFile(const QString &path, const QByteArray &data);
@@ -657,6 +663,120 @@ FocusScope {
     call(QStringLiteral("tool_log"), {{QStringLiteral("tool"), id}}, &error);
     QVERIFY(error);
     QDir(m_tools + QStringLiteral("/counter")).removeRecursively();
+}
+
+void WhaleAiToolTest::testBackend()
+{
+    // CV4: a tool's backend starts after the user confirms it, talks JSON lines with the QML and
+    // says when it ends.
+    if (QStandardPaths::findExecutable(QStringLiteral("python3")).isEmpty()) {
+        QSKIP("python3 is needed for the backend");
+    }
+    const QString folder = m_tools + QStringLiteral("/echo");
+    const QByteArray backendScript =
+        "import json, sys\n"
+        "for line in sys.stdin:\n"
+        "    message = json.loads(line)\n"
+        "    if message == {'ping': 'exit'}:\n"
+        "        print('oops', file=sys.stderr, flush=True)\n"
+        "        sys.exit(2)\n"
+        "    print(json.dumps({'got': message}), flush=True)\n";
+    writeTool(QStringLiteral("echo"),
+              "import QtQuick\n"
+              "Item {\n"
+              "    property var received: []\n"
+              "    property string backendState: orcinus.backend.state\n"
+              "    Component.onCompleted: orcinus.backend.send({hello: 'early'})\n"
+              "    Connections { target: orcinus.backend; function onMessage(value) { received = received.concat([JSON.stringify(value)]) } }\n"
+              "    function ping(x) { return orcinus.backend.send({ping: x}) }\n"
+              "}\n",
+              R"({"name": "Echo", "writes": ["nowhere"], "backend": {"command": ["python3", "backend.py"]}})");
+    writeFile(folder + QStringLiteral("/backend.py"), backendScript);
+    const auto tool = m_store.tool(QStringLiteral("echo"));
+    QVERIFY(tool);
+    auto tab = std::make_unique<WhaleAiToolTab>(*tool, m_store, m_host);
+    auto *bar = tab->findChild<KMessageWidget *>(QStringLiteral("backendMessage"));
+    QVERIFY(bar);
+    auto received = [&tab] {
+        return tab->quickWidget()->rootObject()->property("received").toStringList();
+    };
+    auto ping = [&tab](const QString &text) {
+        QVariant sent;
+        QMetaObject::invokeMethod(tab->quickWidget()->rootObject(), "ping", Q_RETURN_ARG(QVariant, sent), Q_ARG(QVariant, text));
+        return sent.toBool();
+    };
+
+    // Not confirmed yet: it waits and asks; what the QML sends meanwhile is kept.
+    tab->load();
+    QVERIFY(tab->isLoaded());
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Waiting);
+    QCOMPARE(tab->quickWidget()->rootObject()->property("backendState").toString(), QStringLiteral("waiting"));
+    QVERIFY(!bar->isHidden());
+    QVERIFY(bar->text().contains(QLatin1String("python3 backend.py")));
+    QVERIFY(bar->text().contains(QLatin1String("nowhere")));
+    QCOMPARE(bar->actions().size(), 2);
+    QVERIFY(!m_store.isBackendAllowed(QStringLiteral("echo")));
+    QVERIFY(tab->confirmBackend());
+    QVERIFY(m_store.isBackendAllowed(QStringLiteral("echo")));
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Running);
+    QTRY_COMPARE(received(), QStringList{QStringLiteral(R"({"got":{"hello":"early"}})")});
+    QVERIFY(ping(QStringLiteral("one")));
+    QTRY_COMPARE(received().size(), 2);
+    QCOMPARE(received().last(), QStringLiteral(R"({"got":{"ping":"one"}})"));
+    QTRY_VERIFY(bar->isHidden());
+
+    // Confirmed: a reload starts it at once, also after a change of the QML only.
+    tab->load();
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Running);
+    writeTool(QStringLiteral("echo"),
+              "import QtQuick\n"
+              "Item {\n"
+              "    property var received: []\n"
+              "    property string backendState: orcinus.backend.state\n"
+              "    Connections { target: orcinus.backend; function onMessage(value) { received = received.concat([JSON.stringify(value)]) } }\n"
+              "    function ping(x) { return orcinus.backend.send({ping: x}) }\n"
+              "}\n",
+              R"({"name": "Echo", "writes": ["nowhere"], "backend": {"command": ["python3", "backend.py"]}})");
+    tab->load();
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Running);
+
+    // A changed backend asks again.
+    writeFile(folder + QStringLiteral("/backend.py"), backendScript + "# changed\n");
+    tab->load();
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Waiting);
+    QVERIFY(!bar->isHidden());
+    QVERIFY(tab->confirmBackend());
+    QVERIFY(!tab->confirmBackend()); // nothing waits any more
+
+    // It ends: the bar says so with its stderr, and Restart starts it again.
+    QVERIFY(ping(QStringLiteral("exit")));
+    QTRY_COMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Exited);
+    QCOMPARE(tab->backend()->exitCode(), 2);
+    QCOMPARE(tab->quickWidget()->rootObject()->property("backendState").toString(), QStringLiteral("exited"));
+    QTRY_VERIFY(!bar->isHidden());
+    QVERIFY(bar->text().contains(QLatin1String("exit code 2")));
+    QVERIFY(bar->text().contains(QLatin1String("oops")));
+    QVERIFY(tab->log().join(QLatin1Char('\n')).contains(QLatin1String("backend stderr: oops")));
+    QVERIFY(!ping(QStringLiteral("lost")));
+    QCOMPARE(bar->actions().size(), 1);
+    bar->actions().constFirst()->trigger();
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Running);
+    QVERIFY(ping(QStringLiteral("two")));
+    QTRY_VERIFY(!received().isEmpty() && received().last() == QStringLiteral(R"({"got":{"ping":"two"}})"));
+
+    // Keeping the tool trusts its backend too.
+    writeFile(folder + QStringLiteral("/backend.py"), backendScript + "# changed again\n");
+    QVERIFY(!m_store.isBackendAllowed(QStringLiteral("echo")));
+    m_store.pin(QStringLiteral("echo"));
+    QVERIFY(m_store.isBackendAllowed(QStringLiteral("echo")));
+    m_store.unpin(QStringLiteral("echo"));
+
+    // Closing the tab ends the backend.
+    QPointer<QObject> process = tab->backend()->findChild<QProcess *>();
+    QVERIFY(process);
+    tab.reset();
+    QVERIFY(!process);
+    QDir(folder).removeRecursively();
 }
 
 QTEST_MAIN(WhaleAiToolTest)

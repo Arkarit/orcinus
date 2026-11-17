@@ -47,12 +47,21 @@ public:
     QStringList log() const;
     WhaleAiQuickWidget *quickWidget() const;
     WhaleAiToolApi *api() const;
+    /** The tool's backend (CV4), or nullptr while the tool is not loaded. */
+    WhaleAiToolBackend *backend() const;
 
     /** Reads the manifest again and loads the tool's QML anew. */
     void load();
     /** Shows @p message instead of the tool, which is not loaded: its files changed since it was kept. */
     void block(const QString &message);
     bool isBlocked() const;
+
+    /**
+     * The user confirms the backend (the "Start" of the question bar): it is allowed as it is now
+     * and starts. For the dev MCP, which answers for the agent tests.
+     * @return Whether there was a backend waiting for it.
+     */
+    bool confirmBackend();
 
     // ---- for the agent's development loop (CV3) ----
     /** The root's own properties and the items with an objectName (type, text, enabled, ...). */
@@ -87,7 +96,13 @@ private Q_SLOTS:
 
 private:
     void showMessage(const QString &text, int type, const QList<QAction *> &actions = {});
-    void unload();
+    /** @p wait: let a running backend end before returning (Orcinus quits), else stop it in the background. */
+    void unload(bool wait = false);
+    /** Starts the backend if the user allowed it, else asks. */
+    void startBackend();
+    /** The bar that tells about the backend: the question, or that it ended. */
+    void showBackendState();
+    void showBackendMessage(const QString &text, int type, const QList<QAction *> &actions);
 
     WhaleAiTool m_tool;
     WhaleAiToolStore m_store;
@@ -102,6 +117,8 @@ private:
     bool m_triedLoading = false;
     bool m_blocked = false;
     QList<QAction *> m_actions;
+    KMessageWidget *m_backendMessage;
+    QList<QAction *> m_backendActions;
 };
 
 #endif

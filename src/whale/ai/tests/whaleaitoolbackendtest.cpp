@@ -12,6 +12,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -169,11 +170,11 @@ void WhaleAiToolBackendTest::testRoundTrip()
     backend.start();
     QCOMPARE(backend.state(), WhaleAiToolBackend::State::Running);
     // Any JSON value goes both ways.
-    QVERIFY(backend.send(QVariantMap{{QStringLiteral("text"), QStringLiteral("äö \"x\"\n")}}));
+    QVERIFY(backend.send(QJsonObject{{QStringLiteral("text"), QStringLiteral("äö \"x\"\n")}}));
     QCOMPARE(next(messages).toMap().value(QStringLiteral("echo")).toMap().value(QStringLiteral("text")).toString(), QStringLiteral("äö \"x\"\n"));
     QVERIFY(backend.send(42));
     QCOMPARE(next(messages).toMap().value(QStringLiteral("echo")).toInt(), 42);
-    QVERIFY(backend.send(QVariantList{QStringLiteral("a"), true}));
+    QVERIFY(backend.send(QJsonArray{QStringLiteral("a"), true}));
     QCOMPARE(next(messages).toMap().value(QStringLiteral("echo")).toList(), (QVariantList{QStringLiteral("a"), true}));
     // Not JSON on stdout and everything on stderr go into the log.
     QTRY_VERIFY(log.size() >= 2);
@@ -205,7 +206,7 @@ void WhaleAiToolBackendTest::testEnvironment()
     WhaleAiToolBackend backend(tool());
     QSignalSpy messages(&backend, &WhaleAiToolBackend::message);
     backend.start();
-    backend.send(QVariantMap{{QStringLiteral("env"), 1}});
+    backend.send(QJsonObject{{QStringLiteral("env"), 1}});
     const QVariantMap env = next(messages).toMap();
     QCOMPARE(env.value(QStringLiteral("cwd")).toString(), QDir(m_folder).canonicalPath());
     QCOMPARE(env.value(QStringLiteral("id")).toString(), QStringLiteral("fake"));
@@ -222,7 +223,7 @@ void WhaleAiToolBackendTest::testExitAndRestart()
     QSignalSpy messages(&backend, &WhaleAiToolBackend::message);
     QSignalSpy log(&backend, &WhaleAiToolBackend::logLine);
     backend.start();
-    backend.send(QVariantMap{{QStringLiteral("exit"), 3}});
+    backend.send(QJsonObject{{QStringLiteral("exit"), 3}});
     QTRY_COMPARE(backend.state(), WhaleAiToolBackend::State::Exited);
     QCOMPARE(backend.exitCode(), 3);
     QCOMPARE(backend.stderrTail(), QStringList({QStringLiteral("starting"), QStringLiteral("bye")}));
@@ -267,7 +268,7 @@ void WhaleAiToolBackendTest::testLongLine()
     QSignalSpy messages(&backend, &WhaleAiToolBackend::message);
     QSignalSpy log(&backend, &WhaleAiToolBackend::logLine);
     backend.start();
-    backend.send(QVariantMap{{QStringLiteral("big"), int(WhaleAiToolBackend::MaxLine + 1000)}});
+    backend.send(QJsonObject{{QStringLiteral("big"), int(WhaleAiToolBackend::MaxLine + 1000)}});
     // The long line is dropped, the next one arrives.
     QCOMPARE(next(messages).toString(), QStringLiteral("after big"));
     QVERIFY(messages.isEmpty());
@@ -284,7 +285,7 @@ void WhaleAiToolBackendTest::testStopKillsStubborn()
     WhaleAiToolBackend backend(tool());
     QSignalSpy messages(&backend, &WhaleAiToolBackend::message);
     backend.start();
-    backend.send(QVariantMap{{QStringLiteral("stubborn"), 1}});
+    backend.send(QJsonObject{{QStringLiteral("stubborn"), 1}});
     const qint64 pid = next(messages).toMap().value(QStringLiteral("pid")).toLongLong();
     QVERIFY(pid > 0);
     QElapsedTimer timer;
@@ -303,7 +304,7 @@ void WhaleAiToolBackendTest::testDestructorKillsStubborn()
         WhaleAiToolBackend backend(tool());
         QSignalSpy messages(&backend, &WhaleAiToolBackend::message);
         backend.start();
-        backend.send(QVariantMap{{QStringLiteral("stubborn"), 1}});
+        backend.send(QJsonObject{{QStringLiteral("stubborn"), 1}});
         pid = next(messages).toMap().value(QStringLiteral("pid")).toLongLong();
         QVERIFY(pid > 0);
     }

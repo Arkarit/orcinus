@@ -71,6 +71,12 @@ public:
     QStringList files(const QString &id) const;
     /** A fingerprint of the tool's files (names and contents). */
     QString fingerprint(const QString &id) const;
+    /**
+     * The fingerprint the confirmation of a backend covers (CV4): every file but the .qml files.
+     * QML cannot start programs and only talks to the approved backend, so work on the UI does
+     * not ask again; a change of the backend, its files or the manifest does.
+     */
+    QString backendFingerprint(const QString &id) const;
 
     /** The kept tools, in the order of their tabs. */
     QStringList pinned() const;
@@ -80,11 +86,17 @@ public:
     /** @return Whether @p id is kept and its files are still the ones the user trusted. */
     bool isTrusted(const QString &id) const;
 
+    /** The user confirmed the backend of @p id as it is now. */
+    void allowBackend(const QString &id);
+    /** @return Whether the backend of @p id may start: confirmed as it is, or the tool is trusted. */
+    bool isBackendAllowed(const QString &id) const;
+
     /** The persistent settings of the tool @p id (the "settings" group of a tool). */
     KConfigGroup settingsGroup(const QString &id) const;
 
 private:
     KConfigGroup group() const;
+    QString fingerprint(const QString &id, bool withQml) const;
 
     QString m_root;
     KSharedConfigPtr m_config;

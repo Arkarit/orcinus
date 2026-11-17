@@ -249,9 +249,8 @@ void WhaleAiToolBackend::restart()
     start();
 }
 
-bool WhaleAiToolBackend::send(const QVariant &value)
+bool WhaleAiToolBackend::send(const QJsonValue &json)
 {
-    const QJsonValue json = QJsonValue::fromVariant(value);
     switch (m_state) {
     case State::Running:
         write(json);

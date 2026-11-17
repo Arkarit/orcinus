@@ -138,6 +138,7 @@ WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &
     , m_layout(new QVBoxLayout(this))
     , m_message(new KMessageWidget(this))
     , m_messageTimer(new QTimer(this))
+    , m_backendMessage(new KMessageWidget(this))
 {
     setObjectName(QStringLiteral("aiTool_%1").arg(tool.id));
     m_layout->setContentsMargins(0, 0, 0, 0);
@@ -146,6 +147,11 @@ WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &
     m_message->setCloseButtonVisible(true);
     m_message->hide();
     m_layout->addWidget(m_message);
+    m_backendMessage->setObjectName(QStringLiteral("backendMessage"));
+    m_backendMessage->setWordWrap(true);
+    m_backendMessage->setCloseButtonVisible(true);
+    m_backendMessage->hide();
+    m_layout->addWidget(m_backendMessage);
     m_messageTimer->setSingleShot(true);
     m_messageTimer->setInterval(6000);
     connect(m_messageTimer, &QTimer::timeout, m_message, &KMessageWidget::animatedHide);
@@ -154,7 +160,7 @@ WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &
 WhaleAiToolTab::~WhaleAiToolTab()
 {
     unwatchConsole(this);
-    unload();
+    unload(true);
 }
 
 QString WhaleAiToolTab::id() const
@@ -185,6 +191,11 @@ WhaleAiQuickWidget *WhaleAiToolTab::quickWidget() const
 WhaleAiToolApi *WhaleAiToolTab::api() const
 {
     return m_api;
+}
+
+WhaleAiToolBackend *WhaleAiToolTab::backend() const
+{
+    return m_api ? m_api->backend() : nullptr;
 }
 
 bool WhaleAiToolTab::isBlocked() const
@@ -221,9 +232,13 @@ void WhaleAiToolTab::showMessage(const QString &text, int type, const QList<QAct
     }
 }
 
-void WhaleAiToolTab::unload()
+void WhaleAiToolTab::unload(bool wait)
 {
     m_loaded = false;
+    m_backendMessage->hide();
+    if (m_api && !wait) {
+        m_api->backend()->stop();
+    }
     // The QML refers to the API: it goes first.
     delete m_quick;
     m_quick = nullptr;
@@ -256,6 +271,11 @@ void WhaleAiToolTab::load()
         showMessage(text, KMessageWidget::Information);
     });
     connect(m_api, &WhaleAiToolApi::logged, this, &WhaleAiToolTab::addLog);
+    WhaleAiToolBackend *backend = m_api->backend();
+    connect(backend, &WhaleAiToolBackend::logLine, this, &WhaleAiToolTab::addLog);
+    connect(backend, &WhaleAiToolBackend::stateChanged, this, &WhaleAiToolTab::showBackendState);
+    // What the QML sends while it loads goes out once the backend runs.
+    backend->setWaiting();
 
     m_quick = new WhaleAiQuickWidget(this);
     QQmlEngine *engine = m_quick->engine();
@@ -287,10 +307,98 @@ void WhaleAiToolTab::load()
         showMessage(i18nc("@info %1 is a list of QML errors", "The tool has errors:\n%1", errors.mid(0, 5).join(QLatin1Char('\n'))),
                     KMessageWidget::Error,
                     {reload});
+        m_api->backend()->stop();
     } else {
         m_quick->setFocus();
+        startBackend();
     }
     Q_EMIT loaded(m_loaded);
+}
+
+void WhaleAiToolTab::startBackend()
+{
+    WhaleAiToolBackend *backend = this->backend();
+    if (!backend || !backend->hasBackend()) {
+        return;
+    }
+    if (m_store.isBackendAllowed(m_tool.id)) {
+        backend->start();
+        return;
+    }
+    backend->setWaiting();
+    // setWaiting() does not tell when it was waiting already (Restart after a change).
+    showBackendState();
+}
+
+bool WhaleAiToolTab::confirmBackend()
+{
+    WhaleAiToolBackend *backend = this->backend();
+    if (!backend || backend->state() != WhaleAiToolBackend::State::Waiting) {
+        return false;
+    }
+    m_store.allowBackend(m_tool.id);
+    backend->start();
+    return true;
+}
+
+void WhaleAiToolTab::showBackendMessage(const QString &text, int type, const QList<QAction *> &actions)
+{
+    for (QAction *action : std::as_const(m_backendActions)) {
+        m_backendMessage->removeAction(action);
+        action->deleteLater();
+    }
+    m_backendActions = actions;
+    for (QAction *action : actions) {
+        m_backendMessage->addAction(action);
+    }
+    m_backendMessage->setMessageType(KMessageWidget::MessageType(type));
+    m_backendMessage->setText(text);
+    m_backendMessage->animatedShow();
+}
+
+void WhaleAiToolTab::showBackendState()
+{
+    WhaleAiToolBackend *backend = this->backend();
+    if (!backend) {
+        return;
+    }
+    switch (backend->state()) {
+    case WhaleAiToolBackend::State::Waiting: {
+        if (!m_loaded) {
+            // Still loading: asked once the QML is there.
+            return;
+        }
+        QString text = i18nc("@info %1 is a command line",
+                             "This tool runs a program: %1\nIt runs with your rights and can change files.",
+                             backend->command().join(QLatin1Char(' ')));
+        if (!m_tool.writes.isEmpty()) {
+            text += QLatin1Char('\n')
+                + i18nc("@info %1 is a list of places, as the tool describes them", "It says it writes to: %1", m_tool.writes.join(QStringLiteral(", ")));
+        }
+        auto start = new QAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), i18nc("@action:button", "Start"), this);
+        connect(start, &QAction::triggered, this, &WhaleAiToolTab::confirmBackend);
+        auto later = new QAction(i18nc("@action:button", "Not Now"), this);
+        connect(later, &QAction::triggered, m_backendMessage, &KMessageWidget::animatedHide);
+        showBackendMessage(text, KMessageWidget::Information, {start, later});
+        break;
+    }
+    case WhaleAiToolBackend::State::Exited: {
+        QString text = backend->exitCode() == 0 ? i18nc("@info", "The tool's program has ended.")
+                                                : i18nc("@info %1 is a number", "The tool's program has stopped (exit code %1).", backend->exitCode());
+        const QStringList tail = backend->stderrTail().mid(qMax(0, backend->stderrTail().size() - 5));
+        if (!tail.isEmpty()) {
+            text += QLatin1Char('\n') + tail.join(QLatin1Char('\n'));
+        }
+        auto restart = new QAction(QIcon::fromTheme(QStringLiteral("view-refresh")), i18nc("@action:button", "Restart"), this);
+        connect(restart, &QAction::triggered, this, &WhaleAiToolTab::startBackend);
+        showBackendMessage(text, backend->exitCode() == 0 ? KMessageWidget::Information : KMessageWidget::Error, {restart});
+        break;
+    }
+    case WhaleAiToolBackend::State::None:
+    case WhaleAiToolBackend::State::Running:
+        m_backendMessage->animatedHide();
+        break;
+    }
 }
 
 void WhaleAiToolTab::block(const QString &message)

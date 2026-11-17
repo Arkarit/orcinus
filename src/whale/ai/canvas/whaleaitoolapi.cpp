@@ -70,6 +70,7 @@ WhaleAiToolApi::WhaleAiToolApi(const WhaleAiTool &tool, const WhaleAiToolStore &
     , m_host(host)
     , m_dialogParent(dialogParent)
     , m_player(new WhaleAiCanvasPlayer(this))
+    , m_backend(new WhaleAiToolBackend(tool, this))
 {
 }
 
@@ -100,6 +101,11 @@ QString WhaleAiToolApi::toolFolder() const
 WhaleAiCanvasPlayer *WhaleAiToolApi::player() const
 {
     return m_player;
+}
+
+WhaleAiToolBackend *WhaleAiToolApi::backend() const
+{
+    return m_backend;
 }
 
 QUrl WhaleAiToolApi::urlOf(const QString &text)

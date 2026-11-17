@@ -7,6 +7,7 @@
 #ifndef WHALEAITOOLAPI_H
 #define WHALEAITOOLAPI_H
 
+#include "whaleaitoolbackend.h"
 #include "whaleaitoolstore.h"
 
 #include <QHash>
@@ -49,6 +50,8 @@ class WhaleAiToolApi : public QObject
     Q_PROPERTY(QString toolName READ toolName CONSTANT)
     Q_PROPERTY(QString toolFolder READ toolFolder CONSTANT)
     Q_PROPERTY(WhaleAiCanvasPlayer *player READ player CONSTANT)
+    /** The tool's backend (CV4): send(value), signal message(value), state, exitCode, restart(). */
+    Q_PROPERTY(WhaleAiToolBackend *backend READ backend CONSTANT)
 
 public:
     /** The most items list() gives. */
@@ -65,6 +68,7 @@ public:
     QString toolName() const;
     QString toolFolder() const;
     WhaleAiCanvasPlayer *player() const;
+    WhaleAiToolBackend *backend() const;
 
     // ---- context ----
     Q_INVOKABLE QString currentFolder() const;
@@ -136,6 +140,7 @@ private:
     QPointer<QWidget> m_dialogParent;
     QPointer<QQmlEngine> m_engine;
     WhaleAiCanvasPlayer *m_player;
+    WhaleAiToolBackend *m_backend;
     QHash<int, QPointer<KJob>> m_lists;
     int m_nextId = 1;
 };

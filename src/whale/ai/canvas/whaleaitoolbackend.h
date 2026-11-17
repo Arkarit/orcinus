@@ -88,10 +88,10 @@ public:
     /** stop() and start(). */
     Q_INVOKABLE void restart();
     /**
-     * Sends @p value (anything JSON can hold) as one line. Queued while waiting or starting.
+     * Sends @p value (anything JSON can hold; QML converts JavaScript values) as one line. Queued while waiting or starting.
      * @return Whether it was sent or queued: not when there is no backend or it ended.
      */
-    Q_INVOKABLE bool send(const QVariant &value);
+    Q_INVOKABLE bool send(const QJsonValue &value);
 
 Q_SIGNALS:
     /** The backend wrote @p value (a JSON line). */
