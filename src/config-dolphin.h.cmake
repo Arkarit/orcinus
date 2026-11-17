@@ -5,6 +5,7 @@
 #cmakedefine01 HAVE_TERMINAL
 #cmakedefine01 HAVE_X11
 #cmakedefine01 HAVE_MPV
+#cmakedefine01 HAVE_AI_CANVAS
 
 #define WHALE_EXECUTABLE "@WHALE_EXECUTABLE@"
 #define WHALE_COMPONENT "@WHALE_COMPONENT@"

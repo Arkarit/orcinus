@@ -532,13 +532,16 @@ void WhaleStyleManagerTest::testDefaultStyles()
             QVERIFY(it.value().enabled);
         }
     }
-    QCOMPARE(ids,
-             QStringList({QStringLiteral("compact"),
-                          QStringLiteral("dual-compact"),
-                          QStringLiteral("details"),
-                          QStringLiteral("dual-details"),
-                          QStringLiteral("images-only"),
-                          QStringLiteral("locked-cushion-map")}));
+    QStringList expected{QStringLiteral("compact"),
+                         QStringLiteral("dual-compact"),
+                         QStringLiteral("details"),
+                         QStringLiteral("dual-details"),
+                         QStringLiteral("images-only"),
+                         QStringLiteral("locked-cushion-map")};
+#if WHALE_ENABLE_AI && HAVE_AI_CANVAS
+    expected.append(QStringLiteral("ai-workbench"));
+#endif
+    QCOMPARE(ids, expected);
     QVERIFY(ids.contains(WhaleDefaultStyles::startStyleId()));
 
     // Put only into a store without profiles, and kept there with their IDs.

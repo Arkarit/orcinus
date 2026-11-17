@@ -342,10 +342,14 @@ WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &act
         if (tool.call) {
             tool.call = wrap(tool.call);
         }
-        if ((tool.name == QLatin1String("set_setting") || tool.name == QLatin1String("save_profile")) && tool.call) {
+        const bool savesSettings = tool.name == QLatin1String("set_setting") || tool.name == QLatin1String("save_profile");
+        // Canvas tools (CV3): writing their files, or running their code, changes things too.
+        const bool changesTools = tool.name == QLatin1String("tool_write_file") || tool.name == QLatin1String("tool_delete_file")
+            || tool.name == QLatin1String("tool_open") || tool.name == QLatin1String("tool_invoke");
+        if ((savesSettings || changesTools) && tool.call) {
             // Saved settings stay untouched in the read-only mode (user, 2026-11-16, until undo
             // exists, AI9e); views and windows may still change there.
-            tool.call = [this, call = tool.call](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
+            tool.call = [this, call = tool.call, savesSettings](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
                 const WhaleAcpConfigOption *mode = m_session ? m_session->configOption(QStringLiteral("mode")) : nullptr;
                 if (mode && !mode->currentValue.isEmpty() && mode->currentValue == WhaleAiAgents::restrictiveMode(*mode)) {
                     // The names the user sees in the Mode list, so the agent does not guess them.
@@ -357,9 +361,12 @@ WhaleAiViewActions WhaleAiPanel::keepingInputFocus(const WhaleAiViewActions &act
                     }
                     *error = true;
                     return {{QStringLiteral("error"),
-                             QStringLiteral("Settings and profiles cannot be saved in the read-only mode \"%1\". Tell the user to choose another "
+                             QStringLiteral("%3 in the read-only mode \"%1\". Tell the user to choose another "
                                             "mode in the Mode list of the AI panel (%2), then try again.")
-                                 .arg(modeName(mode->currentValue), others.join(QStringLiteral(", ")))}};
+                                 .arg(modeName(mode->currentValue),
+                                      others.join(QStringLiteral(", ")),
+                                      savesSettings ? QStringLiteral("Settings and profiles cannot be saved")
+                                                    : QStringLiteral("Canvas tools cannot be written, opened or used"))}};
                 }
                 return call(arguments, error, notice);
             };
@@ -797,6 +804,7 @@ void WhaleAiPanel::newConversation()
     m_transcript->clear();
     greet();
     m_input->setFocus();
+    Q_EMIT conversationCleared();
 }
 
 void WhaleAiPanel::undoAgentChanges()

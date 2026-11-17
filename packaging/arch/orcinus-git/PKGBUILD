@@ -18,7 +18,7 @@ depends=(baloo baloo-widgets glibc hicolor-icon-theme kbookmarks kcmutils kcodec
          kcolorscheme kcompletion kconfig kconfigwidgets kcoreaddons kcrash kdbusaddons
          kfilemetadata kguiaddons ki18n kiconthemes kio kjobwidgets knewstuff knotifications
          kparts kservice ktextwidgets kwidgetsaddons kwindowsystem kxmlgui libstdc++ mpv
-         qt6-base qt6-multimedia
+         qt6-base qt6-declarative qt6-multimedia
          qt6-svg # icons in SVG format (loaded as a Qt plugin, so namcap does not see it)
          solid)
 makedepends=(extra-cmake-modules gettext git ninja)

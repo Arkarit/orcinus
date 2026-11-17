@@ -32,6 +32,12 @@
 #include "whaleaichangelog.h"
 #include "whaleaipanel.h"
 #include "whaleaisettingstools.h"
+#if HAVE_AI_CANVAS
+#include "whaleaicanvasmodel.h"
+#include "whaleaicanvaspanel.h"
+#include "whaledefaultstyles.h"
+#include "whalestylemanager.h"
+#endif
 #include "whalesplitviewstartup.h"
 #include "whalestyles.h"
 #include "whaleviewer.h"
@@ -144,6 +150,7 @@ private Q_SLOTS:
     void testAiWindowTools();
     void testAiSettingsTools();
     void testAiProfileTools();
+    void testAiCanvas();
     void cleanupTestCase();
 
 private:
@@ -2926,6 +2933,80 @@ void DolphinMainWindowTest::testFileItemActionsOutliveContextMenu()
     QTRY_VERIFY(fileItemActions.isNull());
 }
 
+void DolphinMainWindowTest::testAiCanvas()
+{
+#if HAVE_AI_CANVAS
+    // The AI canvas (CV1): a panel of its own, filled by the agent's canvas tools.
+    QScopedPointer<TestDir> testDir{new TestDir()};
+    testDir->createDir(QStringLiteral("pictures"));
+    const QString picture = testDir->url().toLocalFile() + QStringLiteral("/pictures/red.png");
+    QImage image(16, 16, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(picture));
+    m_mainWindow->openDirectories({testDir->url()}, false);
+    m_mainWindow->showNormal();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+
+    auto *dock = m_mainWindow->findChild<QDockWidget *>(QStringLiteral("aiCanvasDock"));
+    QVERIFY(dock);
+    auto *canvas = qobject_cast<WhaleAiCanvasPanel *>(dock->widget());
+    QVERIFY(canvas);
+    QVERIFY2(canvas->qmlErrors().isEmpty(), qPrintable(canvas->qmlErrors().join(QLatin1Char('\n'))));
+    QAction *toggle = m_mainWindow->actionCollection()->action(QStringLiteral("show_ai_canvas_panel"));
+    QVERIFY(toggle);
+    toggle->setChecked(false);
+    QTRY_VERIFY(dock->isHidden());
+
+    // Showing something brings the hidden canvas into view.
+    auto *panel = m_mainWindow->findChild<WhaleAiPanel *>();
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : panel->viewActions().windowTools) {
+        tools.insert(tool.name, tool);
+    }
+    QVERIFY(tools.contains(QStringLiteral("canvas_show")) && tools.contains(QStringLiteral("canvas_clear")) && tools.contains(QStringLiteral("get_canvas")));
+    bool error = false;
+    QString notice;
+    tools.value(QStringLiteral("canvas_show"))
+        .call({{QStringLiteral("blocks"), QJsonArray{QJsonObject{{QStringLiteral("type"), QStringLiteral("image")}, {QStringLiteral("path"), picture}}}}},
+              &error,
+              &notice);
+    QVERIFY(!error);
+    QTRY_VERIFY(dock->isVisible());
+    QCOMPARE(canvas->model()->rowCount(), 1);
+
+    // A click on a file shows it in the view.
+    canvas->activate(QUrl::fromLocalFile(picture).toString());
+    DolphinView *view = m_mainWindow->activeViewContainer()->view();
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->url().adjusted(QUrl::StripTrailingSlash),
+                 QUrl::fromLocalFile(testDir->url().toLocalFile() + QStringLiteral("/pictures")));
+    QTRY_COMPARE(view->selectedItems().count(), 1);
+    QCOMPARE(view->selectedItems().constFirst().url(), QUrl::fromLocalFile(picture));
+
+    // A new conversation clears it.
+    Q_EMIT panel->conversationCleared();
+    QCOMPARE(canvas->model()->rowCount(), 0);
+
+    // The shipped profile "AI Workbench": the canvas and the chat, no other panel.
+    const QList<WhaleStyle> shipped = WhaleDefaultStyles::styles();
+    const auto workbench = std::find_if(shipped.cbegin(), shipped.cend(), [](const WhaleStyle &style) {
+        return style.id == QLatin1String("ai-workbench");
+    });
+    QVERIFY(workbench != shipped.cend());
+    dock->hide();
+    WhaleStyleManager::ensure(m_mainWindow.data())->applyStyle(*workbench);
+    QTRY_VERIFY(dock->isVisible());
+    QVERIFY(m_mainWindow->findChild<QDockWidget *>(QStringLiteral("aiDock"))->isVisible());
+    QVERIFY(m_mainWindow->findChild<QDockWidget *>(QStringLiteral("placesDock"))->isHidden());
+    QCOMPARE(m_mainWindow->dockWidgetArea(dock), Qt::LeftDockWidgetArea);
+    QCOMPARE(m_mainWindow->dockWidgetArea(m_mainWindow->findChild<QDockWidget *>(QStringLiteral("aiDock"))), Qt::RightDockWidgetArea);
+    dock->hide();
+    m_mainWindow->findChild<QDockWidget *>(QStringLiteral("aiDock"))->hide();
+    m_mainWindow->findChild<QDockWidget *>(QStringLiteral("placesDock"))->show();
+#else
+    QSKIP("Built without the AI canvas");
+#endif
+}
+
 void DolphinMainWindowTest::cleanupTestCase()
 {
     m_mainWindow->showNormal();
@@ -3290,6 +3371,22 @@ void DolphinMainWindowTest::testAiWindowTools()
     }
     QCOMPARE(QSet<QString>(tools.keyBegin(), tools.keyEnd()),
              QSet<QString>(WhaleAiMcpServer::windowToolNames().cbegin(), WhaleAiMcpServer::windowToolNames().cend()));
+    {
+        // Every schema with several optional properties lists their order: local models only
+        // accept properties in schema order, and QJsonObject would send them sorted.
+        WhaleAiMcpServer server;
+        server.setViewActions(panel->viewActions());
+        const QJsonArray all =
+            server
+                .handle(
+                    {{QStringLiteral("jsonrpc"), QStringLiteral("2.0")}, {QStringLiteral("id"), 1}, {QStringLiteral("method"), QStringLiteral("tools/list")}})
+                .value(QLatin1String("result"))
+                .toObject()
+                .value(QLatin1String("tools"))
+                .toArray();
+        QVERIFY(all.size() > tools.size());
+        QCOMPARE(WhaleAiMcpServer::unorderedSchemas(all), QStringList());
+    }
     auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
         QString text;
         *error = false;

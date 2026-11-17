@@ -232,10 +232,11 @@ pictures.
 - The *Profiles* settings page lists the profiles: order, name, shortcut, the elements and
   their values, *New from Window*, *Capture Again* and *Apply to Window*.
 - An applied profile is also what new windows, tabs and split views start with.
-- New users get six profiles, applied from the main toolbar: *Compact* (applied on the first
+- New users get seven profiles, applied from the main toolbar: *Compact* (applied on the first
   start), *Dual Compact*, *Details*, *Dual Details*, *Images Only* (large icons, filtered to
-  image files, no panels) and *Locked Cushion Map* (Details and the Cushion Treemap, linked).
-  They are created once; profiles the user removes do not come back.
+  image files, no panels), *Locked Cushion Map* (Details and the Cushion Treemap, linked) and
+  *AI Workbench* (Details between the AI Canvas panel on the left and the AI Assistant panel on
+  the right). They are created once; profiles the user removes do not come back.
 - While the file view toolbars are hidden, the profiles are also in the menu button and in
   the context menu of the view background, so there is always a way back.
 

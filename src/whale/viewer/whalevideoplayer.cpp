@@ -138,7 +138,8 @@ void WhaleVideoPlayer::load(const QUrl &url)
         return;
     }
     setFlag("pause", !m_options.autoplay);
-    const QByteArray path = url.toLocalFile().toUtf8();
+    // A local file, or a stream of the AI canvas (CV1): mpv opens network URLs itself.
+    const QByteArray path = url.isLocalFile() ? url.toLocalFile().toUtf8() : url.toString(QUrl::FullyEncoded).toUtf8();
     const char *command[] = {"loadfile", path.constData(), "replace", nullptr};
     mpv_node result;
     if (mpv_command_ret(m_mpv, command, &result) < 0) {

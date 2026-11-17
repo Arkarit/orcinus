@@ -203,6 +203,17 @@ if(WHALE_WITH_MPV)
     endif()
 endif()
 
+# The AI canvas (CV1, .privatedoc/ai-canvas-plan.md): QML in a QQuickWidget, part of the AI support.
+option(WHALE_ENABLE_AI_CANVAS "AI canvas panel (Qt Quick) next to the AI panel" ON)
+set(HAVE_AI_CANVAS FALSE)
+if(WHALE_ENABLE_AI AND WHALE_ENABLE_AI_CANVAS)
+    find_package(Qt6 ${QT_MIN_VERSION} CONFIG COMPONENTS Qml Quick QuickWidgets OpenGL)
+    if(Qt6Qml_FOUND AND Qt6Quick_FOUND AND Qt6QuickWidgets_FOUND AND Qt6OpenGL_FOUND)
+        set(HAVE_AI_CANVAS TRUE)
+    endif()
+    add_feature_info("AI canvas" HAVE_AI_CANVAS "The AI canvas panel (needs Qt Quick and Qt Quick Widgets)")
+endif()
+
 # TODO: drop HAVE_TERMINAL once we are sure the terminal panel works on Windows too.
 if(WIN32)
     set(HAVE_TERMINAL FALSE)

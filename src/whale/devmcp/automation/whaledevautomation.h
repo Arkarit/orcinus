@@ -67,6 +67,8 @@ public:
     ~WhaleDevAutomation() override;
 
     QJsonObject uiState() const;
+    /// CV4: confirms the waiting backend of the canvas tool @p tool, as its Start button does.
+    QJsonObject canvasConfirmBackend(const QString &tool);
     /// LK6: the lock of the split view of the current tab.
     QJsonValue splitLockState() const;
     /// ST3: the styles, their actions and what they set.

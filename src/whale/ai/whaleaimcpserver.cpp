@@ -60,6 +60,78 @@ void removeLeftovers(const QString &base)
     }
 }
 
+QByteArray scalarJson(const QJsonValue &value)
+{
+    // QJsonDocument only writes arrays and objects; strip the brackets of a one-element array.
+    const QByteArray array = QJsonDocument(QJsonArray{value}).toJson(QJsonDocument::Compact);
+    return array.mid(1, array.size() - 2);
+}
+
+void writeJson(const QJsonValue &value, QByteArray &out)
+{
+    if (value.isArray()) {
+        out += '[';
+        const QJsonArray array = value.toArray();
+        for (qsizetype i = 0; i < array.size(); ++i) {
+            if (i > 0) {
+                out += ',';
+            }
+            writeJson(array.at(i), out);
+        }
+        out += ']';
+        return;
+    }
+    if (!value.isObject()) {
+        out += scalarJson(value);
+        return;
+    }
+    const QJsonObject object = value.toObject();
+    const QString orderKey = WhaleAiMcpServer::propertyOrderKey();
+    QStringList order;
+    for (const QJsonValue &name : object.value(orderKey).toArray()) {
+        order.append(name.toString());
+    }
+    out += '{';
+    bool first = true;
+    for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+        if (it.key() == orderKey) {
+            continue;
+        }
+        if (!first) {
+            out += ',';
+        }
+        first = false;
+        out += scalarJson(it.key()) + ':';
+        if (it.key() != QLatin1String("properties") || order.isEmpty() || !it.value().isObject()) {
+            writeJson(it.value(), out);
+            continue;
+        }
+        // The listed properties first, in their order, then any others (sorted).
+        const QJsonObject properties = it.value().toObject();
+        QStringList names;
+        for (const QString &name : std::as_const(order)) {
+            if (properties.contains(name) && !names.contains(name)) {
+                names.append(name);
+            }
+        }
+        for (auto property = properties.constBegin(); property != properties.constEnd(); ++property) {
+            if (!names.contains(property.key())) {
+                names.append(property.key());
+            }
+        }
+        out += '{';
+        for (qsizetype i = 0; i < names.size(); ++i) {
+            if (i > 0) {
+                out += ',';
+            }
+            out += scalarJson(names.at(i)) + ':';
+            writeJson(properties.value(names.at(i)), out);
+        }
+        out += '}';
+    }
+    out += '}';
+}
+
 QJsonObject response(const QJsonValue &id, const QJsonObject &result)
 {
     return {{QStringLiteral("jsonrpc"), QStringLiteral("2.0")}, {QStringLiteral("id"), id}, {QStringLiteral("result"), result}};
@@ -72,12 +144,20 @@ QJsonObject errorResponse(const QJsonValue &id, int code, const QString &message
             {QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), code}, {QStringLiteral("message"), message}}}};
 }
 
-QJsonObject
-tool(const QString &name, const QString &title, const QString &description, bool readOnly, const QJsonObject &properties = {}, const QStringList &required = {})
+QJsonObject tool(const QString &name,
+                 const QString &title,
+                 const QString &description,
+                 bool readOnly,
+                 const QJsonObject &properties = {},
+                 const QStringList &required = {},
+                 const QStringList &order = {})
 {
     QJsonObject schema{{QStringLiteral("type"), QStringLiteral("object")}, {QStringLiteral("properties"), properties}};
     if (!required.isEmpty()) {
         schema.insert(QStringLiteral("required"), QJsonArray::fromStringList(required));
+    }
+    if (!order.isEmpty()) {
+        schema.insert(WhaleAiMcpServer::propertyOrderKey(), QJsonArray::fromStringList(order));
     }
     QJsonObject annotations{{QStringLiteral("readOnlyHint"), readOnly}, {QStringLiteral("openWorldHint"), false}};
     if (!readOnly) {
@@ -175,7 +255,8 @@ QJsonArray tools()
                   QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
                               {QStringLiteral("enum"), QJsonArray{QStringLiteral("left"), QStringLiteral("right")}},
                               {QStringLiteral("description"), QStringLiteral("Split view only: make this view active first")}}}},
-                {QStringLiteral("name")});
+                {QStringLiteral("name")},
+                {QStringLiteral("name"), QStringLiteral("pane"), QStringLiteral("checked")});
             QJsonObject annotations = trigger.value(QLatin1String("annotations")).toObject();
             annotations.insert(QStringLiteral("idempotentHint"), false);
             trigger.insert(QStringLiteral("annotations"), annotations);
@@ -229,6 +310,49 @@ WhaleAiMcpServer::~WhaleAiMcpServer()
     }
 }
 
+QString WhaleAiMcpServer::propertyOrderKey()
+{
+    return QStringLiteral("x-orcinus-order");
+}
+
+QByteArray WhaleAiMcpServer::serialize(const QJsonObject &message)
+{
+    QByteArray out;
+    writeJson(message, out);
+    return out;
+}
+
+QStringList WhaleAiMcpServer::unorderedSchemas(const QJsonArray &tools)
+{
+    QStringList found;
+    std::function<void(const QJsonObject &, const QString &)> check = [&](const QJsonObject &schema, const QString &where) {
+        const QJsonObject properties = schema.value(QLatin1String("properties")).toObject();
+        const QJsonArray required = schema.value(QLatin1String("required")).toArray();
+        const QJsonArray order = schema.value(propertyOrderKey()).toArray();
+        int optional = 0;
+        bool listed = true;
+        for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
+            if (!required.contains(it.key())) {
+                ++optional;
+            }
+            listed = listed && order.contains(it.key());
+            const QJsonObject property = it.value().toObject();
+            if (property.value(QLatin1String("items")).isObject()) {
+                check(property.value(QLatin1String("items")).toObject(), where + QLatin1Char('.') + it.key() + QStringLiteral("[]"));
+            } else if (property.contains(QLatin1String("properties"))) {
+                check(property, where + QLatin1Char('.') + it.key());
+            }
+        }
+        if (optional >= 2 && !listed) {
+            found.append(where);
+        }
+    };
+    for (const QJsonValue &tool : tools) {
+        check(tool.toObject().value(QLatin1String("inputSchema")).toObject(), tool.toObject().value(QLatin1String("name")).toString());
+    }
+    return found;
+}
+
 QString WhaleAiMcpServer::name()
 {
     return QStringLiteral("orcinus");
@@ -253,7 +377,23 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    // AI9e4: the user's profiles; applying and saving go into the change log.
                                    QStringLiteral("list_profiles"),
                                    QStringLiteral("apply_profile"),
-                                   QStringLiteral("save_profile")};
+                                   QStringLiteral("save_profile"),
+                                   // CV1: the AI canvas; shows files, never changes them.
+                                   QStringLiteral("canvas_show"),
+                                   QStringLiteral("canvas_clear"),
+                                   QStringLiteral("get_canvas"),
+                                   // CV3: writing canvas tools (their own files only, in Orcinus' data folder).
+                                   QStringLiteral("tool_guide"),
+                                   QStringLiteral("tool_list"),
+                                   QStringLiteral("tool_read_file"),
+                                   QStringLiteral("tool_write_file"),
+                                   QStringLiteral("tool_delete_file"),
+                                   QStringLiteral("tool_open"),
+                                   QStringLiteral("tool_close"),
+                                   QStringLiteral("tool_log"),
+                                   QStringLiteral("tool_inspect"),
+                                   QStringLiteral("tool_invoke"),
+                                   QStringLiteral("tool_screenshot")};
     return names;
 }
 
@@ -416,7 +556,7 @@ void WhaleAiMcpServer::readConnection(QLocalSocket *socket)
             answer = handle(document.object());
         }
         if (!answer.isEmpty()) {
-            socket->write(QJsonDocument(answer).toJson(QJsonDocument::Compact) + '\n');
+            socket->write(serialize(answer) + '\n');
         }
     }
     if (socket->bytesAvailable() > MaxLine) {
@@ -452,8 +592,11 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
              {QStringLiteral("instructions"),
               QStringLiteral("Tools of the Orcinus file manager the user is chatting with you from. They show where the user is, and change how Orcinus shows "
                              "it. They never change the user's files, so they are allowed in every mode, also in a plan or read-only mode; "
-                             "only set_setting and save_profile (Orcinus' own saved settings and profiles) are refused in a read-only mode. "
-                             "Operate Orcinus only through them, never through D-Bus or input automation.")}});
+                             "only set_setting and save_profile (Orcinus' own saved settings and profiles) and writing, opening or using "
+                             "canvas tools (tool_write_file, tool_delete_file, tool_open, tool_invoke) are refused in a read-only mode. "
+                             "Show your work (images, sounds, file lists, texts) on the AI canvas with canvas_show; to build a tool the user "
+                             "keeps, read tool_guide first. Operate Orcinus only through these tools, never through D-Bus or input "
+                             "automation.")}});
     }
     if (method == QLatin1String("ping")) {
         return response(id, QJsonObject());
@@ -461,7 +604,13 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
     if (method == QLatin1String("tools/list")) {
         QJsonArray all = tools();
         for (const WhaleAiWindowTool &windowTool : windowTools()) {
-            all.append(tool(windowTool.name, windowTool.title, windowTool.description, windowTool.readOnly, windowTool.properties, windowTool.required));
+            all.append(tool(windowTool.name,
+                            windowTool.title,
+                            windowTool.description,
+                            windowTool.readOnly,
+                            windowTool.properties,
+                            windowTool.required,
+                            windowTool.propertyOrder));
         }
         return response(id, {{QStringLiteral("tools"), all}});
     }
@@ -507,11 +656,21 @@ QJsonObject WhaleAiMcpServer::callTool(const QString &name, const QJsonObject &a
     for (const WhaleAiWindowTool &windowTool : windowTools()) {
         if (windowTool.name == name) {
             QString notice;
-            const QJsonObject result = windowTool.call(arguments, &error, &notice);
+            QJsonObject result = windowTool.call(arguments, &error, &notice);
             if (!error && !notice.isEmpty()) {
                 Q_EMIT windowToolUsed(notice);
             }
-            return toolResult(error && !result.contains(QLatin1String("error")) ? toolError(QStringLiteral("It did not work.")) : result, error);
+            // An image (CV3, tool_screenshot) goes as an image content block, not as text.
+            const QJsonObject image = result.take(QLatin1String("_mcpImage")).toObject();
+            QJsonObject wrapped = toolResult(error && !result.contains(QLatin1String("error")) ? toolError(QStringLiteral("It did not work.")) : result, error);
+            if (!image.isEmpty()) {
+                QJsonArray content = wrapped.value(QLatin1String("content")).toArray();
+                content.prepend(QJsonObject{{QStringLiteral("type"), QStringLiteral("image")},
+                                            {QStringLiteral("data"), image.value(QLatin1String("data"))},
+                                            {QStringLiteral("mimeType"), image.value(QLatin1String("mimeType"))}});
+                wrapped.insert(QStringLiteral("content"), content);
+            }
+            return wrapped;
         }
     }
     *known = false;

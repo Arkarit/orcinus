@@ -98,6 +98,8 @@ public Q_SLOTS:
     Q_SCRIPTABLE QString AiTranscript();
     Q_SCRIPTABLE QString AiAnswerPermission(const QString &key, const QString &optionId);
     Q_SCRIPTABLE QString AiStop();
+    /// CV4: the user clicks Start for the waiting backend of the canvas tool @p tool.
+    Q_SCRIPTABLE QString CanvasConfirmBackend(const QString &tool);
 
 private:
     WhaleDevAutomation *const m_automation;

@@ -1,0 +1,8 @@
+{
+    "name": "Sound Check",
+    "icon": "audio-x-generic",
+    "description": "Measure the WAV files of a folder (length, peak, loudness, clipping, silence) and trim silence at start and end.",
+    "entry": "main.qml",
+    "writes": ["the subfolder trimmed of the measured folder (trimmed copies)"],
+    "backend": {"command": ["python3", "backend.py"]}
+}

@@ -115,6 +115,8 @@ Q_SIGNALS:
     void attentionRequested();
     /** A local file or folder in an answer was clicked. */
     void localUrlActivated(const QUrl &url);
+    /** The user started a new conversation: what belonged to the old one goes (the canvas, CV1). */
+    void conversationCleared();
 
 protected:
     bool urlChanged() override;

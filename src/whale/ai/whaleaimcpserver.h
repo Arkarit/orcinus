@@ -35,6 +35,8 @@ struct WhaleAiWindowTool {
      * a line for the transcript (translated) when it changed what the user sees.
      */
     std::function<QJsonObject(const QJsonObject &arguments, bool *error, QString *notice)> call;
+    /** The order of the properties in the schema, see WhaleAiMcpServer::propertyOrderKey(). */
+    QStringList propertyOrder = {};
 };
 
 /** What the back channel may do in the window (AI6c); set by the window, like the context. */
@@ -110,6 +112,23 @@ public:
 
     /** Answers one JSON-RPC message; for the tests. @return The response, empty for a notification. */
     QJsonObject handle(const QJsonObject &message);
+
+    /**
+     * The key of a schema object that lists the order of its "properties". QJsonObject sorts keys,
+     * but local models (llama.cpp grammars in LM Studio) only accept properties in the order the
+     * schema lists them: with a sorted block schema, "title" left only "url" to follow (agent
+     * tests, 2026-11-17). serialize() writes the properties in this order and drops the key.
+     */
+    static QString propertyOrderKey();
+
+    /** @return @p message as one compact line of JSON, schema properties in their given order. */
+    static QByteArray serialize(const QJsonObject &message);
+
+    /**
+     * For the tests: the schemas in @p tools (a tools/list result) with two or more optional
+     * properties but no order listing all of them, as "tool" or "tool.property[]".
+     */
+    static QStringList unorderedSchemas(const QJsonArray &tools);
 
 Q_SIGNALS:
     /** A tool was called (the result is already sent). */

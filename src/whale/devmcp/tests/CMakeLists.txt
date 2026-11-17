@@ -121,7 +121,8 @@ if(Python3_FOUND AND NOT WIN32)
             --whale $<TARGET_FILE:dolphin>
             --adapter ${CMAKE_CURRENT_SOURCE_DIR}/../adapter/whale_dev_mcp.py
             --plugin-dir ${WHALE_E2E_PLUGIN_DIRS}
-            --platform offscreen)
+            --platform offscreen
+            $<$<BOOL:${HAVE_AI_CANVAS}>:--ai-canvas>)
     # AI10a: the AI panel's tools, with the scripted agent instead of a real one.
     add_test(NAME whale_dev_mcp_ai_e2e
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_ai_acceptance.py

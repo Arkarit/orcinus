@@ -6,6 +6,8 @@
 
 #include "whaledefaultstyles.h"
 
+#include "config-dolphin.h"
+
 #include "whalestylestore.h"
 
 #include <KLocalizedString>
@@ -82,7 +84,7 @@ QList<WhaleStyle> styles()
                                      PlainViewStyle);
     set(cushionMap, QStringLiteral("splitLock"), QStringLiteral("true"));
 
-    return {
+    QList<WhaleStyle> result{
         singleView(QStringLiteral("compact"), i18nc("@item name of a shipped profile", "Compact"), CompactViewStyle),
         dualView(QStringLiteral("dual-compact"), i18nc("@item name of a shipped profile", "Dual Compact"), compactLeft, ItemView, CompactViewStyle),
         singleView(QStringLiteral("details"), i18nc("@item name of a shipped profile", "Details"), DetailsViewStyle),
@@ -90,6 +92,14 @@ QList<WhaleStyle> styles()
         imagesOnly,
         cushionMap,
     };
+
+#if WHALE_ENABLE_AI && HAVE_AI_CANVAS
+    // The triptych of the AI canvas (CV1): canvas left, files in the middle, the chat right.
+    WhaleStyle aiWorkbench = singleView(QStringLiteral("ai-workbench"), i18nc("@item name of a shipped profile", "AI Workbench"), DetailsViewStyle);
+    set(aiWorkbench, QStringLiteral("panels"), QStringLiteral("places=false,folders=false,information=false,terminal=false,ai=true,canvas=true"));
+    result.append(aiWorkbench);
+#endif
+    return result;
 }
 
 QString startStyleId()

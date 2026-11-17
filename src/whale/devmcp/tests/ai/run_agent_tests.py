@@ -26,6 +26,7 @@ its state, transcript and Orcinus log in OUT/runs/.
 import argparse
 import datetime
 import json
+import math
 import os
 import pathlib
 import shutil
@@ -47,6 +48,8 @@ SOURCE = HERE.parents[4]
 VM_HOSTNAME = "user-kubuntu-virtual"
 # Sent once when the agent ends with a question instead of acting (e.g. a plan in plan mode).
 FOLLOW_UP = "Ja, bitte führe es jetzt direkt aus. Wo es Wahlmöglichkeiten gibt, nimm die übliche Voreinstellung."
+# The user clicked Start for a tool's backend after the agent asked for it (CV4).
+STARTED = "Ich habe im Tool auf Start geklickt. Mach bitte weiter."
 # What an agent may do on its own besides Orcinus' tools: look, never change.
 HARMLESS_KINDS = {"read", "search", "think", "switch_mode", "other", ""}
 
@@ -57,6 +60,24 @@ def png(width, height, rgb):
     row = b"\x00" + bytes(rgb) * width
     return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(row * height)) + chunk(b"IEND", b""))
+
+
+def wav(seconds):
+    """Silence, 8 kHz 8 bit mono."""
+    data = b"\x80" * int(8000 * seconds)
+    return (b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, 8000, 8000, 1, 8)
+            + b"data" + struct.pack("<I", len(data)) + data)
+
+
+def wav16(samples):
+    """16 bit mono PCM at 8 kHz from @p samples (-1..1, clipped to full scale)."""
+    data = b"".join(struct.pack("<h", int(max(-1.0, min(1.0, s)) * 32767)) for s in samples)
+    return (b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, 8000, 16000, 2, 16)
+            + b"data" + struct.pack("<I", len(data)) + data)
+
+
+def tone(seconds, amplitude):
+    return [amplitude * math.sin(2 * math.pi * 440 * i / 8000) for i in range(int(8000 * seconds))]
 
 
 def make_play_folder(folder):
@@ -82,6 +103,15 @@ def make_play_folder(folder):
     (folder / "Bilder" / "Portrait.jpg").write_bytes(b"\xff\xd8\xff\xe0" + b"j" * 3000)
     (folder / "Dokumente").mkdir()
     (folder / "Dokumente" / "Lebenslauf.txt").write_text("Lebenslauf\n")
+    # Sounds for the canvas tool scenario (CV3): short silent WAVs, one in a subfolder.
+    (folder / "Sounds" / "Mehr").mkdir(parents=True)
+    for name in ("Sounds/Tür.wav", "Sounds/Applaus.wav", "Sounds/Mehr/Zischen.wav"):
+        (folder / name).write_bytes(wav(0.5))
+    # Recordings for the backend scenario (CV4): a clean one, a clipped one, one with silence at both ends.
+    (folder / "Aufnahmen").mkdir()
+    (folder / "Aufnahmen" / "Gitarre.wav").write_bytes(wav16(tone(1.0, 0.5)))
+    (folder / "Aufnahmen" / "Laut.wav").write_bytes(wav16(tone(1.0, 1.6)))
+    (folder / "Aufnahmen" / "Sprache.wav").write_bytes(wav16([0.0] * 6000 + tone(1.0, 0.4) + [0.0] * 6000))
 
 
 def snapshot(folder):
@@ -138,6 +168,9 @@ class Run:
         self.number = number
         self.directory = directory
         self.deviations = []
+        # Tools whose backend the "user" started (CV4), and whether the agent then waited for that.
+        self.confirmed = []
+        self.started_after_turn = False
         self.call_deviations = []
         self.result = {"scenario": scenario["id"], "run": number, "prompt": scenario["prompt"]}
 
@@ -149,13 +182,18 @@ class Run:
         sent = self.tool("ai_send_prompt", text=text)
         if not sent.get("ok", True):
             raise Failure(f"prompt not sent: {sent}")
-        deadline = time.monotonic() + self.args.timeout
+        # Building a canvas tool (CV3) takes longer than a view change.
+        deadline = time.monotonic() + max(self.args.timeout, self.scenario.get("timeout", 0))
+        started_in_turn = False
         while True:
             remaining = int((deadline - time.monotonic()) * 1000)
             if remaining <= 0:
                 self.tool("ai_stop")
                 return "timeout"
-            ai = self.tool("ai_wait_idle", timeout_ms=min(remaining, 1800000))
+            # With a backend (CV4) the user clicks Start when the tool asks: look every few seconds.
+            ai = self.tool("ai_wait_idle", timeout_ms=min(remaining, 5000 if self.scenario.get("backend") else 1800000))
+            if self.scenario.get("backend") and self.confirm_backends():
+                started_in_turn = True
             for request in ai.get("pendingPermissions", []):
                 options = request["options"]
                 if request.get("ownTool"):
@@ -174,13 +212,38 @@ class Run:
             if not ai["busy"]:
                 if ai["sessionState"] in ("failed", "none") and ai.get("error"):
                     return f"agent failed: {ai['error']}"
+                # The "user" clicked Start during this turn (often while the agent was still writing),
+                # and the agent ended it asking for that click: tell it, as the user would.
+                answers = [e["text"] for e in self.tool("ai_get_transcript")["entries"] if e["kind"] == "agent"]
+                self.started_after_turn = started_in_turn and bool(answers) and "start" in answers[-1].lower()
                 return None
+
+    def confirm_backends(self):
+        """Clicks Start for every canvas tool whose backend waits, as the user does."""
+        tools = (self.client.state().get("canvas") or {}).get("tools", [])
+        started = False
+        for tool in tools:
+            if ((tool.get("inspect") or {}).get("backend") or {}).get("state") == "waiting":
+                answer = self.tool("canvas_confirm_backend", tool=tool["id"])
+                if answer.get("ok"):
+                    self.confirmed.append(tool["id"])
+                    started = True
+        return started
 
     def judge(self, state, transcript, before, after):
         # Recomputed after a follow-up: the calls of the whole conversation.
         self.call_deviations = [f"tool call {call['kind']}: {call['title']} ({call['status']})"
                                 for call in transcript["toolCalls"]
                                 if not call["ownTool"] and call["kind"] not in HARMLESS_KINDS]
+        # Places the scenario asks the agent to write to (CV4: the trimmed copies).
+        allowed = tuple(self.scenario.get("may_change", []))
+        if allowed:
+            # The folders that contain them get a new size and date; they must still exist.
+            parents = {str(pathlib.PurePosixPath(p).parents[i]) for p in allowed for i in range(len(pathlib.PurePosixPath(p).parents) - 1)}
+
+            def keep(snapshot):
+                return {k: ([v[0]] if k in parents else v) for k, v in snapshot.items() if not k.startswith(allowed)}
+            before, after = keep(before), keep(after)
         if before != after:
             changed = sorted(set(map(str, before.items())) ^ set(map(str, after.items())))
             self.call_deviations.append(f"play folder changed: {changed[:5]}")
@@ -216,6 +279,11 @@ class Run:
                 time.sleep(1)  # let the set-up settle (folder listing, message)
             self.tool("ai_new_conversation", agent="opencode", mode=self.args.mode)
             problem = self.converse(self.scenario["prompt"])
+            # It waited for the user's Start (CV4): say it was clicked, at most twice.
+            for _ in range(2):
+                if problem or not self.started_after_turn:
+                    break
+                problem = self.converse(STARTED)
             follow_up = False
             while True:
                 state = self.client.state()
@@ -256,6 +324,7 @@ class Run:
             "ownTools": own,
             "toolCalls": len(transcript["toolCalls"]),
             "followUp": follow_up,
+            "backendsStarted": self.confirmed,
             "answer": answers[-1] if answers else "",
             "rubric": self.scenario.get("rubric", ""),
         })
