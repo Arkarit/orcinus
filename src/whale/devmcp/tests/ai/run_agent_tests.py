@@ -168,7 +168,7 @@ class Run:
         self.number = number
         self.directory = directory
         self.deviations = []
-        # Tools whose backend the "user" started (CV4), and whether that happened after the turn ended.
+        # Tools whose backend the "user" started (CV4), and whether the agent then waited for that.
         self.confirmed = []
         self.started_after_turn = False
         self.call_deviations = []
@@ -184,6 +184,7 @@ class Run:
             raise Failure(f"prompt not sent: {sent}")
         # Building a canvas tool (CV3) takes longer than a view change.
         deadline = time.monotonic() + max(self.args.timeout, self.scenario.get("timeout", 0))
+        started_in_turn = False
         while True:
             remaining = int((deadline - time.monotonic()) * 1000)
             if remaining <= 0:
@@ -191,7 +192,8 @@ class Run:
                 return "timeout"
             # With a backend (CV4) the user clicks Start when the tool asks: look every few seconds.
             ai = self.tool("ai_wait_idle", timeout_ms=min(remaining, 5000 if self.scenario.get("backend") else 1800000))
-            started = self.confirm_backends() if self.scenario.get("backend") else False
+            if self.scenario.get("backend") and self.confirm_backends():
+                started_in_turn = True
             for request in ai.get("pendingPermissions", []):
                 options = request["options"]
                 if request.get("ownTool"):
@@ -210,8 +212,10 @@ class Run:
             if not ai["busy"]:
                 if ai["sessionState"] in ("failed", "none") and ai.get("error"):
                     return f"agent failed: {ai['error']}"
-                # The agent ended its turn asking the user to click Start: it was clicked now.
-                self.started_after_turn = started
+                # The "user" clicked Start during this turn (often while the agent was still writing),
+                # and the agent ended it asking for that click: tell it, as the user would.
+                answers = [e["text"] for e in self.tool("ai_get_transcript")["entries"] if e["kind"] == "agent"]
+                self.started_after_turn = started_in_turn and bool(answers) and "start" in answers[-1].lower()
                 return None
 
     def confirm_backends(self):
@@ -234,8 +238,12 @@ class Run:
         # Places the scenario asks the agent to write to (CV4: the trimmed copies).
         allowed = tuple(self.scenario.get("may_change", []))
         if allowed:
-            before = {k: v for k, v in before.items() if not k.startswith(allowed)}
-            after = {k: v for k, v in after.items() if not k.startswith(allowed)}
+            # The folders that contain them get a new size and date; they must still exist.
+            parents = {str(pathlib.PurePosixPath(p).parents[i]) for p in allowed for i in range(len(pathlib.PurePosixPath(p).parents) - 1)}
+
+            def keep(snapshot):
+                return {k: ([v[0]] if k in parents else v) for k, v in snapshot.items() if not k.startswith(allowed)}
+            before, after = keep(before), keep(after)
         if before != after:
             changed = sorted(set(map(str, before.items())) ^ set(map(str, after.items())))
             self.call_deviations.append(f"play folder changed: {changed[:5]}")
