@@ -286,6 +286,9 @@ the shell approval its agent asks for.
 which a backend sends frames (encoded, or raw through shared memory / memfd), shown by a
 `LiveImage` item. Example: a Blender viewport rendered offscreen (`gpu.offscreen`), ComfyUI's
 sampling previews. Only if CV1's folder watch and mpv streams are not enough in daily use.
+*Status (2026-11-17):* deferred (user). CV0–CV4 merged into master; CV5 is picked up when daily use
+needs a smooth live preview. Until then a backend can send small images base64-encoded over the
+JSON channel (a few per second) or write into a watched folder.
 
 Later, not planned: capturing a foreign window through the ScreenCast portal (with consent
 dialog, like OBS); shipping more example tools; sharing tools.
