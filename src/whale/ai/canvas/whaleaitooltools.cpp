@@ -348,7 +348,8 @@ QList<WhaleAiWindowTool> WhaleAiToolTools::create(WhaleAiCanvasPanel *panel, con
                                                                              : arguments.value(QLatin1String("function")).toString();
              *notice = i18nc("@info %1 is a button, key or function, %2 a tool's name", "The agent used “%1” in the tool “%2”.", what, tab->tool().name);
              return result;
-         })},
+         }),
+         {QStringLiteral("tool"), QStringLiteral("click"), QStringLiteral("keys"), QStringLiteral("function"), QStringLiteral("arguments")}},
 
         {QStringLiteral("tool_screenshot"),
          QStringLiteral("Screenshot of an open Orcinus canvas tool"),

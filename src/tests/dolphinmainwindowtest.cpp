@@ -3371,6 +3371,22 @@ void DolphinMainWindowTest::testAiWindowTools()
     }
     QCOMPARE(QSet<QString>(tools.keyBegin(), tools.keyEnd()),
              QSet<QString>(WhaleAiMcpServer::windowToolNames().cbegin(), WhaleAiMcpServer::windowToolNames().cend()));
+    {
+        // Every schema with several optional properties lists their order: local models only
+        // accept properties in schema order, and QJsonObject would send them sorted.
+        WhaleAiMcpServer server;
+        server.setViewActions(panel->viewActions());
+        const QJsonArray all =
+            server
+                .handle(
+                    {{QStringLiteral("jsonrpc"), QStringLiteral("2.0")}, {QStringLiteral("id"), 1}, {QStringLiteral("method"), QStringLiteral("tools/list")}})
+                .value(QLatin1String("result"))
+                .toObject()
+                .value(QLatin1String("tools"))
+                .toArray();
+        QVERIFY(all.size() > tools.size());
+        QCOMPARE(WhaleAiMcpServer::unorderedSchemas(all), QStringList());
+    }
     auto call = [&tools](const QString &name, const QJsonObject &arguments, bool *error, QString *notice = nullptr) {
         QString text;
         *error = false;

@@ -144,12 +144,20 @@ QJsonObject errorResponse(const QJsonValue &id, int code, const QString &message
             {QStringLiteral("error"), QJsonObject{{QStringLiteral("code"), code}, {QStringLiteral("message"), message}}}};
 }
 
-QJsonObject
-tool(const QString &name, const QString &title, const QString &description, bool readOnly, const QJsonObject &properties = {}, const QStringList &required = {})
+QJsonObject tool(const QString &name,
+                 const QString &title,
+                 const QString &description,
+                 bool readOnly,
+                 const QJsonObject &properties = {},
+                 const QStringList &required = {},
+                 const QStringList &order = {})
 {
     QJsonObject schema{{QStringLiteral("type"), QStringLiteral("object")}, {QStringLiteral("properties"), properties}};
     if (!required.isEmpty()) {
         schema.insert(QStringLiteral("required"), QJsonArray::fromStringList(required));
+    }
+    if (!order.isEmpty()) {
+        schema.insert(WhaleAiMcpServer::propertyOrderKey(), QJsonArray::fromStringList(order));
     }
     QJsonObject annotations{{QStringLiteral("readOnlyHint"), readOnly}, {QStringLiteral("openWorldHint"), false}};
     if (!readOnly) {
@@ -247,7 +255,8 @@ QJsonArray tools()
                   QJsonObject{{QStringLiteral("type"), QStringLiteral("string")},
                               {QStringLiteral("enum"), QJsonArray{QStringLiteral("left"), QStringLiteral("right")}},
                               {QStringLiteral("description"), QStringLiteral("Split view only: make this view active first")}}}},
-                {QStringLiteral("name")});
+                {QStringLiteral("name")},
+                {QStringLiteral("name"), QStringLiteral("pane"), QStringLiteral("checked")});
             QJsonObject annotations = trigger.value(QLatin1String("annotations")).toObject();
             annotations.insert(QStringLiteral("idempotentHint"), false);
             trigger.insert(QStringLiteral("annotations"), annotations);
@@ -311,6 +320,37 @@ QByteArray WhaleAiMcpServer::serialize(const QJsonObject &message)
     QByteArray out;
     writeJson(message, out);
     return out;
+}
+
+QStringList WhaleAiMcpServer::unorderedSchemas(const QJsonArray &tools)
+{
+    QStringList found;
+    std::function<void(const QJsonObject &, const QString &)> check = [&](const QJsonObject &schema, const QString &where) {
+        const QJsonObject properties = schema.value(QLatin1String("properties")).toObject();
+        const QJsonArray required = schema.value(QLatin1String("required")).toArray();
+        const QJsonArray order = schema.value(propertyOrderKey()).toArray();
+        int optional = 0;
+        bool listed = true;
+        for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
+            if (!required.contains(it.key())) {
+                ++optional;
+            }
+            listed = listed && order.contains(it.key());
+            const QJsonObject property = it.value().toObject();
+            if (property.value(QLatin1String("items")).isObject()) {
+                check(property.value(QLatin1String("items")).toObject(), where + QLatin1Char('.') + it.key() + QStringLiteral("[]"));
+            } else if (property.contains(QLatin1String("properties"))) {
+                check(property, where + QLatin1Char('.') + it.key());
+            }
+        }
+        if (optional >= 2 && !listed) {
+            found.append(where);
+        }
+    };
+    for (const QJsonValue &tool : tools) {
+        check(tool.toObject().value(QLatin1String("inputSchema")).toObject(), tool.toObject().value(QLatin1String("name")).toString());
+    }
+    return found;
 }
 
 QString WhaleAiMcpServer::name()
@@ -564,7 +604,13 @@ QJsonObject WhaleAiMcpServer::handle(const QJsonObject &message)
     if (method == QLatin1String("tools/list")) {
         QJsonArray all = tools();
         for (const WhaleAiWindowTool &windowTool : windowTools()) {
-            all.append(tool(windowTool.name, windowTool.title, windowTool.description, windowTool.readOnly, windowTool.properties, windowTool.required));
+            all.append(tool(windowTool.name,
+                            windowTool.title,
+                            windowTool.description,
+                            windowTool.readOnly,
+                            windowTool.properties,
+                            windowTool.required,
+                            windowTool.propertyOrder));
         }
         return response(id, {{QStringLiteral("tools"), all}});
     }

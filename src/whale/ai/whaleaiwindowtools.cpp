@@ -606,7 +606,8 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
           {QStringLiteral("offset"), property(QStringLiteral("integer"), QStringLiteral("First item, default 0"))},
           {QStringLiteral("limit"), property(QStringLiteral("integer"), QStringLiteral("At most this many items, default 200, at most 500"))}},
          {},
-         bind(listItems)},
+         bind(listItems),
+         {QStringLiteral("view"), QStringLiteral("offset"), QStringLiteral("limit")}},
         {QStringLiteral("set_window_state"),
          QStringLiteral("Resize or maximize the Orcinus window"),
          QStringLiteral("Sets the Orcinus window to normal, maximized or fullscreen, or resizes it (width and height in pixels, normal "
@@ -619,7 +620,8 @@ QList<WhaleAiWindowTool> WhaleAiWindowTools::create(DolphinMainWindow *window)
           {QStringLiteral("width"), property(QStringLiteral("integer"), QStringLiteral("Width in pixels (with height)"))},
           {QStringLiteral("height"), property(QStringLiteral("integer"), QStringLiteral("Height in pixels (with width)"))}},
          {},
-         bind(setWindowState)},
+         bind(setWindowState),
+         {QStringLiteral("state"), QStringLiteral("width"), QStringLiteral("height")}},
         {QStringLiteral("set_panel_width"),
          QStringLiteral("Set the width of a panel"),
          QStringLiteral("Sets the width of a visible panel of the Orcinus window (Places, Information, Folders, Terminal, AI). Show a "
