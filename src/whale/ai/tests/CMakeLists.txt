@@ -60,6 +60,11 @@ if(HAVE_AI_CANVAS)
         LINK_LIBRARIES dolphinstatic Qt6::Test)
     target_include_directories(whaleaicanvaspaneltest PRIVATE ${CMAKE_SOURCE_DIR}/src)
 
+    # The backends of canvas tools (CV4), with a fake backend in Python (skipped without python3).
+    ecm_add_test(whaleaitoolbackendtest.cpp
+        TEST_NAME whaleaitoolbackendtest
+        LINK_LIBRARIES whaleai Qt6::Test)
+
     # The tools of the canvas (CV2), with the example tool in data/tools.
     ecm_add_test(whaleaitooltest.cpp ${CMAKE_SOURCE_DIR}/src/dolphin.qrc
         TEST_NAME whaleaitooltest

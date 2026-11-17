@@ -6,6 +6,8 @@
 
 #include "whaleaitoolstore.h"
 
+#include "whaleaitoolbackend.h"
+
 #include <KConfigGroup>
 
 #include <QCryptographicHash>
@@ -115,7 +117,13 @@ std::optional<WhaleAiTool> WhaleAiToolStore::tool(const QString &id, QString *er
         tool.writes.append(value.toString());
     }
     tool.settings = json.value(QLatin1String("settings")).toObject();
-    tool.backend = json.value(QLatin1String("backend")).toObject();
+    if (json.contains(QLatin1String("backend"))) {
+        QString backendError;
+        if (!WhaleAiToolBackend::parseCommand(json.value(QLatin1String("backend")), &backendError)) {
+            return fail(backendError);
+        }
+        tool.backend = json.value(QLatin1String("backend")).toObject();
+    }
     return tool;
 }
 

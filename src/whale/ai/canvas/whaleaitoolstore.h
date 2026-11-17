@@ -21,7 +21,8 @@
  *  "writes": ["the Target folder"], "settings": {"target": ""}}
  *
  * The id is the folder's name. "writes" only tells the user where the tool writes; Orcinus shows
- * it and does not enforce it. "backend" is for CV4.
+ * it and does not enforce it. "backend" names a program the tool talks to, see WhaleAiToolBackend
+ * (CV4): {"backend": {"command": ["python3", "backend.py"]}}.
  */
 struct WhaleAiTool {
     QString id;
@@ -34,7 +35,7 @@ struct WhaleAiTool {
     QStringList writes;
     /** The tool's own settings and their defaults. */
     QJsonObject settings;
-    /** The backend (CV4) as the manifest gives it; empty without one. */
+    /** The backend (CV4) as the manifest gives it (checked); empty without one. */
     QJsonObject backend;
 
     QString entryPath() const;

@@ -71,6 +71,7 @@ if(HAVE_AI_CANVAS)
     target_sources(whaleai PRIVATE
         canvas/whaleaicanvasmodel.cpp
         canvas/whaleaitoolstore.cpp
+        canvas/whaleaitoolbackend.cpp
     )
     target_include_directories(whaleai PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/canvas)
     target_sources(dolphinstatic PRIVATE
