@@ -15,6 +15,7 @@ dangerous things and run only in the VM (user, 2026-11-16). There are none of th
 """
 
 import json
+import wave
 import re
 
 PASS, ACCEPTABLE, FAIL, UNCLEAR = "PASS", "ACCEPTABLE", "FAIL", "UNCLEAR"
@@ -319,6 +320,47 @@ def check_sound_tool(state, transcript, folder):
     return PASS, f"{tool['id']} shows {names}"
 
 
+def wav_frames(path):
+    """The number of frames of a WAV file, or None if it is not one."""
+    try:
+        with wave.open(str(path), "rb") as wav:
+            return wav.getnframes()
+    except (OSError, EOFError, wave.Error):
+        return None
+
+
+def check_sound_check(state, transcript, folder):
+    """The backend scenario (CV4): a tool with a running backend that measured the recordings, and
+    a trimmed copy of Sprache.wav (1 s of tone between 0.75 s of silence) in Aufnahmen/trimmed."""
+    tools = (state.get("canvas") or {}).get("tools", [])
+    with_backend = [t for t in tools if (t.get("inspect") or {}).get("backend")]
+    if not with_backend:
+        ids = (state.get("canvas") or {}).get("toolIds", [])
+        return FAIL, f"no open tool with a backend (tools {ids}, open {[t['id'] for t in tools]})"
+    tool = with_backend[0]
+    backend = tool["inspect"]["backend"]
+    trimmed = folder / "Aufnahmen" / "trimmed" / "Sprache.wav"
+    frames = wav_frames(trimmed) if trimmed.exists() else None
+    notes = []
+    if backend.get("state") != "running":
+        notes.append(f"backend {backend.get('state')} (exit {backend.get('exitCode')}, stderr {backend.get('stderr', [])[-2:]})")
+    shown = json.dumps(tool.get("inspect", {}), ensure_ascii=False)
+    names = [name for name in ("Gitarre.wav", "Laut.wav", "Sprache.wav") if name in shown]
+    if len(names) < 3:
+        notes.append(f"shows only {names}")
+    errors = [line for line in tool.get("log", []) if not line.startswith("console:") and "stderr" not in line]
+    if errors:
+        notes.append(f"log {errors[:2]}")
+    if frames is None:
+        return FAIL, "; ".join(["no valid trimmed/Sprache.wav"] + notes)
+    # 20000 frames before (6000 + 8000 + 6000); the tone alone is 8000. Allow some margin for the threshold.
+    if not 7000 <= frames <= 12000:
+        return FAIL, "; ".join([f"trimmed copy has {frames} frames, expected about 8000"] + notes)
+    if wav_frames(folder / "Aufnahmen" / "Sprache.wav") != 20000:
+        return FAIL, "the original Sprache.wav changed"
+    return (ACCEPTABLE if notes else PASS), "; ".join([f"{tool['id']}: trimmed to {frames} frames"] + notes)
+
+
 SCENARIOS = [
     {
         "id": "sort-size",
@@ -501,5 +543,26 @@ SCENARIOS = [
         "rubric": ("The user's CV3 example. Build mode: tool_guide, tool_write_file (tool.json, main.qml), tool_open until it loads "
                    "without errors, tool_invoke Next, tool_inspect; says how to keep it. Plan mode: nothing written, points to "
                    "the Mode list. Order Applaus, Tür, Zischen (by name)."),
+    },
+    {
+        "id": "tool-sound-check",
+        "tags": ["host"],
+        "timeout": 2400,
+        "backend": True,
+        "may_change": ["Aufnahmen/trimmed"],
+        "setup": [{"tool": "set_location", "arguments": {"url": "{folder}/Aufnahmen"}}],
+        "prompt": ("Ich habe hier Sprachaufnahmen und möchte sie prüfen. Mach mir bitte ein Tool, das die WAV-Dateien im "
+                   "aktuell offenen Ordner prüft:\n"
+                   "- zu jeder Datei Länge, Spitzenpegel und Lautheit anzeigen\n"
+                   "- übersteuerte Dateien und Dateien mit langer Stille am Anfang oder Ende markieren\n"
+                   "- die Wellenform der ausgewählten Datei zeichnen\n"
+                   "- ein Button [Trim] schreibt eine Kopie der ausgewählten Datei ohne die Stille in den Unterordner \"trimmed\".\n"
+                   "Die Analyse soll ein Python-Backend machen, nur mit der Standardbibliothek. Teste es, bevor du fertig "
+                   "meldest, und trimme dabei die Datei mit der Stille."),
+        "check": settings_check(check_sound_check),
+        "rubric": ("The user's CV4 example. Build mode: tool_guide, tool_write_file (tool.json with backend, backend.py, "
+                   "main.qml), tool_open, tells the user to click Start (the runner clicks it), tool_inspect shows the three "
+                   "files with values, Laut.wav clipped, Sprache.wav with silence; tool_invoke Trim on Sprache.wav writes "
+                   "Aufnahmen/trimmed/Sprache.wav (about 1 s). Plan mode: nothing written, points to the Mode list."),
     },
 ]
