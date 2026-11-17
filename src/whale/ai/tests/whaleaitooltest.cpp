@@ -32,6 +32,8 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <algorithm>
+#include <cmath>
 #include <functional>
 #include <memory>
 
@@ -58,10 +60,13 @@ private Q_SLOTS:
     void testDevelopmentLoop();
     void testBackend();
     void testBackendForAgent();
+    void testSoundCheck();
 
 private:
     QString writeFile(const QString &path, const QByteArray &data);
     void writeWav(const QString &path);
+    /** A 16 bit mono WAV at 8 kHz from @p samples (-1..1, clipped to full scale). */
+    void writeWav16(const QString &path, const QList<double> &samples);
     void writeTool(const QString &id, const QByteArray &qml, const QByteArray &manifest = QByteArray());
     /** Runs @p script with "orcinus" set; it must set "result" when done. @return result. */
     QJSValue run(const QString &script);
@@ -113,6 +118,33 @@ void WhaleAiToolTest::writeWav(const QString &path)
     writeFile(path, wav);
 }
 
+void WhaleAiToolTest::writeWav16(const QString &path, const QList<double> &samples)
+{
+    const quint32 dataSize = quint32(samples.size() * 2);
+    QByteArray wav("RIFF");
+    auto u32 = [&wav](quint32 v) {
+        wav.append(reinterpret_cast<const char *>(&v), 4);
+    };
+    auto u16 = [&wav](quint16 v) {
+        wav.append(reinterpret_cast<const char *>(&v), 2);
+    };
+    u32(36 + dataSize);
+    wav.append("WAVEfmt ");
+    u32(16);
+    u16(1); // PCM
+    u16(1); // mono
+    u32(8000);
+    u32(16000);
+    u16(2);
+    u16(16);
+    wav.append("data");
+    u32(dataSize);
+    for (const double sample : samples) {
+        u16(quint16(qint16(std::clamp(sample, -1.0, 1.0) * 32767.0)));
+    }
+    writeFile(path, wav);
+}
+
 void WhaleAiToolTest::writeTool(const QString &id, const QByteArray &qml, const QByteArray &manifest)
 {
     const QString folder = m_tools + QLatin1Char('/') + id;
@@ -143,11 +175,13 @@ void WhaleAiToolTest::initTestCase()
     QVERIFY(m_dir.isValid());
     m_tools = m_dir.filePath(QStringLiteral("tools"));
     m_files = m_dir.filePath(QStringLiteral("files"));
-    // The example tool, as it is in the source tree.
-    const QDir source(QStringLiteral(WHALE_AI_TEST_TOOLS "/sound-triage"));
-    for (const QString &name : source.entryList(QDir::Files)) {
-        QDir().mkpath(m_tools + QStringLiteral("/sound-triage"));
-        QVERIFY(QFile::copy(source.filePath(name), m_tools + QStringLiteral("/sound-triage/") + name));
+    // The example tools, as they are in the source tree.
+    for (const QString &id : {QStringLiteral("sound-triage"), QStringLiteral("sound-check")}) {
+        const QDir source(QStringLiteral(WHALE_AI_TEST_TOOLS "/") + id);
+        for (const QString &name : source.entryList(QDir::Files)) {
+            QDir().mkpath(m_tools + QLatin1Char('/') + id);
+            QVERIFY(QFile::copy(source.filePath(name), m_tools + QLatin1Char('/') + id + QLatin1Char('/') + name));
+        }
     }
     writeWav(m_files + QStringLiteral("/b.wav"));
     writeWav(m_files + QStringLiteral("/a.wav"));
@@ -212,12 +246,15 @@ QJSValue WhaleAiToolTest::run(const QString &script)
 
 void WhaleAiToolTest::testStore()
 {
-    QCOMPARE(m_store.ids(), QStringList{QStringLiteral("sound-triage")});
+    QCOMPARE(m_store.ids(), QStringList({QStringLiteral("sound-check"), QStringLiteral("sound-triage")}));
     const auto tool = m_store.tool(QStringLiteral("sound-triage"));
     QCOMPARE(tool->name, QStringLiteral("Sound Triage"));
     QCOMPARE(tool->settings.value(QLatin1String("target")).toString(), QString());
     QCOMPARE(tool->writes.size(), 1);
     QCOMPARE(m_store.files(QStringLiteral("sound-triage")), QStringList({QStringLiteral("main.qml"), QStringLiteral("tool.json")}));
+    const auto check = m_store.tool(QStringLiteral("sound-check"));
+    QVERIFY(check);
+    QCOMPARE(check->backend.value(QLatin1String("command")).toArray(), (QJsonArray{QStringLiteral("python3"), QStringLiteral("backend.py")}));
 
     // Manifests that are refused.
     QString error;
@@ -232,7 +269,7 @@ void WhaleAiToolTest::testStore()
     QVERIFY(!m_store.tool(QStringLiteral("not-qml"), &error));
     writeFile(m_tools + QStringLiteral("/broken-json/tool.json"), "{name");
     QVERIFY(!m_store.tool(QStringLiteral("broken-json"), &error));
-    QCOMPARE(m_store.ids(), QStringList{QStringLiteral("sound-triage")});
+    QCOMPARE(m_store.ids(), QStringList({QStringLiteral("sound-check"), QStringLiteral("sound-triage")}));
     for (const QString &id : {QStringLiteral("no-name"), QStringLiteral("outside"), QStringLiteral("not-qml"), QStringLiteral("broken-json")}) {
         QDir(m_tools + QLatin1Char('/') + id).removeRecursively();
     }
@@ -855,6 +892,87 @@ void WhaleAiToolTest::testBackendForAgent()
     QCOMPARE(backend.value(QLatin1String("stderr")).toArray(), QJsonArray{QStringLiteral("broken")});
     call(QStringLiteral("tool_close"), {{tab, id}});
     QDir(m_tools + QLatin1Char('/') + id).removeRecursively();
+}
+
+void WhaleAiToolTest::testSoundCheck()
+{
+    // The example tool with a backend (CV4), end to end: measured, flagged, trimmed.
+    if (QStandardPaths::findExecutable(QStringLiteral("python3")).isEmpty()) {
+        QSKIP("python3 is needed for the backend");
+    }
+    const QString folder = m_dir.filePath(QStringLiteral("check"));
+    auto tone = [](int count, double amplitude) {
+        QList<double> samples;
+        for (int i = 0; i < count; ++i) {
+            samples.append(amplitude * std::sin(2 * M_PI * 440.0 * i / 8000.0));
+        }
+        return samples;
+    };
+    writeWav16(folder + QStringLiteral("/tone.wav"), tone(4000, 0.5));
+    writeWav16(folder + QStringLiteral("/clipped.wav"), tone(4000, 1.5));
+    writeWav16(folder + QStringLiteral("/padded.wav"), QList<double>(4000, 0.0) + tone(4000, 0.5) + QList<double>(4000, 0.0));
+
+    QMainWindow window;
+    auto panel = new WhaleAiCanvasPanel;
+    panel->setToolStore(m_store);
+    panel->setToolHost(m_host);
+    window.setCentralWidget(panel);
+    window.resize(700, 600);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QCOMPARE(panel->openTool(QStringLiteral("sound-check")), QString());
+    WhaleAiToolTab *tab = panel->toolTab(QStringLiteral("sound-check"));
+    QTRY_VERIFY(tab->isLoaded());
+    QQuickItem *root = tab->quickWidget()->rootObject();
+    QCOMPARE(tab->backend()->state(), WhaleAiToolBackend::State::Waiting);
+    QCOMPARE(findItem(root, QStringLiteral("status"))->property("text").toString(), QStringLiteral("Waiting for Start above…"));
+    QVERIFY(tab->confirmBackend());
+    // The scan of the current folder it asked for while waiting runs first.
+    QTRY_VERIFY(!root->property("scanning").toBool());
+
+    QMetaObject::invokeMethod(root, "scan", Q_ARG(QVariant, QUrl::fromLocalFile(folder).toString()));
+    QTRY_VERIFY_WITH_TIMEOUT(!root->property("scanning").toBool(), 15000);
+    QVERIFY2(tab->log().filter(QStringLiteral("stderr")).isEmpty(), qPrintable(tab->log().join(QLatin1Char('\n'))));
+    const QVariantList files = root->property("files").toList();
+    QCOMPARE(files.size(), 3);
+    QStringList names;
+    for (const QVariant &file : files) {
+        names.append(file.toMap().value(QStringLiteral("name")).toString());
+    }
+    QCOMPARE(names, QStringList({QStringLiteral("clipped.wav"), QStringLiteral("padded.wav"), QStringLiteral("tone.wav")}));
+    const QVariantMap clipped = files.at(0).toMap();
+    const QVariantMap padded = files.at(1).toMap();
+    const QVariantMap plain = files.at(2).toMap();
+    QVERIFY(clipped.value(QStringLiteral("clipped")).toInt() > 0);
+    QCOMPARE(plain.value(QStringLiteral("clipped")).toInt(), 0);
+    QCOMPARE(plain.value(QStringLiteral("duration")).toDouble(), 0.5);
+    QCOMPARE(padded.value(QStringLiteral("duration")).toDouble(), 1.5);
+    QVERIFY(qAbs(plain.value(QStringLiteral("peakDb")).toDouble() + 6.0) < 0.2);
+    QVERIFY(padded.value(QStringLiteral("longSilence")).toBool());
+    QVERIFY(!plain.value(QStringLiteral("longSilence")).toBool());
+    QVERIFY(!clipped.value(QStringLiteral("longSilence")).toBool());
+    QVERIFY(padded.value(QStringLiteral("waveform")).toList().size() > 100);
+
+    // Trim the padded one: a click on its row, then on the button.
+    QQuickItem *trim = findItem(root, QStringLiteral("trim"));
+    QMetaObject::invokeMethod(root, "select", Q_ARG(QVariant, 1));
+    QTRY_VERIFY(trim->isEnabled());
+    const QPointF centre = trim->mapToScene(QPointF(trim->width() / 2, trim->height() / 2));
+    QTest::mouseClick(tab->quickWidget(), Qt::LeftButton, {}, centre.toPoint());
+    const QString trimmed = folder + QStringLiteral("/trimmed/padded.wav");
+    QTRY_VERIFY(QFile::exists(trimmed));
+    QTRY_VERIFY(findItem(root, QStringLiteral("status"))->property("text").toString().startsWith(QLatin1String("Trimmed:")));
+    // About the tone alone is left (0.5 s at 8 kHz, 16 bit).
+    const qint64 frames = (QFileInfo(trimmed).size() - 44) / 2;
+    QVERIFY2(frames > 3900 && frames <= 4000, qPrintable(QString::number(frames)));
+    QCOMPARE(QFileInfo(folder + QStringLiteral("/padded.wav")).size(), qint64(44 + 2 * 12000));
+    QCOMPARE(m_revealed.last(), QUrl::fromLocalFile(trimmed));
+    // Twice is refused, the copy is not overwritten.
+    QTest::mouseClick(tab->quickWidget(), Qt::LeftButton, {}, centre.toPoint());
+    QTRY_VERIFY(findItem(root, QStringLiteral("status"))->property("text").toString().contains(QLatin1String("exists already")));
+
+    QVERIFY(panel->closeTool(QStringLiteral("sound-check")));
+    QDir(folder).removeRecursively();
 }
 
 QTEST_MAIN(WhaleAiToolTest)
