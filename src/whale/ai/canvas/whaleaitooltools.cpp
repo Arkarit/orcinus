@@ -77,6 +77,10 @@ QJsonObject toolStatus(WhaleAiCanvasPanel *panel, const QString &id)
             log.append(lines.at(i));
         }
         status.insert(QStringLiteral("log"), log);
+        const QJsonObject backend = tab->backendStatus();
+        if (!backend.isEmpty()) {
+            status.insert(QStringLiteral("backend"), backend);
+        }
     }
     return status;
 }
@@ -248,7 +252,8 @@ QList<WhaleAiWindowTool> WhaleAiToolTools::create(WhaleAiCanvasPanel *panel, con
         {QStringLiteral("tool_open"),
          QStringLiteral("Open (or reload) an Orcinus canvas tool"),
          QStringLiteral("Opens a canvas tool in its tab on the AI canvas, or loads it again if it is open, and shows the canvas. Answers "
-                        "whether it loaded and the first lines of its log (errors). Refused in a read-only mode: the tool's code runs."),
+                        "whether it loaded, the first lines of its log (errors) and its backend's state (\"waiting\": the user must click Start "
+                        "first). Refused in a read-only mode: the tool's code runs."),
          false,
          {{QStringLiteral("tool"), toolProperty}},
          {QStringLiteral("tool")},
@@ -308,7 +313,7 @@ QList<WhaleAiWindowTool> WhaleAiToolTools::create(WhaleAiCanvasPanel *panel, con
         {QStringLiteral("tool_inspect"),
          QStringLiteral("Inspect an open Orcinus canvas tool"),
          QStringLiteral("Shows the state of an open canvas tool: the properties its root declares and every item with an objectName "
-                        "(type, visible, enabled, text, checked, value, ...)."),
+                        "(type, visible, enabled, text, checked, value, ...), and its backend's state."),
          true,
          {{QStringLiteral("tool"), toolProperty}},
          {QStringLiteral("tool")},

@@ -304,6 +304,11 @@ QString WhaleDevAutomationDBus::AiTranscript()
     return toJson(m_automation->ai()->transcript());
 }
 
+QString WhaleDevAutomationDBus::CanvasConfirmBackend(const QString &tool)
+{
+    return toJson(m_automation->canvasConfirmBackend(tool));
+}
+
 QString WhaleDevAutomationDBus::AiAnswerPermission(const QString &key, const QString &optionId)
 {
     return toJson(m_automation->ai()->answerPermission(key, optionId));

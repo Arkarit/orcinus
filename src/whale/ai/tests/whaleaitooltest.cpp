@@ -57,6 +57,7 @@ private Q_SLOTS:
     void testBrokenTool();
     void testDevelopmentLoop();
     void testBackend();
+    void testBackendForAgent();
 
 private:
     QString writeFile(const QString &path, const QByteArray &data);
@@ -777,6 +778,83 @@ void WhaleAiToolTest::testBackend()
     tab.reset();
     QVERIFY(!process);
     QDir(folder).removeRecursively();
+}
+
+void WhaleAiToolTest::testBackendForAgent()
+{
+    // CV4c: the agent writes a backend, sees that it waits for the user, and reads its output.
+    if (QStandardPaths::findExecutable(QStringLiteral("python3")).isEmpty()) {
+        QSKIP("python3 is needed for the backend");
+    }
+    QMainWindow window;
+    auto panel = new WhaleAiCanvasPanel;
+    panel->setToolStore(m_store);
+    panel->setToolHost(m_host);
+    window.setCentralWidget(panel);
+    window.resize(600, 500);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QHash<QString, WhaleAiWindowTool> tools;
+    for (const WhaleAiWindowTool &tool : WhaleAiToolTools::create(panel, {})) {
+        tools.insert(tool.name, tool);
+    }
+    bool error = false;
+    auto call = [&tools, &error](const QString &name, const QJsonObject &arguments) {
+        QString notice;
+        error = false;
+        return tools.value(name).call(arguments, &error, &notice);
+    };
+    const QString id = QStringLiteral("agent-backend");
+    auto write = [&](const QString &path, const QString &content) {
+        call(QStringLiteral("tool_write_file"), {{QStringLiteral("tool"), id}, {QStringLiteral("path"), path}, {QStringLiteral("content"), content}});
+        QVERIFY(!error);
+    };
+    const QString guide = call(QStringLiteral("tool_guide"), {}).value(QLatin1String("guide")).toString();
+    QVERIFY(guide.contains(QLatin1String("orcinus.backend.send")));
+    QVERIFY(guide.contains(QLatin1String("\"backend\": {\"command\"")));
+
+    write(QStringLiteral("tool.json"), QStringLiteral(R"({"name": "Agent Backend", "backend": {"command": ["python3", "backend.py"]}})"));
+    write(QStringLiteral("backend.py"),
+          QStringLiteral("import json, sys\nprint('ready', file=sys.stderr, flush=True)\nfor line in sys.stdin:\n"
+                         "    print(json.dumps({'got': json.loads(line)}), flush=True)\n"));
+    write(QStringLiteral("main.qml"),
+          QStringLiteral("import QtQuick\nItem { property string answer\n"
+                         "  Connections { target: orcinus.backend; function onMessage(value) { answer = JSON.stringify(value) } }\n"
+                         "  function ask() { orcinus.backend.send('hi') } }\n"));
+    const QString tab = QStringLiteral("tool");
+    QJsonObject result = call(QStringLiteral("tool_open"), {{tab, id}});
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("backend")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("waiting"));
+    QVERIFY(result.value(QLatin1String("backend")).toObject().value(QLatin1String("note")).toString().contains(QLatin1String("Start")));
+    result = call(QStringLiteral("tool_inspect"), {{tab, id}});
+    QCOMPARE(result.value(QLatin1String("backend")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("waiting"));
+    // The agent cannot confirm it; the user does.
+    QVERIFY(panel->toolTab(id)->confirmBackend());
+    result = call(QStringLiteral("tool_inspect"), {{tab, id}});
+    QCOMPARE(result.value(QLatin1String("backend")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("running"));
+    call(QStringLiteral("tool_invoke"), {{tab, id}, {QStringLiteral("function"), QStringLiteral("ask")}});
+    QVERIFY(!error);
+    QTRY_COMPARE(call(QStringLiteral("tool_inspect"), {{tab, id}}).value(QLatin1String("properties")).toObject().value(QLatin1String("answer")).toString(),
+                 QStringLiteral(R"({"got":"hi"})"));
+    QTRY_VERIFY(
+        call(QStringLiteral("tool_log"), {{tab, id}}).value(QLatin1String("log")).toVariant().toStringList().contains(QStringLiteral("backend stderr: ready")));
+
+    // A change of the QML keeps the confirmation, one of the backend does not.
+    write(QStringLiteral("main.qml"), QStringLiteral("import QtQuick\nItem { property int version: 2 }\n"));
+    result = call(QStringLiteral("tool_open"), {{tab, id}});
+    QCOMPARE(result.value(QLatin1String("backend")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("running"));
+    write(QStringLiteral("backend.py"), QStringLiteral("import sys\nprint('broken', file=sys.stderr)\nsys.exit(4)\n"));
+    result = call(QStringLiteral("tool_open"), {{tab, id}});
+    QCOMPARE(result.value(QLatin1String("backend")).toObject().value(QLatin1String("state")).toString(), QStringLiteral("waiting"));
+    QVERIFY(panel->toolTab(id)->confirmBackend());
+    // It ends: the agent reads the exit code and stderr.
+    QTRY_COMPARE(call(QStringLiteral("tool_inspect"), {{tab, id}}).value(QLatin1String("backend")).toObject().value(QLatin1String("state")).toString(),
+                 QStringLiteral("exited"));
+    const QJsonObject backend = call(QStringLiteral("tool_inspect"), {{tab, id}}).value(QLatin1String("backend")).toObject();
+    QCOMPARE(backend.value(QLatin1String("exitCode")).toInt(), 4);
+    QCOMPARE(backend.value(QLatin1String("stderr")).toArray(), QJsonArray{QStringLiteral("broken")});
+    call(QStringLiteral("tool_close"), {{tab, id}});
+    QDir(m_tools + QLatin1Char('/') + id).removeRecursively();
 }
 
 QTEST_MAIN(WhaleAiToolTest)

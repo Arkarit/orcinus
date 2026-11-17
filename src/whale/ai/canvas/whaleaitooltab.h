@@ -62,6 +62,8 @@ public:
      * @return Whether there was a backend waiting for it.
      */
     bool confirmBackend();
+    /** The backend for the agent: {"state", "exitCode", "command", "stderr"}; empty without one. */
+    QJsonObject backendStatus() const;
 
     // ---- for the agent's development loop (CV3) ----
     /** The root's own properties and the items with an objectName (type, text, enabled, ...). */

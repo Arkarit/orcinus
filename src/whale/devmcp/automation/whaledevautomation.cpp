@@ -27,6 +27,7 @@
 #if HAVE_AI_CANVAS
 #include "whaleaicanvaspanel.h"
 #include "whaleaicanvastools.h"
+#include "whaleaitooltab.h"
 #endif
 #include "whalecommandrouter.h"
 #include "whaledevai.h"
@@ -800,6 +801,24 @@ QJsonObject WhaleDevAutomation::uiState() const
          m_window->findChild<WhaleAiCanvasPanel *>() ? WhaleAiCanvasTools::state(m_window->findChild<WhaleAiCanvasPanel *>()) : QJsonValue(QJsonValue::Null)},
 #endif
     };
+}
+
+QJsonObject WhaleDevAutomation::canvasConfirmBackend(const QString &tool)
+{
+#if HAVE_AI_CANVAS
+    auto *panel = m_window->findChild<WhaleAiCanvasPanel *>();
+    WhaleAiToolTab *tab = panel ? panel->toolTab(tool) : nullptr;
+    if (!tab) {
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QStringLiteral("the tool is not open")}};
+    }
+    if (!tab->confirmBackend()) {
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QStringLiteral("no backend waits for a confirmation")}};
+    }
+    return {{QStringLiteral("ok"), true}, {QStringLiteral("backend"), tab->backendStatus()}};
+#else
+    Q_UNUSED(tool)
+    return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QStringLiteral("built without the AI canvas")}};
+#endif
 }
 
 QJsonObject WhaleDevAutomation::stylesState() const

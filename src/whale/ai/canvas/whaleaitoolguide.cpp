@@ -20,6 +20,10 @@ tool_write_file (never with a shell or editor), so Orcinus sees every change.
 - tool.json: {"name": "Sound Triage", "icon": "<freedesktop icon name>", "description": "...",
   "entry": "main.qml", "writes": ["where the tool writes, in words"], "settings": {"key": default}}
 - main.qml (the entry) and more .qml/.js files if needed.
+- Optional backend, for work QML cannot do (analysing or converting files, running a program):
+  "backend": {"command": ["python3", "backend.py"]} in tool.json and backend.py in the folder.
+  Prefer Python with its standard library only (it is installed); a script needs its interpreter
+  in the command (tool_write_file cannot make files executable).
 
 ## QML
 Import only QtQuick, QtQuick.Controls, QtQuick.Layouts (and org.kde.orcinus.canvas for VideoOutput).
@@ -50,6 +54,25 @@ Player (sounds, videos, streams): orcinus.player.play(url), .toggle(url), .seek(
   properties source, playing, loaded, failed, position, duration.
 Settings kept across starts: orcinus.setting(key, fallback) (the manifest's default first),
   orcinus.setSetting(key, value).
+Backend: orcinus.backend.send(value) sends any JSON value; signal orcinus.backend.message(value)
+  (in QML: Connections { target: orcinus.backend; function onMessage(value) { ... } });
+  properties state ("none", "waiting", "running", "exited") and exitCode; orcinus.backend.restart().
+
+## Backend
+Orcinus starts it when the tool loads, in the tool's folder, and stops it when the tab closes or
+the tool loads again. It reads one JSON value per line on stdin and writes one per line on stdout
+(flush after each line); anything else on stdout and all of stderr go to tool_log. Environment:
+ORCINUS_TOOL_FOLDER, ORCINUS_TOOL_SCRATCH (a folder for its own temporary files), ORCINUS_TOOL_ID.
+It runs with the user's rights: write only where the user asked and list those places in "writes".
+The user confirms a backend before it runs the first time and after it changes (not after changes
+of .qml files). While it waits, tool_open and tool_inspect say "waiting": tell the user to click
+Start in the tool's tab. Messages sent meanwhile are kept. When it ends, state is "exited" and
+tool_log has its exit code and stderr.
+Example backend.py:
+  import json, sys
+  for line in sys.stdin:
+      request = json.loads(line)
+      print(json.dumps({"id": request.get("id"), "result": "..."}), flush=True)
 
 ## Loop
 1. tool_write_file tool.json and main.qml.

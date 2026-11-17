@@ -341,6 +341,25 @@ bool WhaleAiToolTab::confirmBackend()
     return true;
 }
 
+QJsonObject WhaleAiToolTab::backendStatus() const
+{
+    const WhaleAiToolBackend *backend = this->backend();
+    if (!backend || !backend->hasBackend()) {
+        return {};
+    }
+    QJsonObject status{{QStringLiteral("state"), backend->stateName()}, {QStringLiteral("command"), QJsonArray::fromStringList(backend->command())}};
+    if (backend->state() == WhaleAiToolBackend::State::Exited) {
+        status.insert(QStringLiteral("exitCode"), backend->exitCode());
+        status.insert(QStringLiteral("stderr"), QJsonArray::fromStringList(backend->stderrTail()));
+    }
+    if (backend->state() == WhaleAiToolBackend::State::Waiting) {
+        status.insert(QStringLiteral("note"),
+                      QStringLiteral("The backend waits for the user: ask them to click Start in the tool's tab. Messages the tool sends are "
+                                     "kept until it runs."));
+    }
+    return status;
+}
+
 void WhaleAiToolTab::showBackendMessage(const QString &text, int type, const QList<QAction *> &actions)
 {
     for (QAction *action : std::as_const(m_backendActions)) {
@@ -443,6 +462,7 @@ QJsonObject WhaleAiToolTab::inspect() const
     if (!root) {
         return {{QStringLiteral("loaded"), false}};
     }
+    const QJsonObject backend = backendStatus();
     // The root's own properties: those its QML declares, after the ones of its type.
     QJsonObject properties;
     const QMetaObject *meta = root->metaObject();
@@ -475,7 +495,11 @@ QJsonObject WhaleAiToolTab::inspect() const
         }
     };
     walk(root);
-    return {{QStringLiteral("loaded"), m_loaded}, {QStringLiteral("properties"), properties}, {QStringLiteral("items"), items}};
+    QJsonObject result{{QStringLiteral("loaded"), m_loaded}, {QStringLiteral("properties"), properties}, {QStringLiteral("items"), items}};
+    if (!backend.isEmpty()) {
+        result.insert(QStringLiteral("backend"), backend);
+    }
+    return result;
 }
 
 QJsonObject WhaleAiToolTab::invoke(const QJsonObject &arguments, QString *error)

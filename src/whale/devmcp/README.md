@@ -122,6 +122,7 @@ by default, so sorting or hidden files would otherwise leak into it.
 | `ai_get_transcript` | AI10a: the transcript as the user reads it, the agent's tool calls (`ownTool` = Orcinus back-channel tool), permission requests with their answer, stop reasons |
 | `ai_answer_permission` | AI10a: clicks option `option` of the open request `key` in the transcript |
 | `ai_stop` | AI10a: the panel's stop button |
+| `canvas_confirm_backend` | CV4: clicks Start for the waiting backend of the canvas tool `tool` |
 | `screenshot` | PNG of the main window, or with `target: viewer` of the open viewer, rendered by Whale itself (works on Wayland) |
 
 Panes: `0`/`left` primary, `1`/`right` secondary (split view), `active` (default).

@@ -641,6 +641,12 @@ TOOLS = [
         },
     },
     {
+        "name": "canvas_confirm_backend",
+        "description": "CV4: clicks Start in the question bar of a canvas tool whose backend waits for the "
+        "user's confirmation (canvas.tools.N.inspect.backend.state == waiting).",
+        "inputSchema": {"type": "object", "properties": {"tool": {"type": "string"}}, "required": ["tool"]},
+    },
+    {
         "name": "ai_stop",
         "description": "AI10a: stops the agent's turn, as the panel's stop button does.",
         "inputSchema": {"type": "object", "properties": {}},
@@ -858,6 +864,8 @@ class Whale:
             return result(iface.AiTranscript())
         if tool == "ai_answer_permission":
             return result(iface.AiAnswerPermission(args["key"], args["option"]))
+        if tool == "canvas_confirm_backend":
+            return result(iface.CanvasConfirmBackend(args["tool"]))
         if tool == "ai_stop":
             return result(iface.AiStop())
         if tool == "screenshot":
