@@ -15,6 +15,8 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QDir>
+#include <QFile>
 #include <QJsonArray>
 #include <QKeySequence>
 #include <QMouseEvent>
@@ -110,6 +112,32 @@ QString typeName(const QObject *object)
         name = name.mid(6);
     }
     return name;
+}
+
+/**
+ * @p error with the line of the tool's file it points to, so the agent does not have to count
+ * lines in a long file (a small model ran out of context doing that, CV4 agent test).
+ */
+QString describe(const QQmlError &error, const QString &toolFolder)
+{
+    QString text = error.toString();
+    const QString path = error.url().toLocalFile();
+    if (error.line() <= 0 || path.isEmpty() || !path.startsWith(toolFolder + QLatin1Char('/'))) {
+        return text;
+    }
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return text;
+    }
+    int number = 0;
+    while (!file.atEnd()) {
+        const QByteArray line = file.readLine();
+        if (++number == error.line()) {
+            text += QStringLiteral("\n    %1 | %2").arg(number).arg(QString::fromUtf8(line).trimmed().left(300));
+            break;
+        }
+    }
+    return text;
 }
 
 QQuickItem *findNamed(QQuickItem *item, const QString &objectName)
@@ -285,7 +313,7 @@ void WhaleAiToolTab::load()
     watchConsole(this, m_tool.folder);
     connect(engine, &QQmlEngine::warnings, this, [this](const QList<QQmlError> &warnings) {
         for (const QQmlError &warning : warnings) {
-            addLog(warning.toString());
+            addLog(describe(warning, QDir::cleanPath(m_tool.folder)));
         }
     });
     m_quick->rootContext()->setContextProperty(QStringLiteral("orcinus"), m_api);
@@ -295,7 +323,7 @@ void WhaleAiToolTab::load()
 
     QStringList errors;
     for (const QQmlError &qmlError : m_quick->errors()) {
-        errors.append(qmlError.toString());
+        errors.append(describe(qmlError, QDir::cleanPath(m_tool.folder)));
     }
     m_loaded = errors.isEmpty() && m_quick->status() == QQuickWidget::Ready;
     if (!m_loaded) {

@@ -29,7 +29,9 @@ tool_write_file (never with a shell or editor), so Orcinus sees every change.
 Import only QtQuick, QtQuick.Controls, QtQuick.Layouts (and org.kde.orcinus.canvas for VideoOutput).
 Modules with their own file, network or storage access (Qt.labs.*, QtCore, LocalStorage, QtNetwork,
 QtMultimedia, ...) are refused: use the `orcinus` object. Root: an Item or FocusScope with
-`focus: true`. Use the palette (SystemPalette) so it fits light and dark themes.
+`focus: true`. Use the palette (SystemPalette) so it fits light and dark themes. Colors are
+"#RRGGBB", "#AARRGGBB", a name like "red", or Qt.rgba(r, g, b, a) with values 0..1; a CSS rgba
+string is an error. Errors in tool_open and tool_log show the line they point to.
 Give every control you want to test an objectName.
 Keys: plain keys (letters, arrows, Space, Delete) go to the tool while it has the focus. To take a
 key, accept it in Keys.onShortcutOverride and handle it in Keys.onPressed.

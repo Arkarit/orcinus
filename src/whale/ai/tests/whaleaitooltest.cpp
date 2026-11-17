@@ -541,6 +541,8 @@ void WhaleAiToolTest::testBrokenTool()
     QVERIFY(!tab.isLoaded());
     QVERIFY(!tab.log().isEmpty());
     QVERIFY(tab.log().constFirst().contains(QLatin1String("main.qml")));
+    // With the line it points to, so the agent need not count lines.
+    QVERIFY2(tab.log().constFirst().contains(QLatin1String("\n    2 | Item { this is not QML }")), qPrintable(tab.log().constFirst()));
 
     // Fixed and loaded again; a failing callback lands in the log.
     writeTool(QStringLiteral("broken"),
