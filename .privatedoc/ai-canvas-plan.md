@@ -23,13 +23,16 @@ scenarios):
   sorted by name, play the first one, show name and folder of the current sound, a folder picker
   'Target', buttons Prev / Next / Repeat / Keep (Keep copies the sound to Target and goes to the
   next one)." Needs no backend: QML plus the `orcinus` API.
-- **Blender character randomizer (UI + backend).** "Characters are in /…/my_characters, morph
-  targets in the subfolder morph, materials in …; a button Shuffle randomizes the character with a
-  preview in the tool, a button Use saves the result as a Blender scene in the subfolder done."
-  Needs a long-running backend (`blender -b --python backend.py`) that keeps the scene loaded,
-  renders a small preview and saves on Use.
+- **Sound check (UI + backend).** "Go through the WAV files in the current folder, show each
+  one's waveform, length, peak and loudness, mark clipped files and files with long silence at
+  start or end; a button Trim writes a copy without the silence into the subfolder trimmed."
+  Needs a long-running backend (`python3 backend.py`, standard library only: `wave`, `array`;
+  no `audioop`, it is gone since Python 3.13) that keeps the decoded samples, sends waveform
+  peaks and measurements over the JSON channel and writes the trimmed copy. Neutral, depends on
+  nothing beyond Python, and runs in CI. (Replaced the earlier Blender character randomizer,
+  2026-11-17: that needs Blender and test assets; it stays a possible later example.)
 
-Not a goal: remote control of other programs (clicking in the canvas to work in Blender). Whoever
+Not a goal: remote control of other programs (clicking in the canvas to work in Blender, say). Whoever
 wants to work by hand opens the program with its full UI; the agent can also drive other programs
 without Orcinus. Buttons that send commands to a backend ("Shuffle", "Render again") are fine.
 
@@ -244,9 +247,12 @@ fingerprint catches for kept tools. As built:
 **CV4 – Backends.** Process lifecycle (start on open, stop on close and on Orcinus quit, restart
 button, crash shown in the tab with stderr), JSON channel (`orcinus.backend.send()`, signal
 `message`), backend working folder = tool folder, the tool's scratch folder in the environment;
-declared write targets shown in the trust dialog and the tool's header. Test scenario: Blender
-character randomizer (with a small test asset set; only where Blender is installed), plus a
-Python backend test without Blender for CI.
+declared write targets shown in the trust dialog and the tool's header. Test scenario: the sound
+check tool (Python backend, standard library only; play folder with a few short 16-bit WAVs, one
+clipped, one with silence at both ends): a hand-written fixture for the unit tests (lifecycle,
+JSON channel, crash with stderr, restart) and an agent scenario `tool-sound-check` in which the
+agent writes UI and backend from the prompt, runs it and trims one file. Runs everywhere, CI
+included.
 
 **CV5 – Frame channel (optional).** Low-latency live preview: a local socket (per tool) over
 which a backend sends frames (encoded, or raw through shared memory / memfd), shown by a
