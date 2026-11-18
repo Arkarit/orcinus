@@ -37,6 +37,12 @@ namespace
 constexpr int LogLines = 12;
 }
 
+/** @return The seconds one step of the free delay of @p provider stands for: minutes for Strata. */
+static int freeDelayUnit(const QString &provider)
+{
+    return provider == QLatin1String("strata") ? 60 : 1;
+}
+
 WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     : SettingsPageBase(parent)
 {
@@ -138,13 +144,13 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     localForm->addRow(localHint);
     for (const auto &[id, name] :
          {std::pair{QStringLiteral("lmstudio"), QStringLiteral("LM Studio")}, std::pair{QStringLiteral("strata"), QStringLiteral("Strata")}}) {
+        // Strata in minutes (its default is 10), LM Studio in seconds (its default is 3).
         auto *delay = new QSpinBox(localGroup);
         delay->setObjectName(QStringLiteral("freeDelay-") + id);
-        delay->setRange(0, 24 * 3600);
-        delay->setSingleStep(id == QLatin1String("strata") ? 60 : 1);
-        delay->setSuffix(i18nc("@item:valuesuffix seconds", " s"));
+        delay->setRange(0, 24 * 3600 / freeDelayUnit(id));
+        delay->setSuffix(freeDelayUnit(id) == 60 ? i18nc("@item:valuesuffix minutes", " min") : i18nc("@item:valuesuffix seconds", " s"));
         delay->setSpecialValueText(i18nc("@item:inrange", "At once"));
-        delay->setValue(qRound(WhaleAiAgents::freeDelaySeconds(id)));
+        delay->setValue(qRound(WhaleAiAgents::freeDelaySeconds(id) / freeDelayUnit(id)));
         connect(delay, &QSpinBox::valueChanged, this, &WhaleAiSettingsPage::changed);
         localForm->addRow(i18nc("@label:spinbox %1 is LM Studio or Strata", "%1:", name), delay);
         m_freeDelays.insert(id, delay);
@@ -223,7 +229,7 @@ void WhaleAiSettingsPage::applySettings()
         WhaleAiAgents::setSystemPrompt(m_prompt->toPlainText());
     }
     for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
-        WhaleAiAgents::setFreeDelaySeconds(it.key(), it.value()->value());
+        WhaleAiAgents::setFreeDelaySeconds(it.key(), it.value()->value() * freeDelayUnit(it.key()));
     }
 }
 
@@ -231,7 +237,7 @@ void WhaleAiSettingsPage::restoreDefaults()
 {
     // The agents are the user's own: they stay. The delays go back to Orcinus' defaults.
     for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
-        it.value()->setValue(qRound(WhaleAiAgents::defaultFreeDelaySeconds(it.key())));
+        it.value()->setValue(qRound(WhaleAiAgents::defaultFreeDelaySeconds(it.key()) / freeDelayUnit(it.key())));
     }
 }
 

@@ -497,10 +497,13 @@ void WhaleAiSettingsPageTest::freeDelays()
     auto *strata = child<QSpinBox>(page, QStringLiteral("freeDelay-strata"));
     QVERIFY(lmStudio);
     QVERIFY(strata);
+    // LM Studio in seconds, Strata in minutes (stored in seconds).
     QCOMPARE(lmStudio->value(), 3);
-    QCOMPARE(strata->value(), 600);
+    QCOMPARE(lmStudio->suffix(), QStringLiteral(" s"));
+    QCOMPARE(strata->value(), 10);
+    QCOMPARE(strata->suffix(), QStringLiteral(" min"));
     QSignalSpy changed(&page, &WhaleAiSettingsPage::changed);
-    strata->setValue(1200);
+    strata->setValue(20);
     lmStudio->setValue(0);
     QCOMPARE(changed.size(), 2);
     QCOMPARE(lmStudio->text(), QStringLiteral("At once"));
@@ -509,7 +512,7 @@ void WhaleAiSettingsPageTest::freeDelays()
     QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("lmstudio")), 0.0);
     page.restoreDefaults();
     QCOMPARE(lmStudio->value(), 3);
-    QCOMPARE(strata->value(), 600);
+    QCOMPARE(strata->value(), 10);
     page.applySettings();
     QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("strata")), 600.0);
 }
