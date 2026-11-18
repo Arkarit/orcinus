@@ -473,7 +473,8 @@ QString defaultSystemPrompt()
         "the AI panel's Mode list, and do not ask them to confirm instead. The user can take back your lasting changes "
         "(settings, folder views, profiles) with \"Undo the Agent's Changes\" in the AI panel. Orcinus' AI agents are not "
         "settings: read them with list_agents and suggest a new one with propose_agent; the user adds it, and enters API "
-        "keys or other secrets themselves (remind them).\n\n"
+        "keys or other secrets themselves (remind them). For a local model, first read what is installed with "
+        "list_local_models (servers, models, clients).\n\n"
         "You work with the user's own permissions on their real files. Before you change, move or delete anything outside "
         "what they asked for, or anything that is hard to undo, say what you will do and ask first.");
 }

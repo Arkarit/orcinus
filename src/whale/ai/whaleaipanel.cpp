@@ -11,6 +11,7 @@
 #include "whaleaicontextchips.h"
 #include "whaleaidebug.h"
 #include "whaleaidisclaimer.h"
+#include "whaleailocalmodels.h"
 #include "whaleaimcpserver.h"
 #include "whaleaitranscript.h"
 
@@ -384,6 +385,18 @@ QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
                                      "the dialog themselves, and that the agent may need its own login or configuration.")}};
          },
          {QStringLiteral("name"), QStringLiteral("command"), QStringLiteral("environment")}},
+        {QStringLiteral("list_local_models"),
+         QStringLiteral("List the local AI models on this computer"),
+         QStringLiteral("Lists what there is for a local AI (AI12; Orcinus knows LM Studio): the inference servers with their address, "
+                        "whether they run, and their language models (id, size, context length, tool use, vision, loaded), and the "
+                        "clients that can run them as an agent (OpenCode, with the ACP command and whether that command is stable). Read "
+                        "it before you propose an agent for a local model. Reads only, starts nothing."),
+         true,
+         {},
+         {},
+         [](const QJsonObject &, bool *, QString *) -> QJsonObject {
+             return WhaleAiLocalModels::describeForAgent(WhaleAiLocalModels::discover());
+         }},
     };
 }
 

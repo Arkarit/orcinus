@@ -976,6 +976,9 @@ void WhaleAiPanelTest::agentTools()
     QVERIFY(!tools.value(QStringLiteral("propose_agent")).readOnly);
     QVERIFY(WhaleAiMcpServer::windowToolNames().contains(QStringLiteral("list_agents")));
     QVERIFY(WhaleAiMcpServer::windowToolNames().contains(QStringLiteral("propose_agent")));
+    // AI12: what there is for a local AI, read only (its content: whaleailocalmodelstest).
+    QVERIFY(tools.value(QStringLiteral("list_local_models")).readOnly);
+    QVERIFY(WhaleAiMcpServer::windowToolNames().contains(QStringLiteral("list_local_models")));
     bool error = false;
     QString notice;
     const QJsonObject listed = tools.value(QStringLiteral("list_agents")).call({}, &error, &notice);

@@ -1078,6 +1078,17 @@ Steps:
     `model-index-cache.json` / GGUF scan as planned.
 - **AI12b – Discovery + `list_local_models`**, test with a fixture LM Studio home (index cache,
   fallback scan, server config) and a fake HTTP server; no real LM Studio in ctest.
+- **AI12b done 2026-11-18.** `WhaleAiLocalModels` (whaleai): `discover(Options)` → providers
+  (LM Studio: `lms` path, host/port/JIT from the server config, `downloadsFolder` from
+  `settings.json`, app process in `/proc`, models from `/api/v1/models` if the server answers,
+  else the index, else a GGUF scan with guessed ids) and clients (OpenCode: PATH →
+  `opencode acp`, `~/.opencode/bin`, else `npx -y opencode-ai acp`, a copy in npx' cache only
+  named as unstable). HTTP probe = blocking HTTP/1.0 GET on a QTcpSocket (connect refused at
+  once; timeout 1.5 s), so the window tool stays synchronous. Window tool `list_local_models`
+  (read-only, every mode), mentioned in the MCP instructions and the system prompt. Test
+  `whaleailocalmodelstest` (fixture LM Studio home, fake /proc, fake HTTP server thread incl.
+  chunked/404/silent). Against the real setup: 9 models from the index, server off, 7 ms, no
+  LM Studio started. Decision (user): crash safety via a state file (see AI12a design changes).
 - **AI12c – Runtime + panel**: acquire/release, grace period, hide ends local sessions, loading
   state, Stop, quit. Test with a fake `lms` script + fake server (call log checked: nothing
   unloaded/stopped that we did not start).

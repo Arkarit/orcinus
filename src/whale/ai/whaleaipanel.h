@@ -143,7 +143,7 @@ private:
     /** Answers a request for one of our own tools (AI6c). */
     bool answerOwnToolRequest(const WhaleAcpPermissionRequest &request);
     void fillAgents(const QString &preferredId);
-    /** list_agents and propose_agent (AI11): the agent may read the agents and propose one. */
+    /** list_agents and propose_agent (AI11): the agent may read the agents and propose one; list_local_models (AI12). */
     QList<WhaleAiWindowTool> agentTools();
     void showProposal(const WhaleAiAgent &agent);
     /** Add… of the proposal bar: the agent dialog, filled in, for the user to edit and confirm. */
