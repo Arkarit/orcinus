@@ -1121,6 +1121,21 @@ Steps:
     only, grace, failures, hand-over, crash cleanup, shutdown while loading; panel tests
     `localModel`, `localModelFails`; ctest 119/119.
 - **AI12d – Dialog section + preset "Add Local Model…"**.
+- **AI12d done 2026-11-18.** Builders in `WhaleAiAgents`: `defaultContextLength()` (65536 or the
+  model's maximum if less — LM Studio's own default ~70k took 29 GB, and OpenCode must know the
+  real length), `localAgentName()` ("<model> (local)"), `openCodeConfig()` (openai-compatible
+  provider `lmstudio`, baseURL from the server config, `limit.context` = loaded length, output
+  = min(32000, context/4), `tool_call`, image modality for vision models, `share: disabled`,
+  `autoupdate: false`), `withOpenCodeConfig()` (replaces an LM Studio config, keeps the user's
+  own), `localAgent()`. Agent dialog: "Local model" combo (None + discovered models with size,
+  "no tool calls"; unknown id kept as "(not found)") and "Context length" (0 = LM Studio's
+  default); choosing a model updates the generated name, an empty command (OpenCode's) and
+  OpenCode's config; notes for: LM Studio missing, unknown model, no tool calls, program in
+  npx' cache, the user's own OpenCode config, OpenCode not installed. Settings page: Add ▸
+  "Local Model (LM Studio)…" (no server request for the menu; off with "(not found)" / "(has
+  no models)"), preselects a loaded tool-capable model, then any tool-capable one; the dialog
+  opens filled in for review. Tests: `whaleaiagentstest::localAgent`,
+  `whaleaisettingspagetest::addLocalModel`, `localModelOfOwnConfig`; ctest 119/119.
 - **AI12e – `propose_agent` with `local_model`**, instructions; AI10 scenario "set up the local
   model" (expect a proposal with `local_model`, no shell wrapper). Real-agent run with the
   user's OK (LM Studio start/stop).

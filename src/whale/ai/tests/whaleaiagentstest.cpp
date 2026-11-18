@@ -38,6 +38,7 @@ private Q_SLOTS:
     void presetsFound();
     void presetsThroughNpx();
     void uniqueId();
+    void localAgent();
     void forTheAgent();
     void startMode();
     void systemPromptStorage();
@@ -185,6 +186,67 @@ void WhaleAiAgentsTest::storesAgents()
     const KConfigGroup group(KSharedConfig::openConfig(), QStringLiteral("AI"));
     QCOMPARE(group.groupList(), QStringList{QStringLiteral("claude")});
     QCOMPARE(WhaleAiAgents::agents(), QList<WhaleAiAgent>{claude});
+}
+
+void WhaleAiAgentsTest::localAgent()
+{
+    // AI12d: an agent for a model of LM Studio, run by OpenCode.
+    WhaleAiLocalProvider lmStudio;
+    lmStudio.id = QStringLiteral("lmstudio");
+    lmStudio.name = QStringLiteral("LM Studio");
+    lmStudio.port = 4321;
+    WhaleAiLocalModel qwen{QStringLiteral("qwen3.8-27b"), QStringLiteral("Qwen3.8 27B"), {}, {}, 0, 262144, true, true, false};
+    WhaleAiLocalModel small{QStringLiteral("tiny"), QStringLiteral("Tiny"), {}, {}, 0, 8192, false, false, false};
+    WhaleAiLocalModel unknown{QStringLiteral("x"), QStringLiteral("X"), {}, {}, 0, 0, true, false, false};
+    QCOMPARE(WhaleAiAgents::defaultContextLength(qwen), 65536);
+    QCOMPARE(WhaleAiAgents::defaultContextLength(small), 8192);
+    QCOMPARE(WhaleAiAgents::defaultContextLength(unknown), 65536);
+
+    const QJsonObject config = QJsonDocument::fromJson(WhaleAiAgents::openCodeConfig(lmStudio, qwen, 40960).toUtf8()).object();
+    QCOMPARE(config.value(QLatin1String("model")).toString(), QStringLiteral("lmstudio/qwen3.8-27b"));
+    QCOMPARE(config.value(QLatin1String("share")).toString(), QStringLiteral("disabled"));
+    QCOMPARE(config.value(QLatin1String("autoupdate")).toBool(true), false);
+    const QJsonObject provider = config.value(QLatin1String("provider")).toObject().value(QLatin1String("lmstudio")).toObject();
+    QCOMPARE(provider.value(QLatin1String("npm")).toString(), QStringLiteral("@ai-sdk/openai-compatible"));
+    QCOMPARE(provider.value(QLatin1String("options")).toObject().value(QLatin1String("baseURL")).toString(), QStringLiteral("http://127.0.0.1:4321/v1"));
+    const QJsonObject entry = provider.value(QLatin1String("models")).toObject().value(QLatin1String("qwen3.8-27b")).toObject();
+    QCOMPARE(entry.value(QLatin1String("limit")).toObject().value(QLatin1String("context")).toInt(), 40960);
+    QCOMPARE(entry.value(QLatin1String("limit")).toObject().value(QLatin1String("output")).toInt(), 10240);
+    QVERIFY(entry.value(QLatin1String("tool_call")).toBool());
+    QCOMPARE(entry.value(QLatin1String("modalities")).toObject().value(QLatin1String("input")).toArray().size(), 2);
+    // LM Studio's default length: the model's maximum is assumed; no images, no modalities.
+    const QJsonObject tiny = QJsonDocument::fromJson(WhaleAiAgents::openCodeConfig(lmStudio, small, 0).toUtf8())
+                                 .object()
+                                 .value(QLatin1String("provider"))
+                                 .toObject()
+                                 .value(QLatin1String("lmstudio"))
+                                 .toObject()
+                                 .value(QLatin1String("models"))
+                                 .toObject()
+                                 .value(QLatin1String("tiny"))
+                                 .toObject();
+    QCOMPARE(tiny.value(QLatin1String("limit")).toObject().value(QLatin1String("context")).toInt(), 8192);
+    QVERIFY(!tiny.contains(QLatin1String("modalities")));
+
+    // The configuration replaces one for LM Studio, is added if there is none, and leaves one of the user's own.
+    const QString line = QStringLiteral("OPENCODE_CONFIG_CONTENT=") + WhaleAiAgents::openCodeConfig(lmStudio, qwen, 65536);
+    QCOMPARE(WhaleAiAgents::withOpenCodeConfig({QStringLiteral("A=1")}, lmStudio, qwen, 65536), (QStringList{QStringLiteral("A=1"), line}));
+    const QStringList old{QStringLiteral("OPENCODE_CONFIG_CONTENT=") + WhaleAiAgents::openCodeConfig(lmStudio, small, 0), QStringLiteral("B=2")};
+    QCOMPARE(WhaleAiAgents::withOpenCodeConfig(old, lmStudio, qwen, 65536), (QStringList{line, QStringLiteral("B=2")}));
+    const QStringList own{QStringLiteral("OPENCODE_CONFIG_CONTENT={\"model\":\"anthropic/x\"}")};
+    QCOMPARE(WhaleAiAgents::withOpenCodeConfig(own, lmStudio, qwen, 65536), own);
+
+    WhaleAiLocalClient openCode{QStringLiteral("opencode"), QStringLiteral("OpenCode"), QStringLiteral("opencode acp"), true, QString()};
+    const WhaleAiAgent existing{QStringLiteral("qwen3-8-27b-local"), QStringLiteral("x"), QStringLiteral("x"), {}, {}};
+    const WhaleAiAgent agent = WhaleAiAgents::localAgent(lmStudio, qwen, openCode, {existing});
+    QCOMPARE(agent.name, QStringLiteral("Qwen3.8 27B (local)"));
+    QCOMPARE(agent.id, QStringLiteral("qwen3-8-27b-local-2"));
+    QCOMPARE(agent.commandLine, QStringLiteral("opencode acp"));
+    QCOMPARE(agent.localProvider, QStringLiteral("lmstudio"));
+    QCOMPARE(agent.localModel, QStringLiteral("qwen3.8-27b"));
+    QCOMPARE(agent.localContextLength, 65536);
+    QCOMPARE(agent.environment, QStringList{line});
+    QCOMPARE(WhaleAiAgents::kind(agent), WhaleAiAgentKind::OpenCode);
 }
 
 void WhaleAiAgentsTest::defaultAgent()

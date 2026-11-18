@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QStandardPaths>
 
@@ -449,6 +450,85 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
         agent.environment.append(entry.contains(QLatin1Char('=')) ? entry : entry + QLatin1Char('='));
     }
     agent.id = uniqueId(agent.name, agents);
+    return agent;
+}
+
+int defaultContextLength(const WhaleAiLocalModel &model)
+{
+    const int preferred = 65536;
+    return model.maxContextLength > 0 ? std::min(preferred, model.maxContextLength) : preferred;
+}
+
+QString localAgentName(const WhaleAiLocalModel &model)
+{
+    return i18nc("@item %1 is the name of a language model", "%1 (local)", model.name);
+}
+
+QString openCodeConfig(const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength)
+{
+    const int context = contextLength > 0 ? contextLength : (model.maxContextLength > 0 ? model.maxContextLength : 65536);
+    QJsonObject entry{{QStringLiteral("name"), model.name},
+                      {QStringLiteral("limit"), QJsonObject{{QStringLiteral("context"), context}, {QStringLiteral("output"), std::min(32000, context / 4)}}},
+                      {QStringLiteral("tool_call"), model.toolUse}};
+    if (model.vision) {
+        entry.insert(QStringLiteral("modalities"),
+                     QJsonObject{{QStringLiteral("input"), QJsonArray{QStringLiteral("text"), QStringLiteral("image")}},
+                                 {QStringLiteral("output"), QJsonArray{QStringLiteral("text")}}});
+    }
+    const QJsonObject config{
+        {QStringLiteral("$schema"), QStringLiteral("https://opencode.ai/config.json")},
+        {QStringLiteral("model"), QString(provider.id + QLatin1Char('/') + model.id)},
+        {QStringLiteral("provider"),
+         QJsonObject{{provider.id,
+                      QJsonObject{{QStringLiteral("npm"), QStringLiteral("@ai-sdk/openai-compatible")},
+                                  {QStringLiteral("name"), provider.name},
+                                  {QStringLiteral("options"), QJsonObject{{QStringLiteral("baseURL"), provider.apiBase()}}},
+                                  {QStringLiteral("models"), QJsonObject{{model.id, entry}}}}}}},
+        // Local means local: nothing shared, no updates in the background.
+        {QStringLiteral("share"), QStringLiteral("disabled")},
+        {QStringLiteral("autoupdate"), false},
+    };
+    return QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
+}
+
+QStringList withOpenCodeConfig(const QStringList &environment, const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength)
+{
+    const QString name = QStringLiteral("OPENCODE_CONFIG_CONTENT");
+    const QString line = name + QLatin1Char('=') + openCodeConfig(provider, model, contextLength);
+    QStringList result;
+    bool replaced = false;
+    for (const QString &entry : environment) {
+        if (entry.section(QLatin1Char('='), 0, 0).trimmed() != name) {
+            result.append(entry);
+            continue;
+        }
+        const QJsonObject config = QJsonDocument::fromJson(entry.section(QLatin1Char('='), 1).toUtf8()).object();
+        if (!config.value(QLatin1String("model")).toString().startsWith(provider.id + QLatin1Char('/'))) {
+            // The user's own configuration: theirs to change.
+            return environment;
+        }
+        if (!replaced) {
+            result.append(line);
+            replaced = true;
+        }
+    }
+    if (!replaced) {
+        result.append(line);
+    }
+    return result;
+}
+
+WhaleAiAgent
+localAgent(const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, const WhaleAiLocalClient &client, const QList<WhaleAiAgent> &agents)
+{
+    WhaleAiAgent agent;
+    agent.name = localAgentName(model);
+    agent.id = uniqueId(agent.name, agents);
+    agent.commandLine = client.commandLine;
+    agent.localProvider = provider.id;
+    agent.localModel = model.id;
+    agent.localContextLength = defaultContextLength(model);
+    agent.environment = withOpenCodeConfig({}, provider, model, agent.localContextLength);
     return agent;
 }
 

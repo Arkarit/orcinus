@@ -46,6 +46,8 @@ public:
 
     /** For tests: where the known agents are looked for (empty: PATH). */
     void setPresetSearchPaths(const QStringList &paths);
+    /** Where the local models are looked for (AI12); for the tests. */
+    void setLocalModelOptions(const WhaleAiLocalModels::Options &options);
     /** For tests: how long the test waits for the agent. */
     void setTestTimeout(int milliseconds);
 
@@ -62,6 +64,8 @@ private:
     int currentRow() const;
     void addPreset(const WhaleAiAgentPreset &preset);
     void addCustom();
+    /** Add ▸ Local Model: an agent for a model of LM Studio, run by OpenCode (AI12). */
+    void addLocalModel();
     void editCurrent();
     void removeCurrent();
     void makeCurrentDefault();
@@ -86,6 +90,7 @@ private:
     QString m_loginCommand;
     WhaleAiAgentTest *m_tester = nullptr;
     QStringList m_presetSearchPaths;
+    WhaleAiLocalModels::Options m_localOptions;
     int m_testTimeout = 30000;
 
     QStackedWidget *m_pages = nullptr; ///< the disclaimer (AI5f), then the page

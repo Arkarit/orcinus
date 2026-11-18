@@ -260,6 +260,27 @@ void WhaleAiSettingsPage::fillAddMenu()
             addPreset(preset);
         });
     }
+    // AI12: no request to the server, the menu opens at once.
+    WhaleAiLocalModels::Options options = m_localOptions;
+    options.probeServer = false;
+    const WhaleAiLocalSetup setup = WhaleAiLocalModels::discover(options);
+    const auto lmStudio = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [](const WhaleAiLocalProvider &provider) {
+        return provider.id == QLatin1String("lmstudio");
+    });
+    QString localText = i18nc("@action:inmenu", "Local Model (LM Studio)…");
+    if (lmStudio == setup.providers.cend()) {
+        localText = i18nc("@action:inmenu", "Local Model (LM Studio not found)");
+    } else if (lmStudio->models.isEmpty()) {
+        localText = i18nc("@action:inmenu", "Local Model (LM Studio has no models)");
+    }
+    QAction *local = m_addMenu->addAction(localText);
+    local->setObjectName(QStringLiteral("localModel"));
+    local->setEnabled(lmStudio != setup.providers.cend() && !lmStudio->models.isEmpty());
+    local->setToolTip(i18nc("@info:tooltip",
+                            "An agent for a language model on this computer, run by OpenCode. Orcinus starts LM Studio and loads the model "
+                            "when you talk to it, and frees them again when it is no longer used."));
+    connect(local, &QAction::triggered, this, &WhaleAiSettingsPage::addLocalModel);
+
     m_addMenu->setToolTipsVisible(true);
     m_addMenu->addSeparator();
     QAction *custom = m_addMenu->addAction(i18nc("@action:inmenu", "Other Agent…"));
@@ -298,7 +319,59 @@ void WhaleAiSettingsPage::addPreset(const WhaleAiAgentPreset &preset)
 
 void WhaleAiSettingsPage::addCustom()
 {
-    WhaleAiAgentDialog dialog(WhaleAiAgent(), this);
+    WhaleAiAgentDialog dialog(WhaleAiAgent(), this, WhaleAiLocalModels::discover(m_localOptions));
+    if (dialog.exec() != QDialog::Accepted) {
+        return;
+    }
+    WhaleAiAgent agent = dialog.agent();
+    agent.id = WhaleAiAgents::uniqueId(agent.name, m_agents);
+    m_agents.append(agent);
+    if (m_defaultId.isEmpty()) {
+        m_defaultId = agent.id;
+    }
+    fillList(agent.id);
+    setAgentsChanged();
+}
+
+void WhaleAiSettingsPage::setLocalModelOptions(const WhaleAiLocalModels::Options &options)
+{
+    m_localOptions = options;
+}
+
+void WhaleAiSettingsPage::addLocalModel()
+{
+    const WhaleAiLocalSetup setup = WhaleAiLocalModels::discover(m_localOptions);
+    const auto lmStudio = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [](const WhaleAiLocalProvider &provider) {
+        return provider.id == QLatin1String("lmstudio");
+    });
+    if (lmStudio == setup.providers.cend() || lmStudio->models.isEmpty()) {
+        return;
+    }
+    // A loaded model the agent can work with first, then any that can, then any.
+    auto pick = [&lmStudio](const std::function<bool(const WhaleAiLocalModel &)> &good) -> const WhaleAiLocalModel * {
+        const auto found = std::find_if(lmStudio->models.cbegin(), lmStudio->models.cend(), good);
+        return found == lmStudio->models.cend() ? nullptr : &*found;
+    };
+    const WhaleAiLocalModel *model = pick([](const WhaleAiLocalModel &model) {
+        return model.loaded && model.toolUse;
+    });
+    if (!model) {
+        model = pick([](const WhaleAiLocalModel &model) {
+            return model.toolUse;
+        });
+    }
+    if (!model) {
+        model = &lmStudio->models.constFirst();
+    }
+    WhaleAiLocalClient client;
+    for (const WhaleAiLocalClient &candidate : setup.clients) {
+        if (candidate.id == QLatin1String("opencode")) {
+            client = candidate;
+        }
+    }
+
+    WhaleAiAgentDialog dialog(WhaleAiAgents::localAgent(*lmStudio, *model, client, m_agents), this, setup);
+    dialog.setWindowTitle(i18nc("@title:window", "Add Local Model"));
     if (dialog.exec() != QDialog::Accepted) {
         return;
     }
@@ -318,7 +391,7 @@ void WhaleAiSettingsPage::editCurrent()
     if (row < 0) {
         return;
     }
-    WhaleAiAgentDialog dialog(m_agents.at(row), this);
+    WhaleAiAgentDialog dialog(m_agents.at(row), this, WhaleAiLocalModels::discover(m_localOptions));
     if (dialog.exec() != QDialog::Accepted || dialog.agent() == m_agents.at(row)) {
         return;
     }

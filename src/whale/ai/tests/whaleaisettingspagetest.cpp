@@ -17,15 +17,20 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalSpy>
+#include <QSpinBox>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -46,6 +51,8 @@ private Q_SLOTS:
     void emptyPage();
     void addKnownAgent();
     void addOtherAgent();
+    void addLocalModel();
+    void localModelOfOwnConfig();
     void editAgent();
     void removeAndDefault();
     void testReady();
@@ -66,6 +73,10 @@ private:
     /** Fills the next agent dialog that opens with @p name, @p command and @p environment. */
     static void answerNextDialog(const QString &name, const QString &command, const QString &environment = QString());
     static WhaleAiAgent fakeAgent(const QString &id, const QString &scenario);
+    /** Options that find a fake LM Studio with two models in @p folder (its server not running). */
+    WhaleAiLocalModels::Options lmStudioOptions(const QString &folder) const;
+    /** @return The JSON of OPENCODE_CONFIG_CONTENT in @p environment. */
+    static QJsonObject openCodeConfig(const QString &environment);
 
     QTemporaryDir m_home;
     QTemporaryDir m_bin;
@@ -190,6 +201,192 @@ void WhaleAiSettingsPageTest::addOtherAgent()
     QCOMPARE(agent.name, QStringLiteral("Local Qwen"));
     QCOMPARE(agent.commandLine, QStringLiteral("opencode acp --pure"));
     QCOMPARE(agent.environment, (QStringList{QStringLiteral("A=1"), QStringLiteral("B=2")}));
+}
+
+WhaleAiLocalModels::Options WhaleAiSettingsPageTest::lmStudioOptions(const QString &folder) const
+{
+    auto write = [](const QString &path, const QByteArray &content) {
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(content);
+    };
+    // Port 1: nothing listens there.
+    write(folder + QStringLiteral("/.lmstudio/.internal/http-server-config.json"), R"({"port": 1, "networkInterface": "127.0.0.1"})");
+    write(folder + QStringLiteral("/.lmstudio/.internal/model-index-cache.json"), R"({"models": [
+      {"domain": "llm", "defaultIdentifier": "alpha-chat", "displayName": "Alpha Chat", "contextLength": 32768, "trainedForToolUse": false},
+      {"domain": "llm", "defaultIdentifier": "qwen", "displayName": "Qwen 27B", "params": "27B", "quant": {"name": "Q6_K"},
+       "sizeBytes": 23400000000, "contextLength": 262144, "trainedForToolUse": true, "visionAdapter": {}}
+    ]})");
+    WhaleAiLocalModels::Options options;
+    options.homePath = folder;
+    options.searchPaths = {m_bin.path()};
+    options.procPath = folder + QStringLiteral("/proc");
+    return options;
+}
+
+QJsonObject WhaleAiSettingsPageTest::openCodeConfig(const QString &environment)
+{
+    for (const QString &line : environment.split(QLatin1Char('\n'))) {
+        if (line.startsWith(QLatin1String("OPENCODE_CONFIG_CONTENT="))) {
+            return QJsonDocument::fromJson(line.section(QLatin1Char('='), 1).toUtf8()).object();
+        }
+    }
+    return {};
+}
+
+void WhaleAiSettingsPageTest::addLocalModel()
+{
+    // Without LM Studio the entry is there, but off.
+    QTemporaryDir empty;
+    WhaleAiSettingsPage page;
+    WhaleAiLocalModels::Options none;
+    none.homePath = empty.path();
+    none.searchPaths = {m_bin.path()};
+    page.setLocalModelOptions(none);
+    QAction *local = menuAction(page, QStringLiteral("localModel"));
+    QVERIFY(local);
+    QVERIFY(!local->isEnabled());
+    QVERIFY(local->text().contains(QLatin1String("not found")));
+
+    QTemporaryDir lmStudio;
+    page.setLocalModelOptions(lmStudioOptions(lmStudio.path()));
+    local = menuAction(page, QStringLiteral("localModel"));
+    QVERIFY(local->isEnabled());
+    QCOMPARE(local->text(), QStringLiteral("Local Model (LM Studio)…"));
+
+    QStringList checked;
+    QTimer::singleShot(0, [&checked] {
+        auto *dialog = qobject_cast<WhaleAiAgentDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        // A failed check must not leave the dialog open.
+        auto close = qScopeGuard([dialog] {
+            if (dialog->isVisible()) {
+                dialog->reject();
+            }
+        });
+        auto *name = dialog->findChild<QLineEdit *>(QStringLiteral("name"));
+        auto *command = dialog->findChild<QLineEdit *>(QStringLiteral("command"));
+        auto *environment = dialog->findChild<QPlainTextEdit *>(QStringLiteral("environment"));
+        auto *model = dialog->findChild<QComboBox *>(QStringLiteral("localModel"));
+        auto *context = dialog->findChild<QSpinBox *>(QStringLiteral("contextLength"));
+        auto *state = dialog->findChild<QLabel *>(QStringLiteral("localState"));
+        // Filled in: the model that can call tools, run by OpenCode, configured for it.
+        QCOMPARE(dialog->windowTitle(), QStringLiteral("Add Local Model"));
+        QCOMPARE(name->text(), QStringLiteral("Qwen 27B (local)"));
+        QCOMPARE(command->text(), QStringLiteral("opencode acp"));
+        QCOMPARE(model->currentData().toString(), QStringLiteral("qwen"));
+        QCOMPARE(model->count(), 3); // None and the two models
+        QVERIFY(model->itemText(1).contains(QLatin1String("no tool calls")));
+        QCOMPARE(model->currentText(), QStringLiteral("Qwen 27B – 27B Q6_K, %1 GB").arg(QLocale().toString(23.4, 'f', 1)));
+        QCOMPARE(context->value(), 65536);
+        QVERIFY(state->isHidden());
+        QJsonObject config = openCodeConfig(environment->toPlainText());
+        QCOMPARE(config.value(QLatin1String("model")).toString(), QStringLiteral("lmstudio/qwen"));
+        const QJsonObject provider = config.value(QLatin1String("provider")).toObject().value(QLatin1String("lmstudio")).toObject();
+        QCOMPARE(provider.value(QLatin1String("options")).toObject().value(QLatin1String("baseURL")).toString(), QStringLiteral("http://127.0.0.1:1/v1"));
+        QJsonObject entry = provider.value(QLatin1String("models")).toObject().value(QLatin1String("qwen")).toObject();
+        QCOMPARE(entry.value(QLatin1String("limit")).toObject().value(QLatin1String("context")).toInt(), 65536);
+        QVERIFY(entry.value(QLatin1String("tool_call")).toBool());
+        QVERIFY(entry.contains(QLatin1String("modalities")));
+
+        // Another model: name, context length and configuration follow; a warning for it.
+        model->setCurrentIndex(model->findData(QStringLiteral("alpha-chat")));
+        QCOMPARE(name->text(), QStringLiteral("Alpha Chat (local)"));
+        QCOMPARE(context->value(), 32768);
+        QVERIFY(!state->isHidden());
+        QVERIFY(state->text().contains(QLatin1String("not trained for tool calls")));
+        config = openCodeConfig(environment->toPlainText());
+        QCOMPARE(config.value(QLatin1String("model")).toString(), QStringLiteral("lmstudio/alpha-chat"));
+        QCOMPARE(environment->toPlainText().count(QLatin1String("OPENCODE_CONFIG_CONTENT=")), 1);
+
+        // A name of the user's own stays; the context length goes into the configuration.
+        model->setCurrentIndex(model->findData(QStringLiteral("qwen")));
+        name->setText(QStringLiteral("My Qwen"));
+        context->setValue(40960);
+        model->setCurrentIndex(model->findData(QStringLiteral("qwen")));
+        QCOMPARE(name->text(), QStringLiteral("My Qwen"));
+        entry = openCodeConfig(environment->toPlainText())
+                    .value(QLatin1String("provider"))
+                    .toObject()
+                    .value(QLatin1String("lmstudio"))
+                    .toObject()
+                    .value(QLatin1String("models"))
+                    .toObject()
+                    .value(QLatin1String("qwen"))
+                    .toObject();
+        QCOMPARE(entry.value(QLatin1String("limit")).toObject().value(QLatin1String("context")).toInt(), 40960);
+        checked.append(QStringLiteral("done"));
+        dialog->accept();
+    });
+    local->trigger();
+    QCOMPARE(checked, QStringList{QStringLiteral("done")});
+    QCOMPARE(page.agents().size(), 1);
+    const WhaleAiAgent agent = page.agents().first();
+    QCOMPARE(agent.id, QStringLiteral("my-qwen"));
+    QCOMPARE(agent.localProvider, QStringLiteral("lmstudio"));
+    QCOMPARE(agent.localModel, QStringLiteral("qwen"));
+    QCOMPARE(agent.localContextLength, 40960);
+    QCOMPARE(openCodeConfig(agent.environment.join(QLatin1Char('\n'))).value(QLatin1String("model")).toString(), QStringLiteral("lmstudio/qwen"));
+
+    // Edited: no local model any more, the rest stays as it is.
+    QTimer::singleShot(0, [] {
+        auto *dialog = qobject_cast<WhaleAiAgentDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        auto close = qScopeGuard([dialog] {
+            if (dialog->isVisible()) {
+                dialog->reject();
+            }
+        });
+        auto *model = dialog->findChild<QComboBox *>(QStringLiteral("localModel"));
+        QCOMPARE(model->currentData().toString(), QStringLiteral("qwen"));
+        QCOMPARE(dialog->findChild<QSpinBox *>(QStringLiteral("contextLength"))->value(), 40960);
+        model->setCurrentIndex(0);
+        QVERIFY(!dialog->findChild<QSpinBox *>(QStringLiteral("contextLength"))->isEnabled());
+        dialog->accept();
+    });
+    child<QListWidget>(page, QStringLiteral("agents"))->setCurrentRow(0);
+    child<QPushButton>(page, QStringLiteral("edit"))->click();
+    QVERIFY(!page.agents().first().usesLocalModel());
+    QCOMPARE(page.agents().first().localContextLength, 0);
+    QCOMPARE(page.agents().first().environment, agent.environment);
+}
+
+void WhaleAiSettingsPageTest::localModelOfOwnConfig()
+{
+    // An agent with an OpenCode configuration of the user's own (and a program in npx' cache,
+    // as an agent once proposed it): the configuration is not touched, the dialog says so.
+    QTemporaryDir lmStudio;
+    WhaleAiAgent own{QStringLiteral("own"),
+                     QStringLiteral("Own"),
+                     QStringLiteral("/home/u/.npm/_npx/e2094862b59aac7b/node_modules/.bin/opencode acp"),
+                     {QStringLiteral("OPENCODE_CONFIG_CONTENT={\"model\":\"mine/x\"}"), QStringLiteral("A=1")},
+                     {}};
+    WhaleAiAgents::setAgents({own});
+    WhaleAiSettingsPage page;
+    page.setLocalModelOptions(lmStudioOptions(lmStudio.path()));
+    QTimer::singleShot(0, [] {
+        auto *dialog = qobject_cast<WhaleAiAgentDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        auto close = qScopeGuard([dialog] {
+            if (dialog->isVisible()) {
+                dialog->reject();
+            }
+        });
+        auto *model = dialog->findChild<QComboBox *>(QStringLiteral("localModel"));
+        auto *state = dialog->findChild<QLabel *>(QStringLiteral("localState"));
+        QVERIFY(state->text().contains(QLatin1String("npx' cache")));
+        model->setCurrentIndex(model->findData(QStringLiteral("qwen")));
+        QCOMPARE(dialog->findChild<QLineEdit *>(QStringLiteral("name"))->text(), QStringLiteral("Own"));
+        QVERIFY(state->text().contains(QLatin1String("your own")));
+        QCOMPARE(dialog->findChild<QPlainTextEdit *>(QStringLiteral("environment"))->toPlainText(),
+                 QStringLiteral("OPENCODE_CONFIG_CONTENT={\"model\":\"mine/x\"}\nA=1"));
+        dialog->accept();
+    });
+    child<QListWidget>(page, QStringLiteral("agents"))->setCurrentRow(0);
+    child<QPushButton>(page, QStringLiteral("edit"))->click();
+    QCOMPARE(page.agents().first().localModel, QStringLiteral("qwen"));
+    QCOMPARE(page.agents().first().environment, own.environment);
 }
 
 void WhaleAiSettingsPageTest::editAgent()

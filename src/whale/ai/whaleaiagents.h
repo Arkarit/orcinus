@@ -8,6 +8,7 @@
 #define WHALEAIAGENTS_H
 
 #include "whaleacpsession.h"
+#include "whaleailocalmodels.h"
 
 #include <QJsonObject>
 #include <QList>
@@ -140,6 +141,33 @@ WhaleAiLoginHint loginHint(const WhaleAiAgent &agent, const QStringList &searchP
 
 /** @return An id based on @p base that none of @p agents has. */
 QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);
+
+// ---- local models (AI12) ----
+
+/**
+ * @return The context length an agent loads @p model with: 65536 tokens, or the model's maximum
+ *         if that is less. An agent needs a long context for its tool descriptions; LM Studio's
+ *         own default (about 70000) took 29 GB for a 27B model at Q6 (AI12a).
+ */
+int defaultContextLength(const WhaleAiLocalModel &model);
+/** @return The name a new agent for @p model gets, e.g. "Qwen3.8 27B (local)". */
+QString localAgentName(const WhaleAiLocalModel &model);
+/**
+ * @return OpenCode's configuration (OPENCODE_CONFIG_CONTENT) for @p model of @p provider, loaded
+ *         with @p contextLength (0: LM Studio's default, then the model's maximum is assumed).
+ */
+QString openCodeConfig(const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength);
+/**
+ * @return @p environment with OpenCode's configuration for @p model; an OPENCODE_CONFIG_CONTENT
+ *         that is not one for LM Studio (the user's own) is kept.
+ */
+QStringList withOpenCodeConfig(const QStringList &environment, const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength);
+/**
+ * @return A new agent for @p model of @p provider, run by @p client (OpenCode), with an id none
+ *         of @p agents has; LM Studio and the model start with it.
+ */
+WhaleAiAgent
+localAgent(const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, const WhaleAiLocalClient &client, const QList<WhaleAiAgent> &agents);
 
 // ---- for the agent (AI11): it may read the agents and propose one, never change them ----
 

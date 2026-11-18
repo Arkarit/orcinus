@@ -95,6 +95,7 @@ struct Options {
     QStringList searchPaths; ///< for programs; empty: PATH
     QString procPath = QStringLiteral("/proc"); ///< where to look for running processes
     int probeTimeoutMs = 1500; ///< for the HTTP request to a server that accepted the connection
+    bool probeServer = true; ///< false: no HTTP request, the models come from LM Studio's files
 };
 
 /** @return What there is; asks a running server over HTTP (blocking, see Options::probeTimeoutMs). */

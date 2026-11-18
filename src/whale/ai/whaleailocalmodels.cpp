@@ -110,7 +110,9 @@ WhaleAiLocalProvider discoverLmStudio(const WhaleAiLocalModels::Options &options
 
     provider.appRunning = WhaleAiLocalModels::lmStudioRunning(options.procPath);
 
-    const std::optional<QByteArray> reply = WhaleAiLocalModels::httpGet(provider.host, provider.port, QStringLiteral("/api/v1/models"), options.probeTimeoutMs);
+    const std::optional<QByteArray> reply = options.probeServer
+        ? WhaleAiLocalModels::httpGet(provider.host, provider.port, QStringLiteral("/api/v1/models"), options.probeTimeoutMs)
+        : std::nullopt;
     if (reply) {
         provider.serverRunning = true;
         provider.models = WhaleAiLocalModels::modelsFromServer(*reply);
