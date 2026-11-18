@@ -163,6 +163,9 @@ private Q_SLOTS:
     void httpGet();
     void discover();
     void describeForAgent();
+    void strataConfigs();
+    void strataProcess();
+    void discoverStrata();
 };
 
 void WhaleAiLocalModelsTest::modelsFromIndex()
@@ -432,6 +435,138 @@ void WhaleAiLocalModelsTest::describeForAgent()
     const QJsonObject running = WhaleAiLocalModels::describeForAgent(setup).value(QLatin1String("providers")).toArray().at(0).toObject();
     QVERIFY(running.value(QLatin1String("models")).toArray().at(1).toObject().value(QLatin1String("loaded")).toBool());
     QVERIFY(!QJsonDocument(running.value(QLatin1String("notes")).toArray()).toJson().contains("not running"));
+}
+
+namespace
+{
+/** A Strata folder as setup leaves it: serve/server.py, the venv's Python, configs, GGUF files. */
+void makeStrata(const QString &folder, int port = 8080)
+{
+    write(folder + QStringLiteral("/serve/server.py"), "");
+    writeExecutable(folder + QStringLiteral("/.venv/bin/python"));
+    write(folder + QStringLiteral("/data/a.gguf"), "12345");
+    write(folder + QStringLiteral("/data/b.gguf"), "123");
+    write(folder + QStringLiteral("/strata-iq2_xs.json"),
+          QStringLiteral(R"({"model_name": "qwen3.8-flash-next-iq2_xs", "port": %1, "vision": {"exe": "x"},
+             "args": ["--native", "%2/data/a.gguf", "--ple-gguf", "%2/data/b.gguf", "--max-context", "262144", "--vision"]})")
+              .arg(port)
+              .arg(folder)
+              .toUtf8());
+    write(folder + QStringLiteral("/strata-iq2_xs-uncensored.json"),
+          QStringLiteral(R"({"model_name": "qwen3.8-flash-next-iq2_xs-uncensored", "port": %1, "args": ["--max-context", "131072"]})").arg(port).toUtf8());
+    write(folder + QStringLiteral("/strata-coder-iq1_m.json"), R"({"model_name": "coder", "args": []})");
+    // Copies and other files are not models.
+    write(folder + QStringLiteral("/strata-iq3_s.before-memory-fix.json"), R"({"model_name": "old"})");
+    write(folder + QStringLiteral("/strata-iq3_s.json.bak"), R"({"model_name": "bak"})");
+    write(folder + QStringLiteral("/strata-broken.json"), "{");
+}
+}
+
+void WhaleAiLocalModelsTest::strataConfigs()
+{
+    QTemporaryDir dir;
+    makeStrata(dir.path());
+    const QList<WhaleAiLocalModel> models = WhaleAiLocalModels::modelsFromStrataConfigs(dir.path());
+    QCOMPARE(models.size(), 3);
+    // By file name.
+    QCOMPARE(models.at(0).name, QStringLiteral("Strata Coder IQ1_M"));
+    QCOMPARE(models.at(0).id, QStringLiteral("coder"));
+    QCOMPARE(models.at(1).name, QStringLiteral("Strata IQ2_XS Uncensored"));
+    QCOMPARE(models.at(1).maxContextLength, 131072);
+    QVERIFY(!models.at(1).vision);
+    const WhaleAiLocalModel &iq2 = models.at(2);
+    QCOMPARE(iq2.id, QStringLiteral("qwen3.8-flash-next-iq2_xs"));
+    QCOMPARE(iq2.name, QStringLiteral("Strata IQ2_XS"));
+    QCOMPARE(iq2.quantization, QStringLiteral("IQ2_XS"));
+    QCOMPARE(iq2.maxContextLength, 262144);
+    QCOMPARE(iq2.sizeBytes, 8);
+    QVERIFY(iq2.vision);
+    QVERIFY(iq2.toolUse);
+    QCOMPARE(iq2.file, dir.filePath(QStringLiteral("strata-iq2_xs.json")));
+    QVERIFY(WhaleAiLocalModels::modelsFromStrataConfigs(dir.filePath(QStringLiteral("missing"))).isEmpty());
+}
+
+void WhaleAiLocalModelsTest::strataProcess()
+{
+    QTemporaryDir proc;
+    write(proc.filePath(QStringLiteral("10/cmdline")), cmdline({"python3", "/home/u/other/server.py", "--engine", "strata"}));
+    write(proc.filePath(QStringLiteral("11/cmdline")), cmdline({"/home/u/Strata/.venv/bin/python", "serve/server.py", "--engine", "llama"}));
+    QVERIFY(!WhaleAiLocalModels::runningStrataConfig(proc.path()));
+    QVERIFY(!WhaleAiLocalModels::isStrataServer(proc.path(), 10));
+    QVERIFY(!WhaleAiLocalModels::isStrataServer(proc.path(), 11));
+
+    // As setup's run scripts and Strata's MCP server start it.
+    write(proc.filePath(QStringLiteral("12/cmdline")),
+          cmdline({"/home/u/Strata/.venv/bin/python",
+                   "/home/u/Strata/serve/server.py",
+                   "--engine",
+                   "strata",
+                   "--config",
+                   "/home/u/Strata/strata-iq2_xs.json",
+                   "--port",
+                   "8080"}));
+    QCOMPARE(WhaleAiLocalModels::runningStrataConfig(proc.path()), std::optional<QString>(QStringLiteral("/home/u/Strata/strata-iq2_xs.json")));
+    QVERIFY(WhaleAiLocalModels::isStrataServer(proc.path(), 12));
+    QVERIFY(!WhaleAiLocalModels::isStrataServer(proc.path(), 13));
+}
+
+void WhaleAiLocalModelsTest::discoverStrata()
+{
+    QTemporaryDir dir;
+    const QString home = dir.filePath(QStringLiteral("home"));
+    const QString proc = dir.filePath(QStringLiteral("proc"));
+    QDir().mkpath(proc);
+    WhaleAiLocalModels::Options options;
+    options.homePath = home;
+    options.searchPaths = {dir.filePath(QStringLiteral("bin"))};
+    options.procPath = proc;
+    options.probeTimeoutMs = 2000;
+
+    // Not there: no provider.
+    QVERIFY(WhaleAiLocalModels::discover(options).providers.isEmpty());
+
+    // There, not running; its port from the configs.
+    const quint16 closed = closedPort();
+    makeStrata(home + QStringLiteral("/Strata"), closed);
+    WhaleAiLocalSetup setup = WhaleAiLocalModels::discover(options);
+    QCOMPARE(setup.providers.size(), 1);
+    WhaleAiLocalProvider strata = setup.providers.first();
+    QCOMPARE(strata.id, QStringLiteral("strata"));
+    QCOMPARE(strata.folder, home + QStringLiteral("/Strata"));
+    QCOMPARE(strata.cli, home + QStringLiteral("/Strata/.venv/bin/python"));
+    QCOMPARE(strata.port, int(closed));
+    QCOMPARE(strata.source, WhaleAiLocalProvider::Source::Configs);
+    QCOMPARE(strata.models.size(), 3);
+    QVERIFY(!strata.serverRunning);
+    QVERIFY(!strata.appRunning);
+    QVERIFY(!strata.jitLoading);
+
+    // Loading: the process is there, the port still closed.
+    write(proc + QStringLiteral("/50/cmdline"),
+          cmdline({"python", "serve/server.py", "--engine", "strata", "--config", "strata-iq2_xs.json", "--port", "8080"}));
+    strata = WhaleAiLocalModels::discover(options).providers.first();
+    QVERIFY(strata.appRunning);
+    QVERIFY(!strata.serverRunning);
+    QCOMPARE(strata.runningConfig, home + QStringLiteral("/Strata/strata-iq2_xs.json"));
+    QVERIFY(QJsonDocument(WhaleAiLocalModels::describeForAgent(WhaleAiLocalModels::discover(options))).toJson().contains("is starting"));
+
+    // Running and loaded: /health says which model; a server of another kind on the port is not Strata.
+    FakeHttpServer server(ok(R"({"status": "ok", "max_context": 262144, "model": "qwen3.8-flash-next-iq2_xs", "loaded": true, "service": "strata"})"));
+    makeStrata(home + QStringLiteral("/Strata"), server.port());
+    strata = WhaleAiLocalModels::discover(options).providers.first();
+    QVERIFY(strata.serverRunning);
+    QCOMPARE(server.lastRequest().left(20), QByteArray("GET /health HTTP/1.0"));
+    QVERIFY(strata.models.at(2).loaded);
+    QVERIFY(!strata.models.at(1).loaded);
+    FakeHttpServer other(ok(R"({"status": "ok"})"));
+    makeStrata(home + QStringLiteral("/Strata"), other.port());
+    QVERIFY(!WhaleAiLocalModels::discover(options).providers.first().serverRunning);
+
+    // A folder of its own.
+    options.strataFolder = dir.filePath(QStringLiteral("elsewhere"));
+    QVERIFY(WhaleAiLocalModels::discover(options).providers.isEmpty());
+    makeStrata(options.strataFolder);
+    QCOMPARE(WhaleAiLocalModels::discover(options).providers.first().folder, options.strataFolder);
 }
 
 QTEST_GUILESS_MAIN(WhaleAiLocalModelsTest)

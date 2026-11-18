@@ -1250,6 +1250,19 @@ Steps:
 - **AI13b – Discovery**: provider `strata` in `WhaleAiLocalModels` (folder, configs → models with
   context length and vision, server running and which model via `/health` / `/v1/models`, port
   from the config); `list_local_models` shows it.
+- **AI13b done 2026-11-18.** Provider `strata` in `WhaleAiLocalModels::discover()`: folder
+  (`Options::strataFolder`, default `<home>/Strata`, installed = `serve/server.py` there), `cli` =
+  `.venv/bin/python`, models from `strata-<size>.json` (`modelsFromStrataConfigs()`: copies with a
+  dot in the size are skipped; id = `model_name`, name "Strata IQ2_XS Uncensored", quantization
+  from the size, `--max-context`, vision from `vision`/`--vision`, size = its GGUF files, tool use
+  true, `file` = the config), port from the first config that names one (8080). A server process
+  (`runningStrataConfig()` / `isStrataServer()`: `…/serve/server.py --engine strata`, its
+  `--config`) sets `appRunning` and `runningConfig` also while it loads (port closed, AI13a);
+  `/health` with `service: strata` sets `serverRunning` and which model is loaded (another server on
+  the port is not Strata). `list_local_models` shows it with Strata's notes (one model at a time,
+  1–3 min, 35–55 GB; "is starting"). Real setup: 3 sizes, 22 ms, nothing started. Not yet usable
+  for agents (runtime, dialog, proposal: AI13c/d). Tests in `whaleailocalmodelstest`
+  (strataConfigs, strataProcess, discoverStrata).
 - **AI13c – Runtime**: a provider abstraction in `WhaleAiLocalRuntime` (LM Studio, Strata);
   Strata start = own server process (detached, pid + start time in the state file), progress
   "Starting Strata (IQ2_XS) … N s — the computer may be slow meanwhile", ready on `/health`

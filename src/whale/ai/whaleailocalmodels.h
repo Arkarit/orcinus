@@ -16,7 +16,7 @@
 #include <optional>
 
 /**
- * @brief A model a local inference server (LM Studio) can serve.
+ * @brief A model a local inference server (LM Studio, Strata) can serve.
  */
 struct WhaleAiLocalModel {
     QString id; ///< what the API and the server's load call take, e.g. "qwen3.8-27b"
@@ -28,12 +28,13 @@ struct WhaleAiLocalModel {
     bool toolUse = false; ///< trained for tool calls (an agent needs them)
     bool vision = false; ///< takes images
     bool loaded = false; ///< loaded right now (only known while the server runs)
+    QString file; ///< Strata: the model's config (strata-<size>.json), which its server is started with
 
     bool operator==(const WhaleAiLocalModel &other) const = default;
 };
 
 /**
- * @brief A local inference server found on this computer. AI12: LM Studio only.
+ * @brief A local inference server found on this computer: LM Studio (AI12) or Strata (AI13).
  */
 struct WhaleAiLocalProvider {
     /** Where the list of models came from; the ids of a scan are guesses from the file names. */
@@ -42,17 +43,20 @@ struct WhaleAiLocalProvider {
         Server, ///< the running server's /api/v1/models
         Index, ///< LM Studio's own model index
         Scan, ///< the *.gguf files in the models folder
+        Configs, ///< Strata's strata-<size>.json files
     };
 
-    QString id; ///< "lmstudio"
-    QString name; ///< "LM Studio"
+    QString id; ///< "lmstudio", "strata"
+    QString name; ///< "LM Studio", "Strata"
     bool installed = false;
-    QString cli; ///< the lms command line tool; empty if not found
+    QString cli; ///< LM Studio: the lms command line tool; Strata: the Python of its venv; empty if not found
+    QString folder; ///< Strata: its folder
     QString host = QStringLiteral("127.0.0.1");
     int port = 1234;
     bool jitLoading = false; ///< the server loads a requested model by itself
     bool serverRunning = false; ///< the server answers on host:port
-    bool appRunning = false; ///< an LM Studio process runs (with or without the server)
+    bool appRunning = false; ///< an LM Studio process, or a Strata server (also while it loads), runs
+    QString runningConfig; ///< Strata: the config its running server was started with (also while it loads)
     QString modelsFolder;
     Source source = Source::None;
     QList<WhaleAiLocalModel> models; ///< language models only (no embedding models)
@@ -92,6 +96,7 @@ namespace WhaleAiLocalModels
 struct Options {
     QString homePath; ///< empty: the user's home
     QString lmStudioHome; ///< empty: <home>/.lmstudio
+    QString strataFolder; ///< empty: <home>/Strata
     QStringList searchPaths; ///< for programs; empty: PATH
     QString procPath = QStringLiteral("/proc"); ///< where to look for running processes
     int probeTimeoutMs = 1500; ///< for the HTTP request to a server that accepted the connection
@@ -122,6 +127,17 @@ QString idFromFile(const QString &relativePath, int modelFilesInFolder);
 bool lmStudioRunning(const QString &procPath);
 /** @return Whether the process @p pid (below @p procPath) is LM Studio's app, its service or llmster. */
 bool isLmStudioProcess(const QString &procPath, qint64 pid);
+
+/**
+ * @return The models of the Strata folder @p folder: one per config strata-<size>.json (copies
+ *         like strata-<size>.before-x.json are left out), with id (`model_name`), context length
+ *         (`--max-context`), images (`vision`) and size (its GGUF files).
+ */
+QList<WhaleAiLocalModel> modelsFromStrataConfigs(const QString &folder);
+/** @return The config file a Strata server process below @p procPath runs with ("" without --config); nothing if none runs. */
+std::optional<QString> runningStrataConfig(const QString &procPath);
+/** @return Whether the process @p pid (below @p procPath) is a Strata server (serve/server.py --engine strata). */
+bool isStrataServer(const QString &procPath, qint64 pid);
 
 /** A reply to httpRequest(). */
 struct HttpReply {
