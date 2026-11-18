@@ -1243,7 +1243,10 @@ Steps:
   Consequences: unload-but-keep-the-server gains nothing (reload = start), so Orcinus stops a server
   it started; a user's Strata is only unloaded if Orcinus loaded it (`/load` after it was idle-
   unloaded). Every free costs the next start 90 s and a slow desktop — the AI12f rule "free 3 s
-  after the panel closes" is expensive for Strata (open decision for the user).
+  after the panel closes" is expensive for Strata.
+  **Decision (user, 2026-11-18): a setting "Free a local model … after the AI panel is closed",
+  per provider: LM Studio 3 s, Strata 10 min by default** (AI settings page; part of AI13c/d).
+  Choosing another agent still frees at once (one model at a time).
 - **AI13b – Discovery**: provider `strata` in `WhaleAiLocalModels` (folder, configs → models with
   context length and vision, server running and which model via `/health` / `/v1/models`, port
   from the config); `list_local_models` shows it.
