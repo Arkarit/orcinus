@@ -1155,6 +1155,15 @@ Steps:
   profile (the service inherits the test window's XDG_CONFIG_HOME), quits the window through the
   dev MCP `quit` instead of SIGTERM (Orcinus frees the model on quitting) and reports at the end
   whether LM Studio's service and server are gone.
+- **AI12e real run 2026-11-18** (`--local-model`, Orcinus started and stopped LM Studio itself in
+  every run): `local-model-agent` plan 3/3 PASS, build 3/3 PASS. Each time list_local_models,
+  then propose_agent with only `local_model {model: qwen3.8-27b}` and a name — no command, no
+  OpenCode config, no lms; answers say "Add…" and that Orcinus starts/frees LM Studio. One run
+  noticed its own agent already uses that model. Times: run 1 878 s (cause not found: npx cache
+  unchanged; probably the cold model load from disk plus the first prompt), then 65–120 s. After
+  the runs no state file was left, LM Studio gone, VRAM back at baseline; the runner's final
+  check came too early once (LM Studio needs 1–2 s after SIGTERM) → it now waits up to 15 s.
+  AI12 complete.
 - Afterwards the user's current entry (written by Codex) can be replaced via the preset.
 
 Not in AI12: Ollama / generic servers, Strata, downloading models, a setting for the grace

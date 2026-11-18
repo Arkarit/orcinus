@@ -458,8 +458,13 @@ def main():
             results.append(result)
             write_report(out, results, args)
     if args.local_model:
-        running = subprocess.run(["pgrep", "-f", "lm-studio --run-as-service"], capture_output=True).returncode == 0
-        answers = lmstudio_models(args.base_url) is not None
+        # LM Studio takes a moment to end after SIGTERM.
+        for _ in range(15):
+            running = subprocess.run(["pgrep", "-f", "lm-studio --run-as-service"], capture_output=True).returncode == 0
+            answers = lmstudio_models(args.base_url) is not None
+            if not running and not answers:
+                break
+            time.sleep(1)
         print(f"after the runs: LM Studio service {'RUNS' if running else 'stopped'}, "
               f"server {'ANSWERS' if answers else 'stopped'}")
     print(f"report: {out / 'report.md'}")
