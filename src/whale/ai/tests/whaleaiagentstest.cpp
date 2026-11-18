@@ -155,11 +155,30 @@ void WhaleAiAgentsTest::storesAgents()
                        QStringLiteral("opencode acp"),
                        {QStringLiteral("A=1"), QStringLiteral("B=2")},
                        {}};
+    // AI12: the local model Orcinus loads for it.
+    local.localProvider = QStringLiteral("lmstudio");
+    local.localModel = QStringLiteral("qwen3.8-27b");
+    local.localContextLength = 65536;
+    QVERIFY(local.usesLocalModel());
+    QVERIFY(!claude.usesLocalModel());
     WhaleAiAgents::setAgents({local, claude});
     KSharedConfig::openConfig()->reparseConfiguration();
     QCOMPARE(WhaleAiAgents::agents(), (QList<WhaleAiAgent>{local, claude}));
     QCOMPARE(WhaleAiAgents::agent(QStringLiteral("claude")), claude);
     QVERIFY(WhaleAiAgents::agent(QStringLiteral("nope")).id.isEmpty());
+    const QJsonObject described = WhaleAiAgents::describeForAgent(local).value(QLatin1String("localModel")).toObject();
+    QCOMPARE(described.value(QLatin1String("model")).toString(), QStringLiteral("qwen3.8-27b"));
+    QCOMPARE(described.value(QLatin1String("contextLength")).toInt(), 65536);
+    QVERIFY(!WhaleAiAgents::describeForAgent(claude).contains(QLatin1String("localModel")));
+    // Without a model, nothing of it is kept.
+    local.localModel.clear();
+    WhaleAiAgents::setAgents({local, claude});
+    KSharedConfig::openConfig()->reparseConfiguration();
+    QVERIFY(!KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("AI")).group(QStringLiteral("local")).hasKey("LocalProvider"));
+    QVERIFY(!KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("AI")).group(QStringLiteral("local")).hasKey("LocalContextLength"));
+    local.localProvider.clear();
+    local.localContextLength = 0;
+    QCOMPARE(WhaleAiAgents::agents(), (QList<WhaleAiAgent>{local, claude}));
 
     // An agent that is gone leaves no group behind.
     WhaleAiAgents::setAgents({claude});

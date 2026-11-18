@@ -24,8 +24,10 @@ class QComboBox;
 class QLabel;
 class QPlainTextEdit;
 class QStackedWidget;
+class QTimer;
 class QToolButton;
 class WhaleAiContextChips;
+class WhaleAiLocalLease;
 class WhaleAiTranscript;
 
 /**
@@ -130,6 +132,7 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
     void focusInEvent(QFocusEvent *event) override;
     void showEvent(QShowEvent *event) override;
+    void hideEvent(QHideEvent *event) override;
 
 private:
     /** @return @p actions, giving the focus back to the input if it had it (the user is typing). */
@@ -152,7 +155,10 @@ private:
     void updatePage();
     void agentChosen();
     bool startSession();
-    void endSession();
+    /** Ends the conversation; a local model goes after the grace period, or at once with @p freeLocalModelNow (AI12). */
+    void endSession(bool freeLocalModelNow = false);
+    /** The panel was hidden for the grace period: the agent of a local model is stopped to free it (AI12). */
+    void freeHiddenLocalModel();
     /** Shows Orcinus' own greeting at the top of an empty conversation. */
     void greet();
     void sendPending();
@@ -183,6 +189,9 @@ private:
     QString m_sessionAgentId;
     bool m_systemPromptSent = false; ///< the system prompt is sent once, with the first message (AI)
     QPointer<WhaleAiMcpServer> m_mcp; ///< the back channel of the conversation (AI6)
+    QPointer<WhaleAiLocalLease> m_lease; ///< the local model of the conversation (AI12)
+    QString m_localProgress; ///< what the local model is doing while it starts
+    QTimer *m_hiddenTimer = nullptr; ///< frees the local model when the panel stays hidden
     QCheckBox *m_showActions = nullptr;
     WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;

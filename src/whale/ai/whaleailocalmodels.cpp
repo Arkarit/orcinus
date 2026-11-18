@@ -387,24 +387,35 @@ bool lmStudioRunning(const QString &procPath)
     const QDir proc(procPath);
     for (const QString &pid : proc.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
         bool number = false;
-        pid.toLongLong(&number);
-        if (!number) {
-            continue;
-        }
-        QFile cmdline(proc.filePath(pid + QStringLiteral("/cmdline")));
-        if (!cmdline.open(QIODevice::ReadOnly)) {
-            continue;
-        }
-        const QString program = QFileInfo(QString::fromLocal8Bit(cmdline.readAll().split('\0').constFirst())).fileName();
-        if (program == QLatin1String("lm-studio") || program == QLatin1String("llmster")
-            || (program.startsWith(QLatin1String("LM-Studio")) && program.endsWith(QLatin1String(".AppImage")))) {
+        const qint64 value = pid.toLongLong(&number);
+        if (number && isLmStudioProcess(procPath, value)) {
             return true;
         }
     }
     return false;
 }
 
+bool isLmStudioProcess(const QString &procPath, qint64 pid)
+{
+    QFile cmdline(QStringLiteral("%1/%2/cmdline").arg(procPath).arg(pid));
+    if (pid <= 0 || !cmdline.open(QIODevice::ReadOnly)) {
+        return false;
+    }
+    const QString program = QFileInfo(QString::fromLocal8Bit(cmdline.readAll().split('\0').constFirst())).fileName();
+    return program == QLatin1String("lm-studio") || program == QLatin1String("llmster")
+        || (program.startsWith(QLatin1String("LM-Studio")) && program.endsWith(QLatin1String(".AppImage")));
+}
+
 std::optional<QByteArray> httpGet(const QString &host, int port, const QString &path, int timeoutMs)
+{
+    const std::optional<HttpReply> reply = httpRequest("GET", host, port, path, QByteArray(), timeoutMs);
+    if (!reply || reply->status < 200 || reply->status > 299) {
+        return std::nullopt;
+    }
+    return reply->body;
+}
+
+std::optional<HttpReply> httpRequest(const QByteArray &method, const QString &host, int port, const QString &path, const QByteArray &body, int timeoutMs)
 {
     QElapsedTimer timer;
     timer.start();
@@ -418,7 +429,13 @@ std::optional<QByteArray> httpGet(const QString &host, int port, const QString &
         return std::nullopt;
     }
     // HTTP/1.0: the server closes the connection after the reply, so its end is the reply's end.
-    socket.write(QStringLiteral("GET %1 HTTP/1.0\r\nHost: %2:%3\r\nAccept: application/json\r\n\r\n").arg(path, host).arg(port).toLatin1());
+    QByteArray request =
+        method + ' ' + path.toLatin1() + " HTTP/1.0\r\nHost: " + host.toLatin1() + ':' + QByteArray::number(port) + "\r\nAccept: application/json\r\n";
+    if (!body.isEmpty()) {
+        request += "Content-Type: application/json\r\nContent-Length: " + QByteArray::number(body.size()) + "\r\n";
+    }
+    request += "\r\n" + body;
+    socket.write(request);
     QByteArray reply;
     while (timer.elapsed() < timeoutMs) {
         if (!socket.waitForReadyRead(left())) {
@@ -437,16 +454,23 @@ std::optional<QByteArray> httpGet(const QString &host, int port, const QString &
     }
     const QList<QByteArray> headers = reply.left(headerEnd).split('\n');
     const QList<QByteArray> status = headers.constFirst().trimmed().split(' ');
-    if (status.size() < 2 || !status.at(0).startsWith("HTTP/") || !status.at(1).startsWith('2')) {
+    bool ok = false;
+    HttpReply result;
+    result.status = status.value(1).toInt(&ok);
+    if (status.size() < 2 || !status.at(0).startsWith("HTTP/") || !ok) {
         return std::nullopt;
     }
-    const QByteArray body = reply.mid(headerEnd + 4);
+    result.body = reply.mid(headerEnd + 4);
     for (const QByteArray &header : headers) {
         const QByteArray line = header.trimmed().toLower();
         if (line.startsWith("transfer-encoding:") && line.contains("chunked")) {
-            return unchunk(body);
+            const std::optional<QByteArray> joined = unchunk(result.body);
+            if (!joined) {
+                return std::nullopt;
+            }
+            result.body = *joined;
         }
     }
-    return body;
+    return result;
 }
 }

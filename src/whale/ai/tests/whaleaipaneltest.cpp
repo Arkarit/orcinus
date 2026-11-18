@@ -12,6 +12,8 @@
 #include "views/dolphinview.h"
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
+#include "whaleaifakelmstudio.h"
+#include "whaleailocalruntime.h"
 #include "whaleaimcpserver.h"
 #include "whaleaisettingspage.h"
 #include "whaleaitranscript.h"
@@ -36,6 +38,7 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStackedWidget>
 #include <QStandardPaths>
@@ -89,6 +92,8 @@ private Q_SLOTS:
 
     void backChannel();
     void agentTools();
+    void localModel();
+    void localModelFails();
     void inputKeepsFocus();
 
 private:
@@ -1035,6 +1040,103 @@ void WhaleAiPanelTest::agentTools()
     QVERIFY(combo->findData(QStringLiteral("local-qwen")) >= 0);
     QCOMPARE(panel.agentId(), QStringLiteral("basic"));
     QVERIFY(texts(panel).contains(QLatin1String("Local Qwen")));
+}
+
+void WhaleAiPanelTest::localModel()
+{
+    // AI12: LM Studio and the model start before the agent, and go when the panel stays hidden.
+    FakeLmStudio lmStudio;
+    lmStudio.addModel(QStringLiteral("qwen"), QStringLiteral("Qwen 27B"));
+    lmStudio.setLoadDelay(300);
+    WhaleAiLocalRuntime runtime(lmStudio.options(400));
+    WhaleAiLocalRuntime::setInstanceForTests(&runtime);
+    auto reset = qScopeGuard([] {
+        WhaleAiLocalRuntime::setInstanceForTests(nullptr);
+    });
+    WhaleAiAgent local = fakeAgent(QStringLiteral("local"), QStringLiteral("basic"));
+    local.localProvider = QStringLiteral("lmstudio");
+    local.localModel = QStringLiteral("qwen");
+    local.localContextLength = 8192;
+    WhaleAiAgents::setAgents({fakeAgent(QStringLiteral("basic"), QStringLiteral("basic")), local});
+
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    panel.setAgentId(QStringLiteral("local"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(texts(panel).contains(QLatin1String("Starting the local model qwen first.")));
+    // Busy while it loads: the agent itself is not started yet, Stop is offered.
+    QCOMPARE(panel.session()->state(), WhaleAcpSession::State::Idle);
+    QVERIFY(panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    auto *info = panel.findChild<QLabel *>(QStringLiteral("sessionInfo"));
+    QVERIFY(info);
+    QTRY_VERIFY_WITH_TIMEOUT(info->text().startsWith(QStringLiteral("Loading Qwen 27B … ")), 10000);
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(lmStudio.loaded(QStringLiteral("qwen")), QStringList{QStringLiteral("qwen")});
+    QVERIFY(lmStudio.requests().join(QLatin1Char('\n')).contains(QLatin1String("\"context_length\":8192")));
+    const qint64 service = lmStudio.servicePid();
+    QVERIFY(FakeLmStudio::isRunning(service));
+
+    // Hidden shorter than the grace period: nothing happens.
+    panel.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&panel));
+    panel.hide();
+    QTest::qWait(100);
+    panel.show();
+    QTest::qWait(500);
+    QVERIFY(panel.session());
+    QCOMPARE(lmStudio.loaded(QStringLiteral("qwen")), QStringList{QStringLiteral("qwen")});
+
+    // Hidden for longer: the agent stops, the model and LM Studio go at once.
+    panel.hide();
+    QTRY_VERIFY(!panel.session());
+    QVERIFY(texts(panel).contains(QLatin1String("free the memory of the local model")));
+    QTRY_VERIFY(lmStudio.loaded(QStringLiteral("qwen")).isEmpty());
+    QTRY_VERIFY(!FakeLmStudio::isRunning(service));
+
+    // The next message starts it all again; a new conversation gives it back after the grace period.
+    panel.show();
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(lmStudio.loaded(QStringLiteral("qwen")), QStringList{QStringLiteral("qwen")});
+    QSignalSpy freed(&runtime, &WhaleAiLocalRuntime::modelFreed);
+    panel.newConversation();
+    QCOMPARE(freed.count(), 0);
+    QTRY_COMPARE(freed.count(), 1);
+    QVERIFY(lmStudio.loaded(QStringLiteral("qwen")).isEmpty());
+
+    // An agent without a local model starts as before.
+    panel.setAgentId(QStringLiteral("basic"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(!texts(panel).endsWith(QLatin1String("first.")));
+    panel.hide();
+    QTest::qWait(600);
+    QVERIFY(panel.session());
+}
+
+void WhaleAiPanelTest::localModelFails()
+{
+    FakeLmStudio lmStudio;
+    WhaleAiLocalRuntime runtime(lmStudio.options(200));
+    WhaleAiLocalRuntime::setInstanceForTests(&runtime);
+    auto reset = qScopeGuard([] {
+        WhaleAiLocalRuntime::setInstanceForTests(nullptr);
+    });
+    WhaleAiAgent local = fakeAgent(QStringLiteral("local"), QStringLiteral("basic"));
+    local.localProvider = QStringLiteral("lmstudio");
+    local.localModel = QStringLiteral("missing");
+    WhaleAiAgents::setAgents({local});
+
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QTRY_VERIFY_WITH_TIMEOUT(kinds(panel).contains(WhaleAiTranscript::Kind::Error), 10000);
+    QVERIFY(texts(panel).contains(QLatin1String("The local model could not be started.")));
+    QVERIFY(!panel.session());
+    QVERIFY(!panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    // The service started for it goes again at once.
+    const qint64 service = lmStudio.servicePid();
+    QTRY_VERIFY(!FakeLmStudio::isRunning(service));
 }
 
 void WhaleAiPanelTest::backChannel()

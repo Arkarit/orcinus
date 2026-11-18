@@ -26,6 +26,9 @@ const char NameKey[] = "Name";
 const char CommandKey[] = "Command";
 const char EnvironmentKey[] = "Environment";
 const char StartModeKey[] = "StartMode";
+const char LocalProviderKey[] = "LocalProvider";
+const char LocalModelKey[] = "LocalModel";
+const char LocalContextLengthKey[] = "LocalContextLength";
 const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
 const char ShowActionsKey[] = "ShowActions";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
@@ -105,6 +108,9 @@ QList<WhaleAiAgent> agents()
         agent.commandLine = agentGroup.readEntry(CommandKey, QString());
         agent.environment = agentGroup.readEntry(EnvironmentKey, QStringList());
         agent.startMode = agentGroup.readEntry(StartModeKey, QString());
+        agent.localProvider = agentGroup.readEntry(LocalProviderKey, QString());
+        agent.localModel = agentGroup.readEntry(LocalModelKey, QString());
+        agent.localContextLength = agentGroup.readEntry(LocalContextLengthKey, 0);
         list.append(agent);
     }
     return list;
@@ -128,6 +134,18 @@ void setAgents(const QList<WhaleAiAgent> &agents)
             agentGroup.deleteEntry(StartModeKey);
         } else {
             agentGroup.writeEntry(StartModeKey, agent.startMode);
+        }
+        if (agent.usesLocalModel()) {
+            agentGroup.writeEntry(LocalProviderKey, agent.localProvider);
+            agentGroup.writeEntry(LocalModelKey, agent.localModel);
+        } else {
+            agentGroup.deleteEntry(LocalProviderKey);
+            agentGroup.deleteEntry(LocalModelKey);
+        }
+        if (agent.usesLocalModel() && agent.localContextLength > 0) {
+            agentGroup.writeEntry(LocalContextLengthKey, agent.localContextLength);
+        } else {
+            agentGroup.deleteEntry(LocalContextLengthKey);
         }
         agentGroup.deleteEntry(AccessKey);
         agentGroup.deleteEntry(SandboxPathsKey);
@@ -387,6 +405,13 @@ QJsonObject describeForAgent(const WhaleAiAgent &agent)
                        {QStringLiteral("environmentVariables"), variables}};
     if (!agent.startMode.isEmpty()) {
         result.insert(QStringLiteral("startMode"), agent.startMode);
+    }
+    if (agent.usesLocalModel()) {
+        QJsonObject local{{QStringLiteral("provider"), agent.localProvider}, {QStringLiteral("model"), agent.localModel}};
+        if (agent.localContextLength > 0) {
+            local.insert(QStringLiteral("contextLength"), agent.localContextLength);
+        }
+        result.insert(QStringLiteral("localModel"), local);
     }
     return result;
 }

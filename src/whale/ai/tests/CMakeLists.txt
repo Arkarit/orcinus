@@ -43,6 +43,10 @@ ecm_add_test(whaleailocalmodelstest.cpp
     TEST_NAME whaleailocalmodelstest
     LINK_LIBRARIES whaleai Qt6::Test)
 
+ecm_add_test(whaleailocalruntimetest.cpp
+    TEST_NAME whaleailocalruntimetest
+    LINK_LIBRARIES whaleai Qt6::Test)
+
 ecm_add_test(whaleaicontexttest.cpp
     TEST_NAME whaleaicontexttest
     LINK_LIBRARIES whaleai Qt6::Test)

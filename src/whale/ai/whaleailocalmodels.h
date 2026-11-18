@@ -119,6 +119,19 @@ QList<WhaleAiLocalModel> modelsFromScan(const QString &folder);
 QString idFromFile(const QString &relativePath, int modelFilesInFolder);
 /** @return Whether an LM Studio process (app, its service or llmster) runs, found below @p procPath. */
 bool lmStudioRunning(const QString &procPath);
+/** @return Whether the process @p pid (below @p procPath) is LM Studio's app, its service or llmster. */
+bool isLmStudioProcess(const QString &procPath, qint64 pid);
+
+/** A reply to httpRequest(). */
+struct HttpReply {
+    int status = 0;
+    QByteArray body;
+};
+/**
+ * @return The reply to "@p method @p path" (with @p body as JSON if not empty) at @p host:@p port;
+ *         nothing if nothing listens, the reply is not HTTP, or after @p timeoutMs. Blocks.
+ */
+std::optional<HttpReply> httpRequest(const QByteArray &method, const QString &host, int port, const QString &path, const QByteArray &body, int timeoutMs);
 /**
  * @return The body of a successful (2xx) reply to "GET @p path" at @p host:@p port; nothing if
  *         nothing listens, on any other answer, or after @p timeoutMs. Blocks; plain HTTP only.

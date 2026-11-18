@@ -26,6 +26,15 @@ struct WhaleAiAgent {
     QString commandLine; ///< program and arguments, quoted as in a shell
     QStringList environment; ///< NAME=value, added to the environment of Orcinus
     QString startMode; ///< value of the "mode" option set after the start (AI5); empty: the agent's
+    /** A local model Orcinus loads before the agent starts and frees again (AI12); empty: none. */
+    QString localProvider; ///< "lmstudio"
+    QString localModel; ///< the model's id at the provider, e.g. "qwen3.8-27b"
+    int localContextLength = 0; ///< 0: the provider's default
+
+    bool usesLocalModel() const
+    {
+        return !localProvider.isEmpty() && !localModel.isEmpty();
+    }
 
     /**
      * @return The program (found in PATH unless absolute), its arguments and the environment;

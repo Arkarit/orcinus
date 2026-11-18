@@ -1092,6 +1092,34 @@ Steps:
 - **AI12c – Runtime + panel**: acquire/release, grace period, hide ends local sessions, loading
   state, Stop, quit. Test with a fake `lms` script + fake server (call log checked: nothing
   unloaded/stopped that we did not start).
+- **AI12c done 2026-11-18.** Agent keys `LocalProvider`, `LocalModel`, `LocalContextLength`
+  (also in `list_agents`). `WhaleAiLocalRuntime` (whaleai, one per process, `instance()`, frees
+  everything on `aboutToQuit`) hands out `WhaleAiLocalLease`s (progress / ready / failed):
+  - Start: discovery; nothing runs → `lms daemon up --json` (PID kept) + `lms server start`; the
+    user's app without server → only `lms server start`; server answers → nothing started.
+  - Load: `GET /api/v1/models`; a loaded instance is reused (never a second load), else
+    `POST …/load` (async, `context_length` if set, 10 min timeout), progress "Loading <name> … N s".
+    Every new lease re-checks a loaded model (the user may have unloaded it) — instead of a check
+    before each prompt (the planned per-prompt check is dropped: JIT reloads it anyway).
+  - Free: last lease gone → grace period (2 min) → `POST …/unload` of our instances, then, if
+    nothing of ours is left, `lms server stop` + SIGTERM to the service PID (only if `/proc` still
+    shows LM Studio there). Unload/stop block briefly (REST ≤ 10 s, in practice < 1 s).
+  - State file `~/.local/state/orcinus/local-models.json` (QLockFile + QSaveFile): per process
+    `uses`, `instances`, `servicePid`, `serverStarted`, `host`/`port`. A process done with a model
+    another live Orcinus uses hands it over (instance and service) instead of freeing it.
+    `cleanUpAfterCrashes()` (once per process, from the first AI panel) frees or hands over what
+    dead PIDs left.
+  - Known gap: a crash during the ~1 min load while LM Studio is the user's leaves that model
+    loaded (with our own service it goes with the service).
+  - Panel: an agent with a local model gets its lease before the agent process starts (session
+    Idle, Stop works, session info shows the progress); failure → error notice, session ends.
+    Hidden (non-spontaneous hide: dock closed or tabbed away; minimizing does not count) for the
+    grace period → session ends, model freed at once, notice; not during a running answer.
+    New conversation / other agent / window closed → freed after the grace period.
+  - Tests: `whaleailocalruntimetest` (fake LM Studio: REST thread + `lms` script with a dummy
+    `lm-studio` service process, fake /proc): start/stop, the user's LM Studio untouched, server
+    only, grace, failures, hand-over, crash cleanup, shutdown while loading; panel tests
+    `localModel`, `localModelFails`; ctest 119/119.
 - **AI12d – Dialog section + preset "Add Local Model…"**.
 - **AI12e – `propose_agent` with `local_model`**, instructions; AI10 scenario "set up the local
   model" (expect a proposal with `local_model`, no shell wrapper). Real-agent run with the

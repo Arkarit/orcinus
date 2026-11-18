@@ -12,6 +12,7 @@
 #include "whaleaidebug.h"
 #include "whaleaidisclaimer.h"
 #include "whaleailocalmodels.h"
+#include "whaleailocalruntime.h"
 #include "whaleaimcpserver.h"
 #include "whaleaitranscript.h"
 
@@ -27,6 +28,7 @@
 #include <QFileInfo>
 #include <QGridLayout>
 #include <QHBoxLayout>
+#include <QHideEvent>
 #include <QJsonArray>
 #include <QKeyEvent>
 #include <QLabel>
@@ -53,6 +55,16 @@ enum Page {
 WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     : Panel(parent)
 {
+    // Local models a crashed Orcinus left loaded (AI12): freed once per process, when idle.
+    static bool cleanedUp = false;
+    if (!cleanedUp) {
+        cleanedUp = true;
+        QTimer::singleShot(0, WhaleAiLocalRuntime::instance(), &WhaleAiLocalRuntime::cleanUpAfterCrashes);
+    }
+    m_hiddenTimer = new QTimer(this);
+    m_hiddenTimer->setSingleShot(true);
+    connect(m_hiddenTimer, &QTimer::timeout, this, &WhaleAiPanel::freeHiddenLocalModel);
+
     // Chat
     auto *chat = new QWidget(this);
 
@@ -754,9 +766,39 @@ bool WhaleAiPanel::startSession()
         updateState();
     });
 
-    m_session->start(command, directory, mcpServers);
     m_sessionInfo->setProperty("usage", -1);
-    return m_session != nullptr;
+    if (!agent.usesLocalModel()) {
+        m_session->start(command, directory, mcpServers);
+        return m_session != nullptr;
+    }
+
+    // AI12: LM Studio and the model first, then the agent.
+    m_lease = WhaleAiLocalRuntime::instance()->acquire(agent.localProvider, agent.localModel, agent.localContextLength, this);
+    m_localProgress = i18nc("@info", "Starting the local model…");
+    m_transcript->addNotice(i18nc("@info %1 is the id of a language model", "Starting the local model %1 first.", agent.localModel));
+    WhaleAiLocalLease *lease = m_lease;
+    connect(lease, &WhaleAiLocalLease::progress, this, [this, lease](const QString &text) {
+        if (m_lease == lease) {
+            m_localProgress = text;
+            updateSessionInfo();
+        }
+    });
+    connect(lease, &WhaleAiLocalLease::ready, this, [this, lease, session, command, directory, mcpServers] {
+        if (m_lease == lease && m_session == session) {
+            session->start(command, directory, mcpServers);
+            updateSessionInfo();
+        }
+    });
+    connect(lease, &WhaleAiLocalLease::failed, this, [this, lease](const QString &error) {
+        if (m_lease != lease) {
+            return;
+        }
+        m_transcript->addNotice(i18nc("@info", "The local model could not be started."), WhaleAiTranscript::Kind::Error, error);
+        endSession(true);
+        updateState();
+    });
+    updateSessionInfo();
+    return true;
 }
 
 void WhaleAiPanel::sendPending()
@@ -922,8 +964,17 @@ void WhaleAiPanel::stop()
     updateState();
 }
 
-void WhaleAiPanel::endSession()
+void WhaleAiPanel::endSession(bool freeLocalModelNow)
 {
+    m_hiddenTimer->stop();
+    if (m_lease) {
+        WhaleAiLocalLease *lease = m_lease;
+        m_lease = nullptr;
+        lease->disconnect(this);
+        lease->release(freeLocalModelNow);
+        lease->deleteLater();
+    }
+    m_localProgress.clear();
     m_pendingPrompt.clear();
     m_pendingContext = {};
     m_modeState = ModeState::Unknown;
@@ -1006,6 +1057,10 @@ void WhaleAiPanel::updateSessionInfo()
     updateModes();
     if (!m_session) {
         m_sessionInfo->setText(i18nc("@info", "Starts with your first message."));
+        return;
+    }
+    if (m_lease && m_lease->state() == WhaleAiLocalLease::State::Preparing) {
+        m_sessionInfo->setText(m_localProgress);
         return;
     }
     if (m_session->state() == WhaleAcpSession::State::Starting) {
@@ -1165,6 +1220,33 @@ void WhaleAiPanel::showEvent(QShowEvent *event)
     Panel::showEvent(event);
     // The window does not update a hidden panel.
     refreshContext();
+    m_hiddenTimer->stop();
+}
+
+void WhaleAiPanel::hideEvent(QHideEvent *event)
+{
+    Panel::hideEvent(event);
+    // A hidden panel holds a local model only for the grace period (AI12): its memory is the
+    // user's, toggling the panel must not reload it.
+    if (m_lease && !event->spontaneous()) {
+        m_hiddenTimer->start(WhaleAiLocalRuntime::instance()->graceMs());
+    }
+}
+
+void WhaleAiPanel::freeHiddenLocalModel()
+{
+    if (!m_lease || isVisible()) {
+        return;
+    }
+    if (m_session && m_session->state() == WhaleAcpSession::State::Prompting) {
+        // Not in the middle of an answer; when it is done, the panel is checked again.
+        m_hiddenTimer->start(WhaleAiLocalRuntime::instance()->graceMs());
+        return;
+    }
+    endSession(true);
+    m_transcript->addNotice(
+        i18nc("@info", "The agent was stopped to free the memory of the local model while the panel was hidden. Your next message starts it again."));
+    updateState();
 }
 
 void WhaleAiPanel::focusInEvent(QFocusEvent *event)
