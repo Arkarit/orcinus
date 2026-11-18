@@ -163,8 +163,8 @@ private:
     void endSession(bool freeLocalModelNow = false);
     /** The panel was closed: the agent of a local model is stopped to free it (AI12f). */
     void freeHiddenLocalModel();
-    /** How long a closed panel waits before it frees its local model. */
-    static int hiddenDelayMs();
+    /** How long a closed panel waits before it frees its local model (setting per provider). */
+    int hiddenDelayMs() const;
     /** Shows Orcinus' own greeting at the top of an empty conversation. */
     void greet();
     void sendPending();

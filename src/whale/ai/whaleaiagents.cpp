@@ -515,6 +515,27 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
     return agent;
 }
 
+double defaultFreeDelaySeconds(const QString &provider)
+{
+    return provider == QLatin1String("strata") ? 600 : 3;
+}
+
+double freeDelaySeconds(const QString &provider)
+{
+    return std::max(0.0, aiGroup().readEntry(QStringLiteral("FreeDelay_") + provider, defaultFreeDelaySeconds(provider)));
+}
+
+void setFreeDelaySeconds(const QString &provider, double seconds)
+{
+    KConfigGroup group = aiGroup();
+    if (qFuzzyCompare(seconds + 1, defaultFreeDelaySeconds(provider) + 1)) {
+        group.deleteEntry(QStringLiteral("FreeDelay_") + provider);
+    } else {
+        group.writeEntry(QStringLiteral("FreeDelay_") + provider, seconds);
+    }
+    group.sync();
+}
+
 int defaultContextLength(const WhaleAiLocalModel &model)
 {
     const int preferred = 65536;

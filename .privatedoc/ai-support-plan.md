@@ -1269,6 +1269,34 @@ Steps:
   loaded; free = `/unload?wait=1`, then SIGTERM to our server only; rule 1 and 2 above; hand-over
   and crash cleanup as for LM Studio. Fake Strata for the tests (a fake `server.py` behind a fake
   `.venv/bin/python`).
+- **AI13c done 2026-11-18.** Runtime keys: LM Studio models by id, Strata as `strata:<id>`
+  (leases keep the id for the panel). Strata path (`prepareStrata`, `strataTick`, `loadStrata`,
+  `freeStrata`):
+  - Its server answers with the wanted model → used (not ours); answers with it unloaded →
+    `POST /load` (async, progress "Strata loads … again"), state `strata.loadedByUs`; another model
+    → refused ("Strata runs X, not Y. Orcinus does not stop a Strata it did not start."); a server
+    that is starting (process, port closed) → waited for if it starts this config, else refused.
+  - Else Orcinus starts `<venv python> serve/server.py --engine strata --config <file> --port <p>`
+    detached (output appended to `strata-server.log` next to the state file), state
+    `strata {pid, model, host, port}`. Once a second: the log's phases → progress "Starting Strata
+    IQ2_XS … N s: loading the model into memory. The computer may be slow meanwhile."; `/health`
+    loaded with this model → ready; process gone → failed with the log's last 8 lines (a process
+    not seen yet counts as gone only when `kill(pid, 0)` fails or after 10 s); 10 min → SIGTERM,
+    failed.
+  - Free: `POST /unload?wait=1` (JSON) if we started or loaded it, SIGTERM to a server we started
+    (only if `/proc` still shows a Strata server there); hand-over to another live Orcinus using it
+    and crash cleanup as for LM Studio. `stopServiceIfUnused` now looks at LM Studio models only.
+  - One model at a time: `acquire` refuses while another conversation holds a model of another
+    provider or another Strata model ("… is still in use in another conversation. Only one local
+    model fits into memory at a time"); LM Studio may still hold two of its own.
+  - Setting `[AI] FreeDelay_<provider>` (seconds; `WhaleAiAgents::freeDelaySeconds`, defaults 3 /
+    600): the panel waits that long after it was closed. UI on the settings page: AI13d.
+  - Tests: `whaleailocalstratatest` (fake Strata: a Python `serve/server.py` that prints the phases,
+    opens its port when loaded, answers /health, /unload (JSON only), /load, enters itself into a
+    fake /proc): start/stop, the user's Strata (used, other size refused), the user's unloaded
+    Strata (/load, unload after, server stays), ends while loading (seen at once), one model at a
+    time, hand-over, crash cleanup; `whaleaiagentstest::freeDelay`,
+    `whaleaipaneltest::strataKeptAfterClosing`. ctest 120 (m9 flaky once, passes alone).
 - **AI13d – UI and agents**: "Local model" in the agent dialog lists LM Studio and Strata models
   (context length fixed by the Strata config, shown read-only); Add ▸ "Local Model (Strata)…";
   `propose_agent` with `provider: "strata"`; OpenCode config with provider `strata`, baseURL from

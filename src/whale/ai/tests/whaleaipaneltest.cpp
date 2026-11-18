@@ -13,6 +13,7 @@
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
 #include "whaleaifakelmstudio.h"
+#include "whaleaifakestrata.h"
 #include "whaleailocalruntime.h"
 #include "whaleaimcpserver.h"
 #include "whaleaisettingspage.h"
@@ -95,6 +96,7 @@ private Q_SLOTS:
     void localModel();
     void localModelFails();
     void localModelSwitched();
+    void strataKeptAfterClosing();
     void inputKeepsFocus();
 
 private:
@@ -1166,6 +1168,41 @@ void WhaleAiPanelTest::localModelSwitched()
     QTRY_VERIFY_WITH_TIMEOUT(lmStudio.loaded(QStringLiteral("qwen")).isEmpty(), 6000);
     QVERIFY(!panel.session());
     QVERIFY(texts(panel).contains(QLatin1String("when the panel was closed")));
+}
+
+void WhaleAiPanelTest::strataKeptAfterClosing()
+{
+    // AI13c: a Strata agent starts Strata; a closed panel keeps it for the delay set for Strata
+    // (its reload takes 90 s), then frees it and stops the server Orcinus started.
+    FakeStrata strata;
+    WhaleAiLocalRuntime runtime(strata.options(60000));
+    WhaleAiLocalRuntime::setInstanceForTests(&runtime);
+    auto reset = qScopeGuard([] {
+        WhaleAiLocalRuntime::setInstanceForTests(nullptr);
+        WhaleAiAgents::setFreeDelaySeconds(QStringLiteral("strata"), WhaleAiAgents::defaultFreeDelaySeconds(QStringLiteral("strata")));
+    });
+    WhaleAiAgents::setFreeDelaySeconds(QStringLiteral("strata"), 2);
+    WhaleAiAgent agent = fakeAgent(QStringLiteral("strata"), QStringLiteral("basic"));
+    agent.localProvider = QStringLiteral("strata");
+    agent.localModel = QStringLiteral("small");
+    WhaleAiAgents::setAgents({agent});
+
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    auto *info = panel.findChild<QLabel *>(QStringLiteral("sessionInfo"));
+    QTRY_VERIFY_WITH_TIMEOUT(info->text().startsWith(QStringLiteral("Starting Strata Small … ")), 10000);
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(strata.servers().size(), 1);
+
+    panel.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&panel));
+    panel.hide();
+    QTest::qWait(1000);
+    QVERIFY(panel.session());
+    QCOMPARE(strata.servers().size(), 1);
+    QTRY_VERIFY_WITH_TIMEOUT(!panel.session(), 5000);
+    QTRY_VERIFY(strata.servers().isEmpty());
 }
 
 void WhaleAiPanelTest::localModelFails()

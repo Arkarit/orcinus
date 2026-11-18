@@ -62,11 +62,12 @@ Q_SIGNALS:
 
 private:
     friend class WhaleAiLocalRuntime;
-    WhaleAiLocalLease(WhaleAiLocalRuntime *runtime, const QString &model, QObject *parent);
+    WhaleAiLocalLease(WhaleAiLocalRuntime *runtime, const QString &key, const QString &model, QObject *parent);
     void setReady(const QString &instanceId);
     void setFailed(const QString &error);
 
     QPointer<WhaleAiLocalRuntime> m_runtime;
+    QString m_key; ///< the runtime's key of the model ("<id>" for LM Studio, "strata:<id>")
     QString m_model;
     State m_state = State::Preparing;
     QString m_error;
@@ -74,13 +75,22 @@ private:
 };
 
 /**
- * @brief Starts LM Studio and loads models for agents, and frees them again (AI12c).
+ * @brief Starts LM Studio or Strata and loads models for agents, and frees them again (AI12c, AI13c).
  *
  * Only what Orcinus started or loaded is stopped or unloaded: a running LM Studio and models
  * the user loaded stay. LM Studio is started as its hidden service (`lms daemon up`, then
  * `lms server start`); models are loaded and unloaded through its REST API. Stopping it takes
  * `lms server stop` and SIGTERM to the service (`lms server stop` alone keeps the models in
  * memory, `lms daemon down` refuses for the app's service).
+ *
+ * Strata serves one model per server: Orcinus starts `serve/server.py` with the model's config
+ * (output in a log next to the state file, its phases shown as progress), waits for `/health` to
+ * say loaded, and frees it with `/unload` and SIGTERM to the server it started. A Strata the user
+ * started is used only if it serves the wanted model, and only unloaded if Orcinus loaded it.
+ *
+ * One local model at a time across providers: models no conversation holds go before another one
+ * loads, and a model is refused while a conversation still uses one of another provider (or
+ * another Strata model).
  *
  * What a process owns is kept in a state file shared by all Orcinus processes. When a process
  * is done with a model another live process uses, it hands it over instead of freeing it; what
@@ -114,8 +124,9 @@ public:
     static void setInstanceForTests(WhaleAiLocalRuntime *runtime);
 
     /**
-     * @return A lease for @p model of @p provider ("lmstudio"), loaded with @p contextLength
-     *         (0: LM Studio's default). It reports ready() or failed() later, never at once.
+     * @return A lease for @p model of @p provider ("lmstudio", "strata"), loaded with
+     *         @p contextLength (0: LM Studio's default; Strata's comes from its config). It reports
+     *         ready() or failed() later, never at once.
      */
     WhaleAiLocalLease *acquire(const QString &provider, const QString &model, int contextLength, QObject *parent = nullptr);
 
@@ -140,6 +151,8 @@ private:
 
     struct Model {
         QString key;
+        QString provider;
+        QString id; ///< the model's id at its provider
         int contextLength = 0;
         QList<QPointer<WhaleAiLocalLease>> leases;
         bool preparing = false;
@@ -149,6 +162,14 @@ private:
         QTimer *grace = nullptr;
         QNetworkReply *load = nullptr;
         QTimer *ticker = nullptr; ///< progress while loading
+        // Strata
+        QString host;
+        int port = 0;
+        qint64 serverPid = 0; ///< the server Orcinus started for it; 0: none (yet)
+        bool serverSeen = false; ///< its process was seen (a fresh one may not show at once)
+        qint64 started = 0; ///< when its start began (ms since the epoch)
+        qint64 logOffset = 0; ///< how much of the server's log was read
+        QString phase; ///< what the server says it does, for the progress
     };
 
     Model *model(const QString &key) const;
@@ -165,6 +186,16 @@ private:
     void progress(const Model *model, const QString &text);
     /** Unloads the model of @p key or hands it over; with @p force also if leases hold it. */
     void freeModel(const QString &key, bool force = false);
+    /** Strata (AI13c): makes the model ready, starts its server if needed. */
+    void prepareStrata(Model *model);
+    /** Strata: watches a start (log, process, /health) once a second. */
+    void strataTick(const QString &key);
+    /** Strata: /load on a server that unloaded its model (the user's, or after an idle unload). */
+    void loadStrata(Model *model);
+    /** @return The model the Strata server at @p host:@p port has in memory; empty if none or no Strata. */
+    QString strataLoadedModel(const QString &host, int port) const;
+    void freeStrata(const QString &key, bool force);
+    QString strataLogPath() const;
     /** @return The loaded instances of @p key at the server, or nothing if it does not answer. */
     std::optional<QStringList> loadedInstances(const QString &key, QString *displayName = nullptr, bool *known = nullptr) const;
     /** Stops LM Studio if this process started it and no longer uses it. */
@@ -190,6 +221,11 @@ private:
         bool stopServer = false;
         QString host;
         int port = 0;
+        // Strata
+        bool strataUnload = false; ///< POST /unload
+        qint64 strataPid = 0; ///< then SIGTERM to this server
+        QString strataHost;
+        int strataPort = 0;
     };
     void carryOut(const Freeing &freeing);
 

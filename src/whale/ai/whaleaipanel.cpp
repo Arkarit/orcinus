@@ -1260,16 +1260,17 @@ void WhaleAiPanel::showEvent(QShowEvent *event)
 void WhaleAiPanel::hideEvent(QHideEvent *event)
 {
     Panel::hideEvent(event);
-    // A closed panel frees its local model (AI12f), after a moment only: rearranging the docks
-    // hides and shows a panel without the user closing it.
+    // A closed panel frees its local model (AI12f) after the delay the user chose for its provider
+    // (AI13; at least a moment: rearranging the docks hides and shows a panel).
     if (m_lease && !event->spontaneous()) {
         m_hiddenTimer->start(hiddenDelayMs());
     }
 }
 
-int WhaleAiPanel::hiddenDelayMs()
+int WhaleAiPanel::hiddenDelayMs() const
 {
-    return std::min(3000, WhaleAiLocalRuntime::instance()->graceMs());
+    // The user's choice per provider (AI13): Strata takes 90 s to load again, LM Studio seconds.
+    return int(WhaleAiAgents::freeDelaySeconds(WhaleAiAgents::agent(m_sessionAgentId).localProvider) * 1000);
 }
 
 void WhaleAiPanel::freeHiddenLocalModel()

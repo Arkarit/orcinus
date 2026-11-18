@@ -40,6 +40,7 @@ private Q_SLOTS:
     void uniqueId();
     void localAgent();
     void proposeLocalModel();
+    void freeDelay();
     void forTheAgent();
     void startMode();
     void systemPromptStorage();
@@ -311,6 +312,22 @@ void WhaleAiAgentsTest::proposeLocalModel()
     WhaleAiLocalSetup withoutOpenCode{{lmStudio}, {{QStringLiteral("opencode"), QStringLiteral("OpenCode"), QString(), false, QString()}}};
     QVERIFY(!WhaleAiAgents::proposal(local(qwen), {}, &error, withoutOpenCode));
     QVERIFY(error.contains(QLatin1String("npm i -g opencode-ai")));
+}
+
+void WhaleAiAgentsTest::freeDelay()
+{
+    // AI13: how long a closed panel keeps its local model, per provider.
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("lmstudio")), 3.0);
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("strata")), 600.0);
+    WhaleAiAgents::setFreeDelaySeconds(QStringLiteral("strata"), 120);
+    WhaleAiAgents::setFreeDelaySeconds(QStringLiteral("lmstudio"), 0.5);
+    KSharedConfig::openConfig()->reparseConfiguration();
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("strata")), 120.0);
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("lmstudio")), 0.5);
+    // The default again: nothing stored.
+    WhaleAiAgents::setFreeDelaySeconds(QStringLiteral("strata"), 600);
+    QVERIFY(!KConfigGroup(KSharedConfig::openConfig(), QStringLiteral("AI")).hasKey("FreeDelay_strata"));
+    WhaleAiAgents::setFreeDelaySeconds(QStringLiteral("lmstudio"), 3);
 }
 
 void WhaleAiAgentsTest::defaultAgent()

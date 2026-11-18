@@ -150,6 +150,16 @@ QString uniqueId(const QString &base, const QList<WhaleAiAgent> &agents);
  *         own default (about 70000) took 29 GB for a 27B model at Q6 (AI12a).
  */
 int defaultContextLength(const WhaleAiLocalModel &model);
+/**
+ * @return How long a local model of @p provider ("lmstudio", "strata") stays after its AI panel
+ *         was closed, in seconds (AI13, user's choice): by default 3 for LM Studio, 600 for Strata,
+ *         whose models take 90 s and a slow computer to load again.
+ */
+double freeDelaySeconds(const QString &provider);
+void setFreeDelaySeconds(const QString &provider, double seconds);
+/** @return The default of freeDelaySeconds(). */
+double defaultFreeDelaySeconds(const QString &provider);
+
 /** @return The name a new agent for @p model gets, e.g. "Qwen3.8 27B (local)". */
 QString localAgentName(const WhaleAiLocalModel &model);
 /**

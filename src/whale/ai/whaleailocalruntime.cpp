@@ -10,6 +10,7 @@
 #include <KLocalizedString>
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -29,6 +30,8 @@
 namespace
 {
 const QString LmStudio = QStringLiteral("lmstudio");
+const QString Strata = QStringLiteral("strata");
+const QString StrataKeyPrefix = QStringLiteral("strata:");
 
 QPointer<WhaleAiLocalRuntime> s_instance;
 QPointer<WhaleAiLocalRuntime> s_testInstance;
@@ -45,7 +48,8 @@ QStringList toStrings(const QJsonValue &value)
 bool isEmptyEntry(const QJsonObject &entry)
 {
     return entry.value(QLatin1String("uses")).toArray().isEmpty() && entry.value(QLatin1String("instances")).toArray().isEmpty()
-        && entry.value(QLatin1String("servicePid")).toInteger() <= 0 && !entry.value(QLatin1String("serverStarted")).toBool();
+        && entry.value(QLatin1String("servicePid")).toInteger() <= 0 && !entry.value(QLatin1String("serverStarted")).toBool()
+        && entry.value(QLatin1String("strata")).toObject().isEmpty();
 }
 
 /** @return The error message in a reply of LM Studio's REST API, or @p fallback. */
@@ -71,9 +75,10 @@ QJsonObject lastJsonLine(const QByteArray &output)
 
 // ---- WhaleAiLocalLease ----
 
-WhaleAiLocalLease::WhaleAiLocalLease(WhaleAiLocalRuntime *runtime, const QString &model, QObject *parent)
+WhaleAiLocalLease::WhaleAiLocalLease(WhaleAiLocalRuntime *runtime, const QString &key, const QString &model, QObject *parent)
     : QObject(parent)
     , m_runtime(runtime)
+    , m_key(key)
     , m_model(model)
 {
 }
@@ -203,21 +208,37 @@ WhaleAiLocalRuntime::Model *WhaleAiLocalRuntime::model(const QString &key) const
     return it == m_models.end() ? nullptr : it->second.get();
 }
 
-WhaleAiLocalLease *WhaleAiLocalRuntime::acquire(const QString &provider, const QString &key, int contextLength, QObject *parent)
+WhaleAiLocalLease *WhaleAiLocalRuntime::acquire(const QString &provider, const QString &id, int contextLength, QObject *parent)
 {
-    auto *lease = new WhaleAiLocalLease(this, key, parent);
-    if (provider != LmStudio || key.isEmpty()) {
-        QTimer::singleShot(0, lease, [lease, provider] {
-            lease->setFailed(i18nc("@info %1 is a name like lmstudio", "Orcinus cannot start local models of “%1”, only of LM Studio.", provider));
+    const QString key = provider == Strata ? StrataKeyPrefix + id : id;
+    auto *lease = new WhaleAiLocalLease(this, key, id, parent);
+    auto refuse = [lease](const QString &error) {
+        QTimer::singleShot(0, lease, [lease, error] {
+            lease->setFailed(error);
         });
         return lease;
+    };
+    if ((provider != LmStudio && provider != Strata) || id.isEmpty()) {
+        return refuse(i18nc("@info %1 is a name like lmstudio", "Orcinus cannot start local models of “%1”, only of LM Studio and Strata.", provider));
+    }
+    // AI13: one local model at a time. LM Studio may hold two of its own models; Strata serves one,
+    // and two providers do not fit into memory together.
+    for (const auto &[otherKey, other] : m_models) {
+        if (otherKey != key && !other->leases.isEmpty() && (other->provider != provider || provider == Strata)) {
+            return refuse(i18nc("@info %1 is the name of a language model",
+                                "%1 is still in use in another conversation. Only one local model fits into memory at a time: end that "
+                                "conversation first.",
+                                other->displayName));
+        }
     }
 
     Model *entry = model(key);
     if (!entry) {
         auto created = std::make_unique<Model>();
         created->key = key;
-        created->displayName = key;
+        created->provider = provider;
+        created->id = id;
+        created->displayName = id;
         created->grace = new QTimer(this);
         created->grace->setSingleShot(true);
         connect(created->grace, &QTimer::timeout, this, [this, key] {
@@ -258,7 +279,7 @@ WhaleAiLocalLease *WhaleAiLocalRuntime::acquire(const QString &provider, const Q
 
 void WhaleAiLocalRuntime::releaseLease(WhaleAiLocalLease *lease, bool now)
 {
-    Model *entry = model(lease->model());
+    Model *entry = model(lease->m_key);
     if (!entry || !entry->leases.removeOne(lease)) {
         return;
     }
@@ -273,6 +294,16 @@ void WhaleAiLocalRuntime::check(const QString &key)
 {
     Model *entry = model(key);
     if (!entry || entry->preparing || entry->leases.isEmpty()) {
+        return;
+    }
+    if (entry->provider == Strata) {
+        // Strata may have unloaded it when idle, or the user may have stopped it.
+        if (entry->ready && strataLoadedModel(entry->host, entry->port) == entry->id) {
+            modelReady(entry, entry->id);
+            return;
+        }
+        entry->ready = false;
+        prepareStrata(entry);
         return;
     }
     if (entry->ready) {
@@ -290,6 +321,10 @@ void WhaleAiLocalRuntime::check(const QString &key)
 
 void WhaleAiLocalRuntime::prepare(Model *entry)
 {
+    if (entry->provider == Strata) {
+        prepareStrata(entry);
+        return;
+    }
     entry->preparing = true;
     const QString key = entry->key;
     ensureServer([this, key](const QString &error) {
@@ -550,6 +585,10 @@ void WhaleAiLocalRuntime::progress(const Model *entry, const QString &text)
 
 void WhaleAiLocalRuntime::freeModel(const QString &key, bool force)
 {
+    if (key.startsWith(StrataKeyPrefix)) {
+        freeStrata(key, force);
+        return;
+    }
     Model *entry = model(key);
     if (!entry || (!force && (!entry->leases.isEmpty() || entry->load || entry->preparing))) {
         return;
@@ -613,9 +652,353 @@ void WhaleAiLocalRuntime::freeModel(const QString &key, bool force)
     stopServiceIfUnused();
 }
 
+// ---- Strata (AI13c) ----
+
+QString WhaleAiLocalRuntime::strataLogPath() const
+{
+    return QFileInfo(m_options.statePath).absolutePath() + QStringLiteral("/strata-server.log");
+}
+
+QString WhaleAiLocalRuntime::strataLoadedModel(const QString &host, int port) const
+{
+    if (host.isEmpty()) {
+        return {};
+    }
+    const std::optional<QByteArray> body = WhaleAiLocalModels::httpGet(host, port, QStringLiteral("/health"), m_options.requestTimeoutMs);
+    const QJsonObject health = body ? QJsonDocument::fromJson(*body).object() : QJsonObject();
+    if (health.value(QLatin1String("service")).toString() != Strata || !health.value(QLatin1String("loaded")).toBool()) {
+        return {};
+    }
+    return health.value(QLatin1String("model")).toString();
+}
+
+void WhaleAiLocalRuntime::prepareStrata(Model *entry)
+{
+    entry->preparing = true;
+    const WhaleAiLocalSetup setup = WhaleAiLocalModels::discover(m_options.discovery);
+    const auto provider = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [](const WhaleAiLocalProvider &provider) {
+        return provider.id == Strata;
+    });
+    if (provider == setup.providers.cend()) {
+        modelFailed(entry, i18nc("@info", "Strata was not found."));
+        return;
+    }
+    const auto found = std::find_if(provider->models.cbegin(), provider->models.cend(), [entry](const WhaleAiLocalModel &model) {
+        return model.id == entry->id;
+    });
+    if (found == provider->models.cend()) {
+        modelFailed(entry, i18nc("@info %1 is a model id", "Strata has no model “%1”.", entry->id));
+        return;
+    }
+    const WhaleAiLocalModel strataModel = *found;
+    entry->displayName = strataModel.name;
+    entry->host = provider->host;
+    entry->port = provider->port;
+    entry->started = QDateTime::currentMSecsSinceEpoch();
+    entry->phase.clear();
+
+    if (provider->serverRunning) {
+        const std::optional<QByteArray> body = WhaleAiLocalModels::httpGet(entry->host, entry->port, QStringLiteral("/health"), m_options.requestTimeoutMs);
+        const QJsonObject health = body ? QJsonDocument::fromJson(*body).object() : QJsonObject();
+        const QString running = health.value(QLatin1String("model")).toString();
+        if (running != entry->id) {
+            QString runningName = running;
+            for (const WhaleAiLocalModel &model : provider->models) {
+                if (model.id == running) {
+                    runningName = model.name;
+                }
+            }
+            modelFailed(entry,
+                        i18nc("@info %1 and %2 are model names",
+                              "Strata runs %1 at the moment, not %2. Orcinus does not stop a Strata it did not start.",
+                              runningName,
+                              entry->displayName));
+            return;
+        }
+        if (health.value(QLatin1String("loaded")).toBool()) {
+            modelReady(entry, entry->id);
+        } else {
+            loadStrata(entry);
+        }
+        return;
+    }
+    if (provider->appRunning) {
+        // A Strata that is starting: it is used if it starts this model.
+        if (provider->runningConfig != strataModel.file) {
+            modelFailed(entry, i18nc("@info", "Strata is starting with another model at the moment."));
+            return;
+        }
+    } else {
+        if (provider->cli.isEmpty()) {
+            modelFailed(entry, i18nc("@info", "Strata's Python environment (.venv) was not found; run Strata's setup first."));
+            return;
+        }
+        const QString log = strataLogPath();
+        QDir().mkpath(QFileInfo(log).absolutePath());
+        QFile::remove(log);
+        QProcess process;
+        process.setProgram(provider->cli);
+        // As Strata's own run scripts, without --open (no browser).
+        process.setArguments({provider->folder + QStringLiteral("/serve/server.py"),
+                              QStringLiteral("--engine"),
+                              QStringLiteral("strata"),
+                              QStringLiteral("--config"),
+                              strataModel.file,
+                              QStringLiteral("--port"),
+                              QString::number(entry->port)});
+        process.setWorkingDirectory(provider->folder);
+        process.setStandardInputFile(QProcess::nullDevice());
+        process.setStandardOutputFile(log, QIODevice::Append);
+        process.setStandardErrorFile(log, QIODevice::Append);
+        qint64 serverPid = 0;
+        if (!process.startDetached(&serverPid) || serverPid <= 0) {
+            modelFailed(entry, i18nc("@info %1 is an error message", "Strata could not be started: %1", process.errorString()));
+            return;
+        }
+        entry->serverPid = serverPid;
+        entry->serverSeen = false;
+        entry->logOffset = 0;
+        const QString id = entry->id;
+        const QString host = entry->host;
+        const int port = entry->port;
+        editState([serverPid, id, host, port](QJsonObject &mine, QList<QJsonObject> &) {
+            mine.insert(
+                QStringLiteral("strata"),
+                QJsonObject{{QStringLiteral("pid"), serverPid}, {QStringLiteral("model"), id}, {QStringLiteral("host"), host}, {QStringLiteral("port"), port}});
+        });
+    }
+
+    const QString key = entry->key;
+    entry->ticker = new QTimer(this);
+    connect(entry->ticker, &QTimer::timeout, this, [this, key] {
+        strataTick(key);
+    });
+    entry->ticker->start(1000);
+    strataTick(key);
+}
+
+void WhaleAiLocalRuntime::strataTick(const QString &key)
+{
+    Model *entry = model(key);
+    if (!entry || !entry->preparing) {
+        return;
+    }
+    auto finish = [entry] {
+        if (entry->ticker) {
+            entry->ticker->stop();
+            entry->ticker->deleteLater();
+            entry->ticker = nullptr;
+        }
+    };
+    auto forget = [this, entry] {
+        // The server Orcinus started is gone or given up: the state file no longer names it.
+        const qint64 serverPid = std::exchange(entry->serverPid, 0);
+        editState([serverPid](QJsonObject &mine, QList<QJsonObject> &) {
+            if (mine.value(QLatin1String("strata")).toObject().value(QLatin1String("pid")).toInteger() == serverPid) {
+                mine.remove(QStringLiteral("strata"));
+            }
+        });
+    };
+
+    // What it says it does (its own words: AI13a).
+    QStringList tail;
+    if (entry->serverPid > 0) {
+        QFile log(strataLogPath());
+        if (log.open(QIODevice::ReadOnly)) {
+            log.seek(entry->logOffset);
+            const QByteArray read = log.readAll();
+            const qsizetype end = read.lastIndexOf('\n') + 1;
+            entry->logOffset += end;
+            for (const QByteArray &line : read.left(end).split('\n')) {
+                if (line.contains("starting the engine")) {
+                    entry->phase = i18nc("@info what Strata does", "starting its engine");
+                } else if (line.contains("loading the experts")) {
+                    entry->phase = i18nc("@info what Strata does", "loading the model into memory");
+                } else if (line.contains("experts loaded") || line.contains("filling the GPU")) {
+                    entry->phase = i18nc("@info what Strata does", "filling the graphics card's memory");
+                } else if (line.contains("almost ready")) {
+                    entry->phase = i18nc("@info what Strata does", "almost ready");
+                }
+            }
+        }
+    }
+    const qint64 seconds = (QDateTime::currentMSecsSinceEpoch() - entry->started) / 1000;
+    progress(entry,
+             i18nc("@info %1 is a model name, %2 seconds, %3 what Strata does",
+                   "Starting %1 … %2 s: %3. The computer may be slow meanwhile.",
+                   entry->displayName,
+                   seconds,
+                   entry->phase.isEmpty() ? i18nc("@info what Strata does", "starting") : entry->phase));
+
+    if (strataLoadedModel(entry->host, entry->port) == entry->id) {
+        finish();
+        modelReady(entry, entry->id);
+        return;
+    }
+    const bool alive = entry->serverPid > 0 ? WhaleAiLocalModels::isStrataServer(m_options.discovery.procPath, entry->serverPid)
+                                            : WhaleAiLocalModels::runningStrataConfig(m_options.discovery.procPath).has_value();
+    if (alive) {
+        entry->serverSeen = true;
+    }
+    // A process that ended at once (e.g. its port taken) is gone without having been seen.
+    const bool gone = entry->serverPid == 0 || entry->serverSeen || ::kill(pid_t(entry->serverPid), 0) != 0 || seconds >= 10;
+    if (!alive && gone) {
+        QFile log(strataLogPath());
+        if (entry->serverPid > 0 && log.open(QIODevice::ReadOnly)) {
+            tail = QString::fromUtf8(log.readAll()).trimmed().split(QLatin1Char('\n'));
+            tail = tail.mid(std::max<qsizetype>(0, tail.size() - 8));
+        }
+        finish();
+        forget();
+        modelFailed(entry,
+                    tail.isEmpty()
+                        ? i18nc("@info", "Strata ended while it loaded the model.")
+                        : i18nc("@info %1 is the end of Strata's output", "Strata ended while it loaded the model:\n%1", tail.join(QLatin1Char('\n'))));
+        if (entry->leases.isEmpty()) {
+            entry->grace->start(0);
+        }
+        return;
+    }
+    if (seconds * 1000 > m_options.loadTimeoutMs) {
+        finish();
+        if (entry->serverPid > 0 && WhaleAiLocalModels::isStrataServer(m_options.discovery.procPath, entry->serverPid)) {
+            ::kill(pid_t(entry->serverPid), SIGTERM);
+        }
+        forget();
+        modelFailed(entry, i18nc("@info %1 minutes", "Strata did not get ready within %1 minutes.", m_options.loadTimeoutMs / 60000));
+        if (entry->leases.isEmpty()) {
+            entry->grace->start(0);
+        }
+    }
+}
+
+void WhaleAiLocalRuntime::loadStrata(Model *entry)
+{
+    // The server is there, its model was unloaded (idle, or by the user): loading it again takes
+    // as long as a start (AI13a), and it is unloaded again when Orcinus is done with it.
+    QNetworkRequest request(QUrl(QStringLiteral("http://%1:%2/load").arg(entry->host).arg(entry->port)));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setTransferTimeout(m_options.loadTimeoutMs);
+    entry->load = m_network->post(request, QByteArrayLiteral("{}"));
+    const QString key = entry->key;
+    entry->ticker = new QTimer(this);
+    auto tick = [this, key] {
+        if (Model *entry = model(key)) {
+            progress(entry,
+                     i18nc("@info %1 is a model name, %2 seconds",
+                           "Strata loads %1 again … %2 s. The computer may be slow meanwhile.",
+                           entry->displayName,
+                           (QDateTime::currentMSecsSinceEpoch() - entry->started) / 1000));
+        }
+    };
+    connect(entry->ticker, &QTimer::timeout, this, tick);
+    entry->ticker->start(1000);
+    tick();
+    connect(entry->load, &QNetworkReply::finished, this, [this, key] {
+        Model *entry = model(key);
+        if (!entry || !entry->load) {
+            return;
+        }
+        QNetworkReply *reply = std::exchange(entry->load, nullptr);
+        reply->deleteLater();
+        if (entry->ticker) {
+            entry->ticker->stop();
+            entry->ticker->deleteLater();
+            entry->ticker = nullptr;
+        }
+        const QByteArray body = reply->readAll();
+        if (reply->error() != QNetworkReply::NoError) {
+            modelFailed(entry, i18nc("@info %1 is an error message", "Strata could not load the model: %1", errorMessage(body, reply->errorString())));
+        } else {
+            const QString id = entry->id;
+            const QString host = entry->host;
+            const int port = entry->port;
+            editState([id, host, port](QJsonObject &mine, QList<QJsonObject> &) {
+                QJsonObject strata = mine.value(QLatin1String("strata")).toObject();
+                if (strata.isEmpty()) {
+                    strata = {{QStringLiteral("model"), id}, {QStringLiteral("host"), host}, {QStringLiteral("port"), port}};
+                }
+                strata.insert(QStringLiteral("loadedByUs"), true);
+                mine.insert(QStringLiteral("strata"), strata);
+            });
+            modelReady(entry, entry->id);
+        }
+        if (entry->leases.isEmpty()) {
+            entry->grace->start(entry->ready ? m_options.graceMs : 0);
+        }
+    });
+}
+
+void WhaleAiLocalRuntime::freeStrata(const QString &key, bool force)
+{
+    Model *entry = model(key);
+    if (!entry || (!force && (!entry->leases.isEmpty() || entry->load || entry->preparing))) {
+        return;
+    }
+    if (entry->load) {
+        QNetworkReply *reply = std::exchange(entry->load, nullptr);
+        reply->disconnect(this);
+        reply->abort();
+        reply->deleteLater();
+    }
+    if (entry->ticker) {
+        entry->ticker->stop();
+        entry->ticker->deleteLater();
+        entry->ticker = nullptr;
+    }
+    const QList<QPointer<WhaleAiLocalLease>> leases = entry->leases;
+    for (const QPointer<WhaleAiLocalLease> &lease : leases) {
+        if (lease) {
+            lease->setFailed(i18nc("@info", "The local model was stopped."));
+        }
+    }
+
+    Freeing freeing;
+    bool handedOver = false;
+    const QString id = entry->id;
+    const QString host = entry->host;
+    const int port = entry->port;
+    editState([key, id, host, port, &freeing, &handedOver](QJsonObject &mine, QList<QJsonObject> &others) {
+        QStringList uses = toStrings(mine.value(QLatin1String("uses")));
+        uses.removeAll(key);
+        mine.insert(QStringLiteral("uses"), QJsonArray::fromStringList(uses));
+        const QJsonObject strata = mine.value(QLatin1String("strata")).toObject();
+        if (strata.isEmpty() || strata.value(QLatin1String("model")).toString() != id) {
+            return;
+        }
+        mine.remove(QStringLiteral("strata"));
+        // Another Orcinus uses it: it is theirs now.
+        const auto other = std::find_if(others.begin(), others.end(), [&key](const QJsonObject &other) {
+            return toStrings(other.value(QLatin1String("uses"))).contains(key);
+        });
+        if (other != others.end()) {
+            other->insert(QStringLiteral("strata"), strata);
+            handedOver = true;
+            return;
+        }
+        freeing.strataPid = strata.value(QLatin1String("pid")).toInteger();
+        freeing.strataUnload = freeing.strataPid > 0 || strata.value(QLatin1String("loadedByUs")).toBool();
+        freeing.strataHost = strata.value(QLatin1String("host")).toString(host);
+        freeing.strataPort = strata.value(QLatin1String("port")).toInt(port);
+    });
+    if (entry->grace) {
+        entry->grace->stop();
+        entry->grace->deleteLater();
+    }
+    m_models.erase(key);
+    carryOut(freeing);
+    if (freeing.strataUnload || freeing.strataPid > 0 || handedOver) {
+        Q_EMIT modelFreed(id);
+    }
+    stopServiceIfUnused();
+}
+
 void WhaleAiLocalRuntime::stopServiceIfUnused()
 {
-    if (m_serverStarting || !m_models.empty()) {
+    const bool lmStudioModels = std::any_of(m_models.cbegin(), m_models.cend(), [](const auto &entry) {
+        return entry.second->provider == LmStudio;
+    });
+    if (m_serverStarting || lmStudioModels) {
         return;
     }
     Freeing freeing;
@@ -666,6 +1049,22 @@ void WhaleAiLocalRuntime::carryOut(const Freeing &freeing)
         if (!reply || reply->status / 100 != 2) {
             qCWarning(WhaleAiDebug) << "Could not unload" << id << (reply ? reply->body : QByteArray());
         }
+    }
+    if (freeing.strataUnload && !freeing.strataHost.isEmpty()) {
+        // Waits for a running answer first (there should be none: no conversation holds it).
+        const std::optional<WhaleAiLocalModels::HttpReply> reply = WhaleAiLocalModels::httpRequest("POST",
+                                                                                                   freeing.strataHost,
+                                                                                                   freeing.strataPort,
+                                                                                                   QStringLiteral("/unload?wait=1"),
+                                                                                                   QByteArrayLiteral("{}"),
+                                                                                                   m_options.requestTimeoutMs);
+        if (!reply || reply->status / 100 != 2) {
+            qCWarning(WhaleAiDebug) << "Strata did not unload its model" << (reply ? reply->body : QByteArray());
+        }
+    }
+    // Only Strata's server: the process may have ended and its id been given to another one.
+    if (freeing.strataPid > 0 && WhaleAiLocalModels::isStrataServer(m_options.discovery.procPath, freeing.strataPid)) {
+        ::kill(pid_t(freeing.strataPid), SIGTERM);
     }
     if (freeing.stopServer || freeing.servicePid > 0) {
         QString cli = m_cli;
@@ -748,6 +1147,21 @@ void WhaleAiLocalRuntime::cleanUpAfterCrashes()
                     (*user)->insert(QStringLiteral("instances"), theirs);
                 } else {
                     freeing.instances.append(instance.value(QLatin1String("id")).toString());
+                }
+            }
+            const QJsonObject strata = entry.value(QLatin1String("strata")).toObject();
+            if (!strata.isEmpty()) {
+                const QString key = StrataKeyPrefix + strata.value(QLatin1String("model")).toString();
+                const auto user = std::find_if(living.begin(), living.end(), [&key](const QJsonObject *living) {
+                    return toStrings(living->value(QLatin1String("uses"))).contains(key);
+                });
+                if (user != living.end()) {
+                    (*user)->insert(QStringLiteral("strata"), strata);
+                } else {
+                    freeing.strataPid = strata.value(QLatin1String("pid")).toInteger();
+                    freeing.strataUnload = freeing.strataPid > 0 || strata.value(QLatin1String("loadedByUs")).toBool();
+                    freeing.strataHost = strata.value(QLatin1String("host")).toString(QStringLiteral("127.0.0.1"));
+                    freeing.strataPort = strata.value(QLatin1String("port")).toInt(8080);
                 }
             }
             const qint64 servicePid = entry.value(QLatin1String("servicePid")).toInteger();
