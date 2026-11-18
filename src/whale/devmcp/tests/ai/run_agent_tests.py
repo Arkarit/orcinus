@@ -392,7 +392,8 @@ def main():
     parser.add_argument("--base-url", default="http://127.0.0.1:1234/v1", help="LM Studio's OpenAI-compatible API")
     parser.add_argument("--model", default="qwen3.8-27b")
     parser.add_argument("--mode", default="", help="the agent's mode; default Orcinus' start mode (read-only)")
-    parser.add_argument("--agent-command", default=None, help="default: opencode acp, else npx -y opencode-ai acp")
+    parser.add_argument("--agent-command", default=None,
+                        help="default: opencode acp (PATH or ~/.opencode/bin), else npx -y opencode-ai acp")
     parser.add_argument("--no-follow-up", action="store_true", help="never answer an agent that asks back")
     parser.add_argument("--list", action="store_true", help="list the scenarios")
     parser.add_argument("--local-model", action="store_true",
@@ -412,7 +413,14 @@ def main():
         print("no D-Bus session bus")
         return 2
     if args.agent_command is None:
-        args.agent_command = "opencode acp" if shutil.which("opencode") else "npx -y opencode-ai acp"
+        # As Orcinus looks for it (AI12b): PATH, OpenCode's own install folder, else npx.
+        own = pathlib.Path.home() / ".opencode" / "bin" / "opencode"
+        if shutil.which("opencode"):
+            args.agent_command = "opencode acp"
+        elif os.access(own, os.X_OK):
+            args.agent_command = f"{own} acp"
+        else:
+            args.agent_command = "npx -y opencode-ai acp"
 
     on_vm = socket.gethostname() == VM_HOSTNAME
     chosen = [s for s in SCENARIOS if not args.scenario or s["id"] in args.scenario]
