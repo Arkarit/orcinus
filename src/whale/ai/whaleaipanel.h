@@ -155,10 +155,16 @@ private:
     void updatePage();
     void agentChosen();
     bool startSession();
-    /** Ends the conversation; a local model goes after the grace period, or at once with @p freeLocalModelNow (AI12). */
+    /**
+     * Ends the conversation. Its local model goes after the grace period (a new conversation or
+     * a restart of the same agent likely follows), or at once with @p freeLocalModelNow (AI12f:
+     * another agent, the panel or the window closed).
+     */
     void endSession(bool freeLocalModelNow = false);
-    /** The panel was hidden for the grace period: the agent of a local model is stopped to free it (AI12). */
+    /** The panel was closed: the agent of a local model is stopped to free it (AI12f). */
     void freeHiddenLocalModel();
+    /** How long a closed panel waits before it frees its local model. */
+    static int hiddenDelayMs();
     /** Shows Orcinus' own greeting at the top of an empty conversation. */
     void greet();
     void sendPending();

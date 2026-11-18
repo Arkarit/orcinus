@@ -1170,6 +1170,24 @@ Not in AI12: Ollama / generic servers, Strata, downloading models, a setting for
 period, coordinating two Orcinus processes (each counts only its own sessions; it only unloads
 what it loaded itself).
 
+**AI12f – Free a local model at once (2026-11-18, user).** In daily use the model stayed in
+memory after switching to another agent or closing the AI panel: both waited for the 2 min grace
+period, so switching Qwen → Gemma held 23 + 28 GB in 32 GB of VRAM for 2 minutes. Now (user:
+"as soon as another model is chosen or all AI panels in all instances are closed"):
+- Another agent chosen, the agent removed, its local model changed in the settings, or the window
+  closed → the session's model is freed at once.
+- A closed panel (non-spontaneous hide) frees it after 3 s (only so that rearranging the docks,
+  which hides and shows a panel, does not reload the model), not after the grace period; still not
+  during a running answer.
+- `WhaleAiLocalRuntime::acquire()` frees every other model no lease holds before the new one
+  loads: never two models because one waits out its grace period (also across windows).
+- The grace period (2 min) stays only where the same model is likely needed again at once: a new
+  conversation with the same agent, Stop, an agent that failed.
+- Several windows / processes: the model stays while any panel's conversation holds it (lease
+  count; hand-over between processes as before), and goes when the last one closes.
+- Tests `whaleailocalruntimetest::oneModelAtATime`, `whaleaipaneltest::localModelSwitched`;
+  ctest 119/119.
+
 **AI13 – Strata as a second local provider.** Planned 2026-11-18 (user). Strata (~/Strata,
 github.com/Niko1221/Strata) serves one large MoE model (Qwen3.8-Flash-Next) through an
 OpenAI-compatible API, like LM Studio, but works differently:

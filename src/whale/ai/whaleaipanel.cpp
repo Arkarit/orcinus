@@ -247,7 +247,8 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
 
 WhaleAiPanel::~WhaleAiPanel()
 {
-    endSession();
+    // The window closes: its local model goes at once (another window may still hold it).
+    endSession(true);
 }
 
 void WhaleAiPanel::readSettings()
@@ -256,8 +257,12 @@ void WhaleAiPanel::readSettings()
     fillAgents(agentId());
     // The agent of the conversation was removed.
     if (m_session && WhaleAiAgents::agent(m_sessionAgentId).id.isEmpty()) {
-        endSession();
+        endSession(true);
         m_transcript->addNotice(i18nc("@info", "The agent of this conversation was removed."));
+    } else if (m_lease && WhaleAiAgents::agent(m_sessionAgentId).localModel != m_lease->model()) {
+        // Its local model was changed in the settings: the old one goes at once (AI12f).
+        endSession(true);
+        m_transcript->addNotice(i18nc("@info", "The local model of this agent was changed. The next message starts a new conversation."));
     }
     updateState();
     updateSessionInfo();
@@ -593,7 +598,9 @@ WhaleAiContext WhaleAiPanel::currentContext() const
 void WhaleAiPanel::agentChosen()
 {
     if (m_session && m_sessionAgentId != agentId()) {
-        endSession();
+        // Another agent, maybe another local model: the old model goes at once (AI12f), it
+        // must not share the graphics card's memory with the next one.
+        endSession(true);
         WhaleAiChangeLog::of(window())->clear();
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent", "Now talking to %1. The next message starts a new conversation.", m_agents->currentText()));
@@ -1253,11 +1260,16 @@ void WhaleAiPanel::showEvent(QShowEvent *event)
 void WhaleAiPanel::hideEvent(QHideEvent *event)
 {
     Panel::hideEvent(event);
-    // A hidden panel holds a local model only for the grace period (AI12): its memory is the
-    // user's, toggling the panel must not reload it.
+    // A closed panel frees its local model (AI12f), after a moment only: rearranging the docks
+    // hides and shows a panel without the user closing it.
     if (m_lease && !event->spontaneous()) {
-        m_hiddenTimer->start(WhaleAiLocalRuntime::instance()->graceMs());
+        m_hiddenTimer->start(hiddenDelayMs());
     }
+}
+
+int WhaleAiPanel::hiddenDelayMs()
+{
+    return std::min(3000, WhaleAiLocalRuntime::instance()->graceMs());
 }
 
 void WhaleAiPanel::freeHiddenLocalModel()
@@ -1267,12 +1279,12 @@ void WhaleAiPanel::freeHiddenLocalModel()
     }
     if (m_session && m_session->state() == WhaleAcpSession::State::Prompting) {
         // Not in the middle of an answer; when it is done, the panel is checked again.
-        m_hiddenTimer->start(WhaleAiLocalRuntime::instance()->graceMs());
+        m_hiddenTimer->start(hiddenDelayMs());
         return;
     }
     endSession(true);
     m_transcript->addNotice(
-        i18nc("@info", "The agent was stopped to free the memory of the local model while the panel was hidden. Your next message starts it again."));
+        i18nc("@info", "The agent was stopped to free the memory of the local model when the panel was closed. Your next message starts it again."));
     updateState();
 }
 

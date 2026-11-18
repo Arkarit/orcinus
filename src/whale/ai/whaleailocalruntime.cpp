@@ -231,6 +231,17 @@ WhaleAiLocalLease *WhaleAiLocalRuntime::acquire(const QString &provider, const Q
     }
     entry->grace->stop();
     entry->leases.append(lease);
+    // AI12f: one model at a time. Others no conversation holds (in their grace period) go
+    // now, before this one takes the graphics card's memory.
+    QStringList idle;
+    for (const auto &[otherKey, other] : m_models) {
+        if (otherKey != key && other->leases.isEmpty() && !other->load && !other->preparing) {
+            idle.append(otherKey);
+        }
+    }
+    for (const QString &otherKey : std::as_const(idle)) {
+        freeModel(otherKey);
+    }
     editState([key](QJsonObject &mine, QList<QJsonObject> &) {
         QStringList uses = toStrings(mine.value(QLatin1String("uses")));
         if (!uses.contains(key)) {

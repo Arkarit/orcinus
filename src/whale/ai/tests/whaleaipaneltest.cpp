@@ -94,6 +94,7 @@ private Q_SLOTS:
     void agentTools();
     void localModel();
     void localModelFails();
+    void localModelSwitched();
     void inputKeepsFocus();
 
 private:
@@ -1112,6 +1113,59 @@ void WhaleAiPanelTest::localModel()
     panel.hide();
     QTest::qWait(600);
     QVERIFY(panel.session());
+}
+
+void WhaleAiPanelTest::localModelSwitched()
+{
+    // AI12f: another agent, or another model for this agent, frees the old model at once, not
+    // after the grace period (two models would not fit together).
+    FakeLmStudio lmStudio;
+    lmStudio.addModel(QStringLiteral("qwen"), QStringLiteral("Qwen 27B"));
+    lmStudio.addModel(QStringLiteral("gemma"), QStringLiteral("Gemma"));
+    WhaleAiLocalRuntime runtime(lmStudio.options(60000));
+    WhaleAiLocalRuntime::setInstanceForTests(&runtime);
+    auto reset = qScopeGuard([] {
+        WhaleAiLocalRuntime::setInstanceForTests(nullptr);
+    });
+    WhaleAiAgent qwen = fakeAgent(QStringLiteral("qwen"), QStringLiteral("basic"));
+    qwen.localProvider = QStringLiteral("lmstudio");
+    qwen.localModel = QStringLiteral("qwen");
+    WhaleAiAgent gemma = fakeAgent(QStringLiteral("gemma"), QStringLiteral("basic"));
+    gemma.localProvider = QStringLiteral("lmstudio");
+    gemma.localModel = QStringLiteral("gemma");
+    WhaleAiAgents::setAgents({qwen, gemma});
+
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    panel.setAgentId(QStringLiteral("qwen"));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(lmStudio.loaded(QStringLiteral("qwen")), QStringList{QStringLiteral("qwen")});
+
+    panel.setAgentId(QStringLiteral("gemma"));
+    QVERIFY(!panel.session());
+    QTRY_VERIFY_WITH_TIMEOUT(lmStudio.loaded(QStringLiteral("qwen")).isEmpty(), 2000);
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(lmStudio.loaded(QStringLiteral("gemma")), QStringList{QStringLiteral("gemma")});
+
+    // The agent's model changed in the settings: the conversation ends, the old model goes.
+    gemma.localModel = QStringLiteral("qwen");
+    WhaleAiAgents::setAgents({qwen, gemma});
+    panel.readSettings();
+    QVERIFY(!panel.session());
+    QVERIFY(texts(panel).contains(QLatin1String("The local model of this agent was changed.")));
+    QTRY_VERIFY_WITH_TIMEOUT(lmStudio.loaded(QStringLiteral("gemma")).isEmpty(), 2000);
+
+    // A closed panel frees it after a moment (here 3 s), not after the grace period.
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    panel.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&panel));
+    panel.hide();
+    QTRY_VERIFY_WITH_TIMEOUT(lmStudio.loaded(QStringLiteral("qwen")).isEmpty(), 6000);
+    QVERIFY(!panel.session());
+    QVERIFY(texts(panel).contains(QLatin1String("when the panel was closed")));
 }
 
 void WhaleAiPanelTest::localModelFails()

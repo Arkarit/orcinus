@@ -42,6 +42,7 @@ private Q_SLOTS:
     void leavesTheUsersLmStudio();
     void startsOnlyTheServer();
     void gracePeriod();
+    void oneModelAtATime();
     void failures();
     void handsOverToAnotherOrcinus();
     void cleansUpAfterCrash();
@@ -191,6 +192,41 @@ void WhaleAiLocalRuntimeTest::gracePeriod()
     QTRY_COMPARE(freed.count(), 1);
     QVERIFY(lmStudio.loaded(QStringLiteral("qwen")).isEmpty());
     delete second;
+}
+
+void WhaleAiLocalRuntimeTest::oneModelAtATime()
+{
+    // AI12f: a model in its grace period goes at once when another one is wanted; one that a
+    // conversation holds stays.
+    FakeLmStudio lmStudio;
+    lmStudio.addModel(QStringLiteral("qwen"), QStringLiteral("Qwen 27B"));
+    lmStudio.addModel(QStringLiteral("gemma"), QStringLiteral("Gemma"));
+    lmStudio.addModel(QStringLiteral("tiny"), QStringLiteral("Tiny"));
+    lmStudio.setServerUp(true);
+    lmStudio.addProcess(777, "lm-studio");
+    WhaleAiLocalRuntime runtime(lmStudio.options(60000));
+    QSignalSpy freed(&runtime, &WhaleAiLocalRuntime::modelFreed);
+
+    WhaleAiLocalLease *qwen = runtime.acquire(QStringLiteral("lmstudio"), QStringLiteral("qwen"), 0, this);
+    QTRY_COMPARE(qwen->state(), WhaleAiLocalLease::State::Ready);
+    WhaleAiLocalLease *tiny = runtime.acquire(QStringLiteral("lmstudio"), QStringLiteral("tiny"), 0, this);
+    QTRY_COMPARE(tiny->state(), WhaleAiLocalLease::State::Ready);
+    // Both held: both stay.
+    QCOMPARE(freed.count(), 0);
+
+    qwen->release();
+    QCOMPARE(lmStudio.loaded(QStringLiteral("qwen")), QStringList{QStringLiteral("qwen")});
+    WhaleAiLocalLease *gemma = runtime.acquire(QStringLiteral("lmstudio"), QStringLiteral("gemma"), 0, this);
+    // Freed before gemma is even looked at.
+    QCOMPARE(freed.count(), 1);
+    QCOMPARE(freed.first().first().toString(), QStringLiteral("qwen"));
+    QVERIFY(lmStudio.loaded(QStringLiteral("qwen")).isEmpty());
+    QTRY_COMPARE(gemma->state(), WhaleAiLocalLease::State::Ready);
+    QCOMPARE(lmStudio.loaded(QStringLiteral("tiny")), QStringList{QStringLiteral("tiny")});
+    delete qwen;
+    delete tiny;
+    delete gemma;
+    runtime.shutdown();
 }
 
 void WhaleAiLocalRuntimeTest::failures()
