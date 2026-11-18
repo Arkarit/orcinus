@@ -176,11 +176,15 @@ QString maskSecrets(const QString &commandLine);
 /** @return @p agent for the agent: id, name, masked command line, start mode, and only the names of its environment variables. */
 QJsonObject describeForAgent(const WhaleAiAgent &agent);
 /**
- * @return The agent an agent proposes with @p arguments ({"name", "command", "environment"}),
- *         with an id none of @p agents has, or nothing with @p error set (English).
+ * @return The agent an agent proposes with @p arguments ({"name", "command", "environment",
+ *         "local_model"}), with an id none of @p agents has, or nothing with @p error set (English).
  *         An environment entry "NAME" becomes "NAME=" for the user to fill in.
+ *
+ * With "local_model" ({"provider", "model", "contextLength"}, AI12) the model must be one of
+ * @p setup; name and command may then be left out: the agent becomes what Add ▸ Local Model
+ * makes (OpenCode, configured for the model), and an OpenCode command gets its configuration.
  */
-std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<WhaleAiAgent> &agents, QString *error);
+std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<WhaleAiAgent> &agents, QString *error, const WhaleAiLocalSetup &setup = {});
 
 /**
  * @return Orcinus' built-in instructions for every agent (role, the Orcinus tools):

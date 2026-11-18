@@ -368,35 +368,58 @@ QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
                         "\"claude-code-acp\") with its arguments and environment. Nothing is added by this: the user sees the proposal "
                         "in the AI panel and adds it with Add… (where they can edit it) or discards it. You cannot add, change or remove "
                         "agents yourself. Never put API keys or other secrets into it: list the variable by name (\"OPENAI_API_KEY\") "
-                        "and remind the user to enter the value in the dialog. Allowed in every mode."),
+                        "and remind the user to enter the value in the dialog. For a local model give only \"local_model\" with a model "
+                        "id from list_local_models: Orcinus then sets up OpenCode for it and starts LM Studio and the model whenever the "
+                        "agent is used, and frees them afterwards; do not write OpenCode configuration or start scripts yourself. "
+                        "Allowed in every mode."),
          false,
-         {{QStringLiteral("name"), property(QStringLiteral("string"), QStringLiteral("Name shown in the agent list, e.g. \"OpenCode (Qwen local)\""))},
-          {QStringLiteral("command"), property(QStringLiteral("string"), QStringLiteral("Program and arguments, quoted as in a shell"))},
+         {{QStringLiteral("local_model"),
+           QJsonObject{
+               {QStringLiteral("type"), QStringLiteral("object")},
+               {QStringLiteral("description"), QStringLiteral("Optional: a local model Orcinus starts for the agent (AI12)")},
+               {QStringLiteral("properties"),
+                QJsonObject{{QStringLiteral("model"), property(QStringLiteral("string"), QStringLiteral("Model id from list_local_models"))},
+                            {QStringLiteral("contextLength"),
+                             property(QStringLiteral("integer"), QStringLiteral("Optional: tokens to load it with (default 65536 or less)"))},
+                            {QStringLiteral("provider"), property(QStringLiteral("string"), QStringLiteral("Optional: \"lmstudio\" (the only one)"))}}},
+               {QStringLiteral("required"), QJsonArray{QStringLiteral("model")}},
+               {WhaleAiMcpServer::propertyOrderKey(), QJsonArray{QStringLiteral("model"), QStringLiteral("contextLength"), QStringLiteral("provider")}}}},
+          {QStringLiteral("name"),
+           property(QStringLiteral("string"), QStringLiteral("Name shown in the agent list, e.g. \"OpenCode (Qwen local)\"; optional with local_model"))},
+          {QStringLiteral("command"),
+           property(QStringLiteral("string"), QStringLiteral("Program and arguments, quoted as in a shell; optional with local_model"))},
           {QStringLiteral("environment"),
            QJsonObject{{QStringLiteral("type"), QStringLiteral("array")},
                        {QStringLiteral("items"), QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}}},
                        {QStringLiteral("description"), QStringLiteral("Optional: NAME=value, or NAME alone for a secret the user enters")}}}},
-         {QStringLiteral("name"), QStringLiteral("command")},
+         {},
          [guard](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
              if (!guard) {
                  *error = true;
                  return {{QStringLiteral("error"), QStringLiteral("The AI panel is gone.")}};
              }
              QString problem;
-             const std::optional<WhaleAiAgent> agent = WhaleAiAgents::proposal(arguments, WhaleAiAgents::agents(), &problem);
+             const WhaleAiLocalSetup setup = arguments.contains(QLatin1String("local_model")) ? WhaleAiLocalModels::discover() : WhaleAiLocalSetup();
+             const std::optional<WhaleAiAgent> agent = WhaleAiAgents::proposal(arguments, WhaleAiAgents::agents(), &problem, setup);
              if (!agent) {
                  *error = true;
                  return {{QStringLiteral("error"), problem}};
              }
              guard->showProposal(*agent);
              *notice = i18nc("@info %1 is an agent's name", "The agent proposed a new agent: “%1”.", agent->name);
-             return {{QStringLiteral("proposed"), WhaleAiAgents::describeForAgent(*agent)},
-                     {QStringLiteral("note"),
-                      QStringLiteral("Nothing is added yet: the user adds it with Add… in the AI panel, or discards it. Tell them so, and "
-                                     "remind them to enter API keys or other secrets (the environment variables without a value) in "
-                                     "the dialog themselves, and that the agent may need its own login or configuration.")}};
+             QString note = QStringLiteral(
+                 "Nothing is added yet: the user adds it with Add… in the AI panel, or discards it. Tell them so, and "
+                 "remind them to enter API keys or other secrets (the environment variables without a value) in "
+                 "the dialog themselves, and that the agent may need its own login or configuration.");
+             if (agent->usesLocalModel()) {
+                 note = QStringLiteral(
+                     "Nothing is added yet: the user adds it with Add… in the AI panel, or discards it. Tell them so. Once added, "
+                     "Orcinus starts LM Studio and loads the model when they talk to this agent, and frees it again when it is no "
+                     "longer used; nothing has to be started by hand.");
+             }
+             return {{QStringLiteral("proposed"), WhaleAiAgents::describeForAgent(*agent)}, {QStringLiteral("note"), note}};
          },
-         {QStringLiteral("name"), QStringLiteral("command"), QStringLiteral("environment")}},
+         {QStringLiteral("local_model"), QStringLiteral("name"), QStringLiteral("command"), QStringLiteral("environment")}},
         {QStringLiteral("list_local_models"),
          QStringLiteral("List the local AI models on this computer"),
          QStringLiteral("Lists what there is for a local AI (AI12; Orcinus knows LM Studio): the inference servers with their address, "
@@ -425,6 +448,10 @@ void WhaleAiPanel::showProposal(const WhaleAiAgent &agent)
                          WhaleAiAgents::maskSecrets(agent.commandLine).toHtmlEscaped());
     if (!variables.isEmpty()) {
         text += QStringLiteral("<br/>") + i18nc("@info %1 is a list of names", "Environment: %1", variables.join(QStringLiteral(", ")).toHtmlEscaped());
+    }
+    if (agent.usesLocalModel()) {
+        text += QStringLiteral("<br/>")
+            + i18nc("@info %1 is the id of a language model", "Local model: %1 (Orcinus starts LM Studio for it)", agent.localModel.toHtmlEscaped());
     }
     m_proposalBar->setText(text);
     m_proposalBar->animatedShow();

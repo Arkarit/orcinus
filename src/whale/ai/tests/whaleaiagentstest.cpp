@@ -39,6 +39,7 @@ private Q_SLOTS:
     void presetsThroughNpx();
     void uniqueId();
     void localAgent();
+    void proposeLocalModel();
     void forTheAgent();
     void startMode();
     void systemPromptStorage();
@@ -247,6 +248,69 @@ void WhaleAiAgentsTest::localAgent()
     QCOMPARE(agent.localContextLength, 65536);
     QCOMPARE(agent.environment, QStringList{line});
     QCOMPARE(WhaleAiAgents::kind(agent), WhaleAiAgentKind::OpenCode);
+}
+
+void WhaleAiAgentsTest::proposeLocalModel()
+{
+    // AI12e: the agent names the model; Orcinus sets up the rest, as Add ▸ Local Model does.
+    WhaleAiLocalProvider lmStudio;
+    lmStudio.id = QStringLiteral("lmstudio");
+    lmStudio.name = QStringLiteral("LM Studio");
+    lmStudio.models = {{QStringLiteral("qwen3.8-27b"), QStringLiteral("Qwen3.8 27B"), {}, {}, 0, 262144, true, true, false},
+                       {QStringLiteral("small"), QStringLiteral("Small"), {}, {}, 0, 16384, true, false, false}};
+    const WhaleAiLocalClient openCode{QStringLiteral("opencode"), QStringLiteral("OpenCode"), QStringLiteral("opencode acp"), true, QString()};
+    WhaleAiLocalSetup setup{{lmStudio}, {openCode}};
+    auto local = [](const QJsonObject &model) {
+        return QJsonObject{{QStringLiteral("local_model"), model}};
+    };
+    const QJsonObject qwen{{QStringLiteral("model"), QStringLiteral("qwen3.8-27b")}};
+
+    QString error;
+    std::optional<WhaleAiAgent> agent = WhaleAiAgents::proposal(local(qwen), {}, &error, setup);
+    QVERIFY2(agent, qPrintable(error));
+    QCOMPARE(agent->name, QStringLiteral("Qwen3.8 27B (local)"));
+    QCOMPARE(agent->id, QStringLiteral("qwen3-8-27b-local"));
+    QCOMPARE(agent->commandLine, QStringLiteral("opencode acp"));
+    QCOMPARE(agent->localProvider, QStringLiteral("lmstudio"));
+    QCOMPARE(agent->localModel, QStringLiteral("qwen3.8-27b"));
+    QCOMPARE(agent->localContextLength, 65536);
+    QCOMPARE(agent->environment, WhaleAiAgents::withOpenCodeConfig({}, lmStudio, lmStudio.models.at(0), 65536));
+    // The same as the settings page makes, but for the id.
+    WhaleAiAgent added = WhaleAiAgents::localAgent(lmStudio, lmStudio.models.at(0), openCode, {});
+    QCOMPARE(*agent, added);
+
+    // Name, command and length of its own; the length is not more than the model takes. An
+    // OpenCode command gets the configuration, another program only the model.
+    QJsonObject arguments = local({{QStringLiteral("model"), QStringLiteral("small")}, {QStringLiteral("contextLength"), 100000}});
+    arguments.insert(QStringLiteral("name"), QStringLiteral("Small one"));
+    arguments.insert(QStringLiteral("command"), QStringLiteral("opencode acp --pure"));
+    arguments.insert(QStringLiteral("environment"), QJsonArray{QStringLiteral("A=1")});
+    agent = WhaleAiAgents::proposal(arguments, {}, &error, setup);
+    QVERIFY2(agent, qPrintable(error));
+    QCOMPARE(agent->name, QStringLiteral("Small one"));
+    QCOMPARE(agent->localContextLength, 16384);
+    QCOMPARE(agent->environment.size(), 2);
+    QVERIFY(agent->environment.last().startsWith(QLatin1String("OPENCODE_CONFIG_CONTENT=")));
+    arguments.insert(QStringLiteral("command"), QStringLiteral("my-agent --acp"));
+    agent = WhaleAiAgents::proposal(arguments, {}, &error, setup);
+    QVERIFY2(agent, qPrintable(error));
+    QCOMPARE(agent->environment, QStringList{QStringLiteral("A=1")});
+    QCOMPARE(agent->localModel, QStringLiteral("small"));
+
+    // What cannot work.
+    QVERIFY(!WhaleAiAgents::proposal(local({{QStringLiteral("model"), QStringLiteral("nope")}}), {}, &error, setup));
+    QVERIFY(error.contains(QLatin1String("list_local_models")));
+    QVERIFY(!WhaleAiAgents::proposal(local({{QStringLiteral("model"), QStringLiteral("qwen3.8-27b")}, {QStringLiteral("provider"), QStringLiteral("ollama")}}),
+                                     {},
+                                     &error,
+                                     setup));
+    QVERIFY(error.contains(QLatin1String("lmstudio")));
+    QVERIFY(!WhaleAiAgents::proposal(local({}), {}, &error, setup));
+    QVERIFY(!WhaleAiAgents::proposal(local(qwen), {}, &error));
+    QVERIFY(error.contains(QLatin1String("not installed")));
+    WhaleAiLocalSetup withoutOpenCode{{lmStudio}, {{QStringLiteral("opencode"), QStringLiteral("OpenCode"), QString(), false, QString()}}};
+    QVERIFY(!WhaleAiAgents::proposal(local(qwen), {}, &error, withoutOpenCode));
+    QVERIFY(error.contains(QLatin1String("npm i -g opencode-ai")));
 }
 
 void WhaleAiAgentsTest::defaultAgent()

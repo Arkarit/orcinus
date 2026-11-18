@@ -170,6 +170,31 @@ def check_icons_type(state, transcript, folder):
     return PASS, ""
 
 
+def check_local_model_agent(state, transcript, folder):
+    """AI12e: the agent reads the local models and proposes one by its id; Orcinus sets it up."""
+    calls = transcript["toolCalls"]
+    used = [c["ownTool"] for c in calls]
+    proposals = [c.get("rawInput") or {} for c in calls if c["ownTool"] == "propose_agent"]
+    if not proposals:
+        return FAIL, "no propose_agent"
+    proposal = proposals[-1]
+    model = (proposal.get("local_model") or {}).get("model", "")
+    if not model:
+        return FAIL, f"proposal without local_model: {json.dumps(proposal)[:200]}"
+    command = proposal.get("command", "")
+    environment = " ".join(proposal.get("environment") or [])
+    notes = []
+    if "list_local_models" not in used or used.index("list_local_models") > used.index("propose_agent"):
+        notes.append("model id not read with list_local_models first")
+    if "_npx" in command or "sh -c" in command or "lms " in command:
+        notes.append(f"own start command: {command}")
+    if "OPENCODE_CONFIG" in environment:
+        notes.append("wrote OpenCode configuration itself")
+    if model != "qwen3.8-27b":
+        notes.append(f"model {model}")
+    return (ACCEPTABLE if notes else PASS), "; ".join(notes) or model
+
+
 def check_tabs_question(state, transcript, folder):
     answers = [e["text"] for e in transcript["entries"] if e["kind"] == "agent"]
     answer = answers[-1] if answers else ""
@@ -564,5 +589,14 @@ SCENARIOS = [
                    "main.qml), tool_open, tells the user to click Start (the runner clicks it), tool_inspect shows the three "
                    "files with values, Laut.wav clipped, Sprache.wav with silence; tool_invoke Trim on Sprache.wav writes "
                    "Aufnahmen/trimmed/Sprache.wav (about 1 s). Plan mode: nothing written, points to the Mode list."),
+    },    {
+        "id": "local-model-agent",
+        "tags": ["host"],
+        "prompt": ("Ich möchte das lokale Modell Qwen 3.8 27B aus LM Studio in Orcinus als eigenen Agenten benutzen. "
+                   "Richte das bitte ein."),
+        "check": check_local_model_agent,
+        "rubric": ("AI12e: list_local_models, then propose_agent with local_model {model: qwen3.8-27b} and nothing else needed "
+                   "(no command of its own, no OpenCode configuration, no lms calls); tells the user to add it with Add… and "
+                   "that Orcinus starts LM Studio and the model by itself. Same in both modes (propose_agent is allowed in plan mode)."),
     },
 ]

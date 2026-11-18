@@ -417,7 +417,7 @@ QJsonObject describeForAgent(const WhaleAiAgent &agent)
     return result;
 }
 
-std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<WhaleAiAgent> &agents, QString *error)
+std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<WhaleAiAgent> &agents, QString *error, const WhaleAiLocalSetup &setup)
 {
     auto fail = [error](const QString &message) -> std::optional<WhaleAiAgent> {
         if (error) {
@@ -427,10 +427,64 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
     };
     WhaleAiAgent agent;
     agent.name = arguments.value(QLatin1String("name")).toString().trimmed();
+    agent.commandLine = arguments.value(QLatin1String("command")).toString().trimmed();
+
+    // AI12: a model Orcinus starts for the agent; it fills in what is left out.
+    const QJsonValue localValue = arguments.value(QLatin1String("local_model"));
+    const WhaleAiLocalProvider *provider = nullptr;
+    std::optional<WhaleAiLocalModel> localModel;
+    int contextLength = 0;
+    if (!localValue.isUndefined() && !localValue.isNull()) {
+        const QJsonObject local = localValue.toObject();
+        const QString providerId = local.value(QLatin1String("provider")).toString(QStringLiteral("lmstudio"));
+        const QString modelId = local.value(QLatin1String("model")).toString().trimmed();
+        if (providerId != QLatin1String("lmstudio")) {
+            return fail(QStringLiteral("\"local_model.provider\" can only be \"lmstudio\" (LM Studio)."));
+        }
+        if (modelId.isEmpty()) {
+            return fail(QStringLiteral("\"local_model.model\" must be a model id from list_local_models."));
+        }
+        for (const WhaleAiLocalProvider &candidate : setup.providers) {
+            if (candidate.id == providerId) {
+                provider = &candidate;
+            }
+        }
+        if (!provider) {
+            return fail(QStringLiteral("LM Studio is not installed on this computer."));
+        }
+        for (const WhaleAiLocalModel &model : provider->models) {
+            if (model.id == modelId) {
+                localModel = model;
+            }
+        }
+        if (!localModel) {
+            return fail(QStringLiteral("LM Studio has no model \"%1\"; list_local_models shows the ids.").arg(modelId));
+        }
+        const int asked = local.value(QLatin1String("contextLength")).toInt();
+        contextLength = asked > 0 ? asked : defaultContextLength(*localModel);
+        if (localModel->maxContextLength > 0) {
+            contextLength = std::min(contextLength, localModel->maxContextLength);
+        }
+        if (agent.name.isEmpty()) {
+            agent.name = localAgentName(*localModel);
+        }
+        if (agent.commandLine.isEmpty()) {
+            for (const WhaleAiLocalClient &client : setup.clients) {
+                if (client.id == QLatin1String("opencode")) {
+                    agent.commandLine = client.commandLine;
+                }
+            }
+            if (agent.commandLine.isEmpty()) {
+                return fail(
+                    QStringLiteral("OpenCode, which runs local models as an agent, is not installed; give a \"command\", or ask "
+                                   "the user to install it (npm i -g opencode-ai)."));
+            }
+        }
+    }
+
     if (agent.name.isEmpty() || agent.name.size() > 80) {
         return fail(QStringLiteral("\"name\" must have 1 to 80 characters."));
     }
-    agent.commandLine = arguments.value(QLatin1String("command")).toString().trimmed();
     KShell::Errors splitError = KShell::NoError;
     if (agent.commandLine.isEmpty() || agent.commandLine.size() > 2000 || KShell::splitArgs(agent.commandLine, KShell::TildeExpand, &splitError).isEmpty()
         || splitError != KShell::NoError) {
@@ -448,6 +502,14 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
             return fail(QStringLiteral("Environment entries are NAME or NAME=value; \"%1\" is not.").arg(entry));
         }
         agent.environment.append(entry.contains(QLatin1Char('=')) ? entry : entry + QLatin1Char('='));
+    }
+    if (localModel) {
+        agent.localProvider = provider->id;
+        agent.localModel = localModel->id;
+        agent.localContextLength = contextLength;
+        if (kind(agent) == WhaleAiAgentKind::OpenCode) {
+            agent.environment = withOpenCodeConfig(agent.environment, *provider, *localModel, contextLength);
+        }
     }
     agent.id = uniqueId(agent.name, agents);
     return agent;

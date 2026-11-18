@@ -1139,6 +1139,22 @@ Steps:
 - **AI12e – `propose_agent` with `local_model`**, instructions; AI10 scenario "set up the local
   model" (expect a proposal with `local_model`, no shell wrapper). Real-agent run with the
   user's OK (LM Studio start/stop).
+- **AI12e done 2026-11-18 (code; real run pending).** `propose_agent` takes `local_model`
+  {model, contextLength, provider} (schema order model → contextLength → provider, and the tool's
+  order local_model → name → command → environment; no required properties any more). With it
+  `WhaleAiAgents::proposal()` (now given a `WhaleAiLocalSetup`, discovered by the panel only when
+  `local_model` is there) checks the model id, clamps the length to the model's maximum, fills
+  in a missing name ("<model> (local)") and command (OpenCode's), adds OpenCode's configuration
+  to an OpenCode command, and sets the local model fields — the same agent Add ▸ Local Model
+  makes. The proposal bar names the local model; the tool's answer tells the agent that Orcinus
+  starts and frees LM Studio itself. Test `whaleaiagentstest::proposeLocalModel`.
+  AI10: scenario `local-model-agent` (PASS = list_local_models, then propose_agent with
+  local_model qwen3.8-27b and no own command/config; ACCEPTABLE with notes otherwise). Runner:
+  `--local-model [--context-length N]` writes the local model into the run's agent, so Orcinus
+  starts LM Studio itself (no "server must run" check), links `~/.config/LM Studio` into the
+  profile (the service inherits the test window's XDG_CONFIG_HOME), quits the window through the
+  dev MCP `quit` instead of SIGTERM (Orcinus frees the model on quitting) and reports at the end
+  whether LM Studio's service and server are gone.
 - Afterwards the user's current entry (written by Codex) can be replaced via the preset.
 
 Not in AI12: Ollama / generic servers, Strata, downloading models, a setting for the grace

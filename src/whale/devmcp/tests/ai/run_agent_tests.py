@@ -152,13 +152,22 @@ def opencode_config(path, base_url, model):
     }, indent=1))
 
 
-def configure_profile(profile, agent_command, opencode_file):
+def configure_profile(profile, agent_command, opencode_file, local_model=None, context_length=0):
     config = profile / "config"
     config.mkdir(parents=True, exist_ok=True)
+    local = ""
+    if local_model:
+        # AI12c: Orcinus starts LM Studio and loads the model itself, and frees them when it quits.
+        local = f"LocalProvider=lmstudio\nLocalModel={local_model}\nLocalContextLength={context_length}\n"
+        # LM Studio started from the test window gets its XDG_CONFIG_HOME: let it find its own
+        # Electron profile there instead of a fresh one.
+        own = pathlib.Path.home() / ".config" / "LM Studio"
+        if own.is_dir() and not (config / "LM Studio").exists():
+            (config / "LM Studio").symlink_to(own)
     (config / "orcinusrc").write_text(
         "[AI]\nAgents=opencode\nDefaultAgent=opencode\nDisclaimerAccepted=true\n\n"
         f"[AI][opencode]\nName=OpenCode\nCommand={agent_command}\n"
-        f"Environment=OPENCODE_CONFIG={opencode_file}\n")
+        f"Environment=OPENCODE_CONFIG={opencode_file}\n{local}")
 
 
 class Run:
@@ -259,7 +268,8 @@ class Run:
         profile = self.directory / "profile"
         opencode_file = profile / "opencode.json"
         opencode_config(opencode_file, self.args.base_url, self.args.model)
-        configure_profile(profile, self.args.agent_command, opencode_file)
+        configure_profile(profile, self.args.agent_command, opencode_file,
+                          self.args.model if self.args.local_model else None, self.args.context_length)
         before = snapshot(self.folder)
 
         whale = start_whale(self.args.whale, self.folder, profile, self.args.plugin_dir, "offscreen", automation=True)
@@ -305,6 +315,15 @@ class Run:
                 if verdict == PASS:
                     verdict = ACCEPTABLE
         finally:
+            # Quit, not terminate: Orcinus frees a local model it started on quitting (AI12c).
+            try:
+                self.client.request("tools/call", {"name": "quit", "arguments": {}})
+            except Exception:
+                pass  # the reply may be lost with the window
+            try:
+                whale.wait(timeout=60)
+            except Exception:
+                pass
             try:
                 self.client.close()
             except Exception:
@@ -376,6 +395,9 @@ def main():
     parser.add_argument("--agent-command", default=None, help="default: opencode acp, else npx -y opencode-ai acp")
     parser.add_argument("--no-follow-up", action="store_true", help="never answer an agent that asks back")
     parser.add_argument("--list", action="store_true", help="list the scenarios")
+    parser.add_argument("--local-model", action="store_true",
+                        help="Orcinus starts LM Studio and loads --model itself, and stops them on quitting (AI12c)")
+    parser.add_argument("--context-length", type=int, default=65536, help="with --local-model")
     parser.add_argument("--no-model-check", action="store_true",
                         help="skip asking LM Studio (for a dry run with --agent-command of a scripted agent)")
     args = parser.parse_args()
@@ -403,9 +425,12 @@ def main():
             print(f"refused: {scenario['id']} runs only in the VM")
             return 2
 
-    models = None if args.no_model_check else lmstudio_models(args.base_url)
+    models = None if args.no_model_check or args.local_model else lmstudio_models(args.base_url)
     if args.no_model_check:
         pass
+    elif args.local_model:
+        if lmstudio_models(args.base_url) is not None:
+            print("note: LM Studio's server already runs; Orcinus will use it and leave it running.")
     elif models is None:
         print(f"LM Studio does not answer at {args.base_url}; start its server first (the runner never does).")
         return 2
@@ -432,6 +457,11 @@ def main():
             print(f"{result['verdict']} ({result['seconds']} s) {result['notes']}")
             results.append(result)
             write_report(out, results, args)
+    if args.local_model:
+        running = subprocess.run(["pgrep", "-f", "lm-studio --run-as-service"], capture_output=True).returncode == 0
+        answers = lmstudio_models(args.base_url) is not None
+        print(f"after the runs: LM Studio service {'RUNS' if running else 'stopped'}, "
+              f"server {'ANSWERS' if answers else 'stopped'}")
     print(f"report: {out / 'report.md'}")
     return 0
 
