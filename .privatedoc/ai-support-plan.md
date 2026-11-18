@@ -1217,6 +1217,33 @@ Steps:
   time to `/health` loaded, the shape of `/health`, `/v1/models`, `/status`; RAM/VRAM before,
   loaded, after `/unload`, after SIGTERM; child processes (engine, image encoder) gone after
   SIGTERM; what a second start on the same port says.
+- **AI13a done 2026-11-18** (Strata 0.1.44.1, IQ2_XS, `server.py --engine strata --config
+  strata-iq2_xs.json --port 8080` without `--open`; 62 GB RAM, RX with 32 GB; stopped again, back to
+  baseline). Results:
+  1. The port opens only when the model is loaded: no HTTP answer while loading (89 s here),
+     then `/health` = `{"status":"ok","max_context":262144,"model":"qwen3.8-flash-next-iq2_xs",
+     "images":true,"api_key":false,"loaded":true,"service":"strata"}`. Loading has to be watched
+     through the process (alive?) and its output, not over HTTP.
+  2. Its stdout has phase lines: "loading the experts into RAM (about 39 GB)…", "still starting
+     (30 s)", "experts loaded: 33.02 GiB at 0.51 GiB/s (84 s so far)", "filling the GPU's expert
+     cache (… 18.83 GiB of VRAM)", "almost ready", "ready: http://127.0.0.1:8080/v1 …" — usable as
+     progress in the panel.
+  3. Loaded: RAM +39 GB (5.6 → 45 GB used), VRAM +24.6 GB (0.8 → 25.4 GB). Processes: server.py,
+     `engine/strata --serve …`, `engine/strata-vision` (images on).
+  4. `/v1/models`: one entry, id = `model_name`, `status.value` loaded/unloaded, `meta.n_ctx`,
+     input modalities. `/status`: `{"busy":false,"queued":0}`. `/v1/status`: service, model, loaded,
+     engine version.
+  5. A second start on the same port ends at once (rc 2): "port 8080 is already in use - is Strata
+     (or another server) already running?".
+  6. `POST /unload` without `Content-Type: application/json` → 415. `/unload?wait=1`: 2.9 s (1.0 s
+     the second time), engine and vision processes end, RAM and VRAM back to baseline at once; the
+     server stays (`/health` loaded:false). `POST /load` blocks until loaded: **90 s again** — the
+     experts are read anew (0.49 GiB/s), a reload is as slow as a start.
+  7. SIGTERM to server.py: ends in < 2 s ("stopping … stopped"), nothing left, port closed.
+  Consequences: unload-but-keep-the-server gains nothing (reload = start), so Orcinus stops a server
+  it started; a user's Strata is only unloaded if Orcinus loaded it (`/load` after it was idle-
+  unloaded). Every free costs the next start 90 s and a slow desktop — the AI12f rule "free 3 s
+  after the panel closes" is expensive for Strata (open decision for the user).
 - **AI13b – Discovery**: provider `strata` in `WhaleAiLocalModels` (folder, configs → models with
   context length and vision, server running and which model via `/health` / `/v1/models`, port
   from the config); `list_local_models` shows it.
