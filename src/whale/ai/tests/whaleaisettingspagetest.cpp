@@ -53,6 +53,8 @@ private Q_SLOTS:
     void addOtherAgent();
     void addLocalModel();
     void localModelOfOwnConfig();
+    void addStrataModel();
+    void freeDelays();
     void editAgent();
     void removeAndDefault();
     void testReady();
@@ -276,8 +278,8 @@ void WhaleAiSettingsPageTest::addLocalModel()
         QCOMPARE(name->text(), QStringLiteral("Qwen 27B (local)"));
         QCOMPARE(command->text(), QStringLiteral("opencode acp"));
         QCOMPARE(model->currentData().toString(), QStringLiteral("qwen"));
-        QCOMPARE(model->count(), 3); // None and the two models
-        QVERIFY(model->itemText(1).contains(QLatin1String("no tool calls")));
+        QCOMPARE(model->count(), 4); // None, a separator and the two models
+        QVERIFY(model->itemText(2).contains(QLatin1String("no tool calls")));
         QCOMPARE(model->currentText(), QStringLiteral("Qwen 27B – 27B Q6_K, %1 GB").arg(QLocale().toString(23.4, 'f', 1)));
         QCOMPARE(context->value(), 65536);
         QVERIFY(state->isHidden());
@@ -387,6 +389,129 @@ void WhaleAiSettingsPageTest::localModelOfOwnConfig()
     child<QPushButton>(page, QStringLiteral("edit"))->click();
     QCOMPARE(page.agents().first().localModel, QStringLiteral("qwen"));
     QCOMPARE(page.agents().first().environment, own.environment);
+}
+
+void WhaleAiSettingsPageTest::addStrataModel()
+{
+    // AI13d: Strata's sizes next to LM Studio's models; the context length is its config's.
+    QTemporaryDir home;
+    WhaleAiLocalModels::Options options = lmStudioOptions(home.path());
+    auto write = [](const QString &path, const QByteArray &content) {
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(content);
+    };
+    const QString strata = home.filePath(QStringLiteral("Strata"));
+    write(strata + QStringLiteral("/serve/server.py"), "");
+    write(strata + QStringLiteral("/.venv/bin/python"), "#!/bin/sh\n");
+    QFile::setPermissions(strata + QStringLiteral("/.venv/bin/python"), QFile::ReadOwner | QFile::ExeOwner);
+    write(strata + QStringLiteral("/strata-iq2_xs.json"),
+          R"({"model_name": "qwen3.8-flash-next-iq2_xs", "port": 8099, "args": ["--max-context", "262144", "--vision"], "log": "/nonexistent/a.log"})");
+    write(strata + QStringLiteral("/strata-iq3_s.json"), R"({"model_name": "qwen3.8-flash-next-iq3_s", "port": 8099, "args": ["--max-context", "65536"]})");
+    // The size that ran last (its log is newest) is offered first.
+    write(home.filePath(QStringLiteral("iq3.log")), "x");
+    write(strata + QStringLiteral("/strata-iq3_s.json"),
+          QStringLiteral(R"({"model_name": "qwen3.8-flash-next-iq3_s", "port": 8099, "args": ["--max-context", "65536"], "log": "%1"})")
+              .arg(home.filePath(QStringLiteral("iq3.log")))
+              .toUtf8());
+
+    WhaleAiSettingsPage page;
+    page.setLocalModelOptions(options);
+    QAction *local = menuAction(page, QStringLiteral("localModel-strata"));
+    QVERIFY(local);
+    QVERIFY(local->isEnabled());
+    QCOMPARE(local->text(), QStringLiteral("Local Model (Strata)…"));
+
+    QStringList checked;
+    QTimer::singleShot(0, [&checked] {
+        auto *dialog = qobject_cast<WhaleAiAgentDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        auto close = qScopeGuard([dialog] {
+            if (dialog->isVisible()) {
+                dialog->reject();
+            }
+        });
+        auto *name = dialog->findChild<QLineEdit *>(QStringLiteral("name"));
+        auto *model = dialog->findChild<QComboBox *>(QStringLiteral("localModel"));
+        auto *context = dialog->findChild<QSpinBox *>(QStringLiteral("contextLength"));
+        auto *environment = dialog->findChild<QPlainTextEdit *>(QStringLiteral("environment"));
+        // Both providers in the list: None, LM Studio's two, Strata's two (with separators).
+        QCOMPARE(model->count(), 7);
+        QCOMPARE(model->currentData(Qt::UserRole).toString(), QStringLiteral("qwen3.8-flash-next-iq3_s"));
+        QCOMPARE(name->text(), QStringLiteral("Strata IQ3_S (local)"));
+        QVERIFY(!context->isEnabled());
+        QCOMPARE(context->value(), 65536);
+        QJsonObject config = openCodeConfig(environment->toPlainText());
+        QCOMPARE(config.value(QLatin1String("model")).toString(), QStringLiteral("strata/qwen3.8-flash-next-iq3_s"));
+        const QJsonObject provider = config.value(QLatin1String("provider")).toObject().value(QLatin1String("strata")).toObject();
+        QCOMPARE(provider.value(QLatin1String("name")).toString(), QStringLiteral("Strata"));
+        QCOMPARE(provider.value(QLatin1String("options")).toObject().value(QLatin1String("baseURL")).toString(), QStringLiteral("http://127.0.0.1:8099/v1"));
+
+        // The other size; then an LM Studio model: the configuration follows, it is Orcinus' own.
+        int iq2 = -1;
+        for (int i = 0; i < model->count(); ++i) {
+            if (model->itemData(i, Qt::UserRole).toString() == QLatin1String("qwen3.8-flash-next-iq2_xs")) {
+                iq2 = i;
+            }
+        }
+        model->setCurrentIndex(iq2);
+        QCOMPARE(context->value(), 262144);
+        QCOMPARE(name->text(), QStringLiteral("Strata IQ2_XS (local)"));
+        model->setCurrentIndex(model->findData(QStringLiteral("qwen")));
+        QVERIFY(context->isEnabled());
+        QCOMPARE(context->value(), 65536);
+        config = openCodeConfig(environment->toPlainText());
+        QCOMPARE(config.value(QLatin1String("model")).toString(), QStringLiteral("lmstudio/qwen"));
+        QCOMPARE(environment->toPlainText().count(QLatin1String("OPENCODE_CONFIG_CONTENT=")), 1);
+        model->setCurrentIndex(iq2);
+        QCOMPARE(openCodeConfig(environment->toPlainText()).value(QLatin1String("model")).toString(), QStringLiteral("strata/qwen3.8-flash-next-iq2_xs"));
+        checked.append(QStringLiteral("done"));
+        dialog->accept();
+    });
+    local->trigger();
+    QCOMPARE(checked, QStringList{QStringLiteral("done")});
+    const WhaleAiAgent agent = page.agents().first();
+    QCOMPARE(agent.localProvider, QStringLiteral("strata"));
+    QCOMPARE(agent.localModel, QStringLiteral("qwen3.8-flash-next-iq2_xs"));
+    QCOMPARE(agent.localContextLength, 0);
+
+    // Edited again: the Strata size is chosen, its length shown.
+    QTimer::singleShot(0, [] {
+        auto *dialog = qobject_cast<WhaleAiAgentDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        QCOMPARE(dialog->findChild<QComboBox *>(QStringLiteral("localModel"))->currentData(Qt::UserRole + 1).toString(), QStringLiteral("strata"));
+        QCOMPARE(dialog->findChild<QSpinBox *>(QStringLiteral("contextLength"))->value(), 262144);
+        dialog->accept();
+    });
+    child<QListWidget>(page, QStringLiteral("agents"))->setCurrentRow(0);
+    child<QPushButton>(page, QStringLiteral("edit"))->click();
+    QCOMPARE(page.agents().first(), agent);
+}
+
+void WhaleAiSettingsPageTest::freeDelays()
+{
+    // AI13: how long a closed panel keeps the local model, per provider; the defaults restore them.
+    WhaleAiSettingsPage page;
+    auto *lmStudio = child<QSpinBox>(page, QStringLiteral("freeDelay-lmstudio"));
+    auto *strata = child<QSpinBox>(page, QStringLiteral("freeDelay-strata"));
+    QVERIFY(lmStudio);
+    QVERIFY(strata);
+    QCOMPARE(lmStudio->value(), 3);
+    QCOMPARE(strata->value(), 600);
+    QSignalSpy changed(&page, &WhaleAiSettingsPage::changed);
+    strata->setValue(1200);
+    lmStudio->setValue(0);
+    QCOMPARE(changed.size(), 2);
+    QCOMPARE(lmStudio->text(), QStringLiteral("At once"));
+    page.applySettings();
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("strata")), 1200.0);
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("lmstudio")), 0.0);
+    page.restoreDefaults();
+    QCOMPARE(lmStudio->value(), 3);
+    QCOMPARE(strata->value(), 600);
+    page.applySettings();
+    QCOMPARE(WhaleAiAgents::freeDelaySeconds(QStringLiteral("strata")), 600.0);
 }
 
 void WhaleAiSettingsPageTest::editAgent()

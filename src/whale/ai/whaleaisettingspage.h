@@ -11,12 +11,15 @@
 #include "whaleaiagents.h"
 #include "whaleaiagenttest.h"
 
+#include <QHash>
+
 class QCheckBox;
 class QLabel;
 class QListWidget;
 class QMenu;
 class QPlainTextEdit;
 class QPushButton;
+class QSpinBox;
 class QStackedWidget;
 
 /**
@@ -64,8 +67,8 @@ private:
     int currentRow() const;
     void addPreset(const WhaleAiAgentPreset &preset);
     void addCustom();
-    /** Add ▸ Local Model: an agent for a model of LM Studio, run by OpenCode (AI12). */
-    void addLocalModel();
+    /** Add ▸ Local Model: an agent for a model of @p provider (LM Studio, Strata), run by OpenCode (AI12, AI13). */
+    void addLocalModel(const QString &provider);
     void editCurrent();
     void removeCurrent();
     void makeCurrentDefault();
@@ -97,6 +100,7 @@ private:
     QCheckBox *m_editPrompt = nullptr;
     QPlainTextEdit *m_prompt = nullptr;
     QPushButton *m_resetPrompt = nullptr;
+    QHash<QString, QSpinBox *> m_freeDelays; ///< per provider (AI13)
 };
 
 #endif

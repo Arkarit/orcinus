@@ -438,8 +438,8 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
         const QJsonObject local = localValue.toObject();
         const QString providerId = local.value(QLatin1String("provider")).toString(QStringLiteral("lmstudio"));
         const QString modelId = local.value(QLatin1String("model")).toString().trimmed();
-        if (providerId != QLatin1String("lmstudio")) {
-            return fail(QStringLiteral("\"local_model.provider\" can only be \"lmstudio\" (LM Studio)."));
+        if (providerId != QLatin1String("lmstudio") && providerId != QLatin1String("strata")) {
+            return fail(QStringLiteral("\"local_model.provider\" can be \"lmstudio\" (LM Studio) or \"strata\" (Strata)."));
         }
         if (modelId.isEmpty()) {
             return fail(QStringLiteral("\"local_model.model\" must be a model id from list_local_models."));
@@ -450,7 +450,8 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
             }
         }
         if (!provider) {
-            return fail(QStringLiteral("LM Studio is not installed on this computer."));
+            return fail(providerId == QLatin1String("strata") ? QStringLiteral("Strata is not installed on this computer (Orcinus looks in ~/Strata).")
+                                                              : QStringLiteral("LM Studio is not installed on this computer."));
         }
         for (const WhaleAiLocalModel &model : provider->models) {
             if (model.id == modelId) {
@@ -458,12 +459,16 @@ std::optional<WhaleAiAgent> proposal(const QJsonObject &arguments, const QList<W
             }
         }
         if (!localModel) {
-            return fail(QStringLiteral("LM Studio has no model \"%1\"; list_local_models shows the ids.").arg(modelId));
+            return fail(QStringLiteral("%1 has no model \"%2\"; list_local_models shows the ids.").arg(provider->name, modelId));
         }
-        const int asked = local.value(QLatin1String("contextLength")).toInt();
-        contextLength = asked > 0 ? asked : defaultContextLength(*localModel);
-        if (localModel->maxContextLength > 0) {
-            contextLength = std::min(contextLength, localModel->maxContextLength);
+        if (providerId == QLatin1String("strata")) {
+            contextLength = 0; // its config sets it
+        } else {
+            const int asked = local.value(QLatin1String("contextLength")).toInt();
+            contextLength = asked > 0 ? asked : defaultContextLength(*localModel);
+            if (localModel->maxContextLength > 0) {
+                contextLength = std::min(contextLength, localModel->maxContextLength);
+            }
         }
         if (agent.name.isEmpty()) {
             agent.name = localAgentName(*localModel);
@@ -574,6 +579,15 @@ QString openCodeConfig(const WhaleAiLocalProvider &provider, const WhaleAiLocalM
     return QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
 }
 
+bool isLocalOpenCodeConfig(const QJsonObject &config)
+{
+    // What openCodeConfig() writes: a model of LM Studio or Strata, with that provider defined.
+    const QString model = config.value(QLatin1String("model")).toString();
+    const QString provider = model.section(QLatin1Char('/'), 0, 0);
+    return (provider == QLatin1String("lmstudio") || provider == QLatin1String("strata"))
+        && config.value(QLatin1String("provider")).toObject().contains(provider);
+}
+
 QStringList withOpenCodeConfig(const QStringList &environment, const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength)
 {
     const QString name = QStringLiteral("OPENCODE_CONFIG_CONTENT");
@@ -586,7 +600,7 @@ QStringList withOpenCodeConfig(const QStringList &environment, const WhaleAiLoca
             continue;
         }
         const QJsonObject config = QJsonDocument::fromJson(entry.section(QLatin1Char('='), 1).toUtf8()).object();
-        if (!config.value(QLatin1String("model")).toString().startsWith(provider.id + QLatin1Char('/'))) {
+        if (!isLocalOpenCodeConfig(config)) {
             // The user's own configuration: theirs to change.
             return environment;
         }

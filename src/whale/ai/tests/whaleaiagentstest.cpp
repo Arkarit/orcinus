@@ -312,6 +312,49 @@ void WhaleAiAgentsTest::proposeLocalModel()
     WhaleAiLocalSetup withoutOpenCode{{lmStudio}, {{QStringLiteral("opencode"), QStringLiteral("OpenCode"), QString(), false, QString()}}};
     QVERIFY(!WhaleAiAgents::proposal(local(qwen), {}, &error, withoutOpenCode));
     QVERIFY(error.contains(QLatin1String("npm i -g opencode-ai")));
+
+    // AI13d: a Strata size; its context length is its config's, whatever the agent asks for.
+    WhaleAiLocalProvider strata;
+    strata.id = QStringLiteral("strata");
+    strata.name = QStringLiteral("Strata");
+    strata.port = 8080;
+    strata.models = {
+        {QStringLiteral("qwen3.8-flash-next-iq2_xs"), QStringLiteral("Strata IQ2_XS"), {}, QStringLiteral("IQ2_XS"), 0, 262144, true, true, false}};
+    setup.providers.append(strata);
+    agent = WhaleAiAgents::proposal(local({{QStringLiteral("model"), QStringLiteral("qwen3.8-flash-next-iq2_xs")},
+                                           {QStringLiteral("provider"), QStringLiteral("strata")},
+                                           {QStringLiteral("contextLength"), 4096}}),
+                                    {},
+                                    &error,
+                                    setup);
+    QVERIFY2(agent, qPrintable(error));
+    QCOMPARE(agent->name, QStringLiteral("Strata IQ2_XS (local)"));
+    QCOMPARE(agent->localProvider, QStringLiteral("strata"));
+    QCOMPARE(agent->localContextLength, 0);
+    const QJsonObject config = QJsonDocument::fromJson(agent->environment.first().section(QLatin1Char('='), 1).toUtf8()).object();
+    QCOMPARE(config.value(QLatin1String("model")).toString(), QStringLiteral("strata/qwen3.8-flash-next-iq2_xs"));
+    QVERIFY(WhaleAiAgents::isLocalOpenCodeConfig(config));
+    QCOMPARE(config.value(QLatin1String("provider"))
+                 .toObject()
+                 .value(QLatin1String("strata"))
+                 .toObject()
+                 .value(QLatin1String("models"))
+                 .toObject()
+                 .value(QLatin1String("qwen3.8-flash-next-iq2_xs"))
+                 .toObject()
+                 .value(QLatin1String("limit"))
+                 .toObject()
+                 .value(QLatin1String("context"))
+                 .toInt(),
+             262144);
+    // The model under the wrong provider is not found.
+    QVERIFY(!WhaleAiAgents::proposal(local({{QStringLiteral("model"), QStringLiteral("qwen3.8-flash-next-iq2_xs")}}), {}, &error, setup));
+    QVERIFY(error.startsWith(QLatin1String("LM Studio has no model")));
+    QVERIFY(!WhaleAiAgents::proposal(local({{QStringLiteral("model"), QStringLiteral("x")}, {QStringLiteral("provider"), QStringLiteral("strata")}}),
+                                     {},
+                                     &error,
+                                     WhaleAiLocalSetup{{lmStudio}, {openCode}}));
+    QVERIFY(error.contains(QLatin1String("~/Strata")));
 }
 
 void WhaleAiAgentsTest::freeDelay()

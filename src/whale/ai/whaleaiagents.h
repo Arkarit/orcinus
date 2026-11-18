@@ -167,9 +167,11 @@ QString localAgentName(const WhaleAiLocalModel &model);
  *         with @p contextLength (0: LM Studio's default, then the model's maximum is assumed).
  */
 QString openCodeConfig(const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength);
+/** @return Whether @p config (OPENCODE_CONFIG_CONTENT) is one openCodeConfig() wrote (LM Studio or Strata). */
+bool isLocalOpenCodeConfig(const QJsonObject &config);
 /**
  * @return @p environment with OpenCode's configuration for @p model; an OPENCODE_CONFIG_CONTENT
- *         that is not one for LM Studio (the user's own) is kept.
+ *         that openCodeConfig() did not write (the user's own) is kept.
  */
 QStringList withOpenCodeConfig(const QStringList &environment, const WhaleAiLocalProvider &provider, const WhaleAiLocalModel &model, int contextLength);
 /**

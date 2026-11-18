@@ -14,15 +14,21 @@
 #include <KTerminalLauncherJob>
 
 #include <QCheckBox>
+#include <QDateTime>
 #include <QDir>
+#include <QFileInfo>
+#include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QListWidget>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QSpinBox>
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
@@ -120,6 +126,30 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
         m_prompt->setPlainText(WhaleAiAgents::defaultSystemPrompt());
     });
 
+    // AI13: how long a closed AI panel keeps its local model (the user's choice).
+    auto *localGroup = new QGroupBox(i18nc("@title:group", "Local models"), this);
+    auto *localForm = new QFormLayout(localGroup);
+    auto *localHint = new QLabel(i18nc("@info",
+                                       "When the AI panel is closed, Orcinus frees the memory of the local model it started after this "
+                                       "time. Loading it again takes a while: a few seconds for LM Studio, about a minute and a half "
+                                       "for Strata."),
+                                 localGroup);
+    localHint->setWordWrap(true);
+    localForm->addRow(localHint);
+    for (const auto &[id, name] :
+         {std::pair{QStringLiteral("lmstudio"), QStringLiteral("LM Studio")}, std::pair{QStringLiteral("strata"), QStringLiteral("Strata")}}) {
+        auto *delay = new QSpinBox(localGroup);
+        delay->setObjectName(QStringLiteral("freeDelay-") + id);
+        delay->setRange(0, 24 * 3600);
+        delay->setSingleStep(id == QLatin1String("strata") ? 60 : 1);
+        delay->setSuffix(i18nc("@item:valuesuffix seconds", " s"));
+        delay->setSpecialValueText(i18nc("@item:inrange", "At once"));
+        delay->setValue(qRound(WhaleAiAgents::freeDelaySeconds(id)));
+        connect(delay, &QSpinBox::valueChanged, this, &WhaleAiSettingsPage::changed);
+        localForm->addRow(i18nc("@label:spinbox %1 is LM Studio or Strata", "%1:", name), delay);
+        m_freeDelays.insert(id, delay);
+    }
+
     auto *content = new QWidget(this);
     auto *layout = new QVBoxLayout(content);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -127,6 +157,7 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     layout->addLayout(listRow, 1);
     layout->addWidget(m_result);
     layout->addWidget(m_logIn, 0, Qt::AlignLeft);
+    layout->addWidget(localGroup);
     layout->addWidget(promptGroup);
 
     // The disclaimer first, until the user accepts it here or in the AI panel (AI5f).
@@ -191,10 +222,17 @@ void WhaleAiSettingsPage::applySettings()
     if (m_editPrompt->isChecked()) {
         WhaleAiAgents::setSystemPrompt(m_prompt->toPlainText());
     }
+    for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
+        WhaleAiAgents::setFreeDelaySeconds(it.key(), it.value()->value());
+    }
 }
 
 void WhaleAiSettingsPage::restoreDefaults()
 {
+    // The agents are the user's own: they stay. The delays go back to Orcinus' defaults.
+    for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
+        it.value()->setValue(qRound(WhaleAiAgents::defaultFreeDelaySeconds(it.key())));
+    }
 }
 
 QList<WhaleAiAgent> WhaleAiSettingsPage::agents() const
@@ -260,26 +298,34 @@ void WhaleAiSettingsPage::fillAddMenu()
             addPreset(preset);
         });
     }
-    // AI12: no request to the server, the menu opens at once.
+    // AI12/AI13: a local model of each provider. No request to a server: the menu opens at once.
     WhaleAiLocalModels::Options options = m_localOptions;
     options.probeServer = false;
     const WhaleAiLocalSetup setup = WhaleAiLocalModels::discover(options);
-    const auto lmStudio = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [](const WhaleAiLocalProvider &provider) {
-        return provider.id == QLatin1String("lmstudio");
-    });
-    QString localText = i18nc("@action:inmenu", "Local Model (LM Studio)…");
-    if (lmStudio == setup.providers.cend()) {
-        localText = i18nc("@action:inmenu", "Local Model (LM Studio not found)");
-    } else if (lmStudio->models.isEmpty()) {
-        localText = i18nc("@action:inmenu", "Local Model (LM Studio has no models)");
+    const QList<std::pair<QString, QString>> providers{{QStringLiteral("lmstudio"), QStringLiteral("LM Studio")},
+                                                       {QStringLiteral("strata"), QStringLiteral("Strata")}};
+    for (const auto &[id, name] : providers) {
+        const auto found = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [&id](const WhaleAiLocalProvider &provider) {
+            return provider.id == id;
+        });
+        QString text = i18nc("@action:inmenu %1 is LM Studio or Strata", "Local Model (%1)…", name);
+        if (found == setup.providers.cend()) {
+            text = i18nc("@action:inmenu %1 is LM Studio or Strata", "Local Model (%1 not found)", name);
+        } else if (found->models.isEmpty()) {
+            text = i18nc("@action:inmenu %1 is LM Studio or Strata", "Local Model (%1 has no models)", name);
+        }
+        QAction *local = m_addMenu->addAction(text);
+        // "localModel" stays LM Studio's (AI12d).
+        local->setObjectName(id == QLatin1String("lmstudio") ? QStringLiteral("localModel") : QStringLiteral("localModel-") + id);
+        local->setEnabled(found != setup.providers.cend() && !found->models.isEmpty());
+        local->setToolTip(i18nc("@info:tooltip %1 is LM Studio or Strata",
+                                "An agent for a language model on this computer, run by OpenCode. Orcinus starts %1 and loads the model "
+                                "when you talk to it, and frees them again when it is no longer used.",
+                                name));
+        connect(local, &QAction::triggered, this, [this, id] {
+            addLocalModel(id);
+        });
     }
-    QAction *local = m_addMenu->addAction(localText);
-    local->setObjectName(QStringLiteral("localModel"));
-    local->setEnabled(lmStudio != setup.providers.cend() && !lmStudio->models.isEmpty());
-    local->setToolTip(i18nc("@info:tooltip",
-                            "An agent for a language model on this computer, run by OpenCode. Orcinus starts LM Studio and loads the model "
-                            "when you talk to it, and frees them again when it is no longer used."));
-    connect(local, &QAction::triggered, this, &WhaleAiSettingsPage::addLocalModel);
 
     m_addMenu->setToolTipsVisible(true);
     m_addMenu->addSeparator();
@@ -338,30 +384,47 @@ void WhaleAiSettingsPage::setLocalModelOptions(const WhaleAiLocalModels::Options
     m_localOptions = options;
 }
 
-void WhaleAiSettingsPage::addLocalModel()
+void WhaleAiSettingsPage::addLocalModel(const QString &providerId)
 {
     const WhaleAiLocalSetup setup = WhaleAiLocalModels::discover(m_localOptions);
-    const auto lmStudio = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [](const WhaleAiLocalProvider &provider) {
-        return provider.id == QLatin1String("lmstudio");
+    const auto provider = std::find_if(setup.providers.cbegin(), setup.providers.cend(), [&providerId](const WhaleAiLocalProvider &provider) {
+        return provider.id == providerId;
     });
-    if (lmStudio == setup.providers.cend() || lmStudio->models.isEmpty()) {
+    if (provider == setup.providers.cend() || provider->models.isEmpty()) {
         return;
     }
-    // A loaded model the agent can work with first, then any that can, then any.
-    auto pick = [&lmStudio](const std::function<bool(const WhaleAiLocalModel &)> &good) -> const WhaleAiLocalModel * {
-        const auto found = std::find_if(lmStudio->models.cbegin(), lmStudio->models.cend(), good);
-        return found == lmStudio->models.cend() ? nullptr : &*found;
+    // A loaded model the agent can work with first, then (Strata) the size used last, then any
+    // that can call tools, then any.
+    auto pick = [&provider](const std::function<bool(const WhaleAiLocalModel &)> &good) -> const WhaleAiLocalModel * {
+        const auto found = std::find_if(provider->models.cbegin(), provider->models.cend(), good);
+        return found == provider->models.cend() ? nullptr : &*found;
     };
     const WhaleAiLocalModel *model = pick([](const WhaleAiLocalModel &model) {
         return model.loaded && model.toolUse;
     });
+    if (!model && providerId == QLatin1String("strata")) {
+        // Its log (named in the config) is written whenever that size runs.
+        QDateTime newest;
+        for (const WhaleAiLocalModel &candidate : provider->models) {
+            QFile config(candidate.file);
+            if (!config.open(QIODevice::ReadOnly)) {
+                continue;
+            }
+            const QString log = QJsonDocument::fromJson(config.readAll()).object().value(QLatin1String("log")).toString();
+            const QDateTime modified = log.isEmpty() ? QDateTime() : QFileInfo(log).lastModified();
+            if (modified.isValid() && (!newest.isValid() || modified > newest)) {
+                newest = modified;
+                model = &candidate;
+            }
+        }
+    }
     if (!model) {
         model = pick([](const WhaleAiLocalModel &model) {
             return model.toolUse;
         });
     }
     if (!model) {
-        model = &lmStudio->models.constFirst();
+        model = &provider->models.constFirst();
     }
     WhaleAiLocalClient client;
     for (const WhaleAiLocalClient &candidate : setup.clients) {
@@ -370,7 +433,7 @@ void WhaleAiSettingsPage::addLocalModel()
         }
     }
 
-    WhaleAiAgentDialog dialog(WhaleAiAgents::localAgent(*lmStudio, *model, client, m_agents), this, setup);
+    WhaleAiAgentDialog dialog(WhaleAiAgents::localAgent(*provider, *model, client, m_agents), this, setup);
     dialog.setWindowTitle(i18nc("@title:window", "Add Local Model"));
     if (dialog.exec() != QDialog::Accepted) {
         return;

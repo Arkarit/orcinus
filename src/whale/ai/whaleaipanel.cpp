@@ -374,8 +374,9 @@ QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
                         "in the AI panel and adds it with Add… (where they can edit it) or discards it. You cannot add, change or remove "
                         "agents yourself. Never put API keys or other secrets into it: list the variable by name (\"OPENAI_API_KEY\") "
                         "and remind the user to enter the value in the dialog. For a local model give only \"local_model\" with a model "
-                        "id from list_local_models: Orcinus then sets up OpenCode for it and starts LM Studio and the model whenever the "
-                        "agent is used, and frees them afterwards; do not write OpenCode configuration or start scripts yourself. "
+                        "id and its provider from list_local_models: Orcinus then sets up OpenCode for it and starts LM Studio or Strata "
+                        "and the model whenever the agent is used, and frees them afterwards; do not write OpenCode configuration or "
+                        "start scripts yourself. "
                         "Allowed in every mode."),
          false,
          {{QStringLiteral("local_model"),
@@ -385,8 +386,9 @@ QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
                {QStringLiteral("properties"),
                 QJsonObject{{QStringLiteral("model"), property(QStringLiteral("string"), QStringLiteral("Model id from list_local_models"))},
                             {QStringLiteral("contextLength"),
-                             property(QStringLiteral("integer"), QStringLiteral("Optional: tokens to load it with (default 65536 or less)"))},
-                            {QStringLiteral("provider"), property(QStringLiteral("string"), QStringLiteral("Optional: \"lmstudio\" (the only one)"))}}},
+                             property(QStringLiteral("integer"), QStringLiteral("Optional, LM Studio only: tokens to load it with (default 65536 or less)"))},
+                            {QStringLiteral("provider"),
+                             property(QStringLiteral("string"), QStringLiteral("\"lmstudio\" (the default) or \"strata\", as list_local_models says"))}}},
                {QStringLiteral("required"), QJsonArray{QStringLiteral("model")}},
                {WhaleAiMcpServer::propertyOrderKey(), QJsonArray{QStringLiteral("model"), QStringLiteral("contextLength"), QStringLiteral("provider")}}}},
           {QStringLiteral("name"),
@@ -419,8 +421,8 @@ QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
              if (agent->usesLocalModel()) {
                  note = QStringLiteral(
                      "Nothing is added yet: the user adds it with Add… in the AI panel, or discards it. Tell them so. Once added, "
-                     "Orcinus starts LM Studio and loads the model when they talk to this agent, and frees it again when it is no "
-                     "longer used; nothing has to be started by hand.");
+                     "Orcinus starts the local model's server (LM Studio or Strata) and loads the model when they talk to this agent, "
+                     "and frees it again when it is no longer used; nothing has to be started by hand.");
              }
              return {{QStringLiteral("proposed"), WhaleAiAgents::describeForAgent(*agent)}, {QStringLiteral("note"), note}};
          },
@@ -456,7 +458,9 @@ void WhaleAiPanel::showProposal(const WhaleAiAgent &agent)
     }
     if (agent.usesLocalModel()) {
         text += QStringLiteral("<br/>")
-            + i18nc("@info %1 is the id of a language model", "Local model: %1 (Orcinus starts LM Studio for it)", agent.localModel.toHtmlEscaped());
+            + (agent.localProvider == QLatin1String("strata")
+                   ? i18nc("@info %1 is the id of a language model", "Local model: %1 (Orcinus starts Strata for it)", agent.localModel.toHtmlEscaped())
+                   : i18nc("@info %1 is the id of a language model", "Local model: %1 (Orcinus starts LM Studio for it)", agent.localModel.toHtmlEscaped()));
     }
     m_proposalBar->setText(text);
     m_proposalBar->animatedShow();

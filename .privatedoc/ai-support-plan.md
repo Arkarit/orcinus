@@ -1301,6 +1301,17 @@ Steps:
   (context length fixed by the Strata config, shown read-only); Add ▸ "Local Model (Strata)…";
   `propose_agent` with `provider: "strata"`; OpenCode config with provider `strata`, baseURL from
   the config's port.
+- **AI13d done 2026-11-18.** Agent dialog: "Local model" lists both providers (None, separator,
+  LM Studio's models, separator, Strata's sizes; item data id + provider); for Strata the context
+  length shows the config's and is disabled (stored as 0), the OpenCode config gets provider
+  `strata` with its port. `WhaleAiAgents::isLocalOpenCodeConfig()`: a config for `lmstudio/…` or
+  `strata/…` with that provider defined is Orcinus' own, so switching provider replaces it; others
+  stay the user's. Settings page: Add ▸ "Local Model (LM Studio)…" and "Local Model (Strata)…"
+  (`localModel-strata`; Strata preselects a loaded size, else the one whose log is newest), group
+  "Local models" with the free delay per provider (seconds, 0 = "At once"; restoreDefaults sets 3 /
+  600). `propose_agent`: `provider: "strata"` (context length ignored, "~/Strata" in the not-found
+  error), descriptions and the proposal bar name the provider. Tests: settings page
+  `addStrataModel`, `freeDelays`; `whaleaiagentstest::proposeLocalModel` (Strata part). ctest 120/120.
 - **AI13e – Real run**: AI10 scenarios against Strata (the user's earlier wish), with the user's OK.
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud

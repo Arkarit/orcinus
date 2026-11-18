@@ -11,6 +11,8 @@
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
@@ -49,19 +51,25 @@ WhaleAiAgentDialog::WhaleAiAgentDialog(const WhaleAiAgent &agent, QWidget *paren
     m_commandState->setTextInteractionFlags(Qt::TextSelectableByMouse);
     form->addRow(QString(), m_commandState);
 
-    // AI12: the local model Orcinus starts before the agent and frees after it.
+    // AI12/AI13: the local model Orcinus starts before the agent and frees after it.
     m_localModel = new QComboBox(this);
     m_localModel->setObjectName(QStringLiteral("localModel"));
     m_localModel->setToolTip(i18nc("@info:tooltip",
-                                   "A model of LM Studio that Orcinus starts before the agent and frees again when no conversation uses it. "
-                                   "The agent must be set up to use it (for OpenCode, Orcinus does that in the environment)."));
-    m_localModel->addItem(i18nc("@item:inlistbox no local model", "None"), QString());
-    if (const WhaleAiLocalProvider *provider = lmStudio()) {
-        for (const WhaleAiLocalModel &model : provider->models) {
+                                   "A model of LM Studio or Strata that Orcinus starts before the agent and frees again when no conversation "
+                                   "uses it. The agent must be set up to use it (for OpenCode, Orcinus does that in the environment)."));
+    m_localModel->addItem(i18nc("@item:inlistbox no local model", "None"));
+    for (const WhaleAiLocalProvider &provider : std::as_const(m_setup.providers)) {
+        if (provider.models.isEmpty()) {
+            continue;
+        }
+        m_localModel->insertSeparator(m_localModel->count());
+        for (const WhaleAiLocalModel &model : provider.models) {
             QStringList details;
-            const QString build = QStringList{model.params, model.quantization}.join(QLatin1Char(' ')).trimmed();
-            if (!build.isEmpty()) {
-                details.append(build);
+            if (provider.id != QLatin1String("strata")) { // Strata's names say it already
+                const QString build = QStringList{model.params, model.quantization}.join(QLatin1Char(' ')).trimmed();
+                if (!build.isEmpty()) {
+                    details.append(build);
+                }
             }
             if (model.sizeBytes > 0) {
                 details.append(i18nc("@item size in gigabytes", "%1 GB", QLocale().toString(model.sizeBytes / 1e9, 'f', 1)));
@@ -71,14 +79,14 @@ WhaleAiAgentDialog::WhaleAiAgentDialog(const WhaleAiAgent &agent, QWidget *paren
             }
             const QString text =
                 details.isEmpty() ? model.name : i18nc("@item %1 is a model name, %2 details", "%1 – %2", model.name, details.join(QStringLiteral(", ")));
-            m_localModel->addItem(text, model.id);
-            m_localModel->setItemData(m_localModel->count() - 1, model.id, Qt::ToolTipRole);
+            addModelItem(text, provider.id, model.id);
+            m_localModel->setItemData(m_localModel->count() - 1, QStringLiteral("%1: %2").arg(provider.name, model.id), Qt::ToolTipRole);
         }
     }
-    if (agent.usesLocalModel() && m_localModel->findData(agent.localModel) < 0) {
-        m_localModel->addItem(i18nc("@item %1 is a model id", "%1 (not found)", agent.localModel), agent.localModel);
+    if (agent.usesLocalModel() && modelIndex(agent.localProvider, agent.localModel) < 0) {
+        addModelItem(i18nc("@item %1 is a model id", "%1 (not found)", agent.localModel), agent.localProvider, agent.localModel);
     }
-    m_localModel->setCurrentIndex(std::max(0, m_localModel->findData(agent.usesLocalModel() ? agent.localModel : QString())));
+    m_localModel->setCurrentIndex(agent.usesLocalModel() ? modelIndex(agent.localProvider, agent.localModel) : 0);
     form->addRow(i18nc("@label:listbox", "Local model:"), m_localModel);
 
     m_contextLength = new QSpinBox(this);
@@ -87,9 +95,13 @@ WhaleAiAgentDialog::WhaleAiAgentDialog(const WhaleAiAgent &agent, QWidget *paren
     m_contextLength->setSingleStep(4096);
     m_contextLength->setSpecialValueText(i18nc("@item:inrange", "LM Studio's default"));
     m_contextLength->setSuffix(i18nc("@item:valuesuffix", " tokens"));
-    m_contextLength->setToolTip(i18nc("@info:tooltip", "How much of the conversation the model keeps in mind. More takes more memory of the graphics card."));
     m_contextLength->setValue(agent.usesLocalModel() ? agent.localContextLength : 0);
     form->addRow(i18nc("@label:spinbox", "Context length:"), m_contextLength);
+    if (chosenProvider() == QLatin1String("strata")) {
+        if (const std::optional<WhaleAiLocalModel> model = chosenModel()) {
+            m_contextLength->setValue(model->maxContextLength);
+        }
+    }
 
     m_localState = new QLabel(this);
     m_localState->setObjectName(QStringLiteral("localState"));
@@ -119,10 +131,10 @@ WhaleAiAgentDialog::WhaleAiAgentDialog(const WhaleAiAgent &agent, QWidget *paren
     connect(m_command, &QLineEdit::textChanged, this, &WhaleAiAgentDialog::updateState);
     connect(m_environment, &QPlainTextEdit::textChanged, this, &WhaleAiAgentDialog::updateState);
     connect(m_localModel, &QComboBox::currentIndexChanged, this, [this] {
-        // A model of its own: its own default length.
+        // A model of its own: its own default length; Strata's comes from its config.
         if (const std::optional<WhaleAiLocalModel> model = chosenModel()) {
             const QSignalBlocker blocker(m_contextLength);
-            m_contextLength->setValue(WhaleAiAgents::defaultContextLength(*model));
+            m_contextLength->setValue(chosenProvider() == QLatin1String("strata") ? model->maxContextLength : WhaleAiAgents::defaultContextLength(*model));
         }
         applyLocalModel();
     });
@@ -143,16 +155,39 @@ WhaleAiAgent WhaleAiAgentDialog::agent() const
             agent.environment.append(line.trimmed());
         }
     }
-    agent.localModel = m_localModel->currentData().toString();
-    agent.localProvider = agent.localModel.isEmpty() ? QString() : QStringLiteral("lmstudio");
-    agent.localContextLength = agent.localModel.isEmpty() ? 0 : m_contextLength->value();
+    agent.localModel = m_localModel->currentData(ModelRole).toString();
+    agent.localProvider = agent.localModel.isEmpty() ? QString() : chosenProvider();
+    // Strata's context length is its config's (AI13).
+    agent.localContextLength = agent.localModel.isEmpty() || agent.localProvider == QLatin1String("strata") ? 0 : m_contextLength->value();
     return agent;
 }
 
-const WhaleAiLocalProvider *WhaleAiAgentDialog::lmStudio() const
+void WhaleAiAgentDialog::addModelItem(const QString &text, const QString &provider, const QString &id)
+{
+    m_localModel->addItem(text);
+    m_localModel->setItemData(m_localModel->count() - 1, id, ModelRole);
+    m_localModel->setItemData(m_localModel->count() - 1, provider, ProviderRole);
+}
+
+int WhaleAiAgentDialog::modelIndex(const QString &provider, const QString &id) const
+{
+    for (int i = 0; i < m_localModel->count(); ++i) {
+        if (m_localModel->itemData(i, ModelRole).toString() == id && m_localModel->itemData(i, ProviderRole).toString() == provider) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+QString WhaleAiAgentDialog::chosenProvider() const
+{
+    return m_localModel->currentData(ProviderRole).toString();
+}
+
+const WhaleAiLocalProvider *WhaleAiAgentDialog::provider(const QString &id) const
 {
     for (const WhaleAiLocalProvider &provider : m_setup.providers) {
-        if (provider.id == QLatin1String("lmstudio")) {
+        if (provider.id == id) {
             return &provider;
         }
     }
@@ -161,8 +196,8 @@ const WhaleAiLocalProvider *WhaleAiAgentDialog::lmStudio() const
 
 std::optional<WhaleAiLocalModel> WhaleAiAgentDialog::chosenModel() const
 {
-    const QString id = m_localModel->currentData().toString();
-    const WhaleAiLocalProvider *provider = lmStudio();
+    const QString id = m_localModel->currentData(ModelRole).toString();
+    const WhaleAiLocalProvider *provider = this->provider(chosenProvider());
     if (id.isEmpty() || !provider) {
         return std::nullopt;
     }
@@ -176,7 +211,7 @@ std::optional<WhaleAiLocalModel> WhaleAiAgentDialog::chosenModel() const
 
 void WhaleAiAgentDialog::applyLocalModel()
 {
-    const WhaleAiLocalProvider *provider = lmStudio();
+    const WhaleAiLocalProvider *provider = this->provider(chosenProvider());
     const std::optional<WhaleAiLocalModel> model = chosenModel();
     if (provider && model) {
         if (m_name->text().trimmed().isEmpty() || m_name->text() == m_generatedName) {
@@ -214,14 +249,18 @@ void WhaleAiAgentDialog::updateState()
         m_commandState->setText(i18nc("@info %1 is a path", "Runs %1", command.program));
     }
     // The local model: what may keep it from working.
-    const bool local = !m_localModel->currentData().toString().isEmpty();
-    m_contextLength->setEnabled(local);
+    const bool local = !m_localModel->currentData(ModelRole).toString().isEmpty();
+    const bool strata = chosenProvider() == QLatin1String("strata");
+    m_contextLength->setEnabled(local && !strata);
+    m_contextLength->setToolTip(
+        strata ? i18nc("@info:tooltip", "Strata's configuration of this model sets it.")
+               : i18nc("@info:tooltip", "How much of the conversation the model keeps in mind. More takes more memory of the graphics card."));
     QStringList notes;
     const std::optional<WhaleAiLocalModel> model = chosenModel();
-    if (local && !lmStudio()) {
-        notes.append(i18nc("@info", "LM Studio was not found."));
+    if (local && !provider(chosenProvider())) {
+        notes.append(strata ? i18nc("@info", "Strata was not found.") : i18nc("@info", "LM Studio was not found."));
     } else if (local && !model) {
-        notes.append(i18nc("@info", "LM Studio has no model with this id."));
+        notes.append(strata ? i18nc("@info", "Strata has no model with this id.") : i18nc("@info", "LM Studio has no model with this id."));
     } else if (model && !model->toolUse) {
         notes.append(i18nc("@info", "This model was not trained for tool calls, which an agent needs."));
     }
@@ -231,7 +270,8 @@ void WhaleAiAgentDialog::updateState()
     if (local && WhaleAiAgents::kind(edited) == WhaleAiAgentKind::OpenCode) {
         bool own = false;
         for (const QString &entry : std::as_const(edited.environment)) {
-            if (entry.section(QLatin1Char('='), 0, 0).trimmed() == OpenCodeConfigName && !entry.contains(QLatin1String("\"lmstudio/"))) {
+            if (entry.section(QLatin1Char('='), 0, 0).trimmed() == OpenCodeConfigName
+                && !WhaleAiAgents::isLocalOpenCodeConfig(QJsonDocument::fromJson(entry.section(QLatin1Char('='), 1).toUtf8()).object())) {
                 own = true;
             }
         }

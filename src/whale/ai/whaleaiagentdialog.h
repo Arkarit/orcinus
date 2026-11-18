@@ -39,8 +39,17 @@ private:
     void updateState();
     /** The local model was chosen or its context length changed: name, command and OpenCode's configuration follow. */
     void applyLocalModel();
-    const WhaleAiLocalProvider *lmStudio() const;
-    /** @return The chosen model if LM Studio has it. */
+    /** Item data of the local model list: the model's id and its provider. */
+    enum {
+        ModelRole = Qt::UserRole,
+        ProviderRole
+    };
+    void addModelItem(const QString &text, const QString &provider, const QString &id);
+    int modelIndex(const QString &provider, const QString &id) const;
+    /** @return The provider of the chosen local model ("lmstudio", "strata"); empty for none. */
+    QString chosenProvider() const;
+    const WhaleAiLocalProvider *provider(const QString &id) const;
+    /** @return The chosen model if its provider has it. */
     std::optional<WhaleAiLocalModel> chosenModel() const;
 
     WhaleAiAgent m_agent;
