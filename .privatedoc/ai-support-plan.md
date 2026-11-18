@@ -1170,6 +1170,50 @@ Not in AI12: Ollama / generic servers, Strata, downloading models, a setting for
 period, coordinating two Orcinus processes (each counts only its own sessions; it only unloads
 what it loaded itself).
 
+**AI13 – Strata as a second local provider.** Planned 2026-11-18 (user). Strata (~/Strata,
+github.com/Niko1221/Strata) serves one large MoE model (Qwen3.8-Flash-Next) through an
+OpenAI-compatible API, like LM Studio, but works differently:
+- One server, one model: each installed size is a config `strata-<size>.json` in the Strata folder
+  (here `iq2_xs`, `iq3_s`, `iq2_xs-uncensored`; `model_name` = API id, e.g.
+  `qwen3.8-flash-next-iq2_xs`; `--max-context` fixed in its args; `vision` key). Started with
+  `<folder>/.venv/bin/python serve/server.py --engine strata --config strata-<size>.json --port
+  8080` (the `run-<size>.sh` scripts add `--open` for a browser; not wanted). Another size needs
+  another server start.
+- `GET /health` says `loaded` when the model answers; `POST /unload` frees VRAM and pinned RAM
+  (409 while a request runs, `?wait=1` waits for it); SIGTERM then ends the server (its Ctrl+C
+  path). Strata's own MCP server (`tools/strata_mcp.py`) does the same and only ends processes it
+  recorded (pid + start time) — Orcinus does it itself, the same way.
+- Heavy: loading takes 1–3 min and 35–55 GB RAM, the PC may be slow meanwhile. 62 GB RAM and
+  32 GB VRAM here: Strata and a loaded LM Studio model do not fit together.
+
+Decisions (user, 2026-11-18):
+1. One local model at a time across providers: before Orcinus starts a model, it frees models that
+   no conversation holds (in their grace period); if a conversation still uses a model of another
+   provider, the start is refused with a notice instead of forcing both into memory.
+2. A Strata that already runs (e.g. started by the user) is used only if it serves the wanted
+   size; otherwise Orcinus says "Strata runs <size>" and never stops the user's Strata.
+3. Strata folder: `~/Strata` first; no setting for now.
+
+Steps:
+- **AI13a – Spike** (needs the user's OK at a time when a slow desktop does not disturb them):
+  time to `/health` loaded, the shape of `/health`, `/v1/models`, `/status`; RAM/VRAM before,
+  loaded, after `/unload`, after SIGTERM; child processes (engine, image encoder) gone after
+  SIGTERM; what a second start on the same port says.
+- **AI13b – Discovery**: provider `strata` in `WhaleAiLocalModels` (folder, configs → models with
+  context length and vision, server running and which model via `/health` / `/v1/models`, port
+  from the config); `list_local_models` shows it.
+- **AI13c – Runtime**: a provider abstraction in `WhaleAiLocalRuntime` (LM Studio, Strata);
+  Strata start = own server process (detached, pid + start time in the state file), progress
+  "Starting Strata (IQ2_XS) … N s — the computer may be slow meanwhile", ready on `/health`
+  loaded; free = `/unload?wait=1`, then SIGTERM to our server only; rule 1 and 2 above; hand-over
+  and crash cleanup as for LM Studio. Fake Strata for the tests (a fake `server.py` behind a fake
+  `.venv/bin/python`).
+- **AI13d – UI and agents**: "Local model" in the agent dialog lists LM Studio and Strata models
+  (context length fixed by the Strata config, shown read-only); Add ▸ "Local Model (Strata)…";
+  `propose_agent` with `provider: "strata"`; OpenCode config with provider `strata`, baseURL from
+  the config's port.
+- **AI13e – Real run**: AI10 scenarios against Strata (the user's earlier wish), with the user's OK.
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 
