@@ -1013,7 +1013,7 @@ Design:
     blocked.
   - Only agents with a local model are ended on hide; cloud agents keep today's behavior.
 - **Agent entry**: new keys `[AI][<id>] LocalProvider=lmstudio`, `LocalModel=<identifier>`,
-  optional `LocalContextLength`. Agent dialog gets a "Local model" section (provider: None / LM
+  optional `LocalContextLength` (default: LM Studio's own). Agent dialog gets a "Local model" section (provider: None / LM
   Studio; model combo filled by discovery, with size, tools, vision).
 - **Preset** (the AI11b preset): "Add Local Model…" in the AI settings: pick a discovered model →
   Orcinus writes the entry itself (resolved `opencode` path, `acp --pure`, `OPENCODE_CONFIG_CONTENT`
@@ -1032,6 +1032,50 @@ Steps:
   loaded state; does `lms server stop` leave LM Studio's background service (llmster) running,
   and how to end that too (only if we started it); JIT TTL vs. explicit `--ttl`; how OpenCode
   behaves on a slow first answer. Results here.
+- **AI12a done 2026-11-18** (LM Studio 0.4.28+2, qwen3.8-27b Q6_K, RX with 32 GB; started and
+  stopped with the user's OK, back to baseline afterwards). Results:
+  1. `lms server start` blocks until the server answers (~6 s cold, 0.2 s when running; rc 0 both
+     times, the second run only lacks "Starting local model service..."). Without a running LM
+     Studio it starts the **whole LM Studio app hidden** (`LM-Studio-*.AppImage --run-as-service`,
+     Electron), no headless llmster is installed. `lms daemon up --json` does the same and prints
+     `{"status":"running","pid":N,"isDaemon":false}` — the PID to stop later.
+  2. Stopping: `lms server stop` only closes port 1234 — the model **stays in VRAM** (29.7 GB) and
+     the app keeps running. `lms daemon down` refuses ("running as part of LM Studio. Please exit
+     LM Studio"). SIGTERM to the service PID ends all LM Studio processes cleanly in 1–2 s and
+     frees the VRAM. So: unload first, then SIGTERM — only for a service we started.
+  3. REST API `/api/v1/models` (server running) is better than `lms`: per model `key`,
+     `display_name`, `size_bytes`, `max_context_length`, `capabilities` (`vision`,
+     `trained_for_tool_use`, `reasoning`), and `loaded_instances` (`id`, `config.context_length`,
+     `remaining_ttl_seconds`). `POST /api/v1/models/load {"model","context_length"}` loads with the
+     **exact** key (no fuzzy match; returns `instance_id`, `load_time_seconds`), unknown key → error;
+     `ttl` is **not accepted** (no TTL then). `POST /api/v1/models/unload {"instance_id"}`, unknown →
+     HTTP 404. `/api/v0/models` has `state` = `not-loaded` / `loading` / `loaded` (poll for progress).
+  4. Loading twice (CLI or REST) creates a **second instance** (`qwen3.8-27b:2`, +21.8 GB) →
+     always check `loaded_instances` first and reuse.
+  5. `lms load` matches keys fuzzily ("4 models match … Loading the first one", here correct by
+     luck); `lms unload <unknown>` exits 0 ("Model Not Found") — exit codes not usable. Progress
+     percentage only on its terminal output. → Do not use `lms load/unload`.
+  6. Load time qwen3.8-27b: 52 s cold, 7–9 s with files in the page cache. VRAM ~29 GB at the
+     default context 70144 (LM Studio's own default; `context_length` is honored).
+  7. JIT works: a chat request for an unloaded model loads it (7.8 s warm) with TTL 3600 (the
+     user's `jitModelTTL`). Chat request on a loaded model: ~1 s.
+  8. `lms unload --all` also works while the server is stopped (talks to the app directly).
+- **Design changes after AI12a:**
+  - Running check without side effects: HTTP probe of the port + look for an `lm-studio` /
+    `LM-Studio*.AppImage` process in `/proc`. If either exists, LM Studio is the user's: never
+    stop it, only unload instances we loaded.
+  - Start (only when nothing runs): `lms daemon up --json` → remember the PID, then
+    `lms server start`. State / load / unload via REST v1 only.
+  - Release: `POST …/unload` for our instance ids; if we started the service: `lms server stop`,
+    SIGTERM to the PID (check it is still `lm-studio --run-as-service` first).
+  - Crash safety (REST load has no TTL): Orcinus writes a small state file (its PID, service PID,
+    instance ids) in `~/.local/state/orcinus/`; on the next start or `acquire` of any Orcinus,
+    entries of a dead Orcinus PID are cleaned up the same way. Alternative: JIT load with the
+    user's TTL — rejected, no control over context length and no reliable "loaded by us".
+  - Progress: poll `/api/v0/models` state + elapsed time ("Loading Qwen3.8 27B … 12 s"); no
+    percentage.
+  - Discovery: with the server running, prefer `/api/v1/models`; otherwise
+    `model-index-cache.json` / GGUF scan as planned.
 - **AI12b – Discovery + `list_local_models`**, test with a fixture LM Studio home (index cache,
   fallback scan, server config) and a fake HTTP server; no real LM Studio in ctest.
 - **AI12c – Runtime + panel**: acquire/release, grace period, hide ends local sessions, loading
