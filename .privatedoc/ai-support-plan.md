@@ -1313,6 +1313,19 @@ Steps:
   error), descriptions and the proposal bar name the provider. Tests: settings page
   `addStrataModel`, `freeDelays`; `whaleaiagentstest::proposeLocalModel` (Strata part). ctest 120/120.
 - **AI13e – Real run**: AI10 scenarios against Strata (the user's earlier wish), with the user's OK.
+- **AI13e done 2026-11-18** (user's OK; Strata 0.1.44.1, IQ2_XS, OpenCode 1.19.6). Runner:
+  `--provider strata` (base URL, model and OpenCode provider per provider; final check per
+  provider's server process).
+  1. Lifecycle (`--local-model --provider strata`, tabs-question, build): PASS in 120 s including the
+     start; Orcinus started the server (its log in the profile's state folder: phases, "ready" after
+     90 s), the agent answered through it (70–100 tok/s), on quitting Orcinus unloaded and stopped
+     it; VRAM back to baseline.
+  2. Quality (Strata started once from outside, Orcinus used it without managing it; all 25 host
+     scenarios once, build mode): 24 PASS, 1 ACCEPTABLE (tool-sound-check: tool and trim right,
+     the agent opened another folder at the end, so the tool showed no files). 20–45 s per scenario
+     (Qwen 27B on LM Studio: 65–120 s); local-model-agent proposed LM Studio's qwen3.8-27b as asked.
+     Strata stopped afterwards, VRAM back to baseline.
+  AI13 complete.
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).

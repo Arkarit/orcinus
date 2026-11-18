@@ -132,14 +132,21 @@ def lmstudio_models(base_url):
         return None
 
 
-def opencode_config(path, base_url, model):
+PROVIDERS = {
+    # name, OpenAI-compatible base URL, default model, its server process (for the final check)
+    "lmstudio": ("LM Studio", "http://127.0.0.1:1234/v1", "qwen3.8-27b", "lm-studio --run-as-service"),
+    "strata": ("Strata", "http://127.0.0.1:8080/v1", "qwen3.8-flash-next-iq2_xs", "serve/server.py --engine strata"),
+}
+
+
+def opencode_config(path, base_url, model, provider="lmstudio"):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({
         "$schema": "https://opencode.ai/config.json",
-        "model": f"lmstudio/{model}",
-        "provider": {"lmstudio": {
+        "model": f"{provider}/{model}",
+        "provider": {provider: {
             "npm": "@ai-sdk/openai-compatible",
-            "name": "LM Studio (local)",
+            "name": f"{PROVIDERS[provider][0]} (local)",
             "options": {"baseURL": base_url},
             "models": {model: {"name": model}},
         }},
@@ -152,13 +159,15 @@ def opencode_config(path, base_url, model):
     }, indent=1))
 
 
-def configure_profile(profile, agent_command, opencode_file, local_model=None, context_length=0):
+def configure_profile(profile, agent_command, opencode_file, local_model=None, context_length=0, provider="lmstudio"):
     config = profile / "config"
     config.mkdir(parents=True, exist_ok=True)
     local = ""
     if local_model:
         # AI12c: Orcinus starts LM Studio and loads the model itself, and frees them when it quits.
-        local = f"LocalProvider=lmstudio\nLocalModel={local_model}\nLocalContextLength={context_length}\n"
+        local = f"LocalProvider={provider}\nLocalModel={local_model}\n"
+        if provider == "lmstudio":
+            local += f"LocalContextLength={context_length}\n"
         # LM Studio started from the test window gets its XDG_CONFIG_HOME: let it find its own
         # Electron profile there instead of a fresh one.
         own = pathlib.Path.home() / ".config" / "LM Studio"
@@ -267,9 +276,9 @@ class Run:
         make_play_folder(self.folder)
         profile = self.directory / "profile"
         opencode_file = profile / "opencode.json"
-        opencode_config(opencode_file, self.args.base_url, self.args.model)
+        opencode_config(opencode_file, self.args.base_url, self.args.model, self.args.provider)
         configure_profile(profile, self.args.agent_command, opencode_file,
-                          self.args.model if self.args.local_model else None, self.args.context_length)
+                          self.args.model if self.args.local_model else None, self.args.context_length, self.args.provider)
         before = snapshot(self.folder)
 
         whale = start_whale(self.args.whale, self.folder, profile, self.args.plugin_dir, "offscreen", automation=True)
@@ -356,7 +365,7 @@ class Run:
 def write_report(out, results, args):
     (out / "report.json").write_text(json.dumps({"model": args.model, "results": results}, indent=1, ensure_ascii=False))
     lines = [f"# Agent tests ({datetime.datetime.now():%Y-%m-%d %H:%M})", "",
-             f"Agent: `{args.agent_command}`, model `{args.model}`, mode `{args.mode or 'start mode'}`", "",
+             f"Agent: `{args.agent_command}`, model `{args.model}` ({PROVIDERS[args.provider][0]}), mode `{args.mode or 'start mode'}`", "",
              "| Scenario | PASS | ACCEPTABLE | FAIL | UNCLEAR | Ø s |", "|---|---|---|---|---|---|"]
     for scenario in dict.fromkeys(r["scenario"] for r in results):
         runs = [r for r in results if r["scenario"] == scenario]
@@ -389,8 +398,9 @@ def main():
     parser.add_argument("--scenario", action="append", help="scenario id (repeatable); default all host scenarios")
     parser.add_argument("--repeat", type=int, default=1)
     parser.add_argument("--timeout", type=int, default=600, help="seconds per run for the agent")
-    parser.add_argument("--base-url", default="http://127.0.0.1:1234/v1", help="LM Studio's OpenAI-compatible API")
-    parser.add_argument("--model", default="qwen3.8-27b")
+    parser.add_argument("--provider", choices=sorted(PROVIDERS), default="lmstudio", help="the local model's server (AI13)")
+    parser.add_argument("--base-url", default=None, help="its OpenAI-compatible API; default by --provider")
+    parser.add_argument("--model", default=None, help="default by --provider")
     parser.add_argument("--mode", default="", help="the agent's mode; default Orcinus' start mode (read-only)")
     parser.add_argument("--agent-command", default=None,
                         help="default: opencode acp (PATH or ~/.opencode/bin), else npx -y opencode-ai acp")
@@ -403,6 +413,9 @@ def main():
                         help="skip asking LM Studio (for a dry run with --agent-command of a scripted agent)")
     args = parser.parse_args()
 
+    name, default_url, default_model, server_process = PROVIDERS[args.provider]
+    args.base_url = args.base_url or default_url
+    args.model = args.model or default_model
     if args.list:
         for scenario in SCENARIOS:
             print(f"{scenario['id']:28} {','.join(scenario['tags']):6} {scenario['prompt']}")
@@ -438,12 +451,12 @@ def main():
         pass
     elif args.local_model:
         if lmstudio_models(args.base_url) is not None:
-            print("note: LM Studio's server already runs; Orcinus will use it and leave it running.")
+            print(f"note: {name}'s server already runs; Orcinus will use it and leave it running.")
     elif models is None:
-        print(f"LM Studio does not answer at {args.base_url}; start its server first (the runner never does).")
+        print(f"{name} does not answer at {args.base_url}; start its server first (the runner never does), or use --local-model.")
         return 2
     elif args.model not in models:
-        print(f"model {args.model!r} not served; LM Studio offers: {', '.join(models)}")
+        print(f"model {args.model!r} not served; {name} offers: {', '.join(models)}")
         return 2
 
     out = pathlib.Path(args.out).resolve()
@@ -468,12 +481,12 @@ def main():
     if args.local_model:
         # LM Studio takes a moment to end after SIGTERM.
         for _ in range(15):
-            running = subprocess.run(["pgrep", "-f", "lm-studio --run-as-service"], capture_output=True).returncode == 0
+            running = subprocess.run(["pgrep", "-f", server_process], capture_output=True).returncode == 0
             answers = lmstudio_models(args.base_url) is not None
             if not running and not answers:
                 break
             time.sleep(1)
-        print(f"after the runs: LM Studio service {'RUNS' if running else 'stopped'}, "
+        print(f"after the runs: {name}'s service {'RUNS' if running else 'stopped'}, "
               f"server {'ANSWERS' if answers else 'stopped'}")
     print(f"report: {out / 'report.md'}")
     return 0
