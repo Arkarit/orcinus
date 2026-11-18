@@ -963,7 +963,89 @@ remove one itself:
   new agent: …" with [Add…] (opens the agent dialog filled in, the user edits and confirms) and
   [Discard]. One proposal at a time; a new one replaces it. The answer tells the agent to remind
   the user to enter API keys or other secrets in the dialog themselves (user wish).
-- Not in this step: a preset "OpenCode with LM Studio" in the agent settings (AI11b, later).
+- Not in this step: a preset "OpenCode with LM Studio" in the agent settings (AI11b, now part of AI12).
+
+**AI12 – Local models made easy (LM Studio).** Planned 2026-11-18 (user). Trigger: the user
+asked Codex to set up the local Qwen model; through `propose_agent` it produced a good OpenCode
+entry (provider config with context limit, modalities, tool calls), but nothing started LM
+Studio, so the agent could not reach the model. Codex could not know better: it had no way to
+see whether the server runs (asking `lms` already starts LM Studio's service), that JIT loading
+is on, or that the `opencode` it found lives in the npx cache (`~/.npm/_npx/<hash>/…`), which
+can disappear. Goal: starting a local AI is simple, and its memory is freed when it is no longer
+used.
+
+Decisions (user, 2026-11-18):
+- Release: a local model is released when no *visible* AI panel has a session that uses it,
+  after a grace period (~2 min, so toggling F8 does not reload 20+ GB). Releasing ends the
+  agent session; the transcript stays, the next prompt starts the agent again (the agent's own
+  conversation memory is lost).
+- First round LM Studio only. Ollama / generic OpenAI-compatible servers later behind the same
+  interface. Strata later.
+
+Rules carried over (see AI10): never read `~/.lmstudio/conversations`, never touch LM Studio's
+`mcp.json`, and discovery must not start LM Studio (no `lms` call, not even `status`).
+
+Design:
+- **Discovery** (`WhaleAiLocalModels`, whaleai, read-only, no side effects):
+  - Models: `~/.lmstudio/.internal/model-index-cache.json` (internal format, parse tolerantly:
+    `defaultIdentifier`, `displayName`, `domain` = llm only, `contextLength`, `sizeBytes`,
+    `trainedForToolUse`, `visionAdapter`, `params`, `quant`). Fallback when missing or not
+    parseable: scan `~/.lmstudio/models` (follow symlinks; here it points to
+    `/mnt/AI/AI/Models/LLM/GGUF`) for `*.gguf` without `mmproj-`, identifier from the file name.
+  - Server: `.internal/http-server-config.json` (port, bind address, `justInTimeModelLoading`).
+    Running = TCP connect + `GET /api/v0/models` (also tells loaded vs. not loaded; fallback
+    `GET /v1/models`). `.internal/http-server.json` can be stale (holds an old PID) — not used.
+  - `lms`: `~/.lmstudio/bin/lms`, `~/.local/bin/lms`, `PATH`.
+  - Clients: `opencode` in `PATH` / `~/.opencode/bin`; a hit only in the npx cache is reported as
+    "unstable path" with the install hint (`npm i -g opencode-ai`). Orcinus installs nothing.
+  - LM Studio home overridable for tests (env, dev/test only).
+- **Lifecycle** (`WhaleAiLocalRuntime`, one per process, reference counted per model):
+  - `acquire(model)` before the agent process starts and re-checked before each prompt (one
+    cheap GET): server not running → `lms server start` (remember *started by us*); model not
+    loaded → `lms load <id> -y` (context length from the agent entry; `--ttl` as safety net
+    against a crashed Orcinus, value from the spike); remember *loaded by us*. The panel shows
+    "Loading <model> …" and Stop cancels. Errors show `lms`' stderr in the transcript.
+  - `release(model)`: when the session ends (new conversation, other agent, window closed) or the
+    panel hides; after the grace period with count 0: `lms unload <id>` if loaded by us, then
+    `lms server stop` if started by us and nothing else of ours is loaded. Things the user
+    started or loaded themselves stay untouched.
+  - Quit: release without waiting (detached `lms unload` / `server stop`), quitting is not
+    blocked.
+  - Only agents with a local model are ended on hide; cloud agents keep today's behavior.
+- **Agent entry**: new keys `[AI][<id>] LocalProvider=lmstudio`, `LocalModel=<identifier>`,
+  optional `LocalContextLength`. Agent dialog gets a "Local model" section (provider: None / LM
+  Studio; model combo filled by discovery, with size, tools, vision).
+- **Preset** (the AI11b preset): "Add Local Model…" in the AI settings: pick a discovered model →
+  Orcinus writes the entry itself (resolved `opencode` path, `acp --pure`, `OPENCODE_CONFIG_CONTENT`
+  from the index data: context, vision, tool calls, `baseURL` from the server config, local model
+  keys). Warnings: model not trained for tool use, JIT off (harmless with our explicit load),
+  `opencode` missing or only in the npx cache.
+- **Agents**: MCP tool `list_local_models` (read-only, every mode) returns the discovery result
+  (models, server state, `lms` path, clients and their stability). `propose_agent` gets an
+  optional `local_model {provider, model}`; with it Orcinus builds command and environment like
+  the preset, the agent does not need to write OpenCode config or shell wrappers. Instructions
+  and schema property order (`x-orcinus-order`, see CV3 fix) updated.
+
+Steps:
+- **AI12a – Spike** (needs LM Studio, ask first): does `lms server start` return when the server
+  answers; `lms load` exit codes/output, time for qwen3.8-27b; `/api/v0/models` fields for the
+  loaded state; does `lms server stop` leave LM Studio's background service (llmster) running,
+  and how to end that too (only if we started it); JIT TTL vs. explicit `--ttl`; how OpenCode
+  behaves on a slow first answer. Results here.
+- **AI12b – Discovery + `list_local_models`**, test with a fixture LM Studio home (index cache,
+  fallback scan, server config) and a fake HTTP server; no real LM Studio in ctest.
+- **AI12c – Runtime + panel**: acquire/release, grace period, hide ends local sessions, loading
+  state, Stop, quit. Test with a fake `lms` script + fake server (call log checked: nothing
+  unloaded/stopped that we did not start).
+- **AI12d – Dialog section + preset "Add Local Model…"**.
+- **AI12e – `propose_agent` with `local_model`**, instructions; AI10 scenario "set up the local
+  model" (expect a proposal with `local_model`, no shell wrapper). Real-agent run with the
+  user's OK (LM Studio start/stop).
+- Afterwards the user's current entry (written by Codex) can be replaced via the preset.
+
+Not in AI12: Ollama / generic servers, Strata, downloading models, a setting for the grace
+period, coordinating two Orcinus processes (each counts only its own sessions; it only unloads
+what it loaded itself).
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
