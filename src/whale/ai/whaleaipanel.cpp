@@ -16,6 +16,7 @@
 #include "whaleaimcpserver.h"
 #include "whaleaitranscript.h"
 
+#include <KBusyIndicatorWidget>
 #include <KLocalizedString>
 #include <KMessageWidget>
 
@@ -26,6 +27,7 @@
 #include <QDir>
 #include <QDropEvent>
 #include <QFileInfo>
+#include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHideEvent>
@@ -93,8 +95,16 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     configure->setToolTip(i18nc("@info:tooltip", "Configure AI Agents…"));
     configure->setAutoRaise(true);
 
+    // AI13f: start an agent with a local model ahead of the first message, or end it and unload.
+    m_modelButton = new QToolButton(chat);
+    m_modelButton->setObjectName(QStringLiteral("localModelButton"));
+    m_modelButton->setAutoRaise(true);
+    m_modelButton->hide();
+    connect(m_modelButton, &QToolButton::clicked, this, &WhaleAiPanel::toggleLocalModel);
+
     auto *top = new QHBoxLayout;
     top->addWidget(m_agents, 1);
+    top->addWidget(m_modelButton);
     top->addWidget(m_newConversation);
     top->addWidget(m_undoChanges);
     top->addWidget(configure);
@@ -121,12 +131,26 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_showActions = new QCheckBox(i18nc("@option:check show what an AI agent did in the transcript", "Actions"), chat);
     m_showActions->setObjectName(QStringLiteral("showActions"));
     m_showActions->setToolTip(
-        i18nc("@info:tooltip", "Show what the agent does: the commands it runs and the tools it uses. Permission requests are always shown."));
+        i18nc("@info:tooltip",
+              "Show what the agent does and thinks: the commands it runs, the tools it uses and its thinking. Permission requests are always "
+              "shown."));
     m_showActions->setChecked(WhaleAiAgents::showActions());
     modesRow->addWidget(m_showActions, 0, 2);
 
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
+    // Busy (AI13f): a spinner over the middle of the transcript while the local model loads, the
+    // agent starts or works on an answer; it lets clicks through and goes while the user is asked.
+    m_busy = new KBusyIndicatorWidget(m_transcript);
+    m_busy->setObjectName(QStringLiteral("busy"));
+    m_busy->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_busy->setFixedSize(48, 48);
+    auto *opacity = new QGraphicsOpacityEffect(m_busy);
+    opacity->setOpacity(0.6);
+    m_busy->setGraphicsEffect(opacity);
+    m_busy->hide();
+    m_transcript->installEventFilter(this);
+    connect(m_transcript, &WhaleAiTranscript::openPermissionsChanged, this, &WhaleAiPanel::updateBusy);
 
     m_chips = new WhaleAiContextChips(chat);
     m_chips->setObjectName(QStringLiteral("contextChips"));
@@ -1071,6 +1095,8 @@ void WhaleAiPanel::greet()
 
 void WhaleAiPanel::updateState()
 {
+    updateModelButton();
+    updateBusy();
     // A message that waits for the start mode counts as sent, unless it waits for the user.
     const bool busy = m_session
         && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting
@@ -1093,6 +1119,7 @@ void WhaleAiPanel::updateState()
 void WhaleAiPanel::updateSessionInfo()
 {
     updateModes();
+    updateBusy();
     if (!m_session) {
         m_sessionInfo->setText(i18nc("@info", "Starts with your first message."));
         return;
@@ -1207,8 +1234,54 @@ bool WhaleAiPanel::urlChanged()
     return true;
 }
 
+void WhaleAiPanel::toggleLocalModel()
+{
+    if (m_lease) {
+        endSession(true);
+        m_transcript->addNotice(i18nc("@info", "The agent was stopped and its local model unloaded."));
+    } else if (!m_session && WhaleAiAgents::agent(agentId()).usesLocalModel() && WhaleAiAgents::disclaimerAccepted()) {
+        // Loads now; the first message then goes out at once.
+        startSession();
+    }
+    updateState();
+    updateSessionInfo();
+}
+
+void WhaleAiPanel::updateModelButton()
+{
+    const WhaleAiAgent agent = WhaleAiAgents::agent(m_lease ? m_sessionAgentId : agentId());
+    m_modelButton->setVisible(agent.usesLocalModel());
+    if (m_lease) {
+        m_modelButton->setIcon(QIcon::fromTheme(QStringLiteral("media-eject")));
+        m_modelButton->setToolTip(i18nc("@info:tooltip", "Stop the Agent and Unload the Local Model"));
+        m_modelButton->setEnabled(true);
+    } else {
+        m_modelButton->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-start")));
+        m_modelButton->setToolTip(i18nc("@info:tooltip %1 is the id of a language model", "Load the Local Model (%1) and Start the Agent", agent.localModel));
+        // A conversation of another agent runs: the next message ends it, not this button.
+        m_modelButton->setEnabled(!m_session);
+    }
+}
+
+void WhaleAiPanel::updateBusy()
+{
+    const bool loading = m_lease && m_lease->state() == WhaleAiLocalLease::State::Preparing;
+    const bool working = m_session
+        && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting
+            || (!m_pendingPrompt.isEmpty() && m_modeState != ModeState::Blocked));
+    const bool busy = (loading || working) && !m_transcript->hasOpenPermissionRequest();
+    if (busy) {
+        m_busy->move((m_transcript->width() - m_busy->width()) / 2, (m_transcript->height() - m_busy->height()) / 2);
+        m_busy->raise();
+    }
+    m_busy->setVisible(busy);
+}
+
 bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_transcript && event->type() == QEvent::Resize && m_busy->isVisible()) {
+        m_busy->move((m_transcript->width() - m_busy->width()) / 2, (m_transcript->height() - m_busy->height()) / 2);
+    }
     if (watched == m_input->viewport() && (event->type() == QEvent::DragEnter || event->type() == QEvent::DragMove || event->type() == QEvent::Drop)) {
         // Local files and folders become chips, not text in the input.
         auto *drop = static_cast<QDropEvent *>(event);

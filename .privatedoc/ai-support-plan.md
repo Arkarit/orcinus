@@ -1327,6 +1327,20 @@ Steps:
      Strata stopped afterwards, VRAM back to baseline.
   AI13 complete.
 
+**AI13f – Panel: model button, busy spinner, thinking filter (2026-11-18, user).**
+- A tool button next to the agent list, only for an agent with a local model: `media-playback-start`
+  loads the model and starts the agent ahead of the first message (disabled while a conversation
+  of another agent runs); `media-eject` (user's choice over an X) ends the conversation and unloads
+  at once ("The agent was stopped and its local model unloaded."). Unloaded while a Strata start
+  Orcinus began still loads, the server gets SIGTERM at once (no /unload: its port is not open yet).
+- `KBusyIndicatorWidget` (48 px, opacity 0.6, clicks pass through) centred over the transcript
+  while the lease prepares, the agent starts or works on an answer; hidden while a permission
+  request waits (`WhaleAiTranscript::hasOpenPermissionRequest()`, `openPermissionsChanged()`).
+- The "Actions" filter also hides the agent's thinking (tooltip says so).
+- Tests: panel `promptTurn` (no spinner during a request, no button without local model),
+  `localModel` (button start/eject, spinner while loading), Actions filter incl. thoughts;
+  `whaleailocalstratatest::cancelledWhileLoading`. ctest 120/120.
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 

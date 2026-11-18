@@ -284,6 +284,11 @@ void WhaleAiLocalRuntime::releaseLease(WhaleAiLocalLease *lease, bool now)
         return;
     }
     entry->leases.removeAll(nullptr);
+    if (entry->leases.isEmpty() && now && entry->preparing && entry->provider == Strata && entry->serverPid > 0) {
+        // AI13f: a start Orcinus began is broken off at once (the user unloaded it while it loaded).
+        freeStrata(entry->key, true);
+        return;
+    }
     if (entry->leases.isEmpty() && !entry->load) {
         // A model that is loading is freed when it is loaded (finishLoad()).
         entry->grace->start(now ? 0 : m_options.graceMs);
@@ -958,7 +963,9 @@ void WhaleAiLocalRuntime::freeStrata(const QString &key, bool force)
     const QString id = entry->id;
     const QString host = entry->host;
     const int port = entry->port;
-    editState([key, id, host, port, &freeing, &handedOver](QJsonObject &mine, QList<QJsonObject> &others) {
+    // A server that is still loading has no port to unload through yet: it only gets SIGTERM.
+    const bool loading = entry->preparing;
+    editState([key, id, host, port, loading, &freeing, &handedOver](QJsonObject &mine, QList<QJsonObject> &others) {
         QStringList uses = toStrings(mine.value(QLatin1String("uses")));
         uses.removeAll(key);
         mine.insert(QStringLiteral("uses"), QJsonArray::fromStringList(uses));
@@ -977,7 +984,7 @@ void WhaleAiLocalRuntime::freeStrata(const QString &key, bool force)
             return;
         }
         freeing.strataPid = strata.value(QLatin1String("pid")).toInteger();
-        freeing.strataUnload = freeing.strataPid > 0 || strata.value(QLatin1String("loadedByUs")).toBool();
+        freeing.strataUnload = !loading && (freeing.strataPid > 0 || strata.value(QLatin1String("loadedByUs")).toBool());
         freeing.strataHost = strata.value(QLatin1String("host")).toString(host);
         freeing.strataPort = strata.value(QLatin1String("port")).toInt(port);
     });

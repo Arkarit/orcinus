@@ -18,6 +18,7 @@
 
 #include <QPointer>
 
+class KBusyIndicatorWidget;
 class KMessageWidget;
 class QCheckBox;
 class QComboBox;
@@ -175,6 +176,11 @@ private:
     void noteModeChange();
     QString modeName(const QString &value) const;
     void updateState();
+    /** Shows the busy spinner while the model loads or the agent starts or works (AI13f). */
+    void updateBusy();
+    /** The start/unload button of an agent with a local model (AI13f). */
+    void updateModelButton();
+    void toggleLocalModel();
     void updateSessionInfo();
     void openLink(const QString &link);
     void updateModes();
@@ -190,6 +196,8 @@ private:
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_send = nullptr;
+    KBusyIndicatorWidget *m_busy = nullptr;
+    QToolButton *m_modelButton = nullptr; ///< start or unload the local model (AI13f)
 
     QPointer<WhaleAcpSession> m_session;
     QString m_sessionAgentId;

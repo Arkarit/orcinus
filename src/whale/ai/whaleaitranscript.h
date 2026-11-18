@@ -71,6 +71,8 @@ public:
     /** Shows or hides what the agent did: tool calls and actions (the "Actions" filter). */
     void setShowActions(bool show);
     bool showActions() const;
+    /** @return Whether a permission request waits for the user. */
+    bool hasOpenPermissionRequest() const;
     /** A message of the panel; @p details (plain text) can be unfolded. */
     void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString(), const QString &toolTip = QString());
     /** Ends the current answer and thought: what the agent sends next starts new entries. */
@@ -83,6 +85,8 @@ public:
 
 Q_SIGNALS:
     void permissionAnswered(const QString &key, const QString &optionId);
+    /** A permission request came, was answered or withdrawn (see hasOpenPermissionRequest()). */
+    void openPermissionsChanged();
     /** A link in an answer was clicked. */
     void linkActivated(const QString &link);
 

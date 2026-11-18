@@ -318,7 +318,8 @@ QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
 
 bool WhaleAiTranscript::isAction(Kind kind)
 {
-    return kind == Kind::ToolCall || kind == Kind::Action;
+    // The agent's thinking goes with what it did (user, 2026-11-18): off, only the conversation is left.
+    return kind == Kind::ToolCall || kind == Kind::Action || kind == Kind::Thought;
 }
 
 void WhaleAiTranscript::setShowActions(bool show)
@@ -337,6 +338,11 @@ void WhaleAiTranscript::setShowActions(bool show)
 bool WhaleAiTranscript::showActions() const
 {
     return m_showActions;
+}
+
+bool WhaleAiTranscript::hasOpenPermissionRequest() const
+{
+    return !m_permissions.isEmpty();
 }
 
 void WhaleAiTranscript::addUserMessage(const QString &text, const QString &context)
@@ -546,6 +552,7 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
             answer->show();
             m_permissions.remove(key);
             Q_EMIT permissionAnswered(key, option.id);
+            Q_EMIT openPermissionsChanged();
         });
     }
     layout->addWidget(buttons);
@@ -553,6 +560,7 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
 
     m_permissions.insert(request.key, frame);
     addEntry(Kind::Permission, frame);
+    Q_EMIT openPermissionsChanged();
     // A question must be seen.
     m_followBottom = true;
     scrollToBottomLater();
@@ -589,6 +597,7 @@ void WhaleAiTranscript::withdrawPermissionRequest(const QString &key)
     if (!frame) {
         return;
     }
+    Q_EMIT openPermissionsChanged();
     QWidget *buttons = frame->findChild<QWidget *>(QStringLiteral("buttons"));
     const bool hadFocus = buttons->isAncestorOf(QApplication::focusWidget());
     buttons->hide();
@@ -644,6 +653,7 @@ void WhaleAiTranscript::clear()
     endTurn();
     m_toolCalls.clear();
     m_permissions.clear();
+    Q_EMIT openPermissionsChanged();
     const QList<QWidget *> widgets = entries();
     for (QWidget *widget : widgets) {
         delete widget;

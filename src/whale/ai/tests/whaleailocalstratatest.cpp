@@ -56,6 +56,7 @@ private Q_SLOTS:
     void usesTheUsersStrata();
     void loadsTheUsersUnloadedStrata();
     void endsWhileLoading();
+    void cancelledWhileLoading();
     void oneModelAtATime();
     void handsOver();
     void cleansUpAfterCrash();
@@ -172,6 +173,26 @@ void WhaleAiLocalStrataTest::endsWhileLoading()
     delete lease;
     delete unknown;
     delete missing;
+}
+
+void WhaleAiLocalStrataTest::cancelledWhileLoading()
+{
+    // AI13f: unloaded while its start runs (the panel's eject button): the server Orcinus started
+    // goes at once, it does not load to the end first.
+    FakeStrata strata;
+    strata.setModel(QStringLiteral("small"), 6);
+    WhaleAiLocalRuntime runtime(strata.options(60000));
+    WhaleAiLocalLease *lease = runtime.acquire(QStringLiteral("strata"), QStringLiteral("small"), 0, this);
+    QTRY_VERIFY_WITH_TIMEOUT(!strata.servers().isEmpty(), 5000);
+    QSignalSpy freed(&runtime, &WhaleAiLocalRuntime::modelFreed);
+    QElapsedTimer timer;
+    timer.start();
+    lease->release(true);
+    QTRY_VERIFY_WITH_TIMEOUT(strata.servers().isEmpty(), 3000);
+    QVERIFY(timer.elapsed() < 3000);
+    QCOMPARE(freed.count(), 1);
+    QVERIFY(!QFile::exists(runtime.statePath()));
+    delete lease;
 }
 
 void WhaleAiLocalStrataTest::oneModelAtATime()

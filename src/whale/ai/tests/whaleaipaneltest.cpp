@@ -277,9 +277,16 @@ void WhaleAiPanelTest::promptTurn()
         10000));
     QVERIFY(send->property("busy").toBool());
     QVERIFY(texts(panel).contains(QLatin1String("The agent asks for permission: Write note.txt")));
+    // AI13f: no spinner while the user is asked; it comes back while the agent goes on.
+    auto *busy = panel.findChild<QWidget *>(QStringLiteral("busy"));
+    QVERIFY(busy);
+    QVERIFY(busy->isHidden());
     permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
     QVERIFY(waitForReady(panel));
     QVERIFY(!send->property("busy").toBool());
+    QVERIFY(busy->isHidden());
+    // No local model: no start/unload button.
+    QVERIFY(panel.findChild<QToolButton *>(QStringLiteral("localModelButton"))->isHidden());
 
     using Kind = WhaleAiTranscript::Kind;
     // Orcinus' greeting, notice of the folder, the message, the mode, the thought, the answer, the
@@ -1065,11 +1072,36 @@ void WhaleAiPanelTest::localModel()
     WhaleAiPanel panel;
     panel.setUrl(QUrl::fromLocalFile(m_work.path()));
     panel.setAgentId(QStringLiteral("local"));
+    // AI13f: the button loads the model ahead of the first message, and unloads it.
+    auto *modelButton = panel.findChild<QToolButton *>(QStringLiteral("localModelButton"));
+    auto *busy = panel.findChild<QWidget *>(QStringLiteral("busy"));
+    QVERIFY(!modelButton->isHidden());
+    QVERIFY(modelButton->isEnabled());
+    QCOMPARE(modelButton->icon().name(), QStringLiteral("media-playback-start"));
+    modelButton->click();
+    QVERIFY(panel.session());
+    QCOMPARE(modelButton->icon().name(), QStringLiteral("media-eject"));
+    QVERIFY(!busy->isHidden());
+    QTRY_VERIFY_WITH_TIMEOUT(panel.session()->state() == WhaleAcpSession::State::Ready, 10000);
+    QTRY_VERIFY(busy->isHidden());
+    QCOMPARE(lmStudio.loaded(QStringLiteral("qwen")), QStringList{QStringLiteral("qwen")});
+    modelButton->click();
+    QVERIFY(!panel.session());
+    QVERIFY(texts(panel).contains(QLatin1String("The agent was stopped and its local model unloaded.")));
+    // At once, not after the grace period.
+    QTRY_VERIFY_WITH_TIMEOUT(lmStudio.loaded(QStringLiteral("qwen")).isEmpty(), 3000);
+    QCOMPARE(modelButton->icon().name(), QStringLiteral("media-playback-start"));
+    const qint64 firstService = lmStudio.servicePid();
+    QTRY_VERIFY(!FakeLmStudio::isRunning(firstService));
+    // As in the real /proc: the ended service is gone from it.
+    QDir(lmStudio.procPath() + QStringLiteral("/") + QString::number(firstService)).removeRecursively();
+
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
     QVERIFY(texts(panel).contains(QLatin1String("Starting the local model qwen first.")));
-    // Busy while it loads: the agent itself is not started yet, Stop is offered.
+    // Busy while it loads: the agent itself is not started yet, Stop is offered, the spinner turns.
     QCOMPARE(panel.session()->state(), WhaleAcpSession::State::Idle);
     QVERIFY(panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    QVERIFY(!busy->isHidden());
     auto *info = panel.findChild<QLabel *>(QStringLiteral("sessionInfo"));
     QVERIFY(info);
     QTRY_VERIFY_WITH_TIMEOUT(info->text().startsWith(QStringLiteral("Loading Qwen 27B … ")), 10000);
@@ -1388,7 +1420,8 @@ void WhaleAiPanelTest::backChannel()
     QVERIFY(!WhaleAiAgents::showActions());
     for (QWidget *entry : panel.transcript()->entries()) {
         const WhaleAiTranscript::Kind kind = WhaleAiTranscript::kindOf(entry);
-        QCOMPARE(entry->isHidden(), kind == WhaleAiTranscript::Kind::Action || kind == WhaleAiTranscript::Kind::ToolCall);
+        QCOMPARE(entry->isHidden(),
+                 kind == WhaleAiTranscript::Kind::Action || kind == WhaleAiTranscript::Kind::ToolCall || kind == WhaleAiTranscript::Kind::Thought);
     }
     QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
     QVERIFY(waitForReady(panel));
