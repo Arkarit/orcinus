@@ -26,6 +26,7 @@ target_sources(whaleai PRIVATE
     whaleailocalmodels.cpp
     whaleailocalruntime.cpp
     whaleaimcpserver.cpp
+    whaleaimemory.cpp
     whaleaiuiactions.cpp
 )
 

@@ -39,6 +39,8 @@ const char SaveConversationsKey[] = "SaveConversations";
 const char KeepConversationsDaysKey[] = "KeepConversationsDays";
 const char ExportActionsKey[] = "ExportActions";
 const char ExportTimesKey[] = "ExportTimes";
+const char MemoryKey[] = "Memory";
+const char MemoryBudgetKey[] = "MemoryBudget";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -773,6 +775,40 @@ void setExportActions(bool on)
     KConfigGroup group = aiGroup();
     group.writeEntry(ExportActionsKey, on);
     group.sync();
+}
+
+MemoryMode memoryMode()
+{
+    KConfigGroup group = aiGroup();
+    if (!group.hasKey(MemoryKey)) {
+        // Decided once (AI16): new behavior stays off for those who already use AI agents.
+        const bool existing = !group.readEntry(AgentsKey, QStringList()).isEmpty();
+        setMemoryMode(existing ? MemoryMode::Off : MemoryMode::Manual);
+        return existing ? MemoryMode::Off : MemoryMode::Manual;
+    }
+    const QString mode = group.readEntry(MemoryKey, QString());
+    if (mode == QLatin1String("automatic")) {
+        return MemoryMode::Automatic;
+    }
+    if (mode == QLatin1String("manual")) {
+        return MemoryMode::Manual;
+    }
+    return MemoryMode::Off;
+}
+
+void setMemoryMode(MemoryMode mode)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(MemoryKey,
+                     mode == MemoryMode::Automatic    ? QStringLiteral("automatic")
+                         : mode == MemoryMode::Manual ? QStringLiteral("manual")
+                                                      : QStringLiteral("off"));
+    group.sync();
+}
+
+int memoryBudget()
+{
+    return std::max(0, aiGroup().readEntry(MemoryBudgetKey, 2000));
 }
 
 bool exportTimes()

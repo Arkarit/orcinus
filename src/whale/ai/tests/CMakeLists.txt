@@ -93,3 +93,7 @@ ecm_add_test(whaleaiconversationexporttest.cpp
     TEST_NAME whaleaiconversationexporttest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whaleaiconversationexporttest PRIVATE ${CMAKE_SOURCE_DIR}/src)
+
+ecm_add_test(whaleaimemorytest.cpp
+    TEST_NAME whaleaimemorytest
+    LINK_LIBRARIES whaleai Qt6::Test)

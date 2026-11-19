@@ -235,6 +235,18 @@ bool exportActions();
 void setExportActions(bool on);
 bool exportTimes();
 void setExportTimes(bool on);
+
+/** What the agents may keep across conversations (AI16). */
+enum class MemoryMode {
+    Off, ///< no notes sent, no memory tools, no conversation search
+    Automatic, ///< the agent's notes are kept at once (shown, can be forgotten)
+    Manual, ///< the agent proposes notes, the user keeps or discards them
+};
+/** @return The memory mode; when not set yet: Off if agents are set up already, else Manual (and stored). */
+MemoryMode memoryMode();
+void setMemoryMode(MemoryMode mode);
+/** @return How many characters of notes go to an agent (default 2000). */
+int memoryBudget();
 }
 
 #endif
