@@ -402,7 +402,9 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    // AI16: Orcinus' memory (notes in its own file; Manual mode asks in the panel).
                                    QStringLiteral("remember"),
                                    QStringLiteral("forget"),
-                                   QStringLiteral("list_memories")};
+                                   QStringLiteral("list_memories"),
+                                   QStringLiteral("search_conversations"),
+                                   QStringLiteral("read_conversation")};
     return names;
 }
 

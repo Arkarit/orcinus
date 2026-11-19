@@ -83,6 +83,7 @@ private Q_SLOTS:
     void resumeSavedConversation();
     void memoryNotesSent();
     void memoryTools();
+    void conversationSearch();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -706,6 +707,101 @@ void WhaleAiPanelTest::memoryTools()
                  qPrintable(tools.join(QLatin1Char(' '))));
     }
     QFile::remove(memory.path());
+}
+
+void WhaleAiPanelTest::conversationSearch()
+{
+    const WhaleAiConversationStore store;
+    for (const WhaleAiConversation &conversation : store.list()) {
+        store.remove(conversation.id);
+    }
+    auto saved = [&store](const QString &title, const QStringList &texts, int daysAgo) {
+        WhaleAiConversation conversation = WhaleAiConversation::create();
+        conversation.title = title;
+        conversation.agentName = QStringLiteral("OpenCode");
+        conversation.folder = QStringLiteral("/home/u/Bilder");
+        conversation.updated = QDateTime::currentDateTime().addDays(-daysAgo);
+        for (qsizetype i = 0; i < texts.size(); ++i) {
+            conversation.entries.append(QJsonObject{{QStringLiteral("kind"), i % 2 ? QStringLiteral("AgentMessage") : QStringLiteral("UserMessage")},
+                                                    {QStringLiteral("time"), conversation.updated.toString(Qt::ISODateWithMs)},
+                                                    {QStringLiteral("text"), texts.at(i)}});
+        }
+        conversation.entries.append(
+            QJsonObject{{QStringLiteral("kind"), QStringLiteral("ToolCall")}, {QStringLiteral("text"), QStringLiteral("secret tool output")}});
+        store.save(conversation);
+        return conversation.id;
+    };
+    const QString holiday =
+        saved(QStringLiteral("Holiday photos"), {QStringLiteral("Sort the holiday photos from Kreta"), QStringLiteral("Sorted 120 photos by date.")}, 3);
+    const QString invoices = saved(QStringLiteral("Invoices"), {QStringLiteral("Rename the invoices"), QStringLiteral("Renamed 12 PDFs.")}, 1);
+
+    WhaleAiPanel panel;
+    panel.setViewActions({});
+    auto call = [&panel](const QString &name, const QJsonObject &arguments, bool *error = nullptr) {
+        for (const WhaleAiWindowTool &tool : panel.viewActions().windowTools) {
+            if (tool.name == name) {
+                bool failed = false;
+                QString notice;
+                const QJsonObject result = tool.call(arguments, &failed, &notice);
+                if (error) {
+                    *error = failed;
+                }
+                return result;
+            }
+        }
+        return QJsonObject();
+    };
+    auto ids = [](const QJsonObject &result) {
+        QStringList list;
+        for (const QJsonValue &value : result.value(QLatin1String("conversations")).toArray()) {
+            list.append(value.toObject().value(QLatin1String("id")).toString());
+        }
+        return list;
+    };
+    bool error = false;
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Manual);
+
+    // Newest first without a query; all words must occur, in titles and texts, case aside.
+    QCOMPARE(ids(call(QStringLiteral("search_conversations"), {})), (QStringList{invoices, holiday}));
+    QJsonObject result = call(QStringLiteral("search_conversations"), {{QStringLiteral("query"), QStringLiteral("KRETA photos")}});
+    QCOMPARE(ids(result), QStringList{holiday});
+    const QJsonObject hit = result.value(QLatin1String("conversations")).toArray().first().toObject();
+    QCOMPARE(hit.value(QLatin1String("title")).toString(), QStringLiteral("Holiday photos"));
+    QCOMPARE(hit.value(QLatin1String("folder")).toString(), QStringLiteral("/home/u/Bilder"));
+    QVERIFY(hit.value(QLatin1String("matches")).toArray().contains(QStringLiteral("Sort the holiday photos from Kreta")));
+    QVERIFY(ids(call(QStringLiteral("search_conversations"), {{QStringLiteral("query"), QStringLiteral("kreta invoices")}})).isEmpty());
+    // Only messages and answers are searched.
+    QVERIFY(ids(call(QStringLiteral("search_conversations"), {{QStringLiteral("query"), QStringLiteral("secret")}})).isEmpty());
+    QCOMPARE(ids(call(QStringLiteral("search_conversations"), {{QStringLiteral("limit"), 1}})), QStringList{invoices});
+
+    // Read: messages and answers with times, nothing else.
+    result = call(QStringLiteral("read_conversation"), {{QStringLiteral("id"), holiday}}, &error);
+    QVERIFY(!error);
+    const QString text = result.value(QLatin1String("text")).toString();
+    QVERIFY2(text.startsWith(QLatin1String("User (")) && text.contains(QLatin1String("): Sort the holiday photos from Kreta\n\nAgent (")), qPrintable(text));
+    QVERIFY(text.endsWith(QLatin1String("Sorted 120 photos by date.")));
+    QVERIFY(!text.contains(QLatin1String("secret")));
+    QVERIFY(!result.value(QLatin1String("cut")).toBool());
+    call(QStringLiteral("read_conversation"), {{QStringLiteral("id"), QStringLiteral("../etc")}}, &error);
+    QVERIFY(error);
+    // Long ones keep their end.
+    const QString longOne = saved(QStringLiteral("Long"), {QString(30000, QLatin1Char('a')), QStringLiteral("the end")}, 0);
+    result = call(QStringLiteral("read_conversation"), {{QStringLiteral("id"), longOne}});
+    QVERIFY(result.value(QLatin1String("cut")).toBool());
+    QCOMPARE(result.value(QLatin1String("text")).toString().size(), 20000);
+    QVERIFY(result.value(QLatin1String("text")).toString().endsWith(QLatin1String("the end")));
+
+    // Not with memory off, nor when conversations are not saved.
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Off);
+    call(QStringLiteral("search_conversations"), {}, &error);
+    QVERIFY(error);
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Automatic);
+    WhaleAiAgents::setSaveConversations(false);
+    call(QStringLiteral("search_conversations"), {}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("read_conversation"), {{QStringLiteral("id"), holiday}}, &error);
+    QVERIFY(error);
+    WhaleAiAgents::setSaveConversations(true);
 }
 
 void WhaleAiPanelTest::promptTurn()

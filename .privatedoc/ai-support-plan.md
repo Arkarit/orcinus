@@ -1503,6 +1503,13 @@ conversations comes with it.
   saved conversations: id, title, date, agent, folder, matching lines) and
   `read_conversation(id)` (the messages and answers as text, cut to a budget). Only when Memory
   is not Off and saving conversations is on. Read-only.
+- **AI16d done 2026-11-19.** Window tools `search_conversations(query, limit)` (newest first, all
+  words in title, agent name, user messages and answers, case aside; id, title, date, agent,
+  folder, `current`, up to 3 matching lines of 200 characters; limit 10, at most 30) and
+  `read_conversation(id)` (user messages and answers with times, oldest first, nothing of tools;
+  over 20000 characters the start is cut, `cut` true). Both read only, refused while memory is
+  Off or conversations are not saved, left out of an Off session. Test panel
+  `conversationSearch`.
 - **AI16e – UI.** AI settings group "Memory": Off / Automatic / Manual, the notes in a list
   (scope: Global or the folder, text, date; folders that are gone marked), Add…, Edit…, Delete.
   Panel input: "/remember text" (folder of the active view) and "/remember global text" as the
