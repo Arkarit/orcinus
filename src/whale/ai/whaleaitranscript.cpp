@@ -851,11 +851,12 @@ int WhaleAiTranscript::entryCount() const
     return m_layout->count() - 1;
 }
 
-QJsonArray WhaleAiTranscript::record(int from) const
+QJsonArray WhaleAiTranscript::record(int from, int count) const
 {
     QJsonArray array;
     const QList<QWidget *> list = entries();
-    for (qsizetype i = std::max(0, from); i < list.size(); ++i) {
+    const qsizetype end = count < 0 ? list.size() : std::min<qsizetype>(list.size(), qsizetype(std::max(0, from)) + count);
+    for (qsizetype i = std::max(0, from); i < end; ++i) {
         array.append(list.at(i)->property(RecordProperty).toJsonObject());
     }
     return array;

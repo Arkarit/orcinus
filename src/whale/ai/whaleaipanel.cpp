@@ -9,6 +9,7 @@
 #include "whaleaiagents.h"
 #include "whaleaichangelog.h"
 #include "whaleaicontextchips.h"
+#include "whaleaiconversationsdialog.h"
 #include "whaleaidebug.h"
 #include "whaleaidisclaimer.h"
 #include "whaleailocalmodels.h"
@@ -34,6 +35,8 @@
 #include <QJsonArray>
 #include <QKeyEvent>
 #include <QLabel>
+#include <QLocale>
+#include <QMenu>
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -92,6 +95,19 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_newConversation->setToolTip(i18nc("@info:tooltip", "New Conversation"));
     m_newConversation->setAutoRaise(true);
 
+    // AI14b: the saved conversations, to read or continue one.
+    m_conversationsButton = new QToolButton(chat);
+    m_conversationsButton->setObjectName(QStringLiteral("conversations"));
+    m_conversationsButton->setIcon(QIcon::fromTheme(QStringLiteral("document-open-recent")));
+    m_conversationsButton->setToolTip(i18nc("@info:tooltip", "Saved Conversations"));
+    m_conversationsButton->setAutoRaise(true);
+    m_conversationsButton->setPopupMode(QToolButton::InstantPopup);
+    m_conversationsMenu = new QMenu(m_conversationsButton);
+    m_conversationsMenu->setObjectName(QStringLiteral("conversationsMenu"));
+    m_conversationsMenu->setToolTipsVisible(true);
+    m_conversationsButton->setMenu(m_conversationsMenu);
+    connect(m_conversationsMenu, &QMenu::aboutToShow, this, &WhaleAiPanel::fillConversationsMenu);
+
     m_undoChanges = new QToolButton(chat);
     m_undoChanges->setObjectName(QStringLiteral("undoChanges"));
     m_undoChanges->setIcon(QIcon::fromTheme(QStringLiteral("edit-undo")));
@@ -116,6 +132,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     top->addWidget(m_agents, 1);
     top->addWidget(m_modelButton);
     top->addWidget(m_newConversation);
+    top->addWidget(m_conversationsButton);
     top->addWidget(m_undoChanges);
     top->addWidget(configure);
 
@@ -1099,6 +1116,7 @@ void WhaleAiPanel::endSession(bool freeLocalModelNow)
 void WhaleAiPanel::beginConversation(const WhaleAiAgent &agent, const QString &folder)
 {
     m_saveTimer->stop();
+    m_opened.reset();
     WhaleAiConversation conversation = WhaleAiConversation::create();
     conversation.agentId = agent.id;
     conversation.agentName = agent.name;
@@ -1149,8 +1167,83 @@ QString WhaleAiPanel::conversationId() const
     return m_conversation ? m_conversation->id : QString();
 }
 
+QString WhaleAiPanel::openedConversationId() const
+{
+    return m_opened ? m_opened->id : QString();
+}
+
+void WhaleAiPanel::fillConversationsMenu()
+{
+    m_conversationsMenu->clear();
+    const QString shown = m_conversation ? m_conversation->id : openedConversationId();
+    const QList<WhaleAiConversation> conversations = WhaleAiConversationStore().list();
+    if (conversations.isEmpty()) {
+        m_conversationsMenu->addAction(i18nc("@item:inmenu", "No Saved Conversations"))->setEnabled(false);
+    }
+    for (const WhaleAiConversation &conversation : conversations.mid(0, 10)) {
+        // The date where a menu shows shortcuts.
+        QAction *action =
+            m_conversationsMenu->addAction(conversation.title + QLatin1Char('\t') + QLocale().toString(conversation.updated, QLocale::ShortFormat));
+        action->setObjectName(QStringLiteral("conversation-") + conversation.id);
+        action->setToolTip(i18nc("@info:tooltip %1 is the name of an AI agent, %2 a folder", "%1 in %2", conversation.agentName, conversation.folder));
+        action->setCheckable(conversation.id == shown);
+        action->setChecked(conversation.id == shown);
+        action->setEnabled(conversation.id != shown);
+        const QString id = conversation.id;
+        connect(action, &QAction::triggered, this, [this, id] {
+            openConversation(id);
+        });
+    }
+    m_conversationsMenu->addSeparator();
+    QAction *all = m_conversationsMenu->addAction(QIcon::fromTheme(QStringLiteral("view-list-details")), i18nc("@action:inmenu", "Show All…"));
+    all->setObjectName(QStringLiteral("showAllConversations"));
+    connect(all, &QAction::triggered, this, &WhaleAiPanel::showAllConversations);
+}
+
+void WhaleAiPanel::showAllConversations()
+{
+    WhaleAiConversationsDialog dialog(WhaleAiConversationStore(), m_conversation ? m_conversation->id : openedConversationId(), this);
+    if (dialog.exec() == QDialog::Accepted && !dialog.chosenId().isEmpty()) {
+        openConversation(dialog.chosenId());
+    }
+}
+
+bool WhaleAiPanel::openConversation(const QString &id)
+{
+    const bool busy = m_session && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting);
+    if (busy || !m_pendingPrompt.isEmpty()) {
+        return false;
+    }
+    const std::optional<WhaleAiConversation> conversation = WhaleAiConversationStore().load(id);
+    if (!conversation) {
+        m_transcript->addNotice(i18nc("@info", "The saved conversation could not be read."), WhaleAiTranscript::Kind::Error);
+        return false;
+    }
+    // The current one is saved and ends, as with a new conversation.
+    endSession();
+    WhaleAiChangeLog::of(window())->clear();
+    m_transcript->clear();
+    Q_EMIT conversationCleared();
+    m_transcript->restore(conversation->entries);
+    m_opened = conversation;
+    if (m_agents->findData(conversation->agentId) >= 0) {
+        setAgentId(conversation->agentId);
+    } else {
+        m_transcript->addNotice(
+            i18nc("@info %1 is the name of an AI agent", "The agent “%1” of this conversation is no longer set up.", conversation->agentName));
+    }
+    m_transcript->addNotice(i18nc("@info %1 is a date and time",
+                                  "Saved conversation of %1. The next message starts a new conversation.",
+                                  QLocale().toString(conversation->updated, QLocale::ShortFormat)));
+    m_input->setFocus();
+    updateState();
+    updateSessionInfo();
+    return true;
+}
+
 void WhaleAiPanel::newConversation()
 {
+    m_opened.reset();
     endSession();
     // What the agent changed stays; it can no longer be undone from here (user, 2026-11-16).
     WhaleAiChangeLog::of(window())->clear();
@@ -1198,6 +1291,8 @@ void WhaleAiPanel::updateState()
         m_send->setEnabled(!m_input->toPlainText().trimmed().isEmpty() && !agentId().isEmpty());
     }
     m_send->setProperty("busy", busy);
+    // Opening another one ends this conversation: not in the middle of an answer.
+    m_conversationsButton->setEnabled(!busy);
     // Not while the agent works: it may be changing the same things.
     const auto *log = window()->findChild<WhaleAiChangeLog *>(QString(), Qt::FindDirectChildrenOnly);
     m_undoChanges->setEnabled(!busy && log && log->count() > 0);

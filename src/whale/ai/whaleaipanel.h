@@ -24,6 +24,7 @@ class KMessageWidget;
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QMenu;
 class QPlainTextEdit;
 class QStackedWidget;
 class QTimer;
@@ -97,6 +98,13 @@ public:
     WhaleAiTranscript *transcript() const;
     /** @return The id of the conversation being saved (AI14); empty before the first message. */
     QString conversationId() const;
+    /**
+     * Shows the saved conversation @p id instead of the current one (AI14b), which ends (it is
+     * saved). Not while the agent works. @return False if it cannot be opened.
+     */
+    bool openConversation(const QString &id);
+    /** @return The id of the opened saved conversation while it shows (AI14b); empty otherwise. */
+    QString openedConversationId() const;
     /** The agent the agent proposed (AI11), waiting for the user's Add… or Discard; nothing otherwise. */
     std::optional<WhaleAiAgent> proposedAgent() const;
     /** Adds the proposed agent as @p agent (what the user confirmed in the dialog). For the tests and the bar. */
@@ -191,6 +199,9 @@ private:
     void beginConversation(const WhaleAiAgent &agent, const QString &folder);
     /** Saves the conversation now (if it has a message of the user and saving is on). */
     void saveConversation();
+    /** The menu of the saved conversations: the latest ones and "Show All…". */
+    void fillConversationsMenu();
+    void showAllConversations();
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
@@ -198,6 +209,8 @@ private:
     std::optional<WhaleAiAgent> m_proposal;
     QToolButton *m_newConversation = nullptr;
     QToolButton *m_undoChanges = nullptr; ///< "Undo the agent's changes" (AI9e)
+    QToolButton *m_conversationsButton = nullptr; ///< the saved conversations (AI14b)
+    QMenu *m_conversationsMenu = nullptr;
     QLabel *m_sessionInfo = nullptr;
     QComboBox *m_modes = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
@@ -235,6 +248,7 @@ private:
     std::optional<WhaleAiConversation> m_conversation; ///< what is saved of the conversation (AI14)
     int m_conversationStart = 0; ///< its first entry in the transcript
     QTimer *m_saveTimer = nullptr;
+    std::optional<WhaleAiConversation> m_opened; ///< the saved conversation shown, until the next one starts (AI14b)
 };
 
 #endif

@@ -12,6 +12,7 @@
 #include "views/dolphinview.h"
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
+#include "whaleaiconversationsdialog.h"
 #include "whaleaiconversationstore.h"
 #include "whaleaifakelmstudio.h"
 #include "whaleaifakestrata.h"
@@ -37,6 +38,7 @@
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -46,7 +48,9 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QTimer>
 #include <QToolButton>
+#include <QTreeWidget>
 #include <QVBoxLayout>
 
 #include <memory>
@@ -73,6 +77,7 @@ private Q_SLOTS:
     void otherAgentEndsConversation();
     void newConversation();
     void savedConversation();
+    void openSavedConversation();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -319,6 +324,103 @@ void WhaleAiPanelTest::savedConversation()
     QVERIFY(waitForReady(panel));
     QVERIFY(!store.load(panel.conversationId()));
     QCOMPARE(store.list().size(), before + 1);
+}
+
+void WhaleAiPanelTest::openSavedConversation()
+{
+    const WhaleAiConversationStore store;
+    for (const WhaleAiConversation &conversation : store.list()) {
+        store.remove(conversation.id);
+    }
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto *button = panel.findChild<QToolButton *>(QStringLiteral("conversations"));
+    QVERIFY(button);
+    auto *menu = panel.findChild<QMenu *>(QStringLiteral("conversationsMenu"));
+    QVERIFY(menu);
+    auto action = [menu](const QString &name) {
+        Q_EMIT menu->aboutToShow();
+        return menu->findChild<QAction *>(name);
+    };
+    Q_EMIT menu->aboutToShow();
+    QCOMPARE(menu->actions().first()->text(), QStringLiteral("No Saved Conversations"));
+    QVERIFY(!menu->actions().first()->isEnabled());
+
+    // One saved; not to be opened while the agent works.
+    QVERIFY(panel.sendPrompt(QStringLiteral("hello")));
+    QWidget *permission = waitForPermission(panel);
+    QVERIFY(permission);
+    QVERIFY(!button->isEnabled());
+    QVERIFY(!panel.openConversation(panel.conversationId()));
+    permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
+    QVERIFY(waitForReady(panel));
+    QVERIFY(button->isEnabled());
+    const QString id = panel.conversationId();
+    // The one shown cannot be opened again.
+    QAction *entry = action(QStringLiteral("conversation-") + id);
+    QVERIFY(entry);
+    QVERIFY(entry->text().startsWith(QLatin1String("hello\t")));
+    QVERIFY(!entry->isEnabled());
+    QVERIFY(entry->isChecked());
+
+    // Another agent was chosen meanwhile; opening it brings its agent back.
+    panel.newConversation();
+    panel.setAgentId(QStringLiteral("crash"));
+    entry = action(QStringLiteral("conversation-") + id);
+    QVERIFY(entry && entry->isEnabled());
+    entry->trigger();
+    QCOMPARE(panel.openedConversationId(), id);
+    QCOMPARE(panel.agentId(), QStringLiteral("basic"));
+    QVERIFY(!panel.session());
+    const QJsonArray saved = store.load(id)->entries;
+    QCOMPARE(panel.transcript()->record(0, saved.size()), saved);
+    QVERIFY(texts(panel).contains(QLatin1String("Saved conversation of")));
+    QVERIFY(!action(QStringLiteral("conversation-") + id)->isEnabled());
+
+    // The next message is a new conversation; the opened one stays as it was.
+    QVERIFY(panel.sendPrompt(QStringLiteral("next")));
+    permission = waitForPermission(panel);
+    QVERIFY(permission);
+    permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
+    QVERIFY(waitForReady(panel));
+    QVERIFY(panel.openedConversationId().isEmpty());
+    QVERIFY(panel.conversationId() != id);
+    QCOMPARE(store.load(id)->entries, saved);
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("next"));
+    QCOMPARE(store.list().size(), 2);
+
+    // Show All: search, delete; the open one cannot be deleted. (Shown before the check runs.)
+    bool checked = false;
+    QTimer::singleShot(0, menu->findChild<QAction *>(QStringLiteral("showAllConversations")), &QAction::trigger);
+    QTimer::singleShot(0, [&] {
+        auto *dialog = qobject_cast<WhaleAiConversationsDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        auto close = qScopeGuard([dialog] {
+            dialog->reject();
+        });
+        auto *list = dialog->findChild<QTreeWidget *>(QStringLiteral("conversations"));
+        auto *search = dialog->findChild<QLineEdit *>(QStringLiteral("search"));
+        auto *open = dialog->findChild<QPushButton *>(QStringLiteral("open"));
+        auto *remove = dialog->findChild<QPushButton *>(QStringLiteral("remove"));
+        QCOMPARE(list->topLevelItemCount(), 2);
+        // Newest first: the open one.
+        QVERIFY(list->currentItem()->text(0).startsWith(QLatin1String("next")));
+        QVERIFY(!open->isEnabled());
+        QVERIFY(!remove->isEnabled());
+        // What was written is searched, too: the fake agent's answer.
+        search->setText(QStringLiteral("no such words"));
+        QVERIFY(!list->currentItem());
+        QVERIFY(!open->isEnabled());
+        search->setText(QStringLiteral("HELLO"));
+        QCOMPARE(list->currentItem()->data(0, Qt::UserRole).toString(), id);
+        QVERIFY(open->isEnabled());
+        remove->click();
+        QCOMPARE(list->topLevelItemCount(), 1);
+        checked = true;
+    });
+    QTRY_VERIFY(checked);
+    QVERIFY(!store.load(id));
+    QCOMPARE(store.list().size(), 1);
 }
 
 void WhaleAiPanelTest::promptTurn()

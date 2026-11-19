@@ -1382,6 +1382,16 @@ Two things come back, and they come from different places:
   the last 10 (title, date, agent), then "Show All…": a dialog with search, open, delete, delete
   all. Opening one shows its record at once (read-only while the agent is not there yet); the
   agent list switches to its agent. A running conversation is kept as it is (it is saved anyway).
+- **AI14b done 2026-11-19.** Tool button `conversations` (`document-open-recent`, instant popup)
+  after "New Conversation", disabled while the agent works: the last 10 (title, the date in the
+  shortcut column, tooltip agent and folder; the one shown checked and disabled), "No Saved
+  Conversations", then "Show All…" (`WhaleAiConversationsDialog`: search over titles, agents and
+  the texts of the entries, all words; columns Conversation, Agent, Last Message; Open, Delete,
+  Delete All… with a confirmation; the open one marked "(open)", not deletable).
+  `WhaleAiPanel::openConversation()` ends the current session (saved), clears the change log and
+  the canvas, restores the entries, switches to its agent (notice if it is gone) and ends with
+  "Saved conversation of …. The next message starts a new conversation." (AI14c turns that into
+  a resume); `openedConversationId()`. Test `openSavedConversation`.
 - **AI14c – Resume.** `WhaleAcpSession` starts with `session/load` (same sessionId, working folder
   and MCP servers as `session/new`) instead of `session/new` when the agent can; replayed updates
   are dropped while loading; then the saved mode is set again. A local model's lease comes first.

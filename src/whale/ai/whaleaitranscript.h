@@ -92,8 +92,8 @@ public:
     /** @return The entry widgets, oldest first. */
     QList<QWidget *> entries() const;
     int entryCount() const;
-    /** @return What the entries from @p from on show, as JSON objects (kind, time, text, …). */
-    QJsonArray record(int from = 0) const;
+    /** @return What @p count entries (-1: all) from @p from on show, as JSON objects (kind, time, text, …). */
+    QJsonArray record(int from = 0, int count = -1) const;
     /** Appends the entries of @p record (from record()); unanswered requests come back answered "no longer needed". */
     void restore(const QJsonArray &record);
     static Kind kindOf(const QWidget *entry);
