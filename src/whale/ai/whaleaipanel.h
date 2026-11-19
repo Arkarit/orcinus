@@ -207,6 +207,7 @@ private:
     QString m_localProgress; ///< what the local model is doing while it starts
     QTimer *m_hiddenTimer = nullptr; ///< frees the local model when the panel stays hidden
     QCheckBox *m_showActions = nullptr;
+    QCheckBox *m_showTimestamps = nullptr;
     WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;
     WhaleAiContext m_pendingContext;

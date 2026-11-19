@@ -9,6 +9,7 @@
 #include <KLocalizedString>
 
 #include <QApplication>
+#include <QDateTime>
 #include <QEvent>
 #include <QFontDatabase>
 #include <QFrame>
@@ -17,8 +18,10 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QLocale>
 #include <QPainter>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QScrollBar>
 #include <QStyle>
 #include <QStyleOptionButton>
@@ -28,6 +31,16 @@
 namespace
 {
 const char KindProperty[] = "entryKind";
+const char TimeProperty[] = "entryTime";
+const char RowProperty[] = "transcriptRow";
+const char EntryProperty[] = "transcriptEntry";
+
+/** The locale's time with seconds, without the time zone. */
+QString timeFormat()
+{
+    static const QString format = QLocale().timeFormat(QLocale::LongFormat).remove(QRegularExpression(QStringLiteral("\\s*t+"))).trimmed();
+    return format;
+}
 
 /**
  * A push button that never widens its parent: a text that does not fit ends in "…", and the full
@@ -309,11 +322,49 @@ QWidget *WhaleAiTranscript::createFoldable(const QString &title, QLabel *body, b
 
 QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
 {
+    const QDateTime now = QDateTime::currentDateTime();
+    const QList<QWidget *> before = entries();
+    const QDateTime previous = before.isEmpty() ? QDateTime() : timeOf(before.constLast());
     entry->setProperty(KindProperty, QVariant::fromValue(int(kind)));
+    entry->setProperty(TimeProperty, now);
+
+    // Each entry in a row of its own, its time at the start (shown by the "Times" filter); the
+    // date too when the day changed since the entry before.
+    auto *row = new QWidget(m_content);
+    row->setObjectName(QStringLiteral("transcriptRow"));
+    auto *layout = new QHBoxLayout(row);
+    layout->setContentsMargins(0, 0, 0, 0);
+    auto *stamp = new QLabel(row);
+    stamp->setObjectName(QStringLiteral("timestamp"));
+    stamp->setForegroundRole(QPalette::PlaceholderText);
+    QFont small = stamp->font();
+    small.setPointSizeF(small.pointSizeF() * 0.85);
+    small.setFeature(QFont::Tag("tnum"), 1);
+    stamp->setFont(small);
+    const QString time = QLocale().toString(now.time(), timeFormat());
+    stamp->setText(previous.isValid() && previous.date() == now.date() ? time : QLocale().toString(now.date(), QLocale::ShortFormat) + QLatin1Char(' ') + time);
+    stamp->setToolTip(QLocale().toString(now, QLocale::LongFormat));
+    stamp->setMinimumWidth(QFontMetrics(small).horizontalAdvance(time));
+    stamp->setAlignment(Qt::AlignRight | Qt::AlignTop);
+    stamp->setContentsMargins(0, entry->contentsMargins().top(), 0, 0);
+    stamp->setVisible(m_showTimestamps);
+    layout->addWidget(stamp, 0, Qt::AlignTop);
+    layout->addWidget(entry, 1);
+    row->setProperty(EntryProperty, QVariant::fromValue(entry));
+    entry->setProperty(RowProperty, QVariant::fromValue(row));
+
     // Before the stretch at the end.
-    m_layout->insertWidget(m_layout->count() - 1, entry);
-    entry->setVisible(m_showActions || !isAction(kind));
+    m_layout->insertWidget(m_layout->count() - 1, row);
+    setEntryVisible(entry, m_showActions || !isAction(kind));
     return entry;
+}
+
+void WhaleAiTranscript::setEntryVisible(QWidget *entry, bool visible)
+{
+    entry->setVisible(visible);
+    if (auto *row = entry->property(RowProperty).value<QWidget *>()) {
+        row->setVisible(visible);
+    }
 }
 
 bool WhaleAiTranscript::isAction(Kind kind)
@@ -330,9 +381,30 @@ void WhaleAiTranscript::setShowActions(bool show)
     m_showActions = show;
     for (QWidget *entry : entries()) {
         if (isAction(kindOf(entry))) {
-            entry->setVisible(show);
+            setEntryVisible(entry, show);
         }
     }
+}
+
+void WhaleAiTranscript::setShowTimestamps(bool show)
+{
+    if (m_showTimestamps == show) {
+        return;
+    }
+    m_showTimestamps = show;
+    for (QWidget *label : m_content->findChildren<QLabel *>(QStringLiteral("timestamp"))) {
+        label->setVisible(show);
+    }
+}
+
+bool WhaleAiTranscript::showTimestamps() const
+{
+    return m_showTimestamps;
+}
+
+QDateTime WhaleAiTranscript::timeOf(const QWidget *entry)
+{
+    return entry->property(TimeProperty).toDateTime();
 }
 
 bool WhaleAiTranscript::showActions() const
@@ -654,10 +726,13 @@ void WhaleAiTranscript::clear()
     m_toolCalls.clear();
     m_permissions.clear();
     Q_EMIT openPermissionsChanged();
-    const QList<QWidget *> widgets = entries();
-    for (QWidget *widget : widgets) {
-        delete widget;
+    QList<QWidget *> rows;
+    for (int i = 0; i < m_layout->count(); ++i) {
+        if (QWidget *row = m_layout->itemAt(i)->widget()) {
+            rows.append(row);
+        }
     }
+    qDeleteAll(rows);
     m_followBottom = true;
 }
 
@@ -665,8 +740,8 @@ QList<QWidget *> WhaleAiTranscript::entries() const
 {
     QList<QWidget *> list;
     for (int i = 0; i < m_layout->count(); ++i) {
-        if (QWidget *widget = m_layout->itemAt(i)->widget()) {
-            list.append(widget);
+        if (QWidget *row = m_layout->itemAt(i)->widget()) {
+            list.append(row->property(EntryProperty).value<QWidget *>());
         }
     }
     return list;

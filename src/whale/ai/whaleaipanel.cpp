@@ -136,6 +136,12 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
               "shown."));
     m_showActions->setChecked(WhaleAiAgents::showActions());
     modesRow->addWidget(m_showActions, 0, 2);
+    // Times are always kept; this only shows them.
+    m_showTimestamps = new QCheckBox(i18nc("@option:check show when each entry of the AI transcript came", "Times"), chat);
+    m_showTimestamps->setObjectName(QStringLiteral("showTimestamps"));
+    m_showTimestamps->setToolTip(i18nc("@info:tooltip", "Show when each message, action and request came."));
+    m_showTimestamps->setChecked(WhaleAiAgents::showTimestamps());
+    modesRow->addWidget(m_showTimestamps, 0, 3);
 
     m_transcript = new WhaleAiTranscript(chat);
     m_transcript->setObjectName(QStringLiteral("transcript"));
@@ -262,6 +268,11 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     connect(m_showActions, &QCheckBox::toggled, this, [this](bool on) {
         m_transcript->setShowActions(on);
         WhaleAiAgents::setShowActions(on);
+    });
+    m_transcript->setShowTimestamps(m_showTimestamps->isChecked());
+    connect(m_showTimestamps, &QCheckBox::toggled, this, [this](bool on) {
+        m_transcript->setShowTimestamps(on);
+        WhaleAiAgents::setShowTimestamps(on);
     });
     fillAgents(WhaleAiAgents::defaultAgentId());
     greet();

@@ -220,6 +220,9 @@ void setDisclaimerAccepted(bool accepted);
 /** @return Whether the transcript shows what the agent did (the panel's "Actions" filter). */
 bool showActions();
 void setShowActions(bool show);
+/** @return Whether the transcript shows the time of each entry (the panel's "Times" filter). */
+bool showTimestamps();
+void setShowTimestamps(bool show);
 }
 
 #endif

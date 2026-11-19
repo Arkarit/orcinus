@@ -1432,6 +1432,43 @@ void WhaleAiPanelTest::backChannel()
         QVERIFY(!entry->isHidden());
     }
 
+    // Times: always kept, shown only when asked (off at first), and remembered.
+    auto *showTimestamps = panel.findChild<QCheckBox *>(QStringLiteral("showTimestamps"));
+    QVERIFY(showTimestamps && !showTimestamps->isChecked());
+    auto stamps = [&panel] {
+        QList<QLabel *> result;
+        for (QWidget *entry : panel.transcript()->entries()) {
+            [&] {
+                QVERIFY(WhaleAiTranscript::timeOf(entry).isValid());
+                auto *stamp = entry->parentWidget()->findChild<QLabel *>(QStringLiteral("timestamp"), Qt::FindDirectChildrenOnly);
+                QVERIFY(stamp && !stamp->text().isEmpty());
+                result.append(stamp);
+            }();
+        }
+        return result;
+    };
+    QVERIFY(!stamps().isEmpty());
+    for (QLabel *stamp : stamps()) {
+        QVERIFY(stamp->isHidden());
+    }
+    showTimestamps->setChecked(true);
+    QVERIFY(WhaleAiAgents::showTimestamps());
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:trigger_action:details")));
+    QVERIFY(waitForReady(panel));
+    for (QLabel *stamp : stamps()) {
+        QVERIFY(!stamp->isHidden());
+    }
+    // A hidden action takes its time along.
+    showActions->setChecked(false);
+    QVERIFY(!actionEntries().constLast()->isVisibleTo(panel.transcript()));
+    QVERIFY(actionEntries().constLast()->parentWidget()->isHidden());
+    showActions->setChecked(true);
+    showTimestamps->setChecked(false);
+    QVERIFY(!WhaleAiAgents::showTimestamps());
+    for (QLabel *stamp : stamps()) {
+        QVERIFY(stamp->isHidden());
+    }
+
     // Requests for our own tools are answered at once, as each agent asks; others are not.
     for (const char *agent : {"claude", "codex", "opencode"}) {
         QVERIFY(panel.sendPrompt(QStringLiteral("askorcinus-%1").arg(QString::fromLatin1(agent))));

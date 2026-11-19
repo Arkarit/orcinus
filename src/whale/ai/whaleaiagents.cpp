@@ -32,6 +32,7 @@ const char LocalModelKey[] = "LocalModel";
 const char LocalContextLengthKey[] = "LocalContextLength";
 const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
 const char ShowActionsKey[] = "ShowActions";
+const char ShowTimestampsKey[] = "ShowTimestamps";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -717,6 +718,18 @@ void setShowActions(bool show)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(ShowActionsKey, show);
+    group.sync();
+}
+
+bool showTimestamps()
+{
+    return aiGroup().readEntry(ShowTimestampsKey, false);
+}
+
+void setShowTimestamps(bool show)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(ShowTimestampsKey, show);
     group.sync();
 }
 

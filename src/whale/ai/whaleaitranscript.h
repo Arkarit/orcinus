@@ -9,6 +9,7 @@
 
 #include "whaleacptypes.h"
 
+#include <QDateTime>
 #include <QHash>
 #include <QPointer>
 #include <QScrollArea>
@@ -27,7 +28,8 @@ class QVBoxLayout;
  *
  * The view follows new entries while it is scrolled to the bottom; scrolled up, it stays.
  *
- * Each entry widget has the property "entryKind" (see Kind) for tests and styles.
+ * Each entry widget has the property "entryKind" (see Kind) for tests and styles. It sits in a row
+ * of its own whose start shows the time it was added ("timestamp" label) if timestamps are shown.
  */
 class WhaleAiTranscript : public QScrollArea
 {
@@ -71,6 +73,9 @@ public:
     /** Shows or hides what the agent did: tool calls and actions (the "Actions" filter). */
     void setShowActions(bool show);
     bool showActions() const;
+    /** Shows or hides the time at the start of each entry (the "Times" filter); off at first. */
+    void setShowTimestamps(bool show);
+    bool showTimestamps() const;
     /** @return Whether a permission request waits for the user. */
     bool hasOpenPermissionRequest() const;
     /** A message of the panel; @p details (plain text) can be unfolded. */
@@ -82,6 +87,8 @@ public:
     /** @return The entry widgets, oldest first. */
     QList<QWidget *> entries() const;
     static Kind kindOf(const QWidget *entry);
+    /** @return When @p entry was added (always kept, shown or not). */
+    static QDateTime timeOf(const QWidget *entry);
 
 Q_SIGNALS:
     void permissionAnswered(const QString &key, const QString &optionId);
@@ -96,6 +103,7 @@ protected:
 private:
     QWidget *addEntry(Kind kind, QWidget *entry);
     static bool isAction(Kind kind);
+    void setEntryVisible(QWidget *entry, bool visible);
     QLabel *createTextLabel(Qt::TextFormat format);
     QWidget *createFoldable(const QString &title, QLabel *body, bool unfolded);
     void scrollToBottomLater();
@@ -117,6 +125,7 @@ private:
     bool m_followBottom = true;
     QPointer<QWidget> m_focusReturn;
     bool m_showActions = true;
+    bool m_showTimestamps = false;
 };
 
 #endif
