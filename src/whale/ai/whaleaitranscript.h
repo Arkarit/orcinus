@@ -51,6 +51,8 @@ public:
         /** What the agent did in the window ("The agent opened …"). */
         Action,
         Error,
+        /** A note of the memory the agent kept or proposes, with its buttons (AI16c). */
+        Memory,
     };
     Q_ENUM(Kind)
 
@@ -85,6 +87,13 @@ public:
     bool hasOpenPermissionRequest() const;
     /** A message of the panel; @p details (plain text) can be unfolded. */
     void addNotice(const QString &text, Kind kind = Kind::Notice, const QString &details = QString(), const QString &toolTip = QString());
+    /**
+     * A note of the memory (AI16c): @p text, and a button per entry of @p buttons (id, label);
+     * a click emits memoryButtonClicked(@p key, id). settleMemoryNote() ends it.
+     */
+    void addMemoryNote(const QString &key, const QString &text, const QList<QPair<QString, QString>> &buttons);
+    /** The note @p key is decided: its buttons go, @p status (e.g. "Kept.") shows. */
+    void settleMemoryNote(const QString &key, const QString &status);
     /** Ends the current answer and thought: what the agent sends next starts new entries. */
     void endTurn();
     void clear();
@@ -108,6 +117,8 @@ Q_SIGNALS:
     void linkActivated(const QString &link);
     /** record() changed: an entry came or changed, or all went. */
     void changed();
+    /** A button of a memory note was clicked (addMemoryNote()). */
+    void memoryButtonClicked(const QString &key, const QString &buttonId);
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -136,6 +147,7 @@ private:
     };
     QHash<QString, ToolCallEntry> m_toolCalls;
     QHash<QString, QWidget *> m_permissions;
+    QHash<QString, QWidget *> m_memoryNotes; ///< open ones, by key
     bool m_followBottom = true;
     QPointer<QWidget> m_focusReturn;
     bool m_showActions = true;

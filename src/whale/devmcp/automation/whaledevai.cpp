@@ -81,6 +81,8 @@ QString kindName(WhaleAiTranscript::Kind kind)
         return QStringLiteral("action");
     case WhaleAiTranscript::Kind::Error:
         return QStringLiteral("error");
+    case WhaleAiTranscript::Kind::Memory:
+        return QStringLiteral("memory");
     }
     return QString();
 }

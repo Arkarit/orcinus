@@ -223,8 +223,10 @@ QString toMarkdown(const WhaleAiConversation &conversation, const Options &optio
             }
             parts.append(part);
         } else {
-            // Notices and the agent's actions in the window.
-            parts.append(QLatin1Char('*') + plainMarkdown(text) + QLatin1Char('*') + stamp);
+            // Notices, the agent's actions in the window, memory notes (with what became of them).
+            const QString status = entry.value(QLatin1String("status")).toString();
+            parts.append(QLatin1Char('*') + plainMarkdown(text) + QLatin1Char('*') + stamp
+                         + (status.isEmpty() ? QString() : QStringLiteral(" — ") + plainMarkdown(status)));
         }
     }
     return parts.join(QStringLiteral("\n\n")) + QLatin1Char('\n');
@@ -296,8 +298,9 @@ QString toHtml(const WhaleAiConversation &conversation, const Options &options)
                 body += QStringLiteral("<pre>") + details.toHtmlEscaped() + QStringLiteral("</pre>");
             }
         } else {
+            const QString status = entry.value(QLatin1String("status")).toString();
             body += QStringLiteral("<p style=\"color:%1; font-size:small\"><i>").arg(QLatin1String(Minor)) + html(text) + QStringLiteral("</i>") + stamp
-                + QStringLiteral("</p>");
+                + (status.isEmpty() ? QString() : QStringLiteral(" — ") + status.toHtmlEscaped()) + QStringLiteral("</p>");
         }
     }
     return QStringLiteral("<html><head><meta charset=\"utf-8\"><title>") + conversation.title.toHtmlEscaped() + QStringLiteral("</title></head><body>") + body

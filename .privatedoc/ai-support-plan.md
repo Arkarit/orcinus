@@ -1487,6 +1487,18 @@ conversations comes with it.
   once, the transcript shows "The agent remembered for “Rechnungen”: …" with a Forget link.
   Manual: the agent may only propose; the transcript shows the note with Keep / Discard, nothing
   is stored before Keep. A note must be short (at most 500 characters) and is shown as it is.
+- **AI16c done 2026-11-19.** Panel `memoryTools()` (window tools, allow-listed in
+  `windowToolNames()`, so answered without a click): `remember(text, scope, folder)` (folder
+  default: the active view's, else the working folder), `forget(id)`, `list_memories(folder?)`.
+  `sessionActions()` leaves them (and the AI16d tools) out of a session started while memory is
+  Off; called while Off they fail. Automatic: kept at once, transcript entry of the new kind
+  `Memory` "The agent remembered for “X”: …" with Forget; forget at once with Undo (kept again,
+  new id). Manual: "The agent proposes to remember/forget …" with Keep/Discard resp.
+  Forget/Keep; nothing changes before the click. `WhaleAiTranscript::addMemoryNote()` /
+  `settleMemoryNote()` / `memoryButtonClicked()`; the record keeps text and status, restored
+  without buttons; not hidden by the Actions filter; the export shows the status. Test panel
+  `memoryTools` (Off, Automatic, Undo, errors, Manual keep/discard/forget, list filter, restore,
+  tool list of an Off session through the fake agent).
 - **AI16d – Earlier conversations.** `search_conversations(query, limit)` (titles and texts of the
   saved conversations: id, title, date, agent, folder, matching lines) and
   `read_conversation(id)` (the messages and answers as text, cut to a budget). Only when Memory

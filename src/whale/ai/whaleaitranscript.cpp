@@ -811,6 +811,66 @@ void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString 
     updateRecord(box, fields);
 }
 
+void WhaleAiTranscript::addMemoryNote(const QString &key, const QString &text, const QList<QPair<QString, QString>> &buttons)
+{
+    endTurn();
+    auto *box = new QWidget(m_content);
+    box->setObjectName(QStringLiteral("memory-") + key);
+    auto *layout = new QVBoxLayout(box);
+    layout->setContentsMargins(0, 0, 0, 0);
+    QLabel *label = createTextLabel(Qt::PlainText);
+    label->setParent(box);
+    label->setText(text);
+    QFont italic = label->font();
+    italic.setItalic(true);
+    label->setFont(italic);
+    layout->addWidget(label);
+    auto *row = new QWidget(box);
+    row->setObjectName(QStringLiteral("buttons"));
+    auto *rowLayout = new QHBoxLayout(row);
+    rowLayout->setContentsMargins(0, 0, 0, 0);
+    for (const auto &[id, name] : buttons) {
+        auto *button = new QPushButton(name, row);
+        button->setObjectName(QStringLiteral("memory-") + id);
+        button->setFlat(true);
+        connect(button, &QPushButton::clicked, this, [this, key, id] {
+            Q_EMIT memoryButtonClicked(key, id);
+        });
+        rowLayout->addWidget(button);
+    }
+    rowLayout->addStretch();
+    layout->addWidget(row);
+    row->setVisible(!buttons.isEmpty());
+    QLabel *status = createTextLabel(Qt::PlainText);
+    status->setParent(box);
+    status->setObjectName(QStringLiteral("status"));
+    status->setForegroundRole(QPalette::PlaceholderText);
+    status->hide();
+    layout->addWidget(status);
+    if (!buttons.isEmpty()) {
+        m_memoryNotes.insert(key, box);
+    }
+    addEntry(Kind::Memory, box);
+    updateRecord(box, {{QStringLiteral("text"), text}});
+}
+
+void WhaleAiTranscript::settleMemoryNote(const QString &key, const QString &status)
+{
+    QWidget *box = m_memoryNotes.take(key);
+    if (!box) {
+        return;
+    }
+    const bool hadFocus = box->isAncestorOf(QApplication::focusWidget());
+    box->findChild<QWidget *>(QStringLiteral("buttons"))->hide();
+    if (hadFocus && m_focusReturn) {
+        m_focusReturn->setFocus(Qt::OtherFocusReason);
+    }
+    auto *label = box->findChild<QLabel *>(QStringLiteral("status"));
+    label->setText(status);
+    label->show();
+    updateRecord(box, {{QStringLiteral("status"), status}});
+}
+
 void WhaleAiTranscript::endTurn()
 {
     m_currentAnswer = nullptr;
@@ -822,6 +882,7 @@ void WhaleAiTranscript::clear()
     endTurn();
     m_toolCalls.clear();
     m_permissions.clear();
+    m_memoryNotes.clear();
     Q_EMIT openPermissionsChanged();
     QList<QWidget *> rows;
     for (int i = 0; i < m_layout->count(); ++i) {
@@ -922,6 +983,20 @@ void WhaleAiTranscript::restore(const QJsonArray &record)
             }
             label->show();
             Q_EMIT openPermissionsChanged();
+            break;
+        }
+        case Kind::Memory: {
+            // Decided or not, its buttons do nothing any more.
+            const QString key = QStringLiteral("restored-%1").arg(index);
+            addMemoryNote(key, text, {});
+            const QString status = entry.value(QLatin1String("status")).toString();
+            if (!status.isEmpty()) {
+                QWidget *box = entries().constLast();
+                auto *label = box->findChild<QLabel *>(QStringLiteral("status"));
+                label->setText(status);
+                label->show();
+                updateRecord(box, {{QStringLiteral("status"), status}});
+            }
             break;
         }
         case Kind::Notice:

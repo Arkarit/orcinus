@@ -166,6 +166,12 @@ private:
     void fillAgents(const QString &preferredId);
     /** list_agents and propose_agent (AI11): the agent may read the agents and propose one; list_local_models (AI12). */
     QList<WhaleAiWindowTool> agentTools();
+    /** AI16c: remember, forget, list_memories. */
+    QList<WhaleAiWindowTool> memoryTools();
+    /** What the back channel of a new session may do: without the memory tools while memory is off. */
+    WhaleAiViewActions sessionActions();
+    /** A button of a memory note in the transcript (Forget, Keep, Discard, Undo). */
+    void memoryButtonClicked(const QString &key, const QString &buttonId);
     void showProposal(const WhaleAiAgent &agent);
     /** Add… of the proposal bar: the agent dialog, filled in, for the user to edit and confirm. */
     void reviewProposal();
@@ -260,6 +266,18 @@ private:
     QString m_resumeMode; ///< the mode the resumed conversation had
     QSet<QString> m_sentNotes; ///< the notes (id and time) the agent of this session got (AI16b)
     QList<WhaleAiNote> m_pendingNotes; ///< the notes that go with the pending prompt
+    /** What a memory note in the transcript stands for, until its button is clicked (AI16c). */
+    struct MemoryAction {
+        enum Type {
+            Kept, ///< kept at once (Automatic): Forget
+            Proposed, ///< to keep (Manual): Keep, Discard
+            Forgotten, ///< forgotten at once (Automatic): Undo
+            ToForget, ///< to forget (Manual): Forget, Keep
+        } type;
+        WhaleAiNote note;
+    };
+    QHash<QString, MemoryAction> m_memoryActions;
+    int m_memoryKeys = 0;
 };
 
 #endif

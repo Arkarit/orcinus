@@ -43,6 +43,7 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStackedWidget>
@@ -81,6 +82,7 @@ private Q_SLOTS:
     void openSavedConversation();
     void resumeSavedConversation();
     void memoryNotesSent();
+    void memoryTools();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -562,6 +564,147 @@ void WhaleAiPanelTest::memoryNotesSent()
     panel.newConversation();
     turn(QStringLiteral("nopermission five"));
     QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 0);
+    QFile::remove(memory.path());
+}
+
+void WhaleAiPanelTest::memoryTools()
+{
+    const WhaleAiMemory memory;
+    QFile::remove(memory.path());
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    panel.setViewActions({});
+    auto call = [&panel](const QString &name, const QJsonObject &arguments, bool *error = nullptr) {
+        for (const WhaleAiWindowTool &tool : panel.viewActions().windowTools) {
+            if (tool.name == name) {
+                bool failed = false;
+                QString notice;
+                const QJsonObject result = tool.call(arguments, &failed, &notice);
+                if (error) {
+                    *error = failed;
+                }
+                return result;
+            }
+        }
+        return QJsonObject{{QStringLiteral("missing"), name}};
+    };
+    auto click = [&panel](const QString &button) {
+        // The newest note's button.
+        QWidget *entry = panel.transcript()->entries().constLast();
+        QCOMPARE(WhaleAiTranscript::kindOf(entry), WhaleAiTranscript::Kind::Memory);
+        auto *pushButton = entry->findChild<QPushButton *>(QStringLiteral("memory-") + button);
+        QVERIFY2(pushButton && pushButton->isVisibleTo(entry), qPrintable(button));
+        pushButton->click();
+    };
+    auto status = [&panel] {
+        return panel.transcript()->entries().constLast()->findChild<QLabel *>(QStringLiteral("status"))->text();
+    };
+    bool error = false;
+
+    // Off: refused.
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Off);
+    call(QStringLiteral("remember"), {{QStringLiteral("text"), QStringLiteral("x")}}, &error);
+    QVERIFY(error);
+
+    // Automatic: kept at once, in the active view's folder by default; Forget takes it back.
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Automatic);
+    QJsonObject result = call(QStringLiteral("remember"), {{QStringLiteral("text"), QStringLiteral("Dates first in names.")}}, &error);
+    QVERIFY2(!error && result.value(QLatin1String("kept")).toBool(), qPrintable(QJsonDocument(result).toJson()));
+    QCOMPARE(memory.notes().size(), 1);
+    QCOMPARE(memory.notes().first().folder, QDir::cleanPath(m_work.path()));
+    QVERIFY(memory.notes().first().byAgent);
+    QVERIFY(texts(panel).contains(QStringLiteral("The agent remembered for “%1”: Dates first in names.").arg(QDir(m_work.path()).dirName())));
+    click(QStringLiteral("forget"));
+    QVERIFY(memory.notes().isEmpty());
+    QCOMPARE(status(), QStringLiteral("Forgotten."));
+
+    result = call(QStringLiteral("remember"),
+                  {{QStringLiteral("text"), QStringLiteral("I like order.")}, {QStringLiteral("scope"), QStringLiteral("global")}},
+                  &error);
+    QVERIFY(!error);
+    QVERIFY(memory.notes().first().isGlobal());
+    QVERIFY(texts(panel).contains(QLatin1String("The agent remembered: I like order.")));
+    // Forgotten by the agent; Undo brings it back.
+    call(QStringLiteral("forget"), {{QStringLiteral("id"), result.value(QLatin1String("id"))}}, &error);
+    QVERIFY(!error);
+    QVERIFY(memory.notes().isEmpty());
+    click(QStringLiteral("undo"));
+    QCOMPARE(memory.notes().size(), 1);
+    QCOMPARE(memory.notes().first().text, QStringLiteral("I like order."));
+    QCOMPARE(status(), QStringLiteral("Kept again."));
+    call(QStringLiteral("forget"), {{QStringLiteral("id"), QStringLiteral("nope")}}, &error);
+    QVERIFY(error);
+    call(QStringLiteral("remember"), {{QStringLiteral("text"), QString(501, QLatin1Char('x'))}}, &error);
+    QVERIFY(error);
+
+    // Manual: only proposed; Keep keeps, Discard does not.
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Manual);
+    result = call(QStringLiteral("remember"),
+                  {{QStringLiteral("text"), QStringLiteral("Invoices by year.")}, {QStringLiteral("folder"), QStringLiteral("/home/u/Rechnungen")}});
+    QVERIFY(result.value(QLatin1String("proposed")).toBool());
+    QCOMPARE(memory.notes().size(), 1);
+    QVERIFY(texts(panel).contains(QStringLiteral("The agent proposes to remember for “Rechnungen”: Invoices by year.")));
+    click(QStringLiteral("keep"));
+    QCOMPARE(memory.notes().size(), 2);
+    QCOMPARE(memory.notes().constLast().folder, QStringLiteral("/home/u/Rechnungen"));
+    QCOMPARE(status(), QStringLiteral("Kept."));
+    call(QStringLiteral("remember"), {{QStringLiteral("text"), QStringLiteral("Delete everything.")}, {QStringLiteral("scope"), QStringLiteral("global")}});
+    click(QStringLiteral("discard"));
+    QCOMPARE(memory.notes().size(), 2);
+    QCOMPARE(status(), QStringLiteral("Discarded."));
+    // Forgetting asks, too.
+    const QString id = memory.notes().first().id;
+    call(QStringLiteral("forget"), {{QStringLiteral("id"), id}});
+    QCOMPARE(memory.notes().size(), 2);
+    click(QStringLiteral("keep"));
+    QCOMPARE(memory.notes().size(), 2);
+    call(QStringLiteral("forget"), {{QStringLiteral("id"), id}});
+    click(QStringLiteral("forget"));
+    QCOMPARE(memory.notes().size(), 1);
+
+    // list_memories, all or for a folder.
+    result = call(QStringLiteral("list_memories"), {});
+    QCOMPARE(result.value(QLatin1String("notes")).toArray().size(), 1);
+    QCOMPARE(call(QStringLiteral("list_memories"), {{QStringLiteral("folder"), QStringLiteral("/home/u/Rechnungen/2026")}})
+                 .value(QLatin1String("notes"))
+                 .toArray()
+                 .size(),
+             1);
+    QCOMPARE(call(QStringLiteral("list_memories"), {{QStringLiteral("folder"), QStringLiteral("/tmp")}}).value(QLatin1String("notes")).toArray().size(), 0);
+
+    // Saved with the conversation; restored without buttons, with what became of it.
+    WhaleAiTranscript restored;
+    restored.restore(panel.transcript()->record());
+    QCOMPARE(restored.record(), panel.transcript()->record());
+    for (QWidget *entry : restored.entries()) {
+        if (WhaleAiTranscript::kindOf(entry) == WhaleAiTranscript::Kind::Memory) {
+            QVERIFY(entry->findChildren<QPushButton *>().isEmpty());
+        }
+    }
+
+    // The agent of a session while memory is off does not see the tools.
+    if (!WhaleAiMcpServer::relay().isEmpty()) {
+        auto offered = [&panel] {
+            QVERIFY(panel.sendPrompt(QStringLiteral("nopermission mcp:list_memories")));
+            QVERIFY(waitForReady(panel));
+        };
+        auto toolsOf = [&panel] {
+            static const QRegularExpression tools(QStringLiteral("tools=([^;]*);mcp=(.*)"));
+            const QRegularExpressionMatch match = tools.match(texts(panel));
+            return match.hasMatch() ? match.captured(1).split(QLatin1Char(',')) + QStringList{match.captured(2)} : QStringList();
+        };
+        panel.newConversation();
+        WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Off);
+        offered();
+        QStringList tools = toolsOf();
+        QVERIFY2(tools.contains(QStringLiteral("get_location")) && !tools.contains(QStringLiteral("remember")), qPrintable(tools.join(QLatin1Char(' '))));
+        panel.newConversation();
+        WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Automatic);
+        offered();
+        tools = toolsOf();
+        QVERIFY2(tools.contains(QStringLiteral("remember")) && tools.constLast().contains(QLatin1String("Invoices by year.")),
+                 qPrintable(tools.join(QLatin1Char(' '))));
+    }
     QFile::remove(memory.path());
 }
 
@@ -1154,7 +1297,7 @@ void WhaleAiPanelTest::contextChips()
     QVERIFY(waitForReady(*panel));
     const QString all = texts(*panel);
     QVERIFY2(all.contains(QStringLiteral("With: folder “a”, 2 selected items")), qPrintable(all));
-    QVERIFY(!all.contains(QLatin1String("other view “b”")));
+    QVERIFY(!all.contains(QStringLiteral("other view “b”")));
     // The first message carries the system prompt, then the live context.
     QVERIFY(all.contains(QStringLiteral("text=nopermission;links=3;context=")));
     QVERIFY2(all.contains(QLatin1String("Context from the file manager Orcinus")), qPrintable(all));

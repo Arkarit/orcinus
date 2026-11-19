@@ -398,7 +398,11 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    QStringLiteral("list_agents"),
                                    QStringLiteral("propose_agent"),
                                    // AI12: what there is for a local AI.
-                                   QStringLiteral("list_local_models")};
+                                   QStringLiteral("list_local_models"),
+                                   // AI16: Orcinus' memory (notes in its own file; Manual mode asks in the panel).
+                                   QStringLiteral("remember"),
+                                   QStringLiteral("forget"),
+                                   QStringLiteral("list_memories")};
     return names;
 }
 
