@@ -806,6 +806,32 @@ void setMemoryMode(MemoryMode mode)
     group.sync();
 }
 
+QString memoryGuidance(MemoryMode mode)
+{
+    // AI16 (user, 2026-11-19): asked to remember something, Codex wrote an AGENTS.md into the
+    // user's folder instead of using remember. Agents learn their own ways; this says Orcinus' way.
+    if (mode == MemoryMode::Off) {
+        return QStringLiteral(
+            "Orcinus' memory is turned off. If the user asks you to remember something for later conversations, tell them they can "
+            "turn it on in Orcinus (Settings > AI Support > Memory); do not write memory or context files (AGENTS.md, CLAUDE.md, "
+            "notes) into their folders for it.");
+    }
+    QString text = QStringLiteral(
+        "Orcinus has a memory for you, shared by all agents the user talks to. When the user asks you to remember something, or "
+        "tells you something lasting about their wishes or how their files are organized, keep it with Orcinus' remember tool: a "
+        "folder note for the folder it is about (the default), a global note only for what holds everywhere. Use remember for "
+        "this, not files such as AGENTS.md, CLAUDE.md or notes in the user's folders, and not a memory feature of your own: "
+        "only remember reaches every agent in later conversations, and the user sees and manages these notes in Orcinus. Use "
+        "forget when a note turns out wrong or outdated, and list_memories to see the notes. When the user refers to an earlier "
+        "conversation, look it up with search_conversations and read_conversation.");
+    if (mode == MemoryMode::Manual) {
+        text += QStringLiteral(
+            " The user keeps or discards each note you propose in the AI panel; tell them you proposed it rather than that it "
+            "is kept.");
+    }
+    return text;
+}
+
 int memoryBudget()
 {
     return std::max(0, aiGroup().readEntry(MemoryBudgetKey, 2000));

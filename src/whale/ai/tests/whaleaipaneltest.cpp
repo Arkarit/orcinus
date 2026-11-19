@@ -541,10 +541,15 @@ void WhaleAiPanelTest::memoryNotesSent()
     QVERIFY(!all.contains(QLatin1String("elsewhere note E")));
     QVERIFY(all.indexOf(QLatin1String("Notes the user keeps")) > all.indexOf(QLatin1String("Orcinus")));
     QVERIFY(all.contains(QLatin1String("2 notes from the memory")));
+    // How to use the memory, once, after the system prompt: remember, not AGENTS.md; Manual: proposed.
+    QCOMPARE(count(QStringLiteral("Orcinus has a memory for you")), 1);
+    QVERIFY(all.contains(QLatin1String("not files such as AGENTS.md")));
+    QVERIFY(all.contains(QLatin1String("tell them you proposed it")));
 
     // The next message: nothing again.
     turn(QStringLiteral("nopermission two"));
     QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 1);
+    QCOMPARE(count(QStringLiteral("Orcinus has a memory for you")), 1);
 
     // Into a subfolder with a note of its own: only that one.
     QVERIFY(memory.add(QStringLiteral("sub note S"), sub, QString(), false));
@@ -566,6 +571,8 @@ void WhaleAiPanelTest::memoryNotesSent()
     panel.newConversation();
     turn(QStringLiteral("nopermission five"));
     QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 0);
+    QCOMPARE(count(QStringLiteral("Orcinus has a memory for you")), 0);
+    QCOMPARE(count(QStringLiteral("Orcinus' memory is turned off")), 1);
     QFile::remove(memory.path());
 }
 

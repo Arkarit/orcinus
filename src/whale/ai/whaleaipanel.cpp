@@ -1321,8 +1321,10 @@ void WhaleAiPanel::sendPending()
     }
     if (!m_systemPromptSent) {
         // The system prompt leads the first message of the conversation (ACP has no system
-        // prompt of its own); later messages carry only the live context.
+        // prompt of its own); later messages carry only the live context. What the agent is
+        // told about the memory follows it, also after a prompt of the user's own (AI16).
         m_systemPromptSent = true;
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::memoryGuidance(WhaleAiAgents::memoryMode())));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::systemPrompt()));
     }
     m_session->prompt(blocks);

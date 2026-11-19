@@ -1541,7 +1541,16 @@ conversations comes with it.
      `search_conversations`, `read_conversation` ×2, a correct summary of both conversations.
   LM Studio stopped afterwards. PASS in 140 s. AI16 complete.
 
-Safety: a file the agent reads could make it storeSafety: a file the agent reads could make it store an instruction that would reach every later
+- **AI16g – Nudge (2026-11-19, user).** Asked to remember a folder's purpose, Codex (Auto review)
+  wrote an AGENTS.md into the user's folder instead of using remember. Now
+  `WhaleAiAgents::memoryGuidance(mode)` follows the system prompt in the first message (also
+  after a prompt of the user's own): use remember (folder note by default, global only for what
+  holds everywhere), not AGENTS.md/CLAUDE.md/notes in folders nor an own memory feature; forget,
+  list_memories; search_conversations/read_conversation for earlier conversations; Manual: "tell
+  them you proposed it". Off: tell the user where to turn it on, no memory files. Test in panel
+  `memoryNotesSent`. Not checked with Codex itself (no cloud runs).
+
+Safety: a file the agent reads could make it store an instruction that would reach every later
 conversation (prompt injection that persists). Hence: every note visible and removable, sent as
 the user's notes and marked as data, short, Manual mode for the cautious, no note can carry
 permissions (they never change what Orcinus allows).
