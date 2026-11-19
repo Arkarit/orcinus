@@ -105,6 +105,8 @@ public:
     bool openConversation(const QString &id);
     /** @return The id of the opened saved conversation while it shows (AI14b); empty otherwise. */
     QString openedConversationId() const;
+    /** @return Whether the next message continues the opened conversation with its agent (AI14c). */
+    bool canResumeOpened() const;
     /** The agent the agent proposed (AI11), waiting for the user's Add… or Discard; nothing otherwise. */
     std::optional<WhaleAiAgent> proposedAgent() const;
     /** Adds the proposed agent as @p agent (what the user confirmed in the dialog). For the tests and the bar. */
@@ -249,6 +251,9 @@ private:
     int m_conversationStart = 0; ///< its first entry in the transcript
     QTimer *m_saveTimer = nullptr;
     std::optional<WhaleAiConversation> m_opened; ///< the saved conversation shown, until the next one starts (AI14b)
+    bool m_resumePending = false; ///< the agent is asked to load m_conversation's session; not saved meanwhile (AI14c)
+    int m_sessionStart = 0; ///< the first entry of the running session in the transcript
+    QString m_resumeMode; ///< the mode the resumed conversation had
 };
 
 #endif

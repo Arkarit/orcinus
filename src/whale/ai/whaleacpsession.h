@@ -63,6 +63,14 @@ public:
 
     /** Starts the agent and a session in @p workingDirectory (absolute). */
     void start(const AgentCommand &command, const QString &workingDirectory, const QList<WhaleAcpMcpServer> &mcpServers = {});
+    /**
+     * Before start(): continue the agent's session @p sessionId (`session/load`, AI14c) instead
+     * of a new one. The history the agent replays is not passed on. If the agent cannot load it,
+     * resumeFailed() comes and a new session starts.
+     */
+    void setResumeSessionId(const QString &sessionId);
+    /** @return Whether the session is one the agent loaded (setResumeSessionId()). */
+    bool isResumed() const;
 
     /**
      * Sends a prompt (ACP content blocks, see WhaleAcpContent).
@@ -106,6 +114,8 @@ public:
 
 Q_SIGNALS:
     void stateChanged(WhaleAcpSession::State state);
+    /** The session of setResumeSessionId() could not be loaded (@p reason); a new one starts. */
+    void resumeFailed(const QString &reason);
     void configOptionsChanged();
     /**
      * The agent answered setConfigOption(@p id, @p value): @p error is empty if it took the
@@ -134,6 +144,7 @@ private:
     void fail(const QString &message, int code = WhaleAcpError::InternalError);
     void initialize();
     void createSession(const QString &workingDirectory, const QList<WhaleAcpMcpServer> &mcpServers);
+    void loadSession(const QString &workingDirectory, const QList<WhaleAcpMcpServer> &mcpServers);
     void handleNotification(const QString &method, const QJsonObject &params);
     void handleRequest(const QJsonValue &id, const QString &method, const QJsonObject &params);
     void handleUpdate(const QJsonObject &update);
@@ -147,6 +158,8 @@ private:
     int m_errorCode = WhaleAcpError::None;
     WhaleAcpAgentInfo m_agentInfo;
     QString m_sessionId;
+    QString m_resumeId; ///< the session to load (AI14c)
+    bool m_resumed = false;
     QList<WhaleAcpConfigOption> m_configOptions;
     bool m_hasConfigOptions = false; ///< the agent sends configOptions, not only modes
     QList<WhaleAcpCommand> m_commands;

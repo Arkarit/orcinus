@@ -668,6 +668,12 @@ WhaleAiContext WhaleAiPanel::currentContext() const
 
 void WhaleAiPanel::agentChosen()
 {
+    if (m_opened && !m_session && m_opened->agentId != agentId()) {
+        // Another agent cannot continue it.
+        m_opened.reset();
+        m_transcript->addNotice(
+            i18nc("@info %1 is the name of an AI agent", "Now talking to %1. The next message starts a new conversation.", m_agents->currentText()));
+    }
     if (m_session && m_sessionAgentId != agentId()) {
         // Another agent, maybe another local model: the old model goes at once (AI12f), it
         // must not share the graphics card's memory with the next one.
@@ -724,6 +730,11 @@ bool WhaleAiPanel::startSession()
     if (url().isLocalFile() && QFileInfo(url().toLocalFile()).isDir()) {
         directory = QDir::cleanPath(url().toLocalFile());
     }
+    // AI14c: the opened conversation goes on where its agent worked.
+    const std::optional<WhaleAiConversation> resumed = canResumeOpened() ? m_opened : std::nullopt;
+    if (resumed) {
+        directory = resumed->folder;
+    }
 
     // The back channel (AI6); the agent works without it if it cannot be set up.
     WhaleAiMcpServer *mcp = nullptr;
@@ -738,7 +749,8 @@ bool WhaleAiPanel::startSession()
     }
 
     m_sessionAgentId = agent.id;
-    m_systemPromptSent = false;
+    // A resumed agent had it in its first message.
+    m_systemPromptSent = resumed.has_value();
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     m_shownMode.clear();
@@ -795,11 +807,38 @@ bool WhaleAiPanel::startSession()
         });
         mcpServers.append(mcp->mcpServer(relay));
     }
+    m_sessionStart = m_transcript->entryCount();
     beginConversation(agent, directory);
-    m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2.", agent.name, directory));
+    m_resumeMode.clear();
+    if (resumed) {
+        // The same record goes on, once the agent has loaded its session.
+        m_conversation = *resumed;
+        m_conversationStart = 0;
+        m_resumePending = true;
+        m_resumeMode = resumed->mode;
+        m_session->setResumeSessionId(resumed->sessionId);
+        m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 continues the conversation in %2.", agent.name, directory));
+    } else {
+        m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2.", agent.name, directory));
+    }
 
     WhaleAcpSession *session = m_session;
+    connect(session, &WhaleAcpSession::resumeFailed, this, [this, agent, directory](const QString &reason) {
+        // A new conversation from this session's start on; the saved one stays as it was.
+        m_resumePending = false;
+        m_resumeMode.clear();
+        m_systemPromptSent = false;
+        beginConversation(agent, directory);
+        m_conversationStart = m_sessionStart;
+        m_transcript->addNotice(i18nc("@info", "The agent could not continue the saved conversation, so this is a new one."),
+                                WhaleAiTranscript::Kind::Notice,
+                                reason);
+    });
     connect(session, &WhaleAcpSession::stateChanged, this, [this, session](WhaleAcpSession::State state) {
+        if (state == WhaleAcpSession::State::Ready && m_resumePending) {
+            m_resumePending = false;
+            saveConversation();
+        }
         if (state == WhaleAcpSession::State::Ready) {
             if (m_modeState == ModeState::Unknown) {
                 applyStartMode();
@@ -937,6 +976,11 @@ void WhaleAiPanel::applyStartMode()
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent", "%1 offers no modes, so Orcinus cannot choose what it may do. It works as it is set up.", agent.name));
         sendPending();
+        return;
+    }
+    // A resumed conversation goes on in its mode, if the agent still has it.
+    if (!m_resumeMode.isEmpty() && mode->choice(m_resumeMode)) {
+        requestMode(std::exchange(m_resumeMode, QString()), false);
         return;
     }
     if (!agent.startMode.isEmpty()) {
@@ -1079,6 +1123,8 @@ void WhaleAiPanel::endSession(bool freeLocalModelNow)
     // What came until now, with the session's id; what comes later belongs to no conversation.
     saveConversation();
     m_conversation.reset();
+    // A load that did not get through leaves the saved conversation as it was.
+    m_resumePending = false;
     m_hiddenTimer->stop();
     if (m_lease) {
         WhaleAiLocalLease *lease = m_lease;
@@ -1131,7 +1177,7 @@ void WhaleAiPanel::beginConversation(const WhaleAiAgent &agent, const QString &f
 void WhaleAiPanel::saveConversation()
 {
     m_saveTimer->stop();
-    if (!m_conversation || !WhaleAiAgents::saveConversations()) {
+    if (!m_conversation || m_resumePending || !WhaleAiAgents::saveConversations()) {
         return;
     }
     const QJsonArray entries = m_transcript->record(m_conversationStart);
@@ -1170,6 +1216,16 @@ QString WhaleAiPanel::conversationId() const
 QString WhaleAiPanel::openedConversationId() const
 {
     return m_opened ? m_opened->id : QString();
+}
+
+bool WhaleAiPanel::canResumeOpened() const
+{
+    if (!m_opened || m_opened->sessionId.isEmpty() || m_opened->agentId != agentId() || !QFileInfo(m_opened->folder).isDir()) {
+        return false;
+    }
+    // The same program: another one would not know the session.
+    const WhaleAiAgent agent = WhaleAiAgents::agent(m_opened->agentId);
+    return agent.commandLine == m_opened->commandLine;
 }
 
 void WhaleAiPanel::fillConversationsMenu()
@@ -1232,9 +1288,10 @@ bool WhaleAiPanel::openConversation(const QString &id)
         m_transcript->addNotice(
             i18nc("@info %1 is the name of an AI agent", "The agent “%1” of this conversation is no longer set up.", conversation->agentName));
     }
-    m_transcript->addNotice(i18nc("@info %1 is a date and time",
-                                  "Saved conversation of %1. The next message starts a new conversation.",
-                                  QLocale().toString(conversation->updated, QLocale::ShortFormat)));
+    const QString date = QLocale().toString(conversation->updated, QLocale::ShortFormat);
+    m_transcript->addNotice(canResumeOpened()
+                                ? i18nc("@info %1 is a date and time", "Saved conversation of %1. The next message continues it.", date)
+                                : i18nc("@info %1 is a date and time", "Saved conversation of %1. The next message starts a new conversation.", date));
     m_input->setFocus();
     updateState();
     updateSessionInfo();

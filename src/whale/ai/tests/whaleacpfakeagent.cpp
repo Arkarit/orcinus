@@ -20,6 +20,11 @@
  *   oldprotocol  answers initialize with protocol version 99
  *   auth         session/new fails with "auth required"
  *   hang         never answers
+ *   noload       like basic, but cannot load sessions (no loadSession capability)
+ *
+ * session/load (AI14c) knows only the session "s1": it replays a user message and an answer
+ * ("replayed history"), then answers like session/new; other ids fail with "Resource not found".
+ * Prompts of a loaded session answer "resumed=yes;" first.
  *
  * What the client sent comes back as text in agent_message_chunk, so the tests can check it.
  * A prompt with "nopermission" asks nothing; with "askexecute" it asks to run a command, with
@@ -54,6 +59,7 @@ QString sessionCwd;
 QStringList mcpNames;
 QJsonObject orcinusServer;
 bool cancelSeen = false;
+bool loaded = false;
 QString modelValue = QStringLiteral("small");
 QString modeValue = QStringLiteral("auto");
 
@@ -193,7 +199,7 @@ void handleInitialize(const QJsonObject &message)
                           {QStringLiteral("title"), QStringLiteral("Fake Agent")},
                           {QStringLiteral("version"), QStringLiteral("1.2.3")}}},
              {QStringLiteral("agentCapabilities"),
-              QJsonObject{{QStringLiteral("loadSession"), true},
+              QJsonObject{{QStringLiteral("loadSession"), scenario != QLatin1String("noload")},
                           {QStringLiteral("promptCapabilities"), QJsonObject{{QStringLiteral("image"), true}, {QStringLiteral("embeddedContext"), true}}},
                           {QStringLiteral("mcpCapabilities"), QJsonObject{{QStringLiteral("http"), true}, {QStringLiteral("sse"), false}}}}},
              {QStringLiteral("authMethods"),
@@ -332,6 +338,9 @@ void handlePrompt(const QJsonObject &message)
     const QString text = texts.isEmpty() ? QString() : texts.last();
     const QString contextText = texts.size() > 1 ? texts.mid(0, texts.size() - 1).join(QLatin1Char(' ')) : QString();
 
+    if (loaded) {
+        chunk(QStringLiteral("agent_message_chunk"), QStringLiteral("resumed=yes;"));
+    }
     // Updates the client must ignore.
     update(QStringLiteral("other"),
            {{QStringLiteral("sessionUpdate"), QStringLiteral("agent_message_chunk")},
@@ -545,6 +554,20 @@ int main(int argc, char **argv)
         if (method == QLatin1String("initialize")) {
             handleInitialize(message);
         } else if (method == QLatin1String("session/new")) {
+            handleNewSession(message);
+        } else if (method == QLatin1String("session/load") && scenario != QLatin1String("noload")) {
+            const QJsonObject params = message.value(QLatin1String("params")).toObject();
+            if (params.value(QLatin1String("sessionId")).toString() != QLatin1String("s1")) {
+                respondError(message.value(QLatin1String("id")), -32002, QStringLiteral("Resource not found"));
+                continue;
+            }
+            update(QStringLiteral("s1"),
+                   {{QStringLiteral("sessionUpdate"), QStringLiteral("user_message_chunk")},
+                    {QStringLiteral("content"),
+                     QJsonObject{{QStringLiteral("type"), QStringLiteral("text")}, {QStringLiteral("text"), QStringLiteral("replayed history")}}}});
+            chunk(QStringLiteral("agent_message_chunk"), QStringLiteral("replayed history"));
+            loaded = true;
+            // As session/new, without a new id (the answer of session/load has none).
             handleNewSession(message);
         } else if (method == QLatin1String("session/prompt")) {
             handlePrompt(message);

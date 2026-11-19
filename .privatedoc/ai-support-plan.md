@@ -1399,6 +1399,21 @@ Two things come back, and they come from different places:
   session, agent deleted or its command changed): the record stays readable with a notice, and the
   next message starts a new conversation (a new record) with that agent. Not restored: open
   permission requests (dropped) and the "Undo changes" log (files may have changed since).
+- **AI14c done 2026-11-19.** `WhaleAcpSession::setResumeSessionId()` before `start()`: with
+  `loadSession` it sends `session/load` (sessionId, cwd, mcpServers); the replayed updates are
+  dropped because `m_sessionId` is still empty until the answer; `isResumed()`. No capability or
+  an error (not auth) → `resumeFailed(reason)` and `session/new`. Panel: `canResumeOpened()` (opened
+  conversation with a session id, same agent id and command line, its folder still there); the
+  open notice says "The next message continues it." or "… starts a new conversation."; the
+  resumed session works in the saved folder, gets no system prompt again, goes on in the saved
+  mode (if offered) and in the same record (from entry 0; not saved until the load is through);
+  on `resumeFailed` a new record from the session's start with a notice (reason in details).
+  Choosing another agent while an opened conversation shows drops the resume, with a notice.
+  Fake agent: `session/load` of "s1" replays two updates, other ids "Resource not found",
+  scenario `noload`; prompts of a loaded session answer "resumed=yes;". Tests:
+  `whaleacpsessiontest::resumesSession`, `resumeFails` (forgotten, cannot load); panel
+  `resumeSavedConversation` (folder, mode, same record, no replay, forgotten session → new one,
+  other agent).
 - **AI14d – Tests and real run.** Fake agent: `session/load` with replay and an "unknown session"
   error; store (write, read, prune, broken file), panel (menu, open, resume, replay swallowed,
   fallback). Real run with OpenCode + LM Studio (local, user's OK per round): save, quit

@@ -78,6 +78,7 @@ private Q_SLOTS:
     void newConversation();
     void savedConversation();
     void openSavedConversation();
+    void resumeSavedConversation();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -377,7 +378,9 @@ void WhaleAiPanelTest::openSavedConversation()
     QVERIFY(texts(panel).contains(QLatin1String("Saved conversation of")));
     QVERIFY(!action(QStringLiteral("conversation-") + id)->isEnabled());
 
-    // The next message is a new conversation; the opened one stays as it was.
+    // A new conversation instead (resuming is resumeSavedConversation); the opened one stays as it was.
+    panel.newConversation();
+    QVERIFY(panel.openedConversationId().isEmpty());
     QVERIFY(panel.sendPrompt(QStringLiteral("next")));
     permission = waitForPermission(panel);
     QVERIFY(permission);
@@ -421,6 +424,75 @@ void WhaleAiPanelTest::openSavedConversation()
     QTRY_VERIFY(checked);
     QVERIFY(!store.load(id));
     QCOMPARE(store.list().size(), 1);
+}
+
+void WhaleAiPanelTest::resumeSavedConversation()
+{
+    const WhaleAiConversationStore store;
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto turn = [&panel](const QString &text) {
+        QVERIFY(panel.sendPrompt(text));
+        QVERIFY(waitForReady(panel));
+    };
+    turn(QStringLiteral("nopermission hello"));
+    const QString id = panel.conversationId();
+    panel.chooseMode(QStringLiteral("ask"));
+    QTRY_COMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("ask"));
+    panel.newConversation();
+    QCOMPARE(store.load(id)->mode, QStringLiteral("ask"));
+
+    // Opened from elsewhere: the agent continues it where it worked, in its mode.
+    QTemporaryDir elsewhere;
+    panel.setUrl(QUrl::fromLocalFile(elsewhere.path()));
+    QVERIFY(panel.openConversation(id));
+    QVERIFY(panel.canResumeOpened());
+    QVERIFY(texts(panel).contains(QLatin1String("The next message continues it.")));
+    turn(QStringLiteral("nopermission more"));
+    QVERIFY(panel.session()->isResumed());
+    QCOMPARE(panel.session()->property("workingDirectory").toString(), QDir::cleanPath(m_work.path()));
+    QCOMPARE(panel.session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("ask"));
+    QString all = texts(panel);
+    QVERIFY2(all.contains(QLatin1String("resumed=yes;")), qPrintable(all));
+    QVERIFY(!all.contains(QLatin1String("replayed history")));
+    QVERIFY(all.contains(QLatin1String("continues the conversation in")));
+    // The same conversation, longer; no system prompt again (the fake echoes what it got).
+    QCOMPARE(panel.conversationId(), id);
+    std::optional<WhaleAiConversation> saved = store.load(id);
+    QCOMPARE(saved->title, QStringLiteral("nopermission hello"));
+    QCOMPARE(saved->entries, panel.transcript()->record());
+    QStringList users;
+    for (const QJsonValue &entry : std::as_const(saved->entries)) {
+        if (entry.toObject().value(QLatin1String("kind")).toString() == QLatin1String("UserMessage")) {
+            users.append(entry.toObject().value(QLatin1String("text")).toString());
+        }
+    }
+    QCOMPARE(users, (QStringList{QStringLiteral("nopermission hello"), QStringLiteral("nopermission more")}));
+    const qsizetype count = store.list().size();
+
+    // The agent forgot the session: a new conversation, the saved one stays as it was.
+    panel.newConversation();
+    saved = store.load(id);
+    saved->sessionId = QStringLiteral("gone");
+    QVERIFY(store.save(*saved));
+    QVERIFY(panel.openConversation(id));
+    turn(QStringLiteral("nopermission once more"));
+    QVERIFY(!panel.session()->isResumed());
+    QVERIFY(texts(panel).contains(QLatin1String("The agent could not continue the saved conversation, so this is a new one.")));
+    QVERIFY(panel.conversationId() != id);
+    QCOMPARE(store.load(id)->entries, saved->entries);
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("nopermission once more"));
+    QCOMPARE(store.list().size(), count + 1);
+
+    // Another agent chosen: no resume.
+    panel.newConversation();
+    saved->sessionId = QStringLiteral("s1");
+    QVERIFY(store.save(*saved));
+    QVERIFY(panel.openConversation(id));
+    panel.setAgentId(QStringLiteral("crash"));
+    QVERIFY(!panel.canResumeOpened());
+    QVERIFY(panel.openedConversationId().isEmpty());
+    QVERIFY(texts(panel).contains(QLatin1String("Now talking to Fake crash. The next message starts a new conversation.")));
 }
 
 void WhaleAiPanelTest::promptTurn()

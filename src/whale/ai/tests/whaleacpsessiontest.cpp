@@ -27,6 +27,9 @@ private Q_SLOTS:
     void startsSession();
     void promptTurn();
     void secondPrompt();
+    void resumesSession();
+    void resumeFails_data();
+    void resumeFails();
     void cancelAnswersPermission();
     void cancelWithoutPermission();
     void setsConfigOption();
@@ -222,6 +225,61 @@ void WhaleAcpSessionTest::secondPrompt()
         QVERIFY(text.contains(QLatin1String("permission=none")));
         QCOMPARE(session->state(), WhaleAcpSession::State::Ready);
     }
+}
+
+void WhaleAcpSessionTest::resumesSession()
+{
+    auto *session = new WhaleAcpSession(this);
+    session->setStartTimeout(5000);
+    session->setResumeSessionId(QStringLiteral("s1"));
+    QSignalSpy failed(session, &WhaleAcpSession::resumeFailed);
+    QSignalSpy chunks(session, &WhaleAcpSession::agentMessageChunk);
+    QSignalSpy options(session, &WhaleAcpSession::configOptionsChanged);
+    session->start({QStringLiteral(WHALE_ACP_FAKE_AGENT), {QStringLiteral("basic")}, {}}, m_dir.path(), {m_mcp});
+    QTRY_COMPARE_WITH_TIMEOUT(session->state(), WhaleAcpSession::State::Ready, 10000);
+    QVERIFY(session->isResumed());
+    QCOMPARE(session->sessionId(), QStringLiteral("s1"));
+    QVERIFY(failed.isEmpty());
+    // The replayed history is not passed on; the modes of the answer are.
+    QVERIFY(chunks.isEmpty());
+    QVERIFY(!options.isEmpty());
+    QVERIFY(session->configOption(QStringLiteral("mode")));
+    const QString text = waitForMessage(session, [&] {
+        QVERIFY(session->prompt({WhaleAcpContent::text(QStringLiteral("nopermission again"))}));
+    });
+    QVERIFY2(text.contains(QLatin1String("resumed=yes;")), qPrintable(text));
+    QVERIFY(!text.contains(QLatin1String("replayed history")));
+}
+
+void WhaleAcpSessionTest::resumeFails_data()
+{
+    QTest::addColumn<QString>("scenario");
+    QTest::addColumn<QString>("sessionId");
+    QTest::addColumn<QString>("reason");
+    QTest::newRow("forgotten") << QStringLiteral("basic") << QStringLiteral("gone") << QStringLiteral("Resource not found");
+    QTest::newRow("cannot load") << QStringLiteral("noload") << QStringLiteral("s1") << QStringLiteral("cannot continue");
+}
+
+void WhaleAcpSessionTest::resumeFails()
+{
+    QFETCH(QString, scenario);
+    QFETCH(QString, sessionId);
+    QFETCH(QString, reason);
+    auto *session = new WhaleAcpSession(this);
+    session->setStartTimeout(5000);
+    session->setResumeSessionId(sessionId);
+    QSignalSpy failed(session, &WhaleAcpSession::resumeFailed);
+    session->start({QStringLiteral(WHALE_ACP_FAKE_AGENT), {scenario}, {}}, m_dir.path(), {m_mcp});
+    QTRY_COMPARE_WITH_TIMEOUT(session->state(), WhaleAcpSession::State::Ready, 10000);
+    // A new session instead.
+    QCOMPARE(failed.size(), 1);
+    QVERIFY2(failed.first().first().toString().contains(reason), qPrintable(failed.first().first().toString()));
+    QVERIFY(!session->isResumed());
+    QCOMPARE(session->sessionId(), QStringLiteral("s1"));
+    const QString text = waitForMessage(session, [&] {
+        QVERIFY(session->prompt({WhaleAcpContent::text(QStringLiteral("nopermission again"))}));
+    });
+    QVERIFY(!text.contains(QLatin1String("resumed=yes;")));
 }
 
 void WhaleAcpSessionTest::cancelAnswersPermission()

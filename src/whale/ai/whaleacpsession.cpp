@@ -12,6 +12,8 @@
 #include <QDir>
 #include <QJsonDocument>
 
+#include <utility>
+
 namespace
 {
 QString errorText(const WhaleAcpError &error)
@@ -110,8 +112,59 @@ void WhaleAcpSession::initialize()
         m_startTimeout);
 }
 
+void WhaleAcpSession::setResumeSessionId(const QString &sessionId)
+{
+    m_resumeId = sessionId;
+}
+
+bool WhaleAcpSession::isResumed() const
+{
+    return m_resumed;
+}
+
+void WhaleAcpSession::loadSession(const QString &workingDirectory, const QList<WhaleAcpMcpServer> &mcpServers)
+{
+    QJsonArray servers;
+    for (const WhaleAcpMcpServer &server : mcpServers) {
+        servers.append(server.toJson());
+    }
+    // The agent replays the history as session/update before it answers; m_sessionId is still
+    // empty, so those updates go nowhere (the panel shows its own record).
+    m_connection->sendRequest(
+        QStringLiteral("session/load"),
+        QJsonObject{{QStringLiteral("sessionId"), m_resumeId}, {QStringLiteral("cwd"), workingDirectory}, {QStringLiteral("mcpServers"), servers}},
+        [this, workingDirectory, mcpServers](const QJsonValue &result, const WhaleAcpError &error) {
+            if (m_state != State::Starting) {
+                return;
+            }
+            if (error.isError()) {
+                if (error.code == WhaleAcpError::AuthRequired) {
+                    fail(QStringLiteral("The agent needs a login first: %1").arg(error.message), error.code);
+                    return;
+                }
+                m_resumeId.clear();
+                Q_EMIT resumeFailed(error.message);
+                createSession(workingDirectory, mcpServers);
+                return;
+            }
+            m_sessionId = std::exchange(m_resumeId, QString());
+            m_resumed = true;
+            readConfig(result.toObject());
+            setState(State::Ready);
+        },
+        m_startTimeout);
+}
+
 void WhaleAcpSession::createSession(const QString &workingDirectory, const QList<WhaleAcpMcpServer> &mcpServers)
 {
+    if (!m_resumeId.isEmpty()) {
+        if (m_agentInfo.loadSession) {
+            loadSession(workingDirectory, mcpServers);
+            return;
+        }
+        m_resumeId.clear();
+        Q_EMIT resumeFailed(QStringLiteral("The agent cannot continue saved conversations."));
+    }
     QJsonArray servers;
     for (const WhaleAcpMcpServer &server : mcpServers) {
         servers.append(server.toJson());
