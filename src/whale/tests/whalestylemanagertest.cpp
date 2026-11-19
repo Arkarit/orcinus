@@ -57,6 +57,7 @@ private Q_SLOTS:
     void testAppliedStyleIsStartOfNextWindow();
     void testSaveLastStyle();
     void testStyleWithoutShownViews();
+    void testStyleWithoutNewPanels();
     void testDefaultStyles();
 
 private:
@@ -515,6 +516,49 @@ void WhaleStyleManagerTest::testStyleWithoutShownViews()
     QVERIFY(manager->applyStyle(oldId));
     QVERIFY(!tabPage(window)->splitViewEnabled());
     QCOMPARE(left->currentViewId(), treemap);
+}
+
+void WhaleStyleManagerTest::testStyleWithoutNewPanels()
+{
+    // A profile saved before a panel existed hides it: the AI panels stayed open when switching
+    // to such a profile.
+    DolphinMainWindow *window = openWindow();
+    QVERIFY(window);
+    QDockWidget *places = dock(window, "placesDock");
+    QDockWidget *ai = dock(window, "aiDock");
+    QVERIFY(places);
+    if (!ai) {
+        QSKIP("Built without AI support");
+    }
+    QDockWidget *canvas = dock(window, "aiCanvasDock"); // only with Qt Quick
+    ai->show();
+    if (canvas) {
+        canvas->show();
+    }
+    places->hide();
+
+    WhaleStyle old;
+    old.name = QStringLiteral("Before AI");
+    old.elements.insert(QStringLiteral("panels"), {true, QStringLiteral("places=true,folders=false,information=false,terminal=false")});
+    const QString oldId = WhaleStyles::self()->editableStore().addStyle(old);
+    WhaleStyles::self()->save();
+    WhaleStyleManager *manager = WhaleStyleManager::ensure(window);
+    QVERIFY(manager->applyStyle(oldId));
+    QVERIFY(!places->isHidden());
+    QVERIFY(ai->isHidden());
+    if (canvas) {
+        QVERIFY(canvas->isHidden());
+    }
+
+    // A value without any readable panel leaves the panels as they are.
+    ai->show();
+    old.id = oldId;
+    old.elements.insert(QStringLiteral("panels"), {true, QString()});
+    WhaleStyles::self()->editableStore().updateStyle(old);
+    WhaleStyles::self()->save();
+    QVERIFY(manager->applyStyle(oldId));
+    QVERIFY(!ai->isHidden());
+    QVERIFY(!places->isHidden());
 }
 
 QTEST_MAIN(WhaleStyleManagerTest)

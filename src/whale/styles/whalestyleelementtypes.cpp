@@ -1039,7 +1039,8 @@ struct Panel {
     QLatin1String dock;
 };
 
-// The AI panels (AI3, CV1) exist only in builds with AI support; a profile without them leaves them as they are.
+// The AI panels (AI3, CV1) exist only in builds with AI support. A profile saved before a panel
+// existed hides it: the panel was not shown when the profile was saved.
 constexpr std::array<Panel, 6> panels{{
     {QLatin1String("places"), QLatin1String("placesDock")},
     {QLatin1String("folders"), QLatin1String("foldersDock")},
@@ -1074,13 +1075,22 @@ public:
     void apply(DolphinMainWindow *window, const QString &value) const override
     {
         const auto switches = switchesFrom(value);
-        for (const auto &[name, shown] : switches) {
-            for (const Panel &panel : panels) {
-                QDockWidget *dock = name == panel.name ? window->findChild<QDockWidget *>(panel.dock) : nullptr;
-                if (dock && dock->isHidden() == shown) {
-                    // As the panel's action in the menu does; the window's state keeps it.
-                    dock->setVisible(shown);
-                }
+        if (switches.isEmpty()) {
+            return; // nothing readable, leave the panels as they are
+        }
+        for (const Panel &panel : panels) {
+            QDockWidget *dock = window->findChild<QDockWidget *>(panel.dock);
+            if (!dock) {
+                continue;
+            }
+            // A panel the value does not name is hidden, as for a profile from before the panel.
+            const auto it = std::find_if(switches.cbegin(), switches.cend(), [&panel](const auto &entry) {
+                return entry.first == panel.name;
+            });
+            const bool shown = it != switches.cend() && it->second;
+            if (dock->isHidden() == shown) {
+                // As the panel's action in the menu does; the window's state keeps it.
+                dock->setVisible(shown);
             }
         }
     }
