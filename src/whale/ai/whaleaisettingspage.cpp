@@ -6,6 +6,7 @@
 
 #include "whaleaisettingspage.h"
 #include "whaleaiagentdialog.h"
+#include "whaleaiconversationstore.h"
 #include "whaleaidisclaimer.h"
 
 #include <KLocalizedString>
@@ -156,6 +157,35 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
         m_freeDelays.insert(id, delay);
     }
 
+    // AI14: the panel saves its conversations, so they can be continued.
+    auto *conversationGroup = new QGroupBox(i18nc("@title:group", "Conversations"), this);
+    auto *conversationForm = new QFormLayout(conversationGroup);
+    m_saveConversations = new QCheckBox(i18nc("@option:check", "Save conversations"), conversationGroup);
+    m_saveConversations->setObjectName(QStringLiteral("saveConversations"));
+    m_saveConversations->setChecked(WhaleAiAgents::saveConversations());
+    conversationForm->addRow(m_saveConversations);
+    auto *conversationHint = new QLabel(i18nc("@info %1 is a folder",
+                                              "Only on this computer, in %1. They hold what you and the agent wrote, also paths and "
+                                              "what the agent read of your files.",
+                                              WhaleAiConversationStore::defaultFolder()),
+                                        conversationGroup);
+    conversationHint->setWordWrap(true);
+    conversationHint->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    conversationForm->addRow(conversationHint);
+    m_keepConversations = new QSpinBox(conversationGroup);
+    m_keepConversations->setObjectName(QStringLiteral("keepConversations"));
+    m_keepConversations->setRange(0, 3650);
+    m_keepConversations->setSuffix(i18nc("@item:valuesuffix days", " days"));
+    m_keepConversations->setSpecialValueText(i18nc("@item:inrange keep saved conversations", "Always"));
+    m_keepConversations->setValue(WhaleAiAgents::keepConversationsDays());
+    m_keepConversations->setEnabled(m_saveConversations->isChecked());
+    conversationForm->addRow(i18nc("@label:spinbox", "Keep for:"), m_keepConversations);
+    connect(m_saveConversations, &QCheckBox::toggled, this, [this](bool on) {
+        m_keepConversations->setEnabled(on);
+        Q_EMIT changed();
+    });
+    connect(m_keepConversations, &QSpinBox::valueChanged, this, &WhaleAiSettingsPage::changed);
+
     auto *content = new QWidget(this);
     auto *layout = new QVBoxLayout(content);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -163,6 +193,7 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     layout->addLayout(listRow, 1);
     layout->addWidget(m_result);
     layout->addWidget(m_logIn, 0, Qt::AlignLeft);
+    layout->addWidget(conversationGroup);
     layout->addWidget(localGroup);
     layout->addWidget(promptGroup);
 
@@ -231,6 +262,8 @@ void WhaleAiSettingsPage::applySettings()
     for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
         WhaleAiAgents::setFreeDelaySeconds(it.key(), it.value()->value() * freeDelayUnit(it.key()));
     }
+    WhaleAiAgents::setSaveConversations(m_saveConversations->isChecked());
+    WhaleAiAgents::setKeepConversationsDays(m_keepConversations->value());
 }
 
 void WhaleAiSettingsPage::restoreDefaults()
@@ -239,6 +272,8 @@ void WhaleAiSettingsPage::restoreDefaults()
     for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
         it.value()->setValue(qRound(WhaleAiAgents::defaultFreeDelaySeconds(it.key()) / freeDelayUnit(it.key())));
     }
+    m_saveConversations->setChecked(true);
+    m_keepConversations->setValue(90);
 }
 
 QList<WhaleAiAgent> WhaleAiSettingsPage::agents() const

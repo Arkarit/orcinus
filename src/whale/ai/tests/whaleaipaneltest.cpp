@@ -12,6 +12,7 @@
 #include "views/dolphinview.h"
 #include "whaleaiagents.h"
 #include "whaleaicontextchips.h"
+#include "whaleaiconversationstore.h"
 #include "whaleaifakelmstudio.h"
 #include "whaleaifakestrata.h"
 #include "whaleailocalruntime.h"
@@ -71,6 +72,7 @@ private Q_SLOTS:
     void agentFails();
     void otherAgentEndsConversation();
     void newConversation();
+    void savedConversation();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -253,6 +255,70 @@ void WhaleAiPanelTest::setupWithoutAgents()
     // The chat has its own way to the settings.
     panel.findChild<QToolButton *>(QStringLiteral("configure"))->click();
     QCOMPARE(configure.size(), 2);
+}
+
+void WhaleAiPanelTest::savedConversation()
+{
+    const WhaleAiConversationStore store;
+    const qsizetype before = store.list().size();
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    QVERIFY(panel.conversationId().isEmpty());
+    QVERIFY(panel.sendPrompt(QStringLiteral("hello")));
+    QWidget *permission = waitForPermission(panel);
+    QVERIFY(permission);
+    permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
+    QVERIFY(waitForReady(panel));
+
+    // Saved at the end of the turn, without the greeting before it.
+    const QString id = panel.conversationId();
+    QVERIFY(!id.isEmpty());
+    std::optional<WhaleAiConversation> saved = store.load(id);
+    QVERIFY(saved);
+    QCOMPARE(saved->title, QStringLiteral("hello"));
+    QCOMPARE(saved->agentId, QStringLiteral("basic"));
+    QCOMPARE(saved->agentName, QStringLiteral("Fake basic"));
+    QCOMPARE(saved->folder, QDir::cleanPath(m_work.path()));
+    QVERIFY(!saved->sessionId.isEmpty());
+    QCOMPARE(saved->sessionId, panel.session()->sessionId());
+    QCOMPARE(saved->entries, panel.transcript()->record(1));
+    QStringList kinds;
+    for (const QJsonValue &entry : std::as_const(saved->entries)) {
+        kinds.append(entry.toObject().value(QLatin1String("kind")).toString());
+    }
+    QCOMPARE(kinds.first(), QStringLiteral("Notice"));
+    QVERIFY(kinds.contains(QStringLiteral("UserMessage")));
+    QVERIFY(kinds.contains(QStringLiteral("Thought")));
+    QVERIFY(kinds.contains(QStringLiteral("AgentMessage")));
+    QVERIFY(kinds.contains(QStringLiteral("ToolCall")));
+    const auto request = std::find_if(saved->entries.begin(), saved->entries.end(), [](const QJsonValue &entry) {
+        return entry.toObject().value(QLatin1String("kind")).toString() == QLatin1String("Permission");
+    });
+    QVERIFY(request != saved->entries.end());
+    QVERIFY(!(*request).toObject().value(QLatin1String("answer")).toString().isEmpty());
+
+    // Built again from it: the same entries, with their old times.
+    WhaleAiTranscript restored;
+    restored.restore(saved->entries);
+    QCOMPARE(restored.record(), saved->entries);
+    QCOMPARE(WhaleAiTranscript::timeOf(restored.entries().constFirst()), WhaleAiTranscript::timeOf(panel.transcript()->entries().at(1)));
+    QVERIFY(!restored.hasOpenPermissionRequest());
+
+    // A new conversation: the old one stays saved, the next is another one.
+    panel.newConversation();
+    QVERIFY(panel.conversationId().isEmpty());
+    QVERIFY(store.load(id));
+    QCOMPARE(store.list().size(), before + 1);
+
+    // Not saved when the user does not want it.
+    WhaleAiAgents::setSaveConversations(false);
+    QVERIFY(panel.sendPrompt(QStringLiteral("hello again")));
+    permission = waitForPermission(panel);
+    QVERIFY(permission);
+    permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
+    QVERIFY(waitForReady(panel));
+    QVERIFY(!store.load(panel.conversationId()));
+    QCOMPARE(store.list().size(), before + 1);
 }
 
 void WhaleAiPanelTest::promptTurn()

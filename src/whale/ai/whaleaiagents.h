@@ -223,6 +223,13 @@ void setShowActions(bool show);
 /** @return Whether the transcript shows the time of each entry (the panel's "Times" filter). */
 bool showTimestamps();
 void setShowTimestamps(bool show);
+
+/** @return Whether the panel saves its conversations (AI14; on by default). */
+bool saveConversations();
+void setSaveConversations(bool save);
+/** @return For how many days saved conversations are kept (0: always; default 90). */
+int keepConversationsDays();
+void setKeepConversationsDays(int days);
 }
 
 #endif

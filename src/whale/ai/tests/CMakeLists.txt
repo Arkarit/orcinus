@@ -19,6 +19,10 @@ ecm_add_test(whaleaichangelogtest.cpp
     TEST_NAME whaleaichangelogtest
     LINK_LIBRARIES whaleai Qt6::Test)
 
+ecm_add_test(whaleaiconversationstoretest.cpp
+    TEST_NAME whaleaiconversationstoretest
+    LINK_LIBRARIES whaleai Qt6::Test)
+
 ecm_add_test(whaleaiagentstest.cpp
     TEST_NAME whaleaiagentstest
     LINK_LIBRARIES whaleai Qt6::Test)

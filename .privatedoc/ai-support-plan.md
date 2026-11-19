@@ -1364,6 +1364,20 @@ Two things come back, and they come from different places:
   transcript keeps this data per entry beside its widgets and can be rebuilt from it. A
   conversation without a user message is not saved. AI settings: "Save conversations" (on) and
   "Keep for" (default 90 days; older ones are deleted at start).
+- **AI14a done 2026-11-19.** `WhaleAiConversationStore` (library `whaleai`): files `<uuid>.json`
+  (0600, `QSaveFile`), format version 1, `list()` newest first (without entries unless asked),
+  broken files and newer formats skipped, ids checked (no path out of the folder), `prune(days)`.
+  `WhaleAiTranscript` keeps a JSON record per entry (kind as the `Kind` key, ISO time, text,
+  context, tool call without content and with at most 2000 characters of output, permission with
+  options and `answer` or `withdrawn`), `record(from)`, `restore()` (old times; requests answered
+  or "No longer needed."), signal `changed()`. Panel: a conversation begins with each session
+  (`startSession()`, from the "works in" notice on), saved 1 s after a change, at the end of each
+  turn and when the session ends; only with a user message; title from the first one. Settings
+  page: group "Conversations" ("Save conversations", "Keep for" 0 = Always, default 90 days, the
+  folder named); pruned once per process. Tests: `whaleaiconversationstoretest` (round trip,
+  permissions, order, broken/foreign/newer files, prune, title), panel `savedConversation` (saved
+  after the turn, session id, record = transcript, restore round trip, new conversation, saving
+  off).
 - **AI14b – Recall UI.** Tool button `document-open-recent` next to "New Conversation": a menu of
   the last 10 (title, date, agent), then "Show All…": a dialog with search, open, delete, delete
   all. Opening one shows its record at once (read-only while the agent is not there yet); the

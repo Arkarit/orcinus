@@ -11,6 +11,8 @@
 
 #include <QDateTime>
 #include <QHash>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QPointer>
 #include <QScrollArea>
 
@@ -30,6 +32,9 @@ class QVBoxLayout;
  *
  * Each entry widget has the property "entryKind" (see Kind) for tests and styles. It sits in a row
  * of its own whose start shows the time it was added ("timestamp" label) if timestamps are shown.
+ *
+ * Each entry also keeps what it shows as JSON (AI14): record() is the whole transcript, restore()
+ * builds it again (with the old times; answered permission requests without their buttons).
  */
 class WhaleAiTranscript : public QScrollArea
 {
@@ -86,6 +91,11 @@ public:
 
     /** @return The entry widgets, oldest first. */
     QList<QWidget *> entries() const;
+    int entryCount() const;
+    /** @return What the entries from @p from on show, as JSON objects (kind, time, text, …). */
+    QJsonArray record(int from = 0) const;
+    /** Appends the entries of @p record (from record()); unanswered requests come back answered "no longer needed". */
+    void restore(const QJsonArray &record);
     static Kind kindOf(const QWidget *entry);
     /** @return When @p entry was added (always kept, shown or not). */
     static QDateTime timeOf(const QWidget *entry);
@@ -96,6 +106,8 @@ Q_SIGNALS:
     void openPermissionsChanged();
     /** A link in an answer was clicked. */
     void linkActivated(const QString &link);
+    /** record() changed: an entry came or changed, or all went. */
+    void changed();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -104,6 +116,8 @@ private:
     QWidget *addEntry(Kind kind, QWidget *entry);
     static bool isAction(Kind kind);
     void setEntryVisible(QWidget *entry, bool visible);
+    /** Merges @p fields into the record of the entry that holds @p widget. */
+    void updateRecord(QWidget *widget, const QJsonObject &fields);
     QLabel *createTextLabel(Qt::TextFormat format);
     QWidget *createFoldable(const QString &title, QLabel *body, bool unfolded);
     void scrollToBottomLater();
@@ -126,6 +140,7 @@ private:
     QPointer<QWidget> m_focusReturn;
     bool m_showActions = true;
     bool m_showTimestamps = false;
+    QDateTime m_restoreTime; ///< while restoring: the time of the entry that comes
 };
 
 #endif

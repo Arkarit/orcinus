@@ -22,6 +22,7 @@ target_sources(whaleai PRIVATE
     whaleaiagenttest.cpp
     whaleaichangelog.cpp
     whaleaicontext.cpp
+    whaleaiconversationstore.cpp
     whaleailocalmodels.cpp
     whaleailocalruntime.cpp
     whaleaimcpserver.cpp

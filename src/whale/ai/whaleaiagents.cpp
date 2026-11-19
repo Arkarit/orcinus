@@ -18,6 +18,8 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 
+#include <algorithm>
+
 namespace
 {
 const QString GroupName = QStringLiteral("AI");
@@ -33,6 +35,8 @@ const char LocalContextLengthKey[] = "LocalContextLength";
 const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
 const char ShowActionsKey[] = "ShowActions";
 const char ShowTimestampsKey[] = "ShowTimestamps";
+const char SaveConversationsKey[] = "SaveConversations";
+const char KeepConversationsDaysKey[] = "KeepConversationsDays";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -730,6 +734,30 @@ void setShowTimestamps(bool show)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(ShowTimestampsKey, show);
+    group.sync();
+}
+
+bool saveConversations()
+{
+    return aiGroup().readEntry(SaveConversationsKey, true);
+}
+
+void setSaveConversations(bool save)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(SaveConversationsKey, save);
+    group.sync();
+}
+
+int keepConversationsDays()
+{
+    return std::max(0, aiGroup().readEntry(KeepConversationsDaysKey, 90));
+}
+
+void setKeepConversationsDays(int days)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(KeepConversationsDaysKey, std::max(0, days));
     group.sync();
 }
 

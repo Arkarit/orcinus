@@ -11,6 +11,7 @@
 #include "whaleacpsession.h"
 #include "whaleaiagents.h"
 #include "whaleaicontext.h"
+#include "whaleaiconversationstore.h"
 #include "whaleaimcpserver.h"
 
 #include <functional>
@@ -94,6 +95,8 @@ public:
 
     WhaleAcpSession *session() const;
     WhaleAiTranscript *transcript() const;
+    /** @return The id of the conversation being saved (AI14); empty before the first message. */
+    QString conversationId() const;
     /** The agent the agent proposed (AI11), waiting for the user's Add… or Discard; nothing otherwise. */
     std::optional<WhaleAiAgent> proposedAgent() const;
     /** Adds the proposed agent as @p agent (what the user confirmed in the dialog). For the tests and the bar. */
@@ -184,6 +187,10 @@ private:
     void updateSessionInfo();
     void openLink(const QString &link);
     void updateModes();
+    /** AI14: a new saved conversation from the next entry on, of the session that starts. */
+    void beginConversation(const WhaleAiAgent &agent, const QString &folder);
+    /** Saves the conversation now (if it has a message of the user and saving is on). */
+    void saveConversation();
 
     QStackedWidget *m_stack = nullptr;
     QComboBox *m_agents = nullptr;
@@ -224,6 +231,10 @@ private:
     QString m_modeRequest;
     bool m_modeRequestByUser = false;
     QString m_shownMode; ///< the mode the transcript last named
+
+    std::optional<WhaleAiConversation> m_conversation; ///< what is saved of the conversation (AI14)
+    int m_conversationStart = 0; ///< its first entry in the transcript
+    QTimer *m_saveTimer = nullptr;
 };
 
 #endif

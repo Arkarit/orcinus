@@ -63,6 +63,16 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
         cleanedUp = true;
         QTimer::singleShot(0, WhaleAiLocalRuntime::instance(), &WhaleAiLocalRuntime::cleanUpAfterCrashes);
     }
+    // Saved conversations older than the user keeps them (AI14): once per process.
+    static bool pruned = false;
+    if (!pruned) {
+        pruned = true;
+        WhaleAiConversationStore().prune(WhaleAiAgents::keepConversationsDays());
+    }
+    m_saveTimer = new QTimer(this);
+    m_saveTimer->setSingleShot(true);
+    m_saveTimer->setInterval(1000);
+    connect(m_saveTimer, &QTimer::timeout, this, &WhaleAiPanel::saveConversation);
     m_hiddenTimer = new QTimer(this);
     m_hiddenTimer->setSingleShot(true);
     connect(m_hiddenTimer, &QTimer::timeout, this, &WhaleAiPanel::freeHiddenLocalModel);
@@ -157,6 +167,11 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_busy->hide();
     m_transcript->installEventFilter(this);
     connect(m_transcript, &WhaleAiTranscript::openPermissionsChanged, this, &WhaleAiPanel::updateBusy);
+    connect(m_transcript, &WhaleAiTranscript::changed, this, [this] {
+        if (m_conversation && !m_saveTimer->isActive()) {
+            m_saveTimer->start();
+        }
+    });
 
     m_chips = new WhaleAiContextChips(chat);
     m_chips->setObjectName(QStringLiteral("contextChips"));
@@ -763,6 +778,7 @@ bool WhaleAiPanel::startSession()
         });
         mcpServers.append(mcp->mcpServer(relay));
     }
+    beginConversation(agent, directory);
     m_transcript->addNotice(i18nc("@info %1 is the name of an AI agent, %2 a folder", "%1 works in %2.", agent.name, directory));
 
     WhaleAcpSession *session = m_session;
@@ -827,6 +843,10 @@ bool WhaleAiPanel::startSession()
     });
     connect(session, &WhaleAcpSession::promptFinished, this, [this](const QString &stopReason) {
         m_transcript->endTurn();
+        // At the end of each turn at once: Orcinus may be quit or crash before the timer.
+        QScopeGuard save([this] {
+            saveConversation();
+        });
         if (stopReason == QLatin1String("cancelled")) {
             m_transcript->addNotice(i18nc("@info", "Stopped."));
         } else if (stopReason == QLatin1String("refusal")) {
@@ -1039,6 +1059,9 @@ void WhaleAiPanel::stop()
 
 void WhaleAiPanel::endSession(bool freeLocalModelNow)
 {
+    // What came until now, with the session's id; what comes later belongs to no conversation.
+    saveConversation();
+    m_conversation.reset();
     m_hiddenTimer->stop();
     if (m_lease) {
         WhaleAiLocalLease *lease = m_lease;
@@ -1071,6 +1094,59 @@ void WhaleAiPanel::endSession(bool freeLocalModelNow)
     QTimer::singleShot(10000, session, &QObject::deleteLater);
     updateState();
     updateSessionInfo();
+}
+
+void WhaleAiPanel::beginConversation(const WhaleAiAgent &agent, const QString &folder)
+{
+    m_saveTimer->stop();
+    WhaleAiConversation conversation = WhaleAiConversation::create();
+    conversation.agentId = agent.id;
+    conversation.agentName = agent.name;
+    conversation.commandLine = agent.commandLine;
+    conversation.localProvider = agent.localProvider;
+    conversation.localModel = agent.localModel;
+    conversation.folder = folder;
+    m_conversation = conversation;
+    m_conversationStart = m_transcript->entryCount();
+}
+
+void WhaleAiPanel::saveConversation()
+{
+    m_saveTimer->stop();
+    if (!m_conversation || !WhaleAiAgents::saveConversations()) {
+        return;
+    }
+    const QJsonArray entries = m_transcript->record(m_conversationStart);
+    const QString userKind = QStringLiteral("UserMessage");
+    const auto first = std::find_if(entries.begin(), entries.end(), [&userKind](const QJsonValue &entry) {
+        return entry.toObject().value(QLatin1String("kind")).toString() == userKind;
+    });
+    if (first == entries.end()) {
+        return; // nothing of the user's: nothing worth keeping
+    }
+    WhaleAiConversation conversation = *m_conversation;
+    if (m_session && !m_session->sessionId().isEmpty()) {
+        conversation.sessionId = m_session->sessionId();
+    }
+    if (m_session) {
+        if (const WhaleAcpConfigOption *mode = m_session->configOption(QStringLiteral("mode"))) {
+            conversation.mode = mode->currentValue;
+        }
+    }
+    conversation.title = WhaleAiConversation::titleFor((*first).toObject().value(QLatin1String("text")).toString());
+    conversation.entries = entries;
+    if (conversation == *m_conversation) {
+        return; // saved as it is
+    }
+    conversation.updated = QDateTime::currentDateTime();
+    if (WhaleAiConversationStore().save(conversation)) {
+        m_conversation = conversation;
+    }
+}
+
+QString WhaleAiPanel::conversationId() const
+{
+    return m_conversation ? m_conversation->id : QString();
 }
 
 void WhaleAiPanel::newConversation()

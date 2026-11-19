@@ -19,6 +19,7 @@
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLocale>
+#include <QMetaEnum>
 #include <QPainter>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -28,12 +29,32 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
+
 namespace
 {
 const char KindProperty[] = "entryKind";
 const char TimeProperty[] = "entryTime";
 const char RowProperty[] = "transcriptRow";
 const char EntryProperty[] = "transcriptEntry";
+const char RecordProperty[] = "entryRecord";
+
+QString statusName(WhaleAcpToolCall::Status status)
+{
+    switch (status) {
+    case WhaleAcpToolCall::Status::Pending:
+        return QStringLiteral("pending");
+    case WhaleAcpToolCall::Status::InProgress:
+        return QStringLiteral("in_progress");
+    case WhaleAcpToolCall::Status::Completed:
+        return QStringLiteral("completed");
+    case WhaleAcpToolCall::Status::Failed:
+        return QStringLiteral("failed");
+    case WhaleAcpToolCall::Status::Cancelled:
+        return QStringLiteral("cancelled");
+    }
+    return QString();
+}
 
 /** The locale's time with seconds, without the time zone. */
 QString timeFormat()
@@ -252,6 +273,47 @@ QString toolCallDetails(const WhaleAcpToolCall &toolCall)
     }
     return parts.join(QStringLiteral("\n\n"));
 }
+
+/** What a tool call row shows (see toolCallDetails()); with @p content also the changes. */
+QJsonObject toolCallRecord(const WhaleAcpToolCall &toolCall, bool content)
+{
+    QJsonObject object{
+        {QStringLiteral("id"), toolCall.id},
+        {QStringLiteral("title"), toolCall.title},
+        {QStringLiteral("kind"), toolCall.kind},
+        {QStringLiteral("status"), statusName(toolCall.status)},
+        {QStringLiteral("locations"), QJsonArray::fromStringList(toolCall.locations)},
+    };
+    if (!toolCall.rawInput.isUndefined() && !toolCall.rawInput.isNull()) {
+        object.insert(QStringLiteral("rawInput"), toolCall.rawInput);
+    }
+    // Only as much as is shown: an output can be a whole file.
+    const QString output = jsonText(toolCall.rawOutput).left(2000);
+    if (!output.isEmpty()) {
+        object.insert(QStringLiteral("rawOutput"), output);
+    }
+    if (content && !toolCall.content.isEmpty()) {
+        object.insert(QStringLiteral("content"), toolCall.content);
+    }
+    return object;
+}
+
+WhaleAcpToolCall toolCallFromRecord(const QJsonObject &object)
+{
+    WhaleAcpToolCall toolCall;
+    toolCall.id = object.value(QLatin1String("id")).toString();
+    toolCall.title = object.value(QLatin1String("title")).toString();
+    toolCall.kind = object.value(QLatin1String("kind")).toString();
+    const QString status = object.value(QLatin1String("status")).toString();
+    toolCall.status = status == QLatin1String("cancelled") ? WhaleAcpToolCall::Status::Cancelled : WhaleAcpToolCall::statusFromString(status);
+    for (const QJsonValue &location : object.value(QLatin1String("locations")).toArray()) {
+        toolCall.locations.append(location.toString());
+    }
+    toolCall.rawInput = object.value(QLatin1String("rawInput"));
+    toolCall.rawOutput = object.value(QLatin1String("rawOutput"));
+    toolCall.content = object.value(QLatin1String("content")).toArray();
+    return toolCall;
+}
 }
 
 WhaleAiTranscript::WhaleAiTranscript(QWidget *parent)
@@ -322,11 +384,14 @@ QWidget *WhaleAiTranscript::createFoldable(const QString &title, QLabel *body, b
 
 QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
 {
-    const QDateTime now = QDateTime::currentDateTime();
+    const QDateTime now = m_restoreTime.isValid() ? m_restoreTime : QDateTime::currentDateTime();
     const QList<QWidget *> before = entries();
     const QDateTime previous = before.isEmpty() ? QDateTime() : timeOf(before.constLast());
     entry->setProperty(KindProperty, QVariant::fromValue(int(kind)));
     entry->setProperty(TimeProperty, now);
+    entry->setProperty(RecordProperty,
+                       QJsonObject{{QStringLiteral("kind"), QString::fromLatin1(QMetaEnum::fromType<Kind>().valueToKey(int(kind)))},
+                                   {QStringLiteral("time"), now.toString(Qt::ISODateWithMs)}});
 
     // Each entry in a row of its own, its time at the start (shown by the "Times" filter); the
     // date too when the day changed since the entry before.
@@ -356,7 +421,25 @@ QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
     // Before the stretch at the end.
     m_layout->insertWidget(m_layout->count() - 1, row);
     setEntryVisible(entry, m_showActions || !isAction(kind));
+    Q_EMIT changed();
     return entry;
+}
+
+void WhaleAiTranscript::updateRecord(QWidget *widget, const QJsonObject &fields)
+{
+    QWidget *entry = widget;
+    while (entry && !entry->property(RowProperty).isValid()) {
+        entry = entry->parentWidget();
+    }
+    if (!entry) {
+        return;
+    }
+    QJsonObject record = entry->property(RecordProperty).toJsonObject();
+    for (auto it = fields.begin(); it != fields.end(); ++it) {
+        record.insert(it.key(), it.value());
+    }
+    entry->setProperty(RecordProperty, record);
+    Q_EMIT changed();
 }
 
 void WhaleAiTranscript::setEntryVisible(QWidget *entry, bool visible)
@@ -441,6 +524,7 @@ void WhaleAiTranscript::addUserMessage(const QString &text, const QString &conte
         layout->addWidget(contextLabel);
     }
     addEntry(Kind::UserMessage, frame);
+    updateRecord(frame, {{QStringLiteral("text"), text}, {QStringLiteral("context"), context}});
 }
 
 void WhaleAiTranscript::appendAgentText(const QString &text)
@@ -453,6 +537,7 @@ void WhaleAiTranscript::appendAgentText(const QString &text)
     }
     m_currentAnswerText += text;
     m_currentAnswer->setText(m_currentAnswerText);
+    updateRecord(m_currentAnswer, {{QStringLiteral("text"), m_currentAnswerText}});
 }
 
 void WhaleAiTranscript::appendThought(const QString &text)
@@ -466,6 +551,7 @@ void WhaleAiTranscript::appendThought(const QString &text)
     }
     m_currentThoughtText += text;
     m_currentThought->setText(m_currentThoughtText);
+    updateRecord(m_currentThought, {{QStringLiteral("text"), m_currentThoughtText}});
 }
 
 void WhaleAiTranscript::updateToolCall(const WhaleAcpToolCall &toolCall)
@@ -514,6 +600,7 @@ void WhaleAiTranscript::updateToolCall(const WhaleAcpToolCall &toolCall)
     const QString details = toolCallDetails(toolCall);
     entry.details->setText(details);
     entry.row->findChild<QToolButton *>(QStringLiteral("toggle"))->setEnabled(!details.isEmpty());
+    updateRecord(entry.row, {{QStringLiteral("toolCall"), toolCallRecord(toolCall, false)}});
 }
 
 void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &request)
@@ -622,6 +709,7 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
             }
             answer->setText(i18nc("@info the option the user chose for a permission request", "Answered: %1", option.name));
             answer->show();
+            updateRecord(answer, {{QStringLiteral("answer"), option.name}});
             m_permissions.remove(key);
             Q_EMIT permissionAnswered(key, option.id);
             Q_EMIT openPermissionsChanged();
@@ -632,6 +720,11 @@ void WhaleAiTranscript::addPermissionRequest(const WhaleAcpPermissionRequest &re
 
     m_permissions.insert(request.key, frame);
     addEntry(Kind::Permission, frame);
+    QJsonArray options;
+    for (const WhaleAcpPermissionRequest::Option &option : request.options) {
+        options.append(QJsonObject{{QStringLiteral("id"), option.id}, {QStringLiteral("name"), option.name}, {QStringLiteral("kind"), option.kind}});
+    }
+    updateRecord(frame, {{QStringLiteral("toolCall"), toolCallRecord(toolCall, true)}, {QStringLiteral("options"), options}});
     Q_EMIT openPermissionsChanged();
     // A question must be seen.
     m_followBottom = true;
@@ -679,6 +772,7 @@ void WhaleAiTranscript::withdrawPermissionRequest(const QString &key)
     auto *answer = frame->findChild<QLabel *>(QStringLiteral("answer"));
     answer->setText(i18nc("@info a permission request of an AI agent", "No longer needed."));
     answer->show();
+    updateRecord(frame, {{QStringLiteral("withdrawn"), true}});
 }
 
 void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString &details, const QString &toolTip)
@@ -698,8 +792,10 @@ void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString 
         label->setForegroundRole(QPalette::PlaceholderText);
     }
 
+    const QJsonObject fields{{QStringLiteral("text"), text}, {QStringLiteral("details"), details}, {QStringLiteral("toolTip"), toolTip}};
     if (details.isEmpty()) {
         addEntry(kind, label);
+        updateRecord(label, fields);
         return;
     }
     auto *box = new QWidget(m_content);
@@ -712,6 +808,7 @@ void WhaleAiTranscript::addNotice(const QString &text, Kind kind, const QString 
     body->setText(details);
     layout->addWidget(createFoldable(i18nc("@action:button unfolds technical details", "Details"), body, false));
     addEntry(kind, box);
+    updateRecord(box, fields);
 }
 
 void WhaleAiTranscript::endTurn()
@@ -733,6 +830,7 @@ void WhaleAiTranscript::clear()
         }
     }
     qDeleteAll(rows);
+    Q_EMIT changed();
     m_followBottom = true;
 }
 
@@ -745,6 +843,96 @@ QList<QWidget *> WhaleAiTranscript::entries() const
         }
     }
     return list;
+}
+
+int WhaleAiTranscript::entryCount() const
+{
+    // The stretch at the end is no entry.
+    return m_layout->count() - 1;
+}
+
+QJsonArray WhaleAiTranscript::record(int from) const
+{
+    QJsonArray array;
+    const QList<QWidget *> list = entries();
+    for (qsizetype i = std::max(0, from); i < list.size(); ++i) {
+        array.append(list.at(i)->property(RecordProperty).toJsonObject());
+    }
+    return array;
+}
+
+void WhaleAiTranscript::restore(const QJsonArray &record)
+{
+    endTurn();
+    const QMetaEnum kinds = QMetaEnum::fromType<Kind>();
+    int index = 0;
+    for (const QJsonValue &value : record) {
+        const QJsonObject entry = value.toObject();
+        bool known = false;
+        const Kind kind = Kind(kinds.keyToValue(entry.value(QLatin1String("kind")).toString().toLatin1().constData(), &known));
+        if (!known) {
+            continue;
+        }
+        m_restoreTime = QDateTime::fromString(entry.value(QLatin1String("time")).toString(), Qt::ISODateWithMs);
+        if (!m_restoreTime.isValid()) {
+            m_restoreTime = QDateTime::currentDateTime();
+        }
+        const QString text = entry.value(QLatin1String("text")).toString();
+        switch (kind) {
+        case Kind::UserMessage:
+            addUserMessage(text, entry.value(QLatin1String("context")).toString());
+            break;
+        case Kind::AgentMessage:
+            endTurn();
+            appendAgentText(text);
+            endTurn();
+            break;
+        case Kind::Thought:
+            endTurn();
+            appendThought(text);
+            endTurn();
+            break;
+        case Kind::ToolCall:
+            updateToolCall(toolCallFromRecord(entry.value(QLatin1String("toolCall")).toObject()));
+            // A second call with the same id would update this one.
+            m_toolCalls.remove(entry.value(QLatin1String("toolCall")).toObject().value(QLatin1String("id")).toString());
+            break;
+        case Kind::Permission: {
+            WhaleAcpPermissionRequest request;
+            request.key = QStringLiteral("restored-%1").arg(index);
+            request.toolCall = toolCallFromRecord(entry.value(QLatin1String("toolCall")).toObject());
+            for (const QJsonValue &option : entry.value(QLatin1String("options")).toArray()) {
+                const QJsonObject object = option.toObject();
+                request.options.append({object.value(QLatin1String("id")).toString(),
+                                        object.value(QLatin1String("name")).toString(),
+                                        object.value(QLatin1String("kind")).toString()});
+            }
+            const QString answer = entry.value(QLatin1String("answer")).toString();
+            addPermissionRequest(request);
+            QWidget *frame = m_permissions.take(request.key);
+            frame->findChild<QWidget *>(QStringLiteral("buttons"))->hide();
+            auto *label = frame->findChild<QLabel *>(QStringLiteral("answer"));
+            if (answer.isEmpty()) {
+                label->setText(i18nc("@info a permission request of an AI agent", "No longer needed."));
+                updateRecord(frame, {{QStringLiteral("withdrawn"), true}});
+            } else {
+                label->setText(i18nc("@info the option the user chose for a permission request", "Answered: %1", answer));
+                updateRecord(frame, {{QStringLiteral("answer"), answer}});
+            }
+            label->show();
+            Q_EMIT openPermissionsChanged();
+            break;
+        }
+        case Kind::Notice:
+        case Kind::Action:
+        case Kind::Error:
+            addNotice(text, kind, entry.value(QLatin1String("details")).toString(), entry.value(QLatin1String("toolTip")).toString());
+            break;
+        }
+        ++index;
+    }
+    m_restoreTime = QDateTime();
+    endTurn();
 }
 
 WhaleAiTranscript::Kind WhaleAiTranscript::kindOf(const QWidget *entry)
