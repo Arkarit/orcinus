@@ -239,7 +239,12 @@ QString toHtml(const WhaleAiConversation &conversation, const Options &options)
         meta.append(QStringLiteral("<tt>") + conversation.folder.toHtmlEscaped() + QStringLiteral("</tt>"));
     }
     meta.append(periodText(conversation).toHtmlEscaped());
-    body += QStringLiteral("<p style=\"color:%1\">").arg(QLatin1String(Minor)) + meta.join(QStringLiteral(" · ")) + QStringLiteral("</p><hr>");
+    body += QStringLiteral("<p style=\"color:%1\">").arg(QLatin1String(Minor)) + meta.join(QStringLiteral(" · ")) + QStringLiteral("</p>");
+    // A fine grey line: QTextDocument draws <hr> black and takes no colour for it.
+    body += QStringLiteral(
+                "<table width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" border=\"0\" style=\"background-color:%1; margin-top:4px; margin-bottom:6px\">"
+                "<tr><td style=\"font-size:1pt\">&nbsp;</td></tr></table>")
+                .arg(QLatin1String(UserBorder));
 
     const QString you = i18nc("@title the user in an exported AI conversation", "You");
     for (const QJsonValue &value : conversation.entries) {
