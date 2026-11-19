@@ -830,9 +830,17 @@ void WhaleAiTranscript::addMemoryNote(const QString &key, const QString &text, c
     auto *rowLayout = new QHBoxLayout(row);
     rowLayout->setContentsMargins(0, 0, 0, 0);
     for (const auto &[id, name] : buttons) {
-        auto *button = new QPushButton(name, row);
+        // Framed and with icons, like the answers to a permission request.
+        auto *button = new ElidedButton(name, row);
         button->setObjectName(QStringLiteral("memory-") + id);
-        button->setFlat(true);
+        static const QHash<QString, QString> icons = {{QStringLiteral("keep"), QStringLiteral("dialog-ok-apply")},
+                                                      {QStringLiteral("discard"), QStringLiteral("dialog-cancel")},
+                                                      {QStringLiteral("forget"), QStringLiteral("edit-delete")},
+                                                      {QStringLiteral("undo"), QStringLiteral("edit-undo")}};
+        if (const QString icon = icons.value(id); !icon.isEmpty()) {
+            button->setIcon(QIcon::fromTheme(icon));
+        }
+        button->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
         connect(button, &QPushButton::clicked, this, [this, key, id] {
             Q_EMIT memoryButtonClicked(key, id);
         });
