@@ -708,7 +708,23 @@ bool WhaleAiPanel::sendPrompt(const QString &text)
     // Current, also if the other view changed without a signal; what goes is shown.
     refreshContext();
     m_pendingContext = m_chips->context();
-    m_transcript->addUserMessage(prompt, WhaleAiContextPrompt::summary(m_pendingContext));
+    // AI16b: the notes of the memory for where the agent works and what the user looks at, each once.
+    m_pendingNotes.clear();
+    if (WhaleAiAgents::memoryMode() != WhaleAiAgents::MemoryMode::Off) {
+        const QStringList folders{m_session->property("workingDirectory").toString(), m_pendingContext.folder, m_pendingContext.otherFolder};
+        for (const WhaleAiNote &note : WhaleAiMemory().relevant(folders, WhaleAiAgents::memoryBudget())) {
+            if (!m_sentNotes.contains(note.id + note.updated.toString(Qt::ISODateWithMs))) {
+                m_pendingNotes.append(note);
+            }
+        }
+    }
+    QString summary = WhaleAiContextPrompt::summary(m_pendingContext);
+    if (!m_pendingNotes.isEmpty()) {
+        const QString notes = i18ncp("@info what was sent along with a message", "%1 note from the memory", "%1 notes from the memory", m_pendingNotes.size());
+        summary = summary.isEmpty() ? i18nc("@info %1 is e.g. 2 notes from the memory", "With: %1", notes)
+                                    : i18nc("@info %1 says what was sent along, %2 e.g. 2 notes from the memory", "%1, %2", summary, notes);
+    }
+    m_transcript->addUserMessage(prompt, summary);
     m_chips->messageSent();
     m_pendingPrompt = prompt;
     sendPending();
@@ -752,6 +768,7 @@ bool WhaleAiPanel::startSession()
     m_sessionAgentId = agent.id;
     // A resumed agent had it in its first message.
     m_systemPromptSent = resumed.has_value();
+    m_sentNotes.clear();
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();
     m_shownMode.clear();
@@ -957,6 +974,14 @@ void WhaleAiPanel::sendPending()
         return;
     }
     QJsonArray blocks = WhaleAiContextPrompt::blocks(std::exchange(m_pendingContext, {}), std::exchange(m_pendingPrompt, QString()));
+    const QList<WhaleAiNote> notes = std::exchange(m_pendingNotes, {});
+    if (!notes.isEmpty()) {
+        // After the system prompt, before what the user looks at.
+        blocks.prepend(WhaleAcpContent::text(WhaleAiMemory::promptText(notes)));
+        for (const WhaleAiNote &note : notes) {
+            m_sentNotes.insert(note.id + note.updated.toString(Qt::ISODateWithMs));
+        }
+    }
     if (!m_systemPromptSent) {
         // The system prompt leads the first message of the conversation (ACP has no system
         // prompt of its own); later messages carry only the live context.
@@ -1136,6 +1161,7 @@ void WhaleAiPanel::endSession(bool freeLocalModelNow)
     }
     m_localProgress.clear();
     m_pendingPrompt.clear();
+    m_pendingNotes.clear();
     m_pendingContext = {};
     m_modeState = ModeState::Unknown;
     m_modeRequest.clear();

@@ -18,6 +18,7 @@
 #include "whaleaifakestrata.h"
 #include "whaleailocalruntime.h"
 #include "whaleaimcpserver.h"
+#include "whaleaimemory.h"
 #include "whaleaisettingspage.h"
 #include "whaleaitranscript.h"
 
@@ -79,6 +80,7 @@ private Q_SLOTS:
     void savedConversation();
     void openSavedConversation();
     void resumeSavedConversation();
+    void memoryNotesSent();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -503,6 +505,64 @@ void WhaleAiPanelTest::resumeSavedConversation()
     QVERIFY(!panel.canResumeOpened());
     QVERIFY(panel.openedConversationId().isEmpty());
     QVERIFY(texts(panel).contains(QLatin1String("Now talking to Fake crash. The next message starts a new conversation.")));
+}
+
+void WhaleAiPanelTest::memoryNotesSent()
+{
+    const WhaleAiMemory memory;
+    QFile::remove(memory.path());
+    const QString sub = m_work.filePath(QStringLiteral("notes-sub"));
+    QVERIFY(QDir().mkpath(sub));
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Manual);
+    QVERIFY(memory.add(QStringLiteral("global note G"), QString(), QString(), false));
+    QVERIFY(memory.add(QStringLiteral("work note W"), m_work.path(), QString(), false));
+    QVERIFY(memory.add(QStringLiteral("elsewhere note E"), QStringLiteral("/elsewhere"), QString(), false));
+
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto turn = [&panel](const QString &text) {
+        QVERIFY(panel.sendPrompt(text));
+        QVERIFY(waitForReady(panel));
+    };
+    auto count = [&panel](const QString &text) {
+        return texts(panel).count(text);
+    };
+    // The first message: the notes for here and the global ones, after the system prompt.
+    turn(QStringLiteral("nopermission one"));
+    QString all = texts(panel);
+    QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 1);
+    QVERIFY2(all.contains(QLatin1String("work note W")), qPrintable(all));
+    QVERIFY(all.contains(QLatin1String("global note G")));
+    QVERIFY(all.contains(QLatin1String("[everywhere, note")));
+    QVERIFY(!all.contains(QLatin1String("elsewhere note E")));
+    QVERIFY(all.indexOf(QLatin1String("Notes the user keeps")) > all.indexOf(QLatin1String("Orcinus")));
+    QVERIFY(all.contains(QLatin1String("2 notes from the memory")));
+
+    // The next message: nothing again.
+    turn(QStringLiteral("nopermission two"));
+    QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 1);
+
+    // Into a subfolder with a note of its own: only that one.
+    QVERIFY(memory.add(QStringLiteral("sub note S"), sub, QString(), false));
+    panel.setUrl(QUrl::fromLocalFile(sub));
+    turn(QStringLiteral("nopermission three"));
+    QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 2);
+    QCOMPARE(count(QStringLiteral("sub note S")), 1);
+    QCOMPARE(count(QStringLiteral("work note W")), 1);
+    QVERIFY(texts(panel).contains(QLatin1String("1 note from the memory")));
+
+    // A changed note goes again.
+    const QString id = memory.relevant({sub}, 2000).first().id;
+    QVERIFY(memory.update(id, QStringLiteral("sub note S2"), sub));
+    turn(QStringLiteral("nopermission four"));
+    QCOMPARE(count(QStringLiteral("sub note S2")), 1);
+
+    // Memory off: no notes at all.
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Off);
+    panel.newConversation();
+    turn(QStringLiteral("nopermission five"));
+    QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 0);
+    QFile::remove(memory.path());
 }
 
 void WhaleAiPanelTest::promptTurn()

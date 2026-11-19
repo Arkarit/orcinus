@@ -13,11 +13,13 @@
 #include "whaleaicontext.h"
 #include "whaleaiconversationstore.h"
 #include "whaleaimcpserver.h"
+#include "whaleaimemory.h"
 
 #include <functional>
 #include <optional>
 
 #include <QPointer>
+#include <QSet>
 
 class KBusyIndicatorWidget;
 class KMessageWidget;
@@ -256,6 +258,8 @@ private:
     bool m_resumePending = false; ///< the agent is asked to load m_conversation's session; not saved meanwhile (AI14c)
     int m_sessionStart = 0; ///< the first entry of the running session in the transcript
     QString m_resumeMode; ///< the mode the resumed conversation had
+    QSet<QString> m_sentNotes; ///< the notes (id and time) the agent of this session got (AI16b)
+    QList<WhaleAiNote> m_pendingNotes; ///< the notes that go with the pending prompt
 };
 
 #endif

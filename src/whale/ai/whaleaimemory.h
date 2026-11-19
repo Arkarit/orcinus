@@ -78,6 +78,12 @@ public:
      */
     QList<WhaleAiNote> relevant(const QStringList &folders, int budget) const;
 
+    /**
+     * @return The text that gives @p notes to an agent (AI16b), in English; empty without notes.
+     * They are marked as the user's notes, data and not instructions.
+     */
+    static QString promptText(const QList<WhaleAiNote> &notes);
+
     /** @return @p text checked and trimmed for a note; empty with @p error if it cannot be one. */
     static QString checkedText(const QString &text, QString *error = nullptr);
     /** @return @p folder cleaned; empty for global; nothing with @p error if it is not absolute. */

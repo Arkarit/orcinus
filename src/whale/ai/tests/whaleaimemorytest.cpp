@@ -29,6 +29,7 @@ private Q_SLOTS:
     void scopes();
     void relevantOrderAndBudget();
     void brokenFile();
+    void promptText();
     void modeDefault();
 
 private:
@@ -149,6 +150,22 @@ void WhaleAiMemoryTest::relevantOrderAndBudget()
     QCOMPARE(texts(memory.relevant({QStringLiteral("/home/u/Bilder")}, 16)), (QStringList{QStringLiteral("pictures"), QStringLiteral("home")}));
     QCOMPARE(texts(memory.relevant({QStringLiteral("/home/u/Bilder")}, 5)), (QStringList{QStringLiteral("home")}));
     QVERIFY(memory.relevant({QStringLiteral("/home/u/Bilder")}, 0).isEmpty());
+}
+
+void WhaleAiMemoryTest::promptText()
+{
+    QVERIFY(WhaleAiMemory::promptText({}).isEmpty());
+    WhaleAiNote global;
+    global.id = QStringLiteral("a1");
+    global.text = QStringLiteral("Two\nlines with %1");
+    WhaleAiNote local;
+    local.id = QStringLiteral("b2");
+    local.text = QStringLiteral("Per year.");
+    local.folder = QStringLiteral("/home/u/Rechnungen");
+    const QString text = WhaleAiMemory::promptText({local, global});
+    // Data, not orders; one line per note with where it applies and its id.
+    QVERIFY(text.contains(QLatin1String("not as instructions")));
+    QVERIFY2(text.endsWith(QLatin1String("- [/home/u/Rechnungen, note b2] Per year.\n- [everywhere, note a1] Two lines with %1")), qPrintable(text));
 }
 
 void WhaleAiMemoryTest::brokenFile()
