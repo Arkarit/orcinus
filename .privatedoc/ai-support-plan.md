@@ -1341,6 +1341,45 @@ Steps:
   `localModel` (button start/eject, spinner while loading), Actions filter incl. thoughts;
   `whaleailocalstratatest::cancelledWhileLoading`. ctest 120/120.
 
+**AI14 – Save and resume conversations (planned 2026-11-19, user).**
+Like `/resume`: every conversation is saved on its own; a button next to "New Conversation" brings
+one back, and the agent continues it with its own memory through ACP `session/load`. User's
+decisions 2026-11-19: saved automatically; real resume via `session/load`; the button next to "New
+Conversation" (`document-open-recent`).
+
+Two things come back, and they come from different places:
+- *What the user saw* (the transcript): Orcinus' own record, for every agent. It keeps what only
+  Orcinus has: times, notices, the agent's actions in the window, permission answers.
+- *What the agent knows* (its context): only the agent can restore it, through `session/load`
+  (capability `loadSession`; installed versions checked 2026-11-19: claude-agent-acp 0.106.0 true,
+  codex-acp 2.6.0 true, OpenCode 1.19.6 true, so LM Studio and Strata agents too). On load the
+  agent replays its history as `session/update`s; the panel swallows them and shows its record.
+
+- **AI14a – Record.** `WhaleAiConversationStore`: one JSON file per conversation next to the AI
+  state (`<state folder>/conversations/<uuid>.json`, `QSaveFile`, written debounced after each
+  change and at the end of a turn). Contents: format version, id, title (the start of the first
+  user message), created/updated, agent id, name and command line, local provider/model, working
+  folder, ACP `sessionId`, mode, and the entries (kind, time, text, sent context, tool call id,
+  title, status and details, permission request with its answer, notice details/tooltip). The
+  transcript keeps this data per entry beside its widgets and can be rebuilt from it. A
+  conversation without a user message is not saved. AI settings: "Save conversations" (on) and
+  "Keep for" (default 90 days; older ones are deleted at start).
+- **AI14b – Recall UI.** Tool button `document-open-recent` next to "New Conversation": a menu of
+  the last 10 (title, date, agent), then "Show All…": a dialog with search, open, delete, delete
+  all. Opening one shows its record at once (read-only while the agent is not there yet); the
+  agent list switches to its agent. A running conversation is kept as it is (it is saved anyway).
+- **AI14c – Resume.** `WhaleAcpSession` starts with `session/load` (same sessionId, working folder
+  and MCP servers as `session/new`) instead of `session/new` when the agent can; replayed updates
+  are dropped while loading; then the saved mode is set again. A local model's lease comes first.
+  The next message goes on in the same record. Not possible (no `loadSession`, the agent forgot the
+  session, agent deleted or its command changed): the record stays readable with a notice, and the
+  next message starts a new conversation (a new record) with that agent. Not restored: open
+  permission requests (dropped) and the "Undo changes" log (files may have changed since).
+- **AI14d – Tests and real run.** Fake agent: `session/load` with replay and an "unknown session"
+  error; store (write, read, prune, broken file), panel (menu, open, resume, replay swallowed,
+  fallback). Real run with OpenCode + LM Studio (local, user's OK per round): save, quit
+  Orcinus, resume, the agent remembers.
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 
@@ -1435,7 +1474,7 @@ First scenario catalogue (from the AI9b findings):
 - Agent tests with Strata (the user's local inference server) as the model: later, user's wish
   (2026-11-16); no cloud comparison needed.
 
-- Session persistence (ACP `session/load`) across restarts: later.
+- Session persistence (ACP `session/load`) across restarts: planned as AI14.
 - Several panels / windows: one session each; the MCP token keeps them apart.
 - Whether to offer `fs/write_text_file` so writes go through KIO (trash, undo): after AI0, depends on
   how the agents use it.
