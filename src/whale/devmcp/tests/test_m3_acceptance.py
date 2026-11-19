@@ -71,7 +71,7 @@ def run(args, work):
                           "get_preferred_view", "set_preferred_view", "clear_preferred_view",
                           "set_view_plugin_available", "trigger_toolbar_action", "configure_toolbars",
                           "location_bar_input", "apply_style", "save_style", "viewer_input",
-                          "set_viewer_options", "ai_new_conversation", "ai_send_prompt", "ai_wait_idle",
+                          "set_viewer_options", "ai_new_conversation", "ai_open_conversation", "ai_send_prompt", "ai_wait_idle",
                           "ai_get_transcript", "ai_answer_permission", "ai_stop", "canvas_confirm_backend"}
         if set(tools) != expected_tools:
             raise Failure(f"unexpected tool set: {sorted(set(tools) ^ expected_tools)}")

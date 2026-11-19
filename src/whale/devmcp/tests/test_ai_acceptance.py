@@ -11,6 +11,7 @@ with the scripted agent whaleacpfakeagent instead of a real one (no model, no qu
      Show Hidden Files), the panel's action line and the turn's end are seen
   C  a permission request waits; it is answered through the transcript's button
   D  a new conversation starts the record afresh
+  E  the first conversation, saved, is opened again and the agent continues it (AI14)
 
 Arguments as test_m4_acceptance.py, plus --fake-agent.
 """
@@ -114,6 +115,22 @@ def run(args, work):
         if transcript["toolCalls"] or transcript["permissions"] or "user" in [e["kind"] for e in transcript["entries"]]:
             raise Failure(f"D: old conversation left over: {transcript}")
         print("ok    D: new conversation starts afresh")
+
+        # E (AI14): the first conversation was saved; opened again, the agent continues it
+        opened = tool_json("ai_open_conversation")
+        if not opened.get("ok") or not opened.get("resumable"):
+            raise Failure(f"E: saved conversation not opened as resumable: {opened}")
+        kinds = [e["kind"] for e in tool_json("ai_get_transcript")["entries"]]
+        if "user" not in kinds:
+            raise Failure(f"E: the saved transcript is not shown: {kinds}")
+        tool_json("ai_send_prompt", text="nopermission go on")
+        ai = tool_json("ai_wait_idle", timeout_ms=30000)
+        if ai["timedOut"] or not ai["resumed"] or ai["conversationId"] != opened["id"]:
+            raise Failure(f"E: not resumed: {ai}")
+        answers = [e["text"] for e in tool_json("ai_get_transcript")["entries"] if e["kind"] == "agent"]
+        if not any("resumed=yes;" in answer for answer in answers):
+            raise Failure(f"E: the agent did not load its session: {answers}")
+        print("ok    E: saved conversation opened and continued")
     finally:
         client.close()
         whale.terminate()

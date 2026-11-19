@@ -1419,6 +1419,16 @@ Two things come back, and they come from different places:
   fallback). Real run with OpenCode + LM Studio (local, user's OK per round): save, quit
   Orcinus, resume, the agent remembers.
 
+- **AI14d done 2026-11-19** (user's OK). Dev MCP: `ai_open_conversation` (id, default the
+  latest; returns `resumable`), `ai` state with `conversationId`, `openedConversationId`,
+  `resumed`; `test_ai_acceptance.py` step E (open the saved conversation, continue it with the
+  fake agent). Real run (OpenCode 1.19.6, LM Studio qwen3.8-27b started and stopped by Orcinus,
+  offscreen, own profile; script kept outside the repo): "Merk dir 4711 und Pelikan" → OK (86 s
+  incl. model start), Orcinus quit, new Orcinus, the conversation opened (resumable), "Welche
+  Zahl und welches Wort?" → "4711 und Pelikan", resumed, same record (13 entries, both user
+  messages, the replay not shown); control in a new conversation → "keine"; saved mode `plan`
+  kept; LM Studio stopped afterwards. PASS in 161 s. AI14 complete.
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 

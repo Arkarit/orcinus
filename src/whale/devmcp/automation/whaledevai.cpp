@@ -10,6 +10,7 @@
 #include "whaleacpsession.h"
 #include "whaleacptypes.h"
 #include "whaleaiagents.h"
+#include "whaleaiconversationstore.h"
 #include "whaleaimcpserver.h"
 #include "whaleaipanel.h"
 #include "whaleaitranscript.h"
@@ -243,6 +244,9 @@ QJsonObject WhaleDevAi::state() const
         {QStringLiteral("mode"), mode},
         {QStringLiteral("modes"), modes},
         {QStringLiteral("conversation"), m_conversation},
+        {QStringLiteral("conversationId"), aiPanel->conversationId()},
+        {QStringLiteral("openedConversationId"), aiPanel->openedConversationId()},
+        {QStringLiteral("resumed"), session && session->isResumed()},
         {QStringLiteral("prompts"), m_prompts},
         {QStringLiteral("turnsFinished"), m_turnsFinished},
         {QStringLiteral("lastStopReason"), m_stopReasons.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(m_stopReasons.constLast())},
@@ -322,6 +326,35 @@ QJsonObject WhaleDevAi::newConversation(const QString &agentId, const QString &m
         dock->raise();
     }
     return {{QStringLiteral("ok"), true}, {QStringLiteral("state"), state()}};
+}
+
+QJsonObject WhaleDevAi::openConversation(const QString &id)
+{
+    WhaleAiPanel *aiPanel = panel();
+    if (!aiPanel) {
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QStringLiteral("no AI panel")}};
+    }
+    QString chosen = id;
+    if (chosen.isEmpty()) {
+        const QList<WhaleAiConversation> saved = WhaleAiConversationStore().list();
+        if (saved.isEmpty()) {
+            return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QStringLiteral("no saved conversation")}};
+        }
+        chosen = saved.constFirst().id;
+    }
+    if (!aiPanel->openConversation(chosen)) {
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), QString(QStringLiteral("cannot open ") + chosen)}};
+    }
+    resetRecord();
+    ++m_conversation;
+    if (auto *dock = qobject_cast<QDockWidget *>(aiPanel->parent())) {
+        dock->show();
+        dock->raise();
+    }
+    return {{QStringLiteral("ok"), true},
+            {QStringLiteral("id"), chosen},
+            {QStringLiteral("resumable"), aiPanel->canResumeOpened()},
+            {QStringLiteral("state"), state()}};
 }
 
 QJsonObject WhaleDevAi::sendPrompt(const QString &text)

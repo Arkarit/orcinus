@@ -92,6 +92,8 @@ public Q_SLOTS:
     Q_SCRIPTABLE QByteArray ViewerScreenshot();
     /// AI10a, see WhaleDevAi. Empty @p agentId or @p mode keep the current one.
     Q_SCRIPTABLE QString AiNewConversation(const QString &agentId, const QString &mode);
+    /// AI14: empty @p id opens the latest saved conversation.
+    Q_SCRIPTABLE QString AiOpenConversation(const QString &id);
     Q_SCRIPTABLE QString AiSendPrompt(const QString &text);
     /// The "ai" part of UiState() alone (cheap, for polling).
     Q_SCRIPTABLE QString AiState();

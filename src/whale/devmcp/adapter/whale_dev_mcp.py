@@ -604,6 +604,16 @@ TOOLS = [
         },
     },
     {
+        "name": "ai_open_conversation",
+        "description": "AI14: opens a saved conversation of the AI panel as its menu entry does (the current one "
+        "ends and is saved). Without id the latest. The next prompt continues it if its agent can (resumable); "
+        "ai in get_ui_state then has resumed true.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"id": {"type": "string"}},
+        },
+    },
+    {
         "name": "ai_send_prompt",
         "description": "AI10a: sends a prompt through the AI panel as the user does (with the window's context). "
         "Fails while the agent starts or works; needs the accepted disclaimer and a set-up agent.",
@@ -846,6 +856,8 @@ class Whale:
             return result(iface.SetViewerOptions(json.dumps(options)))
         if tool == "ai_new_conversation":
             return result(iface.AiNewConversation(args.get("agent", ""), args.get("mode", "")))
+        if tool == "ai_open_conversation":
+            return result(iface.AiOpenConversation(args.get("id", "")))
         if tool == "ai_send_prompt":
             return result(iface.AiSendPrompt(args["text"]))
         if tool == "ai_wait_idle":

@@ -289,6 +289,11 @@ QString WhaleDevAutomationDBus::AiNewConversation(const QString &agentId, const 
     return toJson(m_automation->ai()->newConversation(agentId, mode));
 }
 
+QString WhaleDevAutomationDBus::AiOpenConversation(const QString &id)
+{
+    return toJson(m_automation->ai()->openConversation(id));
+}
+
 QString WhaleDevAutomationDBus::AiSendPrompt(const QString &text)
 {
     return toJson(m_automation->ai()->sendPrompt(text));

@@ -57,6 +57,8 @@ public:
      * starts with the first prompt.
      */
     QJsonObject newConversation(const QString &agentId, const QString &mode);
+    /** AI14: opens the saved conversation @p id (empty: the latest) as its menu entry does. */
+    QJsonObject openConversation(const QString &id);
 
     /** Sends @p text as the user does. Fails while the agent is starting or working. */
     QJsonObject sendPrompt(const QString &text);
