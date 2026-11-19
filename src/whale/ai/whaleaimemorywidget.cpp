@@ -48,10 +48,11 @@ WhaleAiMemoryWidget::WhaleAiMemoryWidget(const WhaleAiMemory &memory, QWidget *p
     auto *hint = new QLabel(i18nc("@info",
                                   "Notes the agents get in later conversations: global ones everywhere, folder notes in that folder and "
                                   "below. Agents can also look through your saved conversations. You see every note an agent keeps, and "
-                                  "notes never permit anything. In the AI panel, “/remember …” keeps a note for the folder you are in, "
-                                  "“/remember global …” one for everywhere."),
+                                  "notes never permit anything. In the AI panel, <nobr>“/remember …”</nobr> keeps a note for the folder you "
+                                  "are in, <nobr>“/remember global …”</nobr> one for everywhere."),
                             this);
     hint->setWordWrap(true);
+    hint->setTextFormat(Qt::RichText);
 
     m_list = new QTreeWidget(this);
     m_list->setObjectName(QStringLiteral("notes"));

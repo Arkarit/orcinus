@@ -32,6 +32,8 @@
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStackedWidget>
+#include <QTabBar>
+#include <QTabWidget>
 #include <QVBoxLayout>
 
 namespace
@@ -187,19 +189,39 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     });
     connect(m_keepConversations, &QSpinBox::valueChanged, this, &WhaleAiSettingsPage::changed);
 
-    auto *content = new QWidget(this);
-    auto *layout = new QVBoxLayout(content);
-    layout->setContentsMargins(0, 0, 0, 0);
-    layout->addWidget(intro);
-    layout->addLayout(listRow, 1);
-    layout->addWidget(m_result);
-    layout->addWidget(m_logIn, 0, Qt::AlignLeft);
-    layout->addWidget(conversationGroup);
-    m_memoryWidget = new WhaleAiMemoryWidget(WhaleAiMemory(), this);
+    // Tabs as on the other pages (user, 2026-11-19): the agents with their local models, what is
+    // kept (memory and conversations), the system prompt.
+    auto *content = new QTabWidget(this);
+    content->setObjectName(QStringLiteral("aiTabs"));
+    content->setDocumentMode(true);
+    content->tabBar()->setExpanding(true);
+
+    auto *agentsTab = new QWidget(content);
+    auto *agentsLayout = new QVBoxLayout(agentsTab);
+    agentsLayout->addWidget(intro);
+    agentsLayout->addLayout(listRow, 1);
+    agentsLayout->addWidget(m_result);
+    agentsLayout->addWidget(m_logIn, 0, Qt::AlignLeft);
+    agentsLayout->addWidget(localGroup);
+    content->addTab(agentsTab, QIcon::fromTheme(QStringLiteral("dialog-messages")), i18nc("@title:tab AI settings", "Agents"));
+
+    auto *memoryTab = new QWidget(content);
+    auto *memoryLayout = new QVBoxLayout(memoryTab);
+    m_memoryWidget = new WhaleAiMemoryWidget(WhaleAiMemory(), memoryTab);
     connect(m_memoryWidget, &WhaleAiMemoryWidget::changed, this, &WhaleAiSettingsPage::changed);
-    layout->addWidget(m_memoryWidget);
-    layout->addWidget(localGroup);
-    layout->addWidget(promptGroup);
+    memoryLayout->addWidget(m_memoryWidget, 1);
+    conversationGroup->setParent(memoryTab);
+    memoryLayout->addWidget(conversationGroup);
+    content->addTab(memoryTab, QIcon::fromTheme(QStringLiteral("view-history")), i18nc("@title:tab AI settings", "Memory"));
+
+    auto *promptTab = new QWidget(content);
+    auto *promptTabLayout = new QVBoxLayout(promptTab);
+    promptGroup->setParent(promptTab);
+    // The tab says what it is.
+    promptGroup->setTitle(QString());
+    promptGroup->setFlat(true);
+    promptTabLayout->addWidget(promptGroup);
+    content->addTab(promptTab, QIcon::fromTheme(QStringLiteral("document-edit")), i18nc("@title:tab AI settings", "System Prompt"));
 
     // The disclaimer first, until the user accepts it here or in the AI panel (AI5f).
     m_pages = new QStackedWidget(this);

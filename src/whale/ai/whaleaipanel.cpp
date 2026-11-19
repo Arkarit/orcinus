@@ -120,7 +120,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     auto *configure = new QToolButton(chat);
     configure->setObjectName(QStringLiteral("configure"));
     configure->setIcon(QIcon::fromTheme(QStringLiteral("configure")));
-    configure->setToolTip(i18nc("@info:tooltip", "Configure AI Agents…"));
+    configure->setToolTip(i18nc("@info:tooltip", "Configure AI Support…"));
     configure->setAutoRaise(true);
 
     // AI13f: start an agent with a local model ahead of the first message, or end it and unload.
@@ -416,7 +416,7 @@ QList<WhaleAiWindowTool> WhaleAiPanel::agentTools()
     return {
         {QStringLiteral("list_agents"),
          QStringLiteral("List the AI agents set up in Orcinus"),
-         QStringLiteral("Lists the AI agents of Orcinus' AI panel (Settings > AI Agents): id, name, command line, start mode, which one is "
+         QStringLiteral("Lists the AI agents of Orcinus' AI panel (Settings > AI Support): id, name, command line, start mode, which one is "
                         "the default and which one this conversation uses. Environment variables are listed by name only, and arguments "
                         "that look like secrets as \"…\": API keys stay with the user."),
          true,
@@ -1208,7 +1208,7 @@ bool WhaleAiPanel::startSession()
             }
             QString message = i18nc("@info", "The agent stopped working.");
             if (session->errorCode() == WhaleAcpError::AuthRequired) {
-                message = i18nc("@info", "The agent needs a login first. See “Test” in the AI Agents settings for how to log in.");
+                message = i18nc("@info", "The agent needs a login first. See “Test” in the AI Support settings for how to log in.");
             }
             m_transcript->addNotice(message, WhaleAiTranscript::Kind::Error, details);
             // The next prompt starts a new one.
@@ -1575,7 +1575,7 @@ void WhaleAiPanel::saveConversation()
 bool WhaleAiPanel::rememberByUser(const QString &text, bool global)
 {
     if (WhaleAiAgents::memoryMode() == WhaleAiAgents::MemoryMode::Off) {
-        m_transcript->addNotice(i18nc("@info", "The memory is off. Turn it on in the settings of the AI agents."), WhaleAiTranscript::Kind::Error);
+        m_transcript->addNotice(i18nc("@info", "The memory is off. Turn it on in the AI Support settings."), WhaleAiTranscript::Kind::Error);
         return false;
     }
     QString folder;

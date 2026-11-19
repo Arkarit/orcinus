@@ -2956,7 +2956,7 @@ void DolphinMainWindow::setupDockWidgets()
         ->setWhatsThis(xi18nc("@info:whatsthis",
                               "<para>This toggles the <emphasis>AI Assistant</emphasis> panel.</para>"
                               "<para>It talks to an AI agent installed on this computer, such as Claude Code, Codex or "
-                              "OpenCode, set up in <interface>Configure Orcinus… > AI Agents</interface>.</para>"));
+                              "OpenCode, set up in <interface>Configure Orcinus… > AI Support</interface>.</para>"));
     aiDock->setWhatsThis(xi18nc("@info:whatsthis",
                                 "<para>This is the <emphasis>AI Assistant</emphasis> panel. Write to the AI agent chosen at the top; "
                                 "it works in the folder shown when the conversation started.</para>")

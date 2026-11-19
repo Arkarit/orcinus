@@ -40,7 +40,7 @@
 #include <QTreeWidget>
 
 /**
- * The "AI Agents" page of the settings dialog (AI2): adding known and other agents, editing,
+ * The "AI Support" page of the settings dialog (AI2): adding known and other agents, editing,
  * removing, the default, and the test button against the scripted agent whaleacpfakeagent.
  */
 class WhaleAiSettingsPageTest : public QObject
