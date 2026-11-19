@@ -1529,7 +1529,19 @@ conversations comes with it.
   tools in both modes, Forget/Keep/Discard, search; real run with OpenCode + LM Studio (user's OK):
   a note in conversation 1 is used in conversation 2 in a subfolder.
 
-Safety: a file the agent reads could make it store an instruction that would reach every later
+- **AI16f done 2026-11-19** (user's OK). Real run (OpenCode 1.19.6, LM Studio qwen3.8-27b started
+  and stopped by Orcinus, offscreen, own profile with Memory=automatic; script outside the repo):
+  1. In `Rechnungen`: "Merk dir dauerhaft für diesen Ordner: pro Jahr ein Unterordner, PDFs
+     behalten ihren Namen" → `remember` once, a folder note by the agent for `Rechnungen`
+     (it added "z. B. 2025, 2026"), answer "Gemerkt: …" (64 s incl. model start).
+  2. New conversation in `Rechnungen/2026` ("With: folder “2026”, 1 note from the memory"):
+     "Wie ablegen und benennen?" → "In Rechnungen/2026 legen … Namen rechnung-mai.pdf
+     beibehalten – keine Umbenennung." The note was used.
+  3. New conversation: "Worüber haben wir früher zu Rechnungen gesprochen?" →
+     `search_conversations`, `read_conversation` ×2, a correct summary of both conversations.
+  LM Studio stopped afterwards. PASS in 140 s. AI16 complete.
+
+Safety: a file the agent reads could make it storeSafety: a file the agent reads could make it store an instruction that would reach every later
 conversation (prompt injection that persists). Hence: every note visible and removable, sent as
 the user's notes and marked as data, short, Manual mode for the cautious, no note can carry
 permissions (they never change what Orcinus allows).
