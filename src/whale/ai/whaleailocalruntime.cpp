@@ -835,10 +835,29 @@ void WhaleAiLocalRuntime::strataTick(const QString &key)
                    seconds,
                    entry->phase.isEmpty() ? i18nc("@info what Strata does", "starting") : entry->phase));
 
-    if (strataLoadedModel(entry->host, entry->port) == entry->id) {
-        finish();
-        modelReady(entry, entry->id);
-        return;
+    // Asked without waiting: a server that loads answers late, and a blocking request would stop
+    // the GUI (and its busy spinner) for that long. One request at a time; it goes with the ticker.
+    if (entry->ticker && !entry->ticker->findChild<QNetworkReply *>()) {
+        QNetworkRequest request(QUrl(QStringLiteral("http://%1:%2/health").arg(entry->host).arg(entry->port)));
+        request.setTransferTimeout(m_options.requestTimeoutMs);
+        QNetworkReply *reply = m_network->get(request);
+        reply->setParent(entry->ticker);
+        const QPointer<QTimer> ticker = entry->ticker;
+        connect(reply, &QNetworkReply::finished, this, [this, key, reply, ticker] {
+            reply->deleteLater();
+            Model *entry = model(key);
+            if (!entry || !entry->preparing || !ticker || entry->ticker != ticker || reply->error() != QNetworkReply::NoError) {
+                return;
+            }
+            const QJsonObject health = QJsonDocument::fromJson(reply->readAll()).object();
+            if (health.value(QLatin1String("service")).toString() == Strata && health.value(QLatin1String("loaded")).toBool()
+                && health.value(QLatin1String("model")).toString() == entry->id) {
+                entry->ticker->stop();
+                entry->ticker->deleteLater();
+                entry->ticker = nullptr;
+                modelReady(entry, entry->id);
+            }
+        });
     }
     const bool alive = entry->serverPid > 0 ? WhaleAiLocalModels::isStrataServer(m_options.discovery.procPath, entry->serverPid)
                                             : WhaleAiLocalModels::runningStrataConfig(m_options.discovery.procPath).has_value();
