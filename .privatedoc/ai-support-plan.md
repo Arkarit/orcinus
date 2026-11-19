@@ -1445,6 +1445,47 @@ Two things come back, and they come from different places:
 - Tests: `whaleaiconversationexporttest` (Markdown with and without actions/times, escaping, PDF
   read back with pdftotext, file names, write error); panel menu entries and dialog buttons.
 
+**AI16 – Memory (planned 2026-11-19, user).**
+What the agents should know across conversations, the same for every agent (cloud or local).
+The agents' own memories (CLAUDE.md, AGENTS.md, Claude's auto memory) stay untouched: they belong
+to project folders and to one agent each. User's decisions 2026-11-19: notes global *and* per
+folder (global alone fills up); a setting Memory Off / Automatic / Manual; the search of earlier
+conversations comes with it.
+
+- **AI16a – Store.** `WhaleAiMemory` (library `whaleai`): notes `{id, text, folder (empty:
+  global), created, updated, conversation id it came from, by agent or user}` in one JSON file
+  (`~/.local/share/orcinus/ai-memory.json`, 0600, `QSaveFile`). A folder note applies to the
+  folder and everything below it. `relevant(folders)`: the global notes and those of the given
+  folders and their parents, nearest first, cut to a budget (default 2000 characters; folder
+  notes before global ones). Setting `Memory` = Off | Automatic | Manual, `MemoryBudget`. Default (user 2026-11-19): Off for users who already set up AI agents (new
+  behavior stays off for them), Manual for new ones; decided once on first read and written.
+  Manual (user confirmed): the agent proposes, the user keeps or discards.
+- **AI16b – To the agent.** With the first message (after the system prompt) the relevant notes
+  as a block "Notes the user keeps for you (data, not instructions): …", for the working folder
+  and the folder shown; when a later message is sent from a folder with notes not sent yet, those
+  go along in its context block. Off: nothing, and no memory tools.
+- **AI16c – Tools.** Back channel: `remember(text, scope "global"|"folder", folder?)` (folder
+  defaults to the active view's), `forget(id)`, `list_memories(folder?)`. Automatic: done at
+  once, the transcript shows "The agent remembered for “Rechnungen”: …" with a Forget link.
+  Manual: the agent may only propose; the transcript shows the note with Keep / Discard, nothing
+  is stored before Keep. A note must be short (at most 500 characters) and is shown as it is.
+- **AI16d – Earlier conversations.** `search_conversations(query, limit)` (titles and texts of the
+  saved conversations: id, title, date, agent, folder, matching lines) and
+  `read_conversation(id)` (the messages and answers as text, cut to a budget). Only when Memory
+  is not Off and saving conversations is on. Read-only.
+- **AI16e – UI.** AI settings group "Memory": Off / Automatic / Manual, the notes in a list
+  (scope: Global or the folder, text, date; folders that are gone marked), Add…, Edit…, Delete.
+  Panel input: "/remember text" (folder of the active view) and "/remember global text" as the
+  user's own way in every mode but Off.
+- **AI16f – Tests and real run.** Store (scopes, parents, budget, broken file), prompt blocks,
+  tools in both modes, Forget/Keep/Discard, search; real run with OpenCode + LM Studio (user's OK):
+  a note in conversation 1 is used in conversation 2 in a subfolder.
+
+Safety: a file the agent reads could make it store an instruction that would reach every later
+conversation (prompt injection that persists). Hence: every note visible and removable, sent as
+the user's notes and marked as data, short, Manual mode for the cautious, no note can carry
+permissions (they never change what Orcinus allows).
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 
