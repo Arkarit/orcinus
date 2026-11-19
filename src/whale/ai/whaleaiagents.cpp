@@ -37,6 +37,8 @@ const char ShowActionsKey[] = "ShowActions";
 const char ShowTimestampsKey[] = "ShowTimestamps";
 const char SaveConversationsKey[] = "SaveConversations";
 const char KeepConversationsDaysKey[] = "KeepConversationsDays";
+const char ExportActionsKey[] = "ExportActions";
+const char ExportTimesKey[] = "ExportTimes";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -758,6 +760,30 @@ void setKeepConversationsDays(int days)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(KeepConversationsDaysKey, std::max(0, days));
+    group.sync();
+}
+
+bool exportActions()
+{
+    return aiGroup().readEntry(ExportActionsKey, false);
+}
+
+void setExportActions(bool on)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(ExportActionsKey, on);
+    group.sync();
+}
+
+bool exportTimes()
+{
+    return aiGroup().readEntry(ExportTimesKey, true);
+}
+
+void setExportTimes(bool on)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(ExportTimesKey, on);
     group.sync();
 }
 

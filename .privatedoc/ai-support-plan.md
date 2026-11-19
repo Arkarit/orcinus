@@ -1429,6 +1429,22 @@ Two things come back, and they come from different places:
   messages, the replay not shown); control in a new conversation → "keine"; saved mode `plan`
   kept; LM Studio stopped afterwards. PASS in 161 s. AI14 complete.
 
+**AI15 – Export a conversation as PDF or Markdown (2026-11-19, user).** Done the same day.
+- User's design: below "Show All…" in the conversations menu "Export as PDF…" and "Export as
+  Markdown…" (the conversation shown; disabled if none), the same two buttons in "Saved
+  Conversations" (the selected one, also the open one); first a short dialog with its own check
+  boxes "Actions" (default off) and "Times" (default on, both remembered: `ExportActions`,
+  `ExportTimes`), then the file dialog (Documents, name from the title).
+- `WhaleAiConversationExport` (dolphinstatic): `toMarkdown()` (title and user text escaped, the
+  agent's Markdown as it is, thinking in `<details>`, tool calls as a list, requests and errors as
+  quotes, notices in italics), `toHtml()` + `QTextDocument::print()` on a `QPdfWriter` (A4,
+  margins 18/16 mm, system font 10 pt; neutral: black, grey `#6b7280`, accent `#2a5d9f`, user
+  messages in a light box, code on light grey; page numbers from `print()`), `write()` through
+  `QSaveFile`. "Actions" also covers thinking and notices; requests and errors always go in.
+  `WhaleAiPanel::shownConversation()`.
+- Tests: `whaleaiconversationexporttest` (Markdown with and without actions/times, escaping, PDF
+  read back with pdftotext, file names, write error); panel menu entries and dialog buttons.
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 

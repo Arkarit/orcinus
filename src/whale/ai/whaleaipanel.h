@@ -107,6 +107,8 @@ public:
     QString openedConversationId() const;
     /** @return Whether the next message continues the opened conversation with its agent (AI14c). */
     bool canResumeOpened() const;
+    /** @return The conversation the panel shows as it would be saved now (AI15); nothing if none. */
+    std::optional<WhaleAiConversation> shownConversation() const;
     /** The agent the agent proposed (AI11), waiting for the user's Add… or Discard; nothing otherwise. */
     std::optional<WhaleAiAgent> proposedAgent() const;
     /** Adds the proposed agent as @p agent (what the user confirmed in the dialog). For the tests and the bar. */

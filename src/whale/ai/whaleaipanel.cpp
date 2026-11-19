@@ -9,6 +9,7 @@
 #include "whaleaiagents.h"
 #include "whaleaichangelog.h"
 #include "whaleaicontextchips.h"
+#include "whaleaiconversationexport.h"
 #include "whaleaiconversationsdialog.h"
 #include "whaleaidebug.h"
 #include "whaleaidisclaimer.h"
@@ -1218,6 +1219,24 @@ QString WhaleAiPanel::openedConversationId() const
     return m_opened ? m_opened->id : QString();
 }
 
+std::optional<WhaleAiConversation> WhaleAiPanel::shownConversation() const
+{
+    if (m_conversation) {
+        WhaleAiConversation conversation = *m_conversation;
+        conversation.entries = m_transcript->record(m_conversationStart);
+        const auto first = std::find_if(conversation.entries.begin(), conversation.entries.end(), [](const QJsonValue &entry) {
+            return entry.toObject().value(QLatin1String("kind")).toString() == QLatin1String("UserMessage");
+        });
+        if (first == conversation.entries.end()) {
+            return std::nullopt;
+        }
+        conversation.title = WhaleAiConversation::titleFor((*first).toObject().value(QLatin1String("text")).toString());
+        conversation.updated = QDateTime::currentDateTime();
+        return conversation;
+    }
+    return m_opened;
+}
+
 bool WhaleAiPanel::canResumeOpened() const
 {
     if (!m_opened || m_opened->sessionId.isEmpty() || m_opened->agentId != agentId() || !QFileInfo(m_opened->folder).isDir()) {
@@ -1254,6 +1273,20 @@ void WhaleAiPanel::fillConversationsMenu()
     QAction *all = m_conversationsMenu->addAction(QIcon::fromTheme(QStringLiteral("view-list-details")), i18nc("@action:inmenu", "Show All…"));
     all->setObjectName(QStringLiteral("showAllConversations"));
     connect(all, &QAction::triggered, this, &WhaleAiPanel::showAllConversations);
+    // AI15: the conversation shown, for reading elsewhere.
+    const bool exportable = shownConversation().has_value();
+    for (const auto format : {WhaleAiConversationExport::Format::Pdf, WhaleAiConversationExport::Format::Markdown}) {
+        const bool pdf = format == WhaleAiConversationExport::Format::Pdf;
+        QAction *action = m_conversationsMenu->addAction(QIcon::fromTheme(pdf ? QStringLiteral("application-pdf") : QStringLiteral("text-markdown")),
+                                                         pdf ? i18nc("@action:inmenu", "Export as PDF…") : i18nc("@action:inmenu", "Export as Markdown…"));
+        action->setObjectName(pdf ? QStringLiteral("exportPdf") : QStringLiteral("exportMarkdown"));
+        action->setEnabled(exportable);
+        connect(action, &QAction::triggered, this, [this, format] {
+            if (const std::optional<WhaleAiConversation> conversation = shownConversation()) {
+                WhaleAiConversationExport::exportInteractively(*conversation, format, this);
+            }
+        });
+    }
 }
 
 void WhaleAiPanel::showAllConversations()

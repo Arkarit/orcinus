@@ -346,6 +346,9 @@ void WhaleAiPanelTest::openSavedConversation()
     Q_EMIT menu->aboutToShow();
     QCOMPARE(menu->actions().first()->text(), QStringLiteral("No Saved Conversations"));
     QVERIFY(!menu->actions().first()->isEnabled());
+    // Nothing shown: nothing to export (AI15).
+    QVERIFY(!action(QStringLiteral("exportPdf"))->isEnabled());
+    QVERIFY(!action(QStringLiteral("exportMarkdown"))->isEnabled());
 
     // One saved; not to be opened while the agent works.
     QVERIFY(panel.sendPrompt(QStringLiteral("hello")));
@@ -357,6 +360,10 @@ void WhaleAiPanelTest::openSavedConversation()
     QVERIFY(waitForReady(panel));
     QVERIFY(button->isEnabled());
     const QString id = panel.conversationId();
+    QVERIFY(action(QStringLiteral("exportPdf"))->isEnabled());
+    QVERIFY(action(QStringLiteral("exportMarkdown"))->isEnabled());
+    QCOMPARE(panel.shownConversation()->title, QStringLiteral("hello"));
+    QCOMPARE(panel.shownConversation()->entries, store.load(id)->entries);
     // The one shown cannot be opened again.
     QAction *entry = action(QStringLiteral("conversation-") + id);
     QVERIFY(entry);
@@ -410,6 +417,9 @@ void WhaleAiPanelTest::openSavedConversation()
         QVERIFY(list->currentItem()->text(0).startsWith(QLatin1String("next")));
         QVERIFY(!open->isEnabled());
         QVERIFY(!remove->isEnabled());
+        // The open one can be exported (AI15).
+        QVERIFY(dialog->findChild<QPushButton *>(QStringLiteral("exportPdf"))->isEnabled());
+        QVERIFY(dialog->findChild<QPushButton *>(QStringLiteral("exportMarkdown"))->isEnabled());
         // What was written is searched, too: the fake agent's answer.
         search->setText(QStringLiteral("no such words"));
         QVERIFY(!list->currentItem());

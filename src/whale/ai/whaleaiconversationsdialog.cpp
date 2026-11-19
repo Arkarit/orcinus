@@ -5,6 +5,7 @@
  */
 
 #include "whaleaiconversationsdialog.h"
+#include "whaleaiconversationexport.h"
 
 #include <KLocalizedString>
 #include <KMessageBox>
@@ -53,12 +54,18 @@ WhaleAiConversationsDialog::WhaleAiConversationsDialog(const WhaleAiConversation
     m_remove->setObjectName(QStringLiteral("remove"));
     m_removeAll = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-clear-history")), i18nc("@action:button", "Delete All…"), this);
     m_removeAll->setObjectName(QStringLiteral("removeAll"));
+    m_exportPdf = new QPushButton(QIcon::fromTheme(QStringLiteral("application-pdf")), i18nc("@action:button", "Export as PDF…"), this);
+    m_exportPdf->setObjectName(QStringLiteral("exportPdf"));
+    m_exportMarkdown = new QPushButton(QIcon::fromTheme(QStringLiteral("text-markdown")), i18nc("@action:button", "Export as Markdown…"), this);
+    m_exportMarkdown->setObjectName(QStringLiteral("exportMarkdown"));
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
     auto *row = new QHBoxLayout;
     row->addWidget(m_open);
     row->addWidget(m_remove);
+    row->addWidget(m_exportPdf);
+    row->addWidget(m_exportMarkdown);
     row->addStretch();
     row->addWidget(m_removeAll);
 
@@ -74,6 +81,12 @@ WhaleAiConversationsDialog::WhaleAiConversationsDialog(const WhaleAiConversation
     connect(m_open, &QPushButton::clicked, this, &WhaleAiConversationsDialog::openCurrent);
     connect(m_remove, &QPushButton::clicked, this, &WhaleAiConversationsDialog::removeCurrent);
     connect(m_removeAll, &QPushButton::clicked, this, &WhaleAiConversationsDialog::removeAll);
+    connect(m_exportPdf, &QPushButton::clicked, this, [this] {
+        exportCurrent(true);
+    });
+    connect(m_exportMarkdown, &QPushButton::clicked, this, [this] {
+        exportCurrent(false);
+    });
 
     fill();
     resize(640, 420);
@@ -140,6 +153,10 @@ void WhaleAiConversationsDialog::updateButtons()
     const bool chosen = current && !current->isHidden() && current->data(0, IdRole).toString() != m_currentId;
     m_open->setEnabled(chosen);
     m_remove->setEnabled(chosen);
+    // The open one, too: it is saved as it is.
+    const bool selected = current && !current->isHidden();
+    m_exportPdf->setEnabled(selected);
+    m_exportMarkdown->setEnabled(selected);
     m_removeAll->setEnabled(m_list->topLevelItemCount() > (m_currentId.isEmpty() ? 0 : 1));
 }
 
@@ -163,6 +180,19 @@ void WhaleAiConversationsDialog::removeCurrent()
     // The next one, where the deleted one was.
     if (QTreeWidgetItem *next = m_list->topLevelItem(std::min(row, m_list->topLevelItemCount() - 1)); next && !next->isHidden()) {
         m_list->setCurrentItem(next);
+    }
+}
+
+void WhaleAiConversationsDialog::exportCurrent(bool pdf)
+{
+    const QTreeWidgetItem *current = m_list->currentItem();
+    if (!current || current->isHidden()) {
+        return;
+    }
+    if (const std::optional<WhaleAiConversation> conversation = m_store.load(current->data(0, IdRole).toString())) {
+        WhaleAiConversationExport::exportInteractively(*conversation,
+                                                       pdf ? WhaleAiConversationExport::Format::Pdf : WhaleAiConversationExport::Format::Markdown,
+                                                       this);
     }
 }
 

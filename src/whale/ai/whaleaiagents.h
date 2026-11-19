@@ -230,6 +230,11 @@ void setSaveConversations(bool save);
 /** @return For how many days saved conversations are kept (0: always; default 90). */
 int keepConversationsDays();
 void setKeepConversationsDays(int days);
+/** @return What the last export of a conversation took besides the messages (AI15): actions (off), times (on). */
+bool exportActions();
+void setExportActions(bool on);
+bool exportTimes();
+void setExportTimes(bool on);
 }
 
 #endif
