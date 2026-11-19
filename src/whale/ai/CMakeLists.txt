@@ -61,6 +61,7 @@ target_sources(dolphinstatic PRIVATE
     whaleaiconversationexport.cpp
     whaleaiconversationsdialog.cpp
     whaleaidisclaimer.cpp
+    whaleaimemorywidget.cpp
     whaleaipanel.cpp
     whaleaisettingspage.cpp
     whaleaisettingstools.cpp

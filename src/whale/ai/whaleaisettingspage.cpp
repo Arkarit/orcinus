@@ -8,6 +8,7 @@
 #include "whaleaiagentdialog.h"
 #include "whaleaiconversationstore.h"
 #include "whaleaidisclaimer.h"
+#include "whaleaimemorywidget.h"
 
 #include <KLocalizedString>
 #include <KMessageBox>
@@ -194,6 +195,9 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     layout->addWidget(m_result);
     layout->addWidget(m_logIn, 0, Qt::AlignLeft);
     layout->addWidget(conversationGroup);
+    m_memoryWidget = new WhaleAiMemoryWidget(WhaleAiMemory(), this);
+    connect(m_memoryWidget, &WhaleAiMemoryWidget::changed, this, &WhaleAiSettingsPage::changed);
+    layout->addWidget(m_memoryWidget);
     layout->addWidget(localGroup);
     layout->addWidget(promptGroup);
 
@@ -264,6 +268,7 @@ void WhaleAiSettingsPage::applySettings()
     }
     WhaleAiAgents::setSaveConversations(m_saveConversations->isChecked());
     WhaleAiAgents::setKeepConversationsDays(m_keepConversations->value());
+    m_memoryWidget->apply();
 }
 
 void WhaleAiSettingsPage::restoreDefaults()
@@ -274,6 +279,7 @@ void WhaleAiSettingsPage::restoreDefaults()
     }
     m_saveConversations->setChecked(true);
     m_keepConversations->setValue(90);
+    m_memoryWidget->restoreDefaults();
 }
 
 QList<WhaleAiAgent> WhaleAiSettingsPage::agents() const

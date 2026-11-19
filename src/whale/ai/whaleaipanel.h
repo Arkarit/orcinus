@@ -170,6 +170,8 @@ private:
     QList<WhaleAiWindowTool> memoryTools();
     /** What the back channel of a new session may do: without the memory tools while memory is off. */
     WhaleAiViewActions sessionActions();
+    /** "/remember [global] text" in the input (AI16e). @return Whether it was kept. */
+    bool rememberByUser(const QString &text, bool global);
     /** A button of a memory note in the transcript (Forget, Keep, Discard, Undo). */
     void memoryButtonClicked(const QString &key, const QString &buttonId);
     void showProposal(const WhaleAiAgent &agent);

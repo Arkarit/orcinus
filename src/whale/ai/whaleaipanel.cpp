@@ -41,6 +41,7 @@
 #include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRegularExpression>
 #include <QScopeGuard>
 #include <QSignalBlocker>
 #include <QStackedWidget>
@@ -1020,6 +1021,12 @@ void WhaleAiPanel::agentChosen()
 bool WhaleAiPanel::sendPrompt(const QString &text)
 {
     const QString prompt = text.trimmed();
+    // AI16e: "/remember …" is the user's own note for the memory, not a message to the agent.
+    static const QRegularExpression remember(QStringLiteral("^/remember(?:\\s+(global)\\b)?\\s*(.*)$"),
+                                             QRegularExpression::DotMatchesEverythingOption | QRegularExpression::CaseInsensitiveOption);
+    if (const QRegularExpressionMatch match = remember.match(prompt); match.hasMatch() && (prompt.size() == 9 || prompt.at(9).isSpace())) {
+        return rememberByUser(match.captured(2), !match.captured(1).isEmpty());
+    }
     if (prompt.isEmpty() || agentId().isEmpty() || !WhaleAiAgents::disclaimerAccepted()) {
         return false;
     }
@@ -1563,6 +1570,40 @@ void WhaleAiPanel::saveConversation()
     if (WhaleAiConversationStore().save(conversation)) {
         m_conversation = conversation;
     }
+}
+
+bool WhaleAiPanel::rememberByUser(const QString &text, bool global)
+{
+    if (WhaleAiAgents::memoryMode() == WhaleAiAgents::MemoryMode::Off) {
+        m_transcript->addNotice(i18nc("@info", "The memory is off. Turn it on in the settings of the AI agents."), WhaleAiTranscript::Kind::Error);
+        return false;
+    }
+    QString folder;
+    if (!global) {
+        folder = currentContext().folder;
+        if (folder.isEmpty()) {
+            m_transcript->addNotice(i18nc("@info", "This is no local folder: use “/remember global …” for a note for everywhere."),
+                                    WhaleAiTranscript::Kind::Error);
+            return false;
+        }
+    }
+    QString error;
+    const std::optional<WhaleAiNote> note = WhaleAiMemory().add(text, folder, conversationId(), false, &error);
+    if (!note) {
+        m_transcript->addNotice(text.trimmed().isEmpty()
+                                    ? i18nc("@info", "Write the note after “/remember”, e.g. “/remember Invoices go into one folder per year.”")
+                                    : i18nc("@info %1 is the reason", "The note could not be kept: %1", error),
+                                WhaleAiTranscript::Kind::Error);
+        return false;
+    }
+    const QString key = QString::number(++m_memoryKeys);
+    m_memoryActions.insert(key, {MemoryAction::Kept, *note});
+    const QString name = QDir(note->folder).dirName().isEmpty() ? note->folder : QDir(note->folder).dirName();
+    m_transcript->addMemoryNote(key,
+                                note->isGlobal() ? i18nc("@info %1 is a note", "Remembered: %1", note->text)
+                                                 : i18nc("@info %1 is a folder name, %2 a note", "Remembered for “%1”: %2", name, note->text),
+                                {{QStringLiteral("forget"), i18nc("@action:button remove a note from the memory", "Forget")}});
+    return true;
 }
 
 QString WhaleAiPanel::conversationId() const

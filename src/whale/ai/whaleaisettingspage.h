@@ -20,6 +20,7 @@ class QMenu;
 class QPlainTextEdit;
 class QPushButton;
 class QSpinBox;
+class WhaleAiMemoryWidget;
 class QStackedWidget;
 
 /**
@@ -103,6 +104,7 @@ private:
     QHash<QString, QSpinBox *> m_freeDelays; ///< per provider (AI13)
     QCheckBox *m_saveConversations = nullptr; ///< AI14
     QSpinBox *m_keepConversations = nullptr; ///< days; 0: always
+    WhaleAiMemoryWidget *m_memoryWidget = nullptr; ///< AI16e
 };
 
 #endif

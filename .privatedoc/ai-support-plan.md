@@ -1514,6 +1514,17 @@ conversations comes with it.
   (scope: Global or the folder, text, date; folders that are gone marked), Add…, Edit…, Delete.
   Panel input: "/remember text" (folder of the active view) and "/remember global text" as the
   user's own way in every mode but Off.
+- **AI16e done 2026-11-19.** `WhaleAiMemoryWidget` (group "Memory" of the AI settings, after
+  "Conversations"): mode Off / "Manual: the agent proposes, you keep" / "Automatic: the agent
+  keeps notes itself" (stored with Apply; Defaults → Manual), a hint (scopes, conversation
+  search, "/remember"), the notes (Where: Global or the folder, "(gone)" greyed for a missing
+  folder; Note, tooltip who wrote it; Changed), Add…/Edit…/Delete at once (not on Apply).
+  `WhaleAiNoteDialog`: Everywhere / "In this folder and below" with a folder field and a chooser,
+  text with "n / 500"; OK only with text, at most 500 characters and an absolute folder. Panel:
+  "/remember text" (folder of the active view) and "/remember global text" (case aside; not
+  "/remembering") keep the user's note at once in Manual and Automatic, without the agent, as a
+  Memory entry "Remembered for “X”: …" with Forget; Off or no text: an error notice and the text
+  stays in the input. Tests: settings page `memoryGroup`, panel `rememberCommand`.
 - **AI16f – Tests and real run.** Store (scopes, parents, budget, broken file), prompt blocks,
   tools in both modes, Forget/Keep/Discard, search; real run with OpenCode + LM Studio (user's OK):
   a note in conversation 1 is used in conversation 2 in a subfolder.

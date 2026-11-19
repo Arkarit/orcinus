@@ -9,6 +9,7 @@
 #include "settings/dolphinsettingsdialog.h"
 #include "testdir.h"
 #include "whaleaiagentdialog.h"
+#include "whaleaimemorywidget.h"
 
 #include <KActionCollection>
 #include <KConfigGroup>
@@ -28,6 +29,7 @@
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSpinBox>
@@ -35,6 +37,7 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
+#include <QTreeWidget>
 
 /**
  * The "AI Agents" page of the settings dialog (AI2): adding known and other agents, editing,
@@ -63,6 +66,7 @@ private Q_SLOTS:
     void defaultsKeepAgents();
     void systemPrompt();
     void pageInDialog();
+    void memoryGroup();
 
 private:
     template<typename T>
@@ -689,5 +693,75 @@ void WhaleAiSettingsPageTest::pageInDialog()
 }
 
 QTEST_MAIN(WhaleAiSettingsPageTest)
+
+void WhaleAiSettingsPageTest::memoryGroup()
+{
+    QTemporaryDir dir;
+    const WhaleAiMemory memory(dir.filePath(QStringLiteral("memory.json")));
+    QVERIFY(memory.add(QStringLiteral("I like order."), QString(), QString(), true));
+    QVERIFY(memory.add(QStringLiteral("Gone folder note."), dir.filePath(QStringLiteral("gone")), QString(), false));
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Manual);
+
+    WhaleAiMemoryWidget widget(memory);
+    auto *mode = widget.findChild<QComboBox *>(QStringLiteral("memoryMode"));
+    auto *list = widget.findChild<QTreeWidget *>(QStringLiteral("notes"));
+    QCOMPARE(WhaleAiAgents::MemoryMode(mode->currentData().toInt()), WhaleAiAgents::MemoryMode::Manual);
+    QCOMPARE(list->topLevelItemCount(), 2);
+    QCOMPARE(list->topLevelItem(0)->text(0), QStringLiteral("Global"));
+    QCOMPARE(list->topLevelItem(0)->text(1), QStringLiteral("I like order."));
+    QVERIFY(list->topLevelItem(1)->text(0).endsWith(QLatin1String("(gone)")));
+
+    // The mode only with apply.
+    QSignalSpy changed(&widget, &WhaleAiMemoryWidget::changed);
+    mode->setCurrentIndex(mode->findData(int(WhaleAiAgents::MemoryMode::Automatic)));
+    QCOMPARE(changed.size(), 1);
+    QCOMPARE(WhaleAiAgents::memoryMode(), WhaleAiAgents::MemoryMode::Manual);
+    widget.apply();
+    QCOMPARE(WhaleAiAgents::memoryMode(), WhaleAiAgents::MemoryMode::Automatic);
+    widget.restoreDefaults();
+    QCOMPARE(WhaleAiAgents::MemoryMode(mode->currentData().toInt()), WhaleAiAgents::MemoryMode::Manual);
+
+    // Notes at once: add (a folder note), edit (made global), delete.
+    QTimer::singleShot(0, [&dir] {
+        auto *dialog = qobject_cast<WhaleAiNoteDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        auto *ok = dialog->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+        QVERIFY(!ok->isEnabled()); // no text yet
+        dialog->findChild<QRadioButton *>(QStringLiteral("inFolder"))->setChecked(true);
+        dialog->findChild<QLineEdit *>(QStringLiteral("folder"))->setText(QStringLiteral("relative"));
+        dialog->findChild<QPlainTextEdit *>(QStringLiteral("text"))->setPlainText(QStringLiteral("Per year."));
+        QVERIFY(!ok->isEnabled()); // not an absolute folder
+        dialog->findChild<QLineEdit *>(QStringLiteral("folder"))->setText(dir.path() + QStringLiteral("/"));
+        QVERIFY(ok->isEnabled());
+        dialog->findChild<QPlainTextEdit *>(QStringLiteral("text"))->setPlainText(QString(501, QLatin1Char('x')));
+        QVERIFY(!ok->isEnabled()); // too long
+        dialog->findChild<QPlainTextEdit *>(QStringLiteral("text"))->setPlainText(QStringLiteral("Per year."));
+        ok->click();
+    });
+    widget.findChild<QPushButton *>(QStringLiteral("addNote"))->click();
+    QCOMPARE(memory.notes().size(), 3);
+    QCOMPARE(memory.notes().constLast().folder, QDir::cleanPath(dir.path()));
+    QVERIFY(!memory.notes().constLast().byAgent);
+    QCOMPARE(list->topLevelItemCount(), 3);
+
+    list->setCurrentItem(list->topLevelItem(2));
+    QTimer::singleShot(0, [] {
+        auto *dialog = qobject_cast<WhaleAiNoteDialog *>(QApplication::activeModalWidget());
+        QVERIFY(dialog);
+        QCOMPARE(dialog->text(), QStringLiteral("Per year."));
+        QVERIFY(dialog->findChild<QRadioButton *>(QStringLiteral("inFolder"))->isChecked());
+        dialog->findChild<QRadioButton *>(QStringLiteral("global"))->setChecked(true);
+        dialog->findChild<QPlainTextEdit *>(QStringLiteral("text"))->setPlainText(QStringLiteral("One folder per year."));
+        dialog->accept();
+    });
+    widget.findChild<QPushButton *>(QStringLiteral("editNote"))->click();
+    QCOMPARE(memory.notes().constLast().text, QStringLiteral("One folder per year."));
+    QVERIFY(memory.notes().constLast().isGlobal());
+    QCOMPARE(list->currentItem()->text(1), QStringLiteral("One folder per year."));
+
+    widget.findChild<QPushButton *>(QStringLiteral("removeNote"))->click();
+    QCOMPARE(memory.notes().size(), 2);
+    QCOMPARE(list->topLevelItemCount(), 2);
+}
 
 #include "whaleaisettingspagetest.moc"

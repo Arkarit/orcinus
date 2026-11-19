@@ -84,6 +84,7 @@ private Q_SLOTS:
     void memoryNotesSent();
     void memoryTools();
     void conversationSearch();
+    void rememberCommand();
     void removedAgentEndsConversation();
     void links();
     void panelInMainWindow();
@@ -802,6 +803,52 @@ void WhaleAiPanelTest::conversationSearch()
     call(QStringLiteral("read_conversation"), {{QStringLiteral("id"), holiday}}, &error);
     QVERIFY(error);
     WhaleAiAgents::setSaveConversations(true);
+}
+
+void WhaleAiPanelTest::rememberCommand()
+{
+    const WhaleAiMemory memory;
+    QFile::remove(memory.path());
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+
+    // Off: not kept, the text stays in the input (false).
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Off);
+    QVERIFY(!panel.sendPrompt(QStringLiteral("/remember Invoices per year.")));
+    QVERIFY(texts(panel).contains(QLatin1String("The memory is off.")));
+    QVERIFY(memory.notes().isEmpty());
+
+    // Kept at once in every other mode, for the folder shown, without the agent.
+    WhaleAiAgents::setMemoryMode(WhaleAiAgents::MemoryMode::Manual);
+    QVERIFY(panel.sendPrompt(QStringLiteral("/remember Invoices per year.")));
+    QVERIFY(!panel.session());
+    QCOMPARE(memory.notes().size(), 1);
+    QCOMPARE(memory.notes().first().folder, QDir::cleanPath(m_work.path()));
+    QVERIFY(!memory.notes().first().byAgent);
+    QVERIFY(texts(panel).contains(QStringLiteral("Remembered for “%1”: Invoices per year.").arg(QDir(m_work.path()).dirName())));
+    QWidget *entry = panel.transcript()->entries().constLast();
+    QCOMPARE(WhaleAiTranscript::kindOf(entry), WhaleAiTranscript::Kind::Memory);
+    QVERIFY(entry->findChild<QPushButton *>(QStringLiteral("memory-forget")));
+
+    QVERIFY(panel.sendPrompt(QStringLiteral("/Remember global  I like order.")));
+    QCOMPARE(memory.notes().size(), 2);
+    QVERIFY(memory.notes().constLast().isGlobal());
+    QCOMPARE(memory.notes().constLast().text, QStringLiteral("I like order."));
+    // Forget takes it back.
+    panel.transcript()->entries().constLast()->findChild<QPushButton *>(QStringLiteral("memory-forget"))->click();
+    QCOMPARE(memory.notes().size(), 1);
+
+    // Without a text: a hint, nothing kept.
+    QVERIFY(!panel.sendPrompt(QStringLiteral("/remember")));
+    QVERIFY(!panel.sendPrompt(QStringLiteral("/remember global")));
+    QVERIFY(texts(panel).contains(QLatin1String("Write the note after")));
+    QCOMPARE(memory.notes().size(), 1);
+    // Something else that starts the same goes to the agent.
+    QVERIFY(panel.sendPrompt(QStringLiteral("/remembering nopermission")));
+    QVERIFY(panel.session());
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(memory.notes().size(), 1);
+    QFile::remove(memory.path());
 }
 
 void WhaleAiPanelTest::promptTurn()
