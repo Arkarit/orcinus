@@ -17,6 +17,21 @@ WhaleAiQuickWidget::WhaleAiQuickWidget(QWidget *parent)
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setFocusPolicy(Qt::StrongFocus);
     qApp->installEventFilter(this);
+    updateClearColor();
+}
+
+void WhaleAiQuickWidget::updateClearColor()
+{
+    // The panel's colour where the QML leaves the background open (a tool's root is an Item).
+    setClearColor(palette().color(QPalette::Window));
+}
+
+void WhaleAiQuickWidget::changeEvent(QEvent *event)
+{
+    QQuickWidget::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange) {
+        updateClearColor();
+    }
 }
 
 bool WhaleAiQuickWidget::keepsKey(int key, Qt::KeyboardModifiers modifiers)

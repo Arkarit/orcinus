@@ -16,6 +16,8 @@
  * never trigger the window's actions: Delete in a tool must not delete the files selected in the
  * view. F-keys and combinations with Ctrl, Alt or Meta still reach the window's actions, unless
  * the QML claims them itself (Keys.onShortcutOverride).
+ *
+ * Where the QML draws no background, the panel's colour (QPalette::Window) shows.
  */
 class WhaleAiQuickWidget : public QQuickWidget
 {
@@ -29,10 +31,12 @@ public:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
 private:
     /** @return Whether @p object is this widget, its Qt Quick window or an item in it. */
     bool isOwn(QObject *object) const;
+    void updateClearColor();
     bool m_delivering = false;
 };
 

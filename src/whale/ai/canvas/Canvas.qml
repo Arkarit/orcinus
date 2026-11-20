@@ -14,7 +14,8 @@ import org.kde.orcinus.canvas
 
 Rectangle {
     id: root
-    color: palette.base
+    // The panel's colour, as around it.
+    color: palette.window
 
     SystemPalette {
         id: palette
