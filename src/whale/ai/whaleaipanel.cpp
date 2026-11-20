@@ -205,13 +205,17 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     // Drops land on the viewport.
     m_input->viewport()->installEventFilter(this);
 
-    m_send = new QToolButton(chat);
-    m_send->setObjectName(QStringLiteral("send"));
-    m_send->setAutoRaise(true);
+    // Enter sends; a button only to stop the agent while it works (the input gives it room then).
+    m_stop = new QToolButton(chat);
+    m_stop->setObjectName(QStringLiteral("stop"));
+    m_stop->setAutoRaise(true);
+    m_stop->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-stop")));
+    m_stop->setToolTip(i18nc("@info:tooltip", "Stop (Escape)"));
+    m_stop->hide();
 
     auto *bottom = new QHBoxLayout;
     bottom->addWidget(m_input, 1);
-    bottom->addWidget(m_send, 0, Qt::AlignBottom);
+    bottom->addWidget(m_stop, 0, Qt::AlignBottom);
 
     auto *chatLayout = new QVBoxLayout(chat);
     chatLayout->setContentsMargins(0, 0, 0, 0);
@@ -282,14 +286,7 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     });
     connect(m_newConversation, &QToolButton::clicked, this, &WhaleAiPanel::newConversation);
     connect(m_undoChanges, &QToolButton::clicked, this, &WhaleAiPanel::undoAgentChanges);
-    connect(m_send, &QToolButton::clicked, this, [this] {
-        if (m_send->property("busy").toBool()) {
-            stop();
-        } else if (sendPrompt(m_input->toPlainText())) {
-            m_input->clear();
-        }
-    });
-    connect(m_input, &QPlainTextEdit::textChanged, this, &WhaleAiPanel::updateState);
+    connect(m_stop, &QToolButton::clicked, this, &WhaleAiPanel::stop);
     connect(m_transcript, &WhaleAiTranscript::linkActivated, this, &WhaleAiPanel::openLink);
     connect(m_transcript, &WhaleAiTranscript::permissionAnswered, this, [this](const QString &key, const QString &optionId) {
         if (m_session) {
@@ -1770,16 +1767,8 @@ void WhaleAiPanel::updateState()
     const bool busy = m_session
         && (m_session->state() == WhaleAcpSession::State::Starting || m_session->state() == WhaleAcpSession::State::Prompting
             || (!m_pendingPrompt.isEmpty() && m_modeState != ModeState::Blocked));
-    if (busy) {
-        m_send->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-stop")));
-        m_send->setToolTip(i18nc("@info:tooltip", "Stop (Escape)"));
-        m_send->setEnabled(true);
-    } else {
-        m_send->setIcon(QIcon::fromTheme(QStringLiteral("document-send")));
-        m_send->setToolTip(i18nc("@info:tooltip", "Send (Enter)"));
-        m_send->setEnabled(!m_input->toPlainText().trimmed().isEmpty() && !agentId().isEmpty());
-    }
-    m_send->setProperty("busy", busy);
+    m_stop->setVisible(busy);
+    m_stop->setProperty("busy", busy);
     // Opening another one ends this conversation: not in the middle of an answer.
     m_conversationsButton->setEnabled(!busy);
     // Not while the agent works: it may be changing the same things.
@@ -1989,7 +1978,7 @@ bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
             }
             return true;
         }
-        if (keyEvent->key() == Qt::Key_Escape && m_send->property("busy").toBool()) {
+        if (keyEvent->key() == Qt::Key_Escape && m_stop->property("busy").toBool()) {
             stop();
             return true;
         }

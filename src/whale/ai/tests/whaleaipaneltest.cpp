@@ -184,7 +184,7 @@ bool WhaleAiPanelTest::waitForReady(WhaleAiPanel &panel)
         [&panel] {
             // A message that waits for the start mode is not done yet.
             return panel.session() && panel.session()->state() == WhaleAcpSession::State::Ready
-                && !panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool();
+                && !panel.findChild<QToolButton *>(QStringLiteral("stop"))->property("busy").toBool();
         },
         10000);
 }
@@ -865,8 +865,9 @@ void WhaleAiPanelTest::promptTurn()
     QCOMPARE(panel.findChild<QComboBox *>(QStringLiteral("agents"))->currentText(), QStringLiteral("Fake basic"));
     auto *info = panel.findChild<QLabel *>(QStringLiteral("sessionInfo"));
     QCOMPARE(info->text(), QStringLiteral("Starts with your first message."));
-    auto *send = panel.findChild<QToolButton *>(QStringLiteral("send"));
-    QVERIFY(!send->isEnabled());
+    // Enter sends; the only button is to stop, and only while the agent works.
+    auto *stop = panel.findChild<QToolButton *>(QStringLiteral("stop"));
+    QVERIFY(stop->isHidden());
 
     QVERIFY(panel.sendPrompt(QStringLiteral("hello")));
     QVERIFY(panel.session());
@@ -878,7 +879,7 @@ void WhaleAiPanelTest::promptTurn()
             return permission != nullptr;
         },
         10000));
-    QVERIFY(send->property("busy").toBool());
+    QVERIFY(stop->property("busy").toBool());
     QVERIFY(texts(panel).contains(QLatin1String("The agent asks for permission: Write note.txt")));
     // AI13f: no spinner while the user is asked; it comes back while the agent goes on.
     auto *busy = panel.findChild<QWidget *>(QStringLiteral("busy"));
@@ -886,7 +887,7 @@ void WhaleAiPanelTest::promptTurn()
     QVERIFY(busy->isHidden());
     permission->findChild<QPushButton *>(QStringLiteral("option-yes"))->click();
     QVERIFY(waitForReady(panel));
-    QVERIFY(!send->property("busy").toBool());
+    QVERIFY(!stop->property("busy").toBool());
     QVERIFY(busy->isHidden());
     // No local model: no start/unload button.
     QVERIFY(panel.findChild<QToolButton *>(QStringLiteral("localModelButton"))->isHidden());
@@ -989,7 +990,7 @@ void WhaleAiPanelTest::agentFails()
     QVERIFY(!panel.session());
     QVERIFY(texts(panel).contains(QLatin1String("The agent stopped working.")));
     QVERIFY(texts(panel).contains(QLatin1String("the model exploded")));
-    QVERIFY(!panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    QVERIFY(!panel.findChild<QToolButton *>(QStringLiteral("stop"))->property("busy").toBool());
 
     // The next prompt starts the agent again.
     QVERIFY(panel.sendPrompt(QStringLiteral("boom")));
@@ -1181,9 +1182,9 @@ void WhaleAiPanelTest::waitsWithoutReadOnlyMode()
     QVERIFY(!all.contains(QLatin1String("text=")));
     QCOMPARE(kinds(*panel).last(), WhaleAiTranscript::Kind::Error);
     QCOMPARE(panel->session()->configOption(QStringLiteral("mode"))->currentValue, QStringLiteral("auto"));
-    // One waiting message at a time; the send button does not stop.
+    // One waiting message at a time; no stop button while it waits for the user.
     QVERIFY(!panel->sendPrompt(QStringLiteral("more")));
-    QVERIFY(!panel->findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    QVERIFY(!panel->findChild<QToolButton *>(QStringLiteral("stop"))->property("busy").toBool());
 
     // The bar asks for a choice instead of showing the agent's permissive mode.
     auto *modes = panel->findChild<QComboBox *>(QStringLiteral("modes"));
@@ -1249,10 +1250,11 @@ void WhaleAiPanelTest::agentSwitchesMode()
 void WhaleAiPanelTest::stopWhileWaitingForMode()
 {
     std::unique_ptr<WhaleAiPanel> panel(panelWith(QStringLiteral("basic"), QString(), m_work.path()));
-    auto *send = panel->findChild<QToolButton *>(QStringLiteral("send"));
+    auto *stop = panel->findChild<QToolButton *>(QStringLiteral("stop"));
     QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
-    QVERIFY(send->property("busy").toBool());
-    send->click();
+    QVERIFY(stop->property("busy").toBool());
+    QVERIFY(!stop->isHidden());
+    stop->click();
     QVERIFY(!panel->session());
     QVERIFY(texts(*panel).endsWith(QLatin1String("Stopped.")));
 }
@@ -1703,7 +1705,7 @@ void WhaleAiPanelTest::localModel()
     QVERIFY(texts(panel).contains(QLatin1String("Starting the local model qwen first.")));
     // Busy while it loads: the agent itself is not started yet, Stop is offered, the spinner turns.
     QCOMPARE(panel.session()->state(), WhaleAcpSession::State::Idle);
-    QVERIFY(panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    QVERIFY(panel.findChild<QToolButton *>(QStringLiteral("stop"))->property("busy").toBool());
     QVERIFY(!busy->isHidden());
     auto *info = panel.findChild<QLabel *>(QStringLiteral("sessionInfo"));
     QVERIFY(info);
@@ -1859,7 +1861,7 @@ void WhaleAiPanelTest::localModelFails()
     QTRY_VERIFY_WITH_TIMEOUT(kinds(panel).contains(WhaleAiTranscript::Kind::Error), 10000);
     QVERIFY(texts(panel).contains(QLatin1String("The local model could not be started.")));
     QVERIFY(!panel.session());
-    QVERIFY(!panel.findChild<QToolButton *>(QStringLiteral("send"))->property("busy").toBool());
+    QVERIFY(!panel.findChild<QToolButton *>(QStringLiteral("stop"))->property("busy").toBool());
     // The service started for it goes again at once.
     const qint64 service = lmStudio.servicePid();
     QTRY_VERIFY(!FakeLmStudio::isRunning(service));

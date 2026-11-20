@@ -232,7 +232,7 @@ QJsonObject WhaleDevAi::state() const
         }
     }
 
-    const QWidget *send = aiPanel->findChild<QWidget *>(QStringLiteral("send"));
+    const QWidget *stop = aiPanel->findChild<QWidget *>(QStringLiteral("stop"));
     const QWidget *dock = qobject_cast<QWidget *>(aiPanel->parent());
     return {
         {QStringLiteral("available"), true},
@@ -241,7 +241,7 @@ QJsonObject WhaleDevAi::state() const
         {QStringLiteral("agents"), agents},
         {QStringLiteral("disclaimerAccepted"), WhaleAiAgents::disclaimerAccepted()},
         {QStringLiteral("sessionState"), stateName(session)},
-        {QStringLiteral("busy"), send && send->property("busy").toBool()},
+        {QStringLiteral("busy"), stop && stop->property("busy").toBool()},
         {QStringLiteral("waitingForMode"), aiPanel->isWaitingForMode()},
         {QStringLiteral("mode"), mode},
         {QStringLiteral("modes"), modes},

@@ -34,8 +34,8 @@ public:
 
     /**
      * @return {available, panelVisible, agentId, agents, disclaimerAccepted, sessionState (none,
-     *         idle, starting, ready, prompting, failed, closed), busy (the send button is a stop
-     *         button), waitingForMode, mode, modes, conversation (counts new conversations),
+     *         idle, starting, ready, prompting, failed, closed), busy (the stop button is
+     *         shown), waitingForMode, mode, modes, conversation (counts new conversations),
      *         prompts (sent in this conversation), turnsFinished, lastStopReason, toolCallCount,
      *         pendingPermissions: [{key, title, kind, ownTool, options: [{id, name, kind}]}]}.
      *         Cheap: it is read by every wait_for_state.

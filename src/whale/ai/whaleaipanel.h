@@ -229,7 +229,7 @@ private:
     QComboBox *m_modes = nullptr;
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
-    QToolButton *m_send = nullptr;
+    QToolButton *m_stop = nullptr;
     KBusyIndicatorWidget *m_busy = nullptr;
     QToolButton *m_modelButton = nullptr; ///< start or unload the local model (AI13f)
 
