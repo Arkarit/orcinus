@@ -35,6 +35,7 @@ const char LocalContextLengthKey[] = "LocalContextLength";
 const char DisclaimerAcceptedKey[] = "DisclaimerAccepted";
 const char ShowActionsKey[] = "ShowActions";
 const char ShowTimestampsKey[] = "ShowTimestamps";
+const char InputHeightKey[] = "InputHeight";
 const char SaveConversationsKey[] = "SaveConversations";
 const char KeepConversationsDaysKey[] = "KeepConversationsDays";
 const char ExportActionsKey[] = "ExportActions";
@@ -738,6 +739,18 @@ void setShowTimestamps(bool show)
 {
     KConfigGroup group = aiGroup();
     group.writeEntry(ShowTimestampsKey, show);
+    group.sync();
+}
+
+int inputHeight()
+{
+    return std::max(0, aiGroup().readEntry(InputHeightKey, 0));
+}
+
+void setInputHeight(int height)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(InputHeightKey, std::max(0, height));
     group.sync();
 }
 

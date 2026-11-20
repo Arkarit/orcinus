@@ -28,6 +28,7 @@ class QComboBox;
 class QLabel;
 class QMenu;
 class QPlainTextEdit;
+class QSplitter;
 class QStackedWidget;
 class QTimer;
 class QToolButton;
@@ -230,6 +231,9 @@ private:
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_stop = nullptr;
+    QSplitter *m_inputSplitter = nullptr;
+    bool m_inputSizesSet = false;
+    QTimer *m_inputHeightTimer = nullptr; ///< saves the input's height a little after the splitter moved
     KBusyIndicatorWidget *m_busy = nullptr;
     QToolButton *m_modelButton = nullptr; ///< start or unload the local model (AI13f)
 

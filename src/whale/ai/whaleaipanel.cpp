@@ -44,6 +44,7 @@
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QSignalBlocker>
+#include <QSplitter>
 #include <QStackedWidget>
 #include <QTimer>
 #include <QToolButton>
@@ -200,7 +201,8 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_input->setObjectName(QStringLiteral("input"));
     m_input->setPlaceholderText(i18nc("@info:placeholder", "Ask the agent… (Enter sends, Shift+Enter: new line)"));
     m_input->setTabChangesFocus(true);
-    m_input->setFixedHeight(m_input->fontMetrics().lineSpacing() * 3 + 2 * m_input->frameWidth() + 8);
+    // The height is the user's (a splitter above it); at least one line.
+    m_input->setMinimumHeight(m_input->fontMetrics().lineSpacing() + 2 * m_input->frameWidth() + 8);
     m_input->installEventFilter(this);
     // Drops land on the viewport.
     m_input->viewport()->installEventFilter(this);
@@ -213,18 +215,45 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_stop->setToolTip(i18nc("@info:tooltip", "Stop (Escape)"));
     m_stop->hide();
 
-    auto *bottom = new QHBoxLayout;
+    // Transcript and input in a splitter: the input's height is the user's. The chips and the
+    // proposal stay above the handle, so they do not take from it when they come.
+    m_inputSplitter = new QSplitter(Qt::Vertical, chat);
+    m_inputSplitter->setObjectName(QStringLiteral("inputSplitter"));
+    m_inputSplitter->setChildrenCollapsible(false);
+    auto *upper = new QWidget(m_inputSplitter);
+    auto *upperLayout = new QVBoxLayout(upper);
+    upperLayout->setContentsMargins(0, 0, 0, 0);
+    m_transcript->setParent(upper);
+    m_transcript->setMinimumHeight(m_transcript->fontMetrics().lineSpacing() * 3);
+    upperLayout->addWidget(m_transcript, 1);
+    auto *lower = new QWidget(m_inputSplitter);
+    auto *bottom = new QHBoxLayout(lower);
+    bottom->setContentsMargins(0, 0, 0, 0);
     bottom->addWidget(m_input, 1);
     bottom->addWidget(m_stop, 0, Qt::AlignBottom);
+    m_inputSplitter->addWidget(upper);
+    m_inputSplitter->addWidget(lower);
+    // More room for the panel goes to the transcript.
+    m_inputSplitter->setStretchFactor(0, 1);
+    m_inputSplitter->setStretchFactor(1, 0);
+    // The sizes need the splitter's height: set on its first resize.
+    m_inputSplitter->installEventFilter(this);
+    m_inputHeightTimer = new QTimer(this);
+    m_inputHeightTimer->setSingleShot(true);
+    m_inputHeightTimer->setInterval(500);
+    connect(m_inputHeightTimer, &QTimer::timeout, this, [this] {
+        WhaleAiAgents::setInputHeight(m_inputSplitter->sizes().value(1));
+    });
+    connect(m_inputSplitter, &QSplitter::splitterMoved, m_inputHeightTimer, qOverload<>(&QTimer::start));
 
     auto *chatLayout = new QVBoxLayout(chat);
     chatLayout->setContentsMargins(0, 0, 0, 0);
     chatLayout->addLayout(top);
     chatLayout->addWidget(m_sessionInfo);
     chatLayout->addLayout(modesRow);
-    chatLayout->addWidget(m_transcript, 1);
+    chatLayout->addWidget(m_inputSplitter, 1);
     // A new agent the agent suggests (AI11); the user decides.
-    m_proposalBar = new KMessageWidget(chat);
+    m_proposalBar = new KMessageWidget(upper);
     m_proposalBar->setObjectName(QStringLiteral("agentProposal"));
     m_proposalBar->setMessageType(KMessageWidget::Information);
     m_proposalBar->setWordWrap(true);
@@ -241,9 +270,9 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     });
     m_proposalBar->addAction(review);
     m_proposalBar->addAction(discard);
-    chatLayout->addWidget(m_proposalBar);
-    chatLayout->addWidget(m_chips);
-    chatLayout->addLayout(bottom);
+    upperLayout->addWidget(m_proposalBar);
+    m_chips->setParent(upper);
+    upperLayout->addWidget(m_chips);
 
     // Setup, while no agent is set up
     auto *setup = new QWidget(this);
@@ -1939,6 +1968,13 @@ void WhaleAiPanel::updateBusy()
 
 bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_inputSplitter && event->type() == QEvent::Resize && !m_inputSizesSet && m_inputSplitter->height() > 0) {
+        m_inputSizesSet = true;
+        const int saved = WhaleAiAgents::inputHeight();
+        const int height = saved > 0 ? saved : m_input->fontMetrics().lineSpacing() * 3 + 2 * m_input->frameWidth() + 8;
+        const int total = m_inputSplitter->height() - m_inputSplitter->handleWidth();
+        m_inputSplitter->setSizes({std::max(0, total - height), height});
+    }
     if (watched == m_transcript && event->type() == QEvent::Resize && m_busy->isVisible()) {
         m_busy->move((m_transcript->width() - m_busy->width()) / 2, (m_transcript->height() - m_busy->height()) / 2);
     }

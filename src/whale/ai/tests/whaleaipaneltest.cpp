@@ -46,6 +46,7 @@
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QSplitter>
 #include <QStackedWidget>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -74,6 +75,7 @@ private Q_SLOTS:
     void setupWithoutAgents();
     void promptTurn();
     void enterAndShiftEnter();
+    void inputHeight();
     void stopWithEscape();
     void agentFails();
     void otherAgentEndsConversation();
@@ -958,6 +960,34 @@ void WhaleAiPanelTest::enterAndShiftEnter()
     QVERIFY(panel.session());
     QVERIFY(waitForReady(panel));
     QVERIFY(texts(panel).contains(QLatin1String("text=first\nnopermission")));
+}
+
+void WhaleAiPanelTest::inputHeight()
+{
+    // Three lines at first; more room for the panel goes to the transcript.
+    auto *panel = new WhaleAiPanel;
+    panel->resize(400, 600);
+    panel->show();
+    QVERIFY(QTest::qWaitForWindowExposed(panel));
+    auto *splitter = panel->findChild<QSplitter *>(QStringLiteral("inputSplitter"));
+    QVERIFY(splitter);
+    auto *input = panel->findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    const int threeLines = input->fontMetrics().lineSpacing() * 3 + 2 * input->frameWidth() + 8;
+    QTRY_COMPARE(splitter->sizes().value(1), threeLines);
+    panel->resize(400, 800);
+    QTRY_COMPARE(splitter->sizes().value(1), threeLines);
+
+    // The user's height is kept for the next panel.
+    splitter->setSizes({splitter->height() - 150, 150});
+    Q_EMIT splitter->splitterMoved(splitter->height() - 150, 1);
+    QTRY_COMPARE(WhaleAiAgents::inputHeight(), 150);
+    delete panel;
+
+    WhaleAiPanel next;
+    next.resize(400, 600);
+    next.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&next));
+    QTRY_COMPARE(next.findChild<QSplitter *>(QStringLiteral("inputSplitter"))->sizes().value(1), 150);
 }
 
 void WhaleAiPanelTest::stopWithEscape()

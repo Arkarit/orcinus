@@ -223,6 +223,9 @@ void setShowActions(bool show);
 /** @return Whether the transcript shows the time of each entry (the panel's "Times" filter). */
 bool showTimestamps();
 void setShowTimestamps(bool show);
+/** @return The height the user gave the panel's input in pixels (0: not set, the default of three lines). */
+int inputHeight();
+void setInputHeight(int height);
 
 /** @return Whether the panel saves its conversations (AI14; on by default). */
 bool saveConversations();
