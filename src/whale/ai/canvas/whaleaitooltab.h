@@ -54,7 +54,10 @@ public:
     void load();
     /** Shows @p message instead of the tool, which is not loaded: its files changed since it was kept. */
     void block(const QString &message);
+    /** @return Whether the tool waits for the user: blocked, or waiting to be started. */
     bool isBlocked() const;
+    /** Shows that the tool, which is not kept, waits to be started; Start loads it. */
+    void waitForStart();
 
     /**
      * The user confirms the backend (the "Start" of the question bar): it is allowed as it is now

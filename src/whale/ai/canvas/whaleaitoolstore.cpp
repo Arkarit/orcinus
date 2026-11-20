@@ -215,6 +215,32 @@ bool WhaleAiToolStore::isTrusted(const QString &id) const
     return !trusted.isEmpty() && pinned().contains(id) && trusted == fingerprint(id);
 }
 
+bool WhaleAiToolStore::hasOpenTabs() const
+{
+    return group().hasKey("OpenTabs");
+}
+
+QStringList WhaleAiToolStore::openTabs() const
+{
+    return group().readEntry("OpenTabs", QStringList());
+}
+
+QString WhaleAiToolStore::currentTab() const
+{
+    return group().readEntry("CurrentTab", QString());
+}
+
+void WhaleAiToolStore::setOpenTabs(const QStringList &ids, const QString &current)
+{
+    KConfigGroup config = group();
+    if (config.hasKey("OpenTabs") && openTabs() == ids && currentTab() == current) {
+        return;
+    }
+    config.writeEntry("OpenTabs", ids);
+    config.writeEntry("CurrentTab", current);
+    config.sync();
+}
+
 void WhaleAiToolStore::allowBackend(const QString &id)
 {
     KConfigGroup config = group();

@@ -459,6 +459,26 @@ void WhaleAiToolTab::block(const QString &message)
     showMessage(message, KMessageWidget::Warning, {trust, remove});
 }
 
+void WhaleAiToolTab::waitForStart()
+{
+    unload();
+    m_blocked = true;
+    auto start = new QAction(QIcon::fromTheme(QStringLiteral("media-playback-start")), i18nc("@action:button start a tool", "Start"), this);
+    start->setObjectName(QStringLiteral("start"));
+    connect(start, &QAction::triggered, this, &WhaleAiToolTab::load);
+    auto keep = new QAction(QIcon::fromTheme(QStringLiteral("window-pin")), i18nc("@action:button", "Keep…"), this);
+    keep->setObjectName(QStringLiteral("keep"));
+    connect(keep, &QAction::triggered, this, &WhaleAiToolTab::trustRequested);
+    auto close = new QAction(QIcon::fromTheme(QStringLiteral("tab-close")), i18nc("@action:button", "Close"), this);
+    close->setObjectName(QStringLiteral("close"));
+    connect(close, &QAction::triggered, this, &WhaleAiToolTab::removeRequested);
+    showMessage(xi18nc("@info %1 is the name of a tool",
+                       "<emphasis>%1</emphasis> is not kept, so it does not start by itself. Keep it to have it start with Orcinus.",
+                       m_tool.name),
+                KMessageWidget::Information,
+                {start, keep, close});
+}
+
 void WhaleAiToolTab::notifyContextChanged()
 {
     if (m_api) {

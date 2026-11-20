@@ -45,9 +45,9 @@ struct WhaleAiTool {
  * @brief The tools of the AI canvas and which of them the user kept (CV2).
  *
  * Tools live in ~/.local/share/orcinus/ai/tools/<id>/, one folder each. A tool the user keeps
- * ("pinned") comes back with the next start; keeping it is the trust step, so the store remembers
- * a fingerprint of its files then, and a kept tool whose files changed since is not loaded until
- * the user looks at it again. See .privatedoc/ai-canvas-plan.md.
+ * ("pinned") starts by itself when its tab comes back (the store keeps the open tabs too); keeping
+ * it is the trust step, so the store remembers a fingerprint of its files then, and a kept tool
+ * whose files changed since is not loaded until the user looks at it again. See .privatedoc/ai-canvas-plan.md.
  */
 class WhaleAiToolStore
 {
@@ -85,6 +85,14 @@ public:
     void unpin(const QString &id);
     /** @return Whether @p id is kept and its files are still the ones the user trusted. */
     bool isTrusted(const QString &id) const;
+
+    /** @return Whether the open tabs were saved yet (setOpenTabs()). */
+    bool hasOpenTabs() const;
+    /** The tools open in tabs when last saved, in their order. */
+    QStringList openTabs() const;
+    /** The tool of the tab shown when last saved; empty: the canvas. */
+    QString currentTab() const;
+    void setOpenTabs(const QStringList &ids, const QString &current);
 
     /** The user confirmed the backend of @p id as it is now. */
     void allowBackend(const QString &id);

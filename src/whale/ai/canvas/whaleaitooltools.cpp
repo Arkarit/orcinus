@@ -283,7 +283,7 @@ QList<WhaleAiWindowTool> WhaleAiToolTools::create(WhaleAiCanvasPanel *panel, con
 
         {QStringLiteral("tool_close"),
          QStringLiteral("Close an Orcinus canvas tool"),
-         QStringLiteral("Closes the tab of a canvas tool (a kept one comes back with the next start)."),
+         QStringLiteral("Closes the tab of a canvas tool; it stays closed after a restart (a kept one stays kept)."),
          false,
          {{QStringLiteral("tool"), toolProperty}},
          {QStringLiteral("tool")},

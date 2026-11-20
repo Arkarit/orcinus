@@ -85,6 +85,7 @@ Example backend.py:
    objectName, press keys, or call a root function), tool_screenshot.
 4. Fix and repeat until it loads without errors and does what the user asked.
 5. Tell the user it is ready and that they can keep it with "Keep on Canvas" in the tab's context
-   menu. Tools that are not kept are gone after a restart.
+   menu. Open tabs come back after a restart; a tool that is not kept then waits for the user to
+   start it, a kept one starts by itself.
 )");
 }

@@ -60,6 +60,7 @@ private Q_SLOTS:
     void testSoundTriage();
     void testKeepAndTrust();
     void testToolsMenu();
+    void testRestoreTabs();
     void testBrokenTool();
     void testDevelopmentLoop();
     void testBackend();
@@ -522,6 +523,76 @@ void WhaleAiToolTest::testToolsMenu()
     QCOMPARE(tabs->count(), 2);
 }
 
+void WhaleAiToolTest::testRestoreTabs()
+{
+    writeTool(QStringLiteral("first"), "import QtQuick\nItem { objectName: \"first\" }");
+    writeTool(QStringLiteral("second"), "import QtQuick\nItem { objectName: \"second\" }");
+    auto makePanel = [this](QMainWindow &window) {
+        auto panel = new WhaleAiCanvasPanel;
+        panel->setToolStore(m_store);
+        panel->setToolHost(m_host);
+        panel->setKeepConfirmation([](const WhaleAiTool &, const QStringList &) {
+            return true;
+        });
+        window.setCentralWidget(panel);
+        window.show();
+        return panel;
+    };
+
+    // Two open, the second kept, the first shown.
+    {
+        QMainWindow window;
+        WhaleAiCanvasPanel *panel = makePanel(window);
+        QCOMPARE(panel->openTool(QStringLiteral("first")), QString());
+        QCOMPARE(panel->openTool(QStringLiteral("second")), QString());
+        QVERIFY(panel->keepTool(QStringLiteral("second")));
+        QCOMPARE(panel->openTool(QStringLiteral("first")), QString());
+    }
+    QCOMPARE(m_store.openTabs(), (QStringList{QStringLiteral("first"), QStringLiteral("second")}));
+    QCOMPARE(m_store.currentTab(), QStringLiteral("first"));
+
+    // Next start: both back, the first shown; not kept, it waits to be started.
+    {
+        QMainWindow window;
+        WhaleAiCanvasPanel *panel = makePanel(window);
+        panel->restoreTools();
+        QCOMPARE(panel->openTools(), (QStringList{QStringLiteral("first"), QStringLiteral("second")}));
+        WhaleAiToolTab *first = panel->toolTab(QStringLiteral("first"));
+        WhaleAiToolTab *second = panel->toolTab(QStringLiteral("second"));
+        QCOMPARE(panel->findChild<QTabWidget *>()->currentWidget(), first);
+        QVERIFY(first->isBlocked());
+        QVERIFY(!second->isBlocked());
+        QTest::qWait(50);
+        QVERIFY(!first->isLoaded());
+        first->findChild<QAction *>(QStringLiteral("start"))->trigger();
+        QTRY_VERIFY(first->isLoaded());
+        QVERIFY(!first->isBlocked());
+        // The kept one loads when shown.
+        panel->openTool(QStringLiteral("second"));
+        QTRY_VERIFY(second->isLoaded());
+        QCOMPARE(m_store.currentTab(), QStringLiteral("second"));
+        // Closed: not back next time.
+        panel->closeTool(QStringLiteral("first"));
+        QCOMPARE(m_store.openTabs(), QStringList{QStringLiteral("second")});
+    }
+    {
+        QMainWindow window;
+        WhaleAiCanvasPanel *panel = makePanel(window);
+        panel->restoreTools();
+        QCOMPARE(panel->openTools(), QStringList{QStringLiteral("second")});
+        // Waiting ones close from their message, too.
+        QCOMPARE(panel->openTool(QStringLiteral("first")), QString());
+        panel->toolTab(QStringLiteral("first"))->waitForStart();
+        panel->toolTab(QStringLiteral("first"))->findChild<QAction *>(QStringLiteral("close"))->trigger();
+        QCOMPARE(panel->openTools(), QStringList{QStringLiteral("second")});
+        panel->closeTool(QStringLiteral("second"));
+    }
+    QVERIFY(m_store.openTabs().isEmpty());
+    m_store.unpin(QStringLiteral("second"));
+    QDir(m_tools + QStringLiteral("/first")).removeRecursively();
+    QDir(m_tools + QStringLiteral("/second")).removeRecursively();
+}
+
 void WhaleAiToolTest::testKeepAndTrust()
 {
     writeTool(QStringLiteral("hello"), "import QtQuick\nItem { objectName: \"hello\" }");
@@ -558,16 +629,15 @@ void WhaleAiToolTest::testKeepAndTrust()
         QVERIFY(m_store.isTrusted(QStringLiteral("hello")));
     }
 
-    // Next start: the kept tool is back and loads when its tab is shown.
+    // Next start: the kept tool is back; shown last, it is shown again and loads.
     {
         QMainWindow window;
         WhaleAiCanvasPanel *panel = makePanel(window);
-        panel->restoreKeptTools();
+        panel->restoreTools();
         QCOMPARE(panel->openTools(), QStringList{QStringLiteral("hello")});
         WhaleAiToolTab *tab = panel->toolTab(QStringLiteral("hello"));
         QVERIFY(!tab->isBlocked());
-        QVERIFY(!tab->isLoaded());
-        panel->openTool(QStringLiteral("hello"));
+        QCOMPARE(panel->findChild<QTabWidget *>()->currentWidget(), tab);
         QTRY_VERIFY(tab->isLoaded());
     }
 
@@ -577,7 +647,7 @@ void WhaleAiToolTest::testKeepAndTrust()
     {
         QMainWindow window;
         WhaleAiCanvasPanel *panel = makePanel(window);
-        panel->restoreKeptTools();
+        panel->restoreTools();
         WhaleAiToolTab *tab = panel->toolTab(QStringLiteral("hello"));
         QVERIFY(tab->isBlocked());
         panel->openTool(QStringLiteral("hello"));

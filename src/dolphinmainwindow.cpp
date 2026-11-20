@@ -2939,7 +2939,7 @@ void DolphinMainWindow::setupDockWidgets()
     connect(this, &DolphinMainWindow::urlChanged, aiCanvas, &WhaleAiCanvasPanel::contextChanged);
     connect(this, &DolphinMainWindow::selectionChanged, aiCanvas, &WhaleAiCanvasPanel::contextChanged);
     connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, aiCanvas, &WhaleAiCanvasPanel::contextChanged);
-    aiCanvas->restoreKeptTools();
+    aiCanvas->restoreTools();
     actionCollection()
         ->action(QStringLiteral("show_ai_canvas_panel"))
         ->setWhatsThis(xi18nc("@info:whatsthis",

@@ -45,18 +45,22 @@ public:
     void clear();
 
     // ---- tools (CV2) ----
-    /** Where the tools are and which are kept; before restoreKeptTools() (tests). */
+    /** Where the tools are and which are kept; before restoreTools() (tests). */
     void setToolStore(const WhaleAiToolStore &store);
     const WhaleAiToolStore &toolStore() const;
     /** What tools may know and do in the window. */
     void setToolHost(const WhaleAiToolHost &host);
     /** Asks whether to keep a tool (the trust step); a dialog unless set (tests). */
     void setKeepConfirmation(const std::function<bool(const WhaleAiTool &tool, const QStringList &details)> &confirm);
-    /** Opens the tabs of the kept tools; a tool whose files changed since is blocked. */
-    void restoreKeptTools();
+    /**
+     * Opens the tool tabs open when Orcinus last ran (before they were saved: the kept tools),
+     * the one shown then shown. Kept tools load when their tab is shown, unless their files
+     * changed since (blocked); the others wait for the user to start them.
+     */
+    void restoreTools();
     /** Opens the tool @p id in a tab (or shows its tab). @return An error (English), or empty. */
     QString openTool(const QString &id);
-    /** Closes the tab of @p id, also of a kept tool (it comes back with the next start). */
+    /** Closes the tab of @p id, also of a kept tool (it stays kept, the tab stays closed). */
     bool closeTool(const QString &id);
     /** Keeps @p id after asking the user (trusting its files as they are). @return Whether it is kept. */
     bool keepTool(const QString &id);
@@ -91,6 +95,8 @@ private:
     void updateToolTab(WhaleAiToolTab *tab);
     void fillToolsMenu();
     void showTabMenu(const QPoint &position);
+    /** Remembers the open tool tabs and the one shown, for restoreTools(). */
+    void saveTabs();
 
     WhaleAiCanvasModel *m_model;
     WhaleAiCanvasPlayer *m_player;
@@ -100,6 +106,7 @@ private:
     WhaleAiToolStore m_store;
     WhaleAiToolHost m_host;
     std::function<bool(const WhaleAiTool &, const QStringList &)> m_confirmKeep;
+    bool m_restoring = false; ///< restoring or going: the tabs are not saved
 };
 
 #endif

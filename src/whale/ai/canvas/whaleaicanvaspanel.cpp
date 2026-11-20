@@ -118,6 +118,8 @@ WhaleAiCanvasPanel::WhaleAiCanvasPanel(QWidget *parent)
             closeTool(tab->id());
         }
     });
+    // Back with the next start (restoreTools()).
+    connect(m_tabs, &QTabWidget::currentChanged, this, &WhaleAiCanvasPanel::saveTabs);
     m_tabs->tabBar()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(m_tabs->tabBar(), &QWidget::customContextMenuRequested, this, &WhaleAiCanvasPanel::showTabMenu);
 
@@ -135,7 +137,7 @@ WhaleAiCanvasPanel::WhaleAiCanvasPanel(QWidget *parent)
         return KMessageBox::questionTwoActionsList(this,
                                                    xi18nc("@info",
                                                           "<para>Keep the tool <emphasis>%1</emphasis> on the canvas?</para>"
-                                                          "<para>It opens again with Orcinus, also without the AI agent. A tool "
+                                                          "<para>It then starts by itself with Orcinus, also without the AI agent. A tool "
                                                           "works with your files through Orcinus, so its changes can be undone, "
                                                           "but like any program it is not locked in: keep only tools you "
                                                           "trust.</para>",
@@ -156,6 +158,9 @@ WhaleAiCanvasPanel::WhaleAiCanvasPanel(QWidget *parent)
 
 WhaleAiCanvasPanel::~WhaleAiCanvasPanel()
 {
+    // Tabs going with the panel are no closing by the user: what was open stays saved.
+    disconnect(m_tabs, nullptr, this, nullptr);
+    m_restoring = true;
     // The QML refers to the model and the player: it goes first.
     delete m_canvas;
 }
@@ -277,6 +282,7 @@ WhaleAiToolTab *WhaleAiCanvasPanel::addToolTab(const WhaleAiTool &tool)
         updateToolTab(tab);
     });
     updateToolTab(tab);
+    saveTabs();
     return tab;
 }
 
@@ -293,23 +299,44 @@ void WhaleAiCanvasPanel::updateToolTab(WhaleAiToolTab *tab)
     m_tabs->setTabToolTip(index, kept ? i18nc("@info:tooltip %1 is a tool's description", "%1\nKept on the canvas", tool.description) : tool.description);
 }
 
-void WhaleAiCanvasPanel::restoreKeptTools()
+void WhaleAiCanvasPanel::restoreTools()
 {
-    for (const QString &id : m_store.pinned()) {
+    // The tabs as they were; before they were saved, the kept tools.
+    const QStringList ids = m_store.hasOpenTabs() ? m_store.openTabs() : m_store.pinned();
+    const QString current = m_store.currentTab();
+    m_restoring = true;
+    for (const QString &id : ids) {
         if (toolTab(id)) {
             continue;
         }
         const auto tool = m_store.tool(id);
         if (!tool) {
-            continue;
+            continue; // gone since
         }
         WhaleAiToolTab *tab = addToolTab(*tool);
-        if (!m_store.isTrusted(id)) {
+        if (!m_store.pinned().contains(id)) {
+            // Not kept, not trusted: it runs when the user says so.
+            tab->waitForStart();
+        } else if (!m_store.isTrusted(id)) {
             tab->block(i18nc("@info %1 is the name of a tool",
                              "“%1” changed since you kept it. It does not run until you have looked at it and keep it again.",
                              tool->name));
         }
     }
+    if (WhaleAiToolTab *tab = current.isEmpty() ? nullptr : toolTab(current)) {
+        m_tabs->setCurrentWidget(tab);
+    }
+    m_restoring = false;
+    saveTabs();
+}
+
+void WhaleAiCanvasPanel::saveTabs()
+{
+    if (m_restoring) {
+        return;
+    }
+    const auto tab = qobject_cast<WhaleAiToolTab *>(m_tabs->currentWidget());
+    m_store.setOpenTabs(openTools(), tab ? tab->id() : QString());
 }
 
 QString WhaleAiCanvasPanel::openTool(const QString &id)
@@ -341,6 +368,7 @@ bool WhaleAiCanvasPanel::closeTool(const QString &id)
         return false;
     }
     m_tabs->removeTab(m_tabs->indexOf(tab));
+    saveTabs();
     // The backend ends in the background; only quitting Orcinus waits for it.
     if (tab->backend()) {
         tab->backend()->stop();
