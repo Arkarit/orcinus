@@ -17,6 +17,7 @@
 #include <QScrollArea>
 
 class QLabel;
+class QTimer;
 class QVBoxLayout;
 
 /**
@@ -35,6 +36,12 @@ class QVBoxLayout;
  *
  * Each entry also keeps what it shows as JSON (AI14): record() is the whole transcript, restore()
  * builds it again (with the old times; answered permission requests without their buttons).
+ *
+ * Entries can be selected with the mouse, several at once: a drag that leaves the entry it
+ * started in (a text selection in it goes then), or one that starts between entries. Beyond the
+ * top or bottom edge the view scrolls, the faster the farther. Ctrl+C or the context menu copies
+ * the shown entries of the selection as plain text (WhaleAiConversationExport::entriesToText()).
+ * A click ends the selection.
  */
 class WhaleAiTranscript : public QScrollArea
 {
@@ -106,6 +113,19 @@ public:
     /** Appends the entries of @p record (from record()); unanswered requests come back answered "no longer needed". */
     void restore(const QJsonArray &record);
     static Kind kindOf(const QWidget *entry);
+
+    /** Selects the shown entries from @p from to @p to (in any order); nullptrs end the selection. */
+    void selectEntries(QWidget *from, QWidget *to);
+    /** @return The shown entries of the selection, oldest first. */
+    QList<QWidget *> selectedEntries() const;
+    bool hasSelection() const;
+    void clearSelection();
+    /** @return The selected entries as plain text, with times if they are shown. */
+    QString selectedText() const;
+    /** Puts selectedText() on the clipboard. */
+    void copySelection();
+    /** Names the agent's answers in copied text. */
+    void setAgentName(const QString &name);
     /** @return When @p entry was added (always kept, shown or not). */
     static QDateTime timeOf(const QWidget *entry);
 
@@ -132,6 +152,16 @@ private:
     QLabel *createTextLabel(Qt::TextFormat format);
     QWidget *createFoldable(const QString &title, QLabel *body, bool unfolded);
     void scrollToBottomLater();
+    /** Handles the mouse and keys of the entry selection. @return Whether @p event is done. */
+    bool selectionEvent(QObject *watched, QEvent *event);
+    /** @return The entry @p object belongs to, or nullptr. */
+    QWidget *entryOf(QObject *object) const;
+    /** @return The shown entry at or nearest to @p y of the content. */
+    QWidget *entryAt(int y) const;
+    void startEntrySelection();
+    void dragEntrySelection(const QPoint &globalPos);
+    void autoScroll();
+    bool showSelectionMenu(const QPoint &globalPos);
 
     QWidget *m_content = nullptr;
     QVBoxLayout *m_layout = nullptr;
@@ -153,6 +183,26 @@ private:
     bool m_showActions = true;
     bool m_showTimestamps = false;
     QDateTime m_restoreTime; ///< while restoring: the time of the entry that comes
+
+    // The entry selection
+    enum class Drag {
+        None,
+        /** Pressed between entries: a drag selects entries. */
+        Pending,
+        /** Pressed in a text: a drag selects text, until it leaves the entry. */
+        Text,
+        Entries,
+    };
+    Drag m_drag = Drag::None;
+    QPoint m_pressPos; ///< global
+    QPoint m_dragPos; ///< global, the last of the drag
+    QPointer<QWidget> m_pressEntry;
+    QPointer<QLabel> m_pressLabel;
+    QPointer<QWidget> m_selectionAnchor;
+    QPointer<QWidget> m_selectionEnd;
+    QWidget *m_selectionOverlay = nullptr;
+    QTimer *m_autoScrollTimer = nullptr;
+    QString m_agentName;
 };
 
 #endif

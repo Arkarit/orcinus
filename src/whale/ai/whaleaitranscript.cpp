@@ -5,10 +5,13 @@
  */
 
 #include "whaleaitranscript.h"
+#include "whaleaiconversationexport.h"
 
 #include <KLocalizedString>
 
 #include <QApplication>
+#include <QClipboard>
+#include <QContextMenuEvent>
 #include <QDateTime>
 #include <QEvent>
 #include <QFontDatabase>
@@ -17,15 +20,19 @@
 #include <QHash>
 #include <QIcon>
 #include <QJsonDocument>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLocale>
+#include <QMenu>
 #include <QMetaEnum>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QStyle>
 #include <QStyleOptionButton>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -314,6 +321,47 @@ WhaleAcpToolCall toolCallFromRecord(const QJsonObject &object)
     toolCall.content = object.value(QLatin1String("content")).toArray();
     return toolCall;
 }
+
+/** Paints the entry selection over the content; the mouse goes through. */
+class SelectionOverlay : public QWidget
+{
+public:
+    SelectionOverlay(QWidget *content, const WhaleAiTranscript *transcript)
+        : QWidget(content)
+        , m_transcript(transcript)
+    {
+        setObjectName(QStringLiteral("selectionOverlay"));
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setFocusPolicy(Qt::NoFocus);
+        hide();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override
+    {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QColor fill = palette().color(QPalette::Highlight);
+        QColor border = fill;
+        fill.setAlphaF(0.22);
+        border.setAlphaF(0.6);
+        painter.setPen(QPen(border, 1));
+        painter.setBrush(fill);
+        // One rectangle around the selected rows: they follow each other.
+        QRect area;
+        for (const QWidget *entry : m_transcript->selectedEntries()) {
+            if (const auto *row = entry->property(RowProperty).value<QWidget *>()) {
+                area = area.united(row->geometry());
+            }
+        }
+        if (area.isValid()) {
+            painter.drawRoundedRect(QRectF(area.adjusted(-2, -2, 2, 2)).adjusted(0.5, 0.5, -0.5, -0.5), 3, 3);
+        }
+    }
+
+private:
+    const WhaleAiTranscript *m_transcript;
+};
 }
 
 WhaleAiTranscript::WhaleAiTranscript(QWidget *parent)
@@ -328,6 +376,14 @@ WhaleAiTranscript::WhaleAiTranscript(QWidget *parent)
     m_layout = new QVBoxLayout(m_content);
     m_layout->addStretch();
     setWidget(m_content);
+
+    // The entry selection: presses between entries reach the content, those in texts the labels.
+    m_content->installEventFilter(this);
+    installEventFilter(this);
+    m_selectionOverlay = new SelectionOverlay(m_content, this);
+    m_autoScrollTimer = new QTimer(this);
+    m_autoScrollTimer->setInterval(30);
+    connect(m_autoScrollTimer, &QTimer::timeout, this, &WhaleAiTranscript::autoScroll);
 
     // Follow new entries while at the bottom.
     connect(verticalScrollBar(), &QScrollBar::rangeChanged, this, [this](int, int maximum) {
@@ -350,6 +406,7 @@ QLabel *WhaleAiTranscript::createTextLabel(Qt::TextFormat format)
     // Long words and code lines must not widen the panel.
     label->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
     connect(label, &QLabel::linkActivated, this, &WhaleAiTranscript::linkActivated);
+    label->installEventFilter(this);
     return label;
 }
 
@@ -420,6 +477,7 @@ QWidget *WhaleAiTranscript::addEntry(Kind kind, QWidget *entry)
 
     // Before the stretch at the end.
     m_layout->insertWidget(m_layout->count() - 1, row);
+    m_selectionOverlay->raise();
     setEntryVisible(entry, m_showActions || !isAction(kind));
     Q_EMIT changed();
     return entry;
@@ -888,6 +946,9 @@ void WhaleAiTranscript::endTurn()
 void WhaleAiTranscript::clear()
 {
     endTurn();
+    clearSelection();
+    m_drag = Drag::None;
+    m_autoScrollTimer->stop();
     m_toolCalls.clear();
     m_permissions.clear();
     m_memoryNotes.clear();
@@ -1026,6 +1087,12 @@ WhaleAiTranscript::Kind WhaleAiTranscript::kindOf(const QWidget *entry)
 
 bool WhaleAiTranscript::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_content && event->type() == QEvent::Resize) {
+        m_selectionOverlay->setGeometry(m_content->rect());
+    }
+    if (selectionEvent(watched, event)) {
+        return true;
+    }
     // A click on the title of a tool call unfolds its details, like the arrow.
     if (event->type() == QEvent::MouseButtonRelease) {
         if (auto *title = qobject_cast<QLabel *>(watched)) {
@@ -1036,6 +1103,249 @@ bool WhaleAiTranscript::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return QScrollArea::eventFilter(watched, event);
+}
+
+QWidget *WhaleAiTranscript::entryOf(QObject *object) const
+{
+    for (auto *widget = qobject_cast<QWidget *>(object); widget && widget != m_content; widget = widget->parentWidget()) {
+        if (auto *entry = widget->property(EntryProperty).value<QWidget *>()) {
+            return entry;
+        }
+        if (widget->property(RowProperty).isValid()) {
+            return widget;
+        }
+    }
+    return nullptr;
+}
+
+QWidget *WhaleAiTranscript::entryAt(int y) const
+{
+    QWidget *last = nullptr;
+    for (QWidget *entry : entries()) {
+        const auto *row = entry->property(RowProperty).value<QWidget *>();
+        if (!row || row->isHidden()) {
+            continue;
+        }
+        // Up to the middle of the space to the next row.
+        if (y <= row->geometry().bottom() + m_layout->spacing() / 2) {
+            return entry;
+        }
+        last = entry;
+    }
+    return last;
+}
+
+void WhaleAiTranscript::selectEntries(QWidget *from, QWidget *to)
+{
+    m_selectionAnchor = from;
+    m_selectionEnd = to;
+    m_selectionOverlay->setVisible(hasSelection());
+    m_selectionOverlay->update();
+}
+
+QList<QWidget *> WhaleAiTranscript::selectedEntries() const
+{
+    QList<QWidget *> selected;
+    if (!m_selectionAnchor || !m_selectionEnd) {
+        return selected;
+    }
+    const QList<QWidget *> list = entries();
+    qsizetype first = list.indexOf(m_selectionAnchor.data());
+    qsizetype last = list.indexOf(m_selectionEnd.data());
+    if (first < 0 || last < 0) {
+        return selected;
+    }
+    if (first > last) {
+        std::swap(first, last);
+    }
+    for (qsizetype i = first; i <= last; ++i) {
+        QWidget *entry = list.at(i);
+        const auto *row = entry->property(RowProperty).value<QWidget *>();
+        if (row && !row->isHidden()) {
+            selected.append(entry);
+        }
+    }
+    return selected;
+}
+
+bool WhaleAiTranscript::hasSelection() const
+{
+    return !selectedEntries().isEmpty();
+}
+
+void WhaleAiTranscript::clearSelection()
+{
+    selectEntries(nullptr, nullptr);
+}
+
+QString WhaleAiTranscript::selectedText() const
+{
+    QJsonArray records;
+    for (const QWidget *entry : selectedEntries()) {
+        records.append(entry->property(RecordProperty).toJsonObject());
+    }
+    // What is shown, as it is shown: the filter has chosen already.
+    const QString agent = m_agentName.isEmpty() ? i18nc("@title an AI agent in copied text", "Agent") : m_agentName;
+    return WhaleAiConversationExport::entriesToText(records, agent, {true, m_showTimestamps});
+}
+
+void WhaleAiTranscript::copySelection()
+{
+    const QString text = selectedText();
+    if (!text.isEmpty()) {
+        QApplication::clipboard()->setText(text);
+    }
+}
+
+void WhaleAiTranscript::setAgentName(const QString &name)
+{
+    m_agentName = name;
+}
+
+void WhaleAiTranscript::startEntrySelection()
+{
+    m_drag = Drag::Entries;
+    // The text selection the drag started gives way.
+    if (m_pressLabel) {
+        m_pressLabel->setSelection(0, 0);
+    }
+    QWidget *anchor = m_pressEntry ? m_pressEntry.data() : entryAt(m_content->mapFromGlobal(m_pressPos).y());
+    selectEntries(anchor, anchor);
+    // Ctrl+C goes here.
+    setFocus(Qt::MouseFocusReason);
+}
+
+void WhaleAiTranscript::dragEntrySelection(const QPoint &globalPos)
+{
+    m_dragPos = globalPos;
+    if (QWidget *entry = entryAt(m_content->mapFromGlobal(globalPos).y())) {
+        selectEntries(m_selectionAnchor ? m_selectionAnchor.data() : entry, entry);
+    }
+    const int y = viewport()->mapFromGlobal(globalPos).y();
+    if (y < 0 || y >= viewport()->height()) {
+        if (!m_autoScrollTimer->isActive()) {
+            m_autoScrollTimer->start();
+        }
+    } else {
+        m_autoScrollTimer->stop();
+    }
+}
+
+void WhaleAiTranscript::autoScroll()
+{
+    if (m_drag != Drag::Entries || !(QApplication::mouseButtons() & Qt::LeftButton)) {
+        m_autoScrollTimer->stop();
+        return;
+    }
+    // Where the mouse is: it did not move since, or a move would have come.
+    const QPoint globalPos = m_dragPos;
+    const int y = viewport()->mapFromGlobal(globalPos).y();
+    const int beyond = y < 0 ? y : y >= viewport()->height() ? y - viewport()->height() + 1 : 0;
+    if (beyond == 0) {
+        m_autoScrollTimer->stop();
+        return;
+    }
+    // The farther beyond the edge, the faster.
+    const int step = std::clamp(std::abs(beyond) / 2 + 2, 2, 60);
+    QScrollBar *bar = verticalScrollBar();
+    bar->setValue(bar->value() + (beyond < 0 ? -step : step));
+    dragEntrySelection(globalPos);
+}
+
+bool WhaleAiTranscript::showSelectionMenu(const QPoint &globalPos)
+{
+    // On the selection only; elsewhere the texts have their own menu.
+    const QWidget *entry = entryAt(m_content->mapFromGlobal(globalPos).y());
+    if (!entry || !selectedEntries().contains(entry)) {
+        return false;
+    }
+    QMenu menu(this);
+    QAction *copy = menu.addAction(QIcon::fromTheme(QStringLiteral("edit-copy")), i18nc("@action:inmenu", "Copy"));
+    copy->setShortcut(QKeySequence::Copy);
+    connect(copy, &QAction::triggered, this, &WhaleAiTranscript::copySelection);
+    menu.exec(globalPos);
+    return true;
+}
+
+bool WhaleAiTranscript::selectionEvent(QObject *watched, QEvent *event)
+{
+    switch (event->type()) {
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonDblClick: {
+        auto *mouse = static_cast<QMouseEvent *>(event);
+        if (mouse->button() != Qt::LeftButton) {
+            return false;
+        }
+        clearSelection();
+        m_pressPos = mouse->globalPosition().toPoint();
+        m_pressLabel = qobject_cast<QLabel *>(watched);
+        m_pressEntry = entryOf(watched);
+        // In a text: its own selection first. Between entries: entries at once.
+        m_drag = m_pressLabel && watched != m_content ? Drag::Text : Drag::Pending;
+        return false;
+    }
+    case QEvent::MouseMove: {
+        auto *mouse = static_cast<QMouseEvent *>(event);
+        if (m_drag == Drag::None || !(mouse->buttons() & Qt::LeftButton)) {
+            return false;
+        }
+        const QPoint globalPos = mouse->globalPosition().toPoint();
+        if (m_drag == Drag::Pending && (globalPos - m_pressPos).manhattanLength() >= QApplication::startDragDistance()) {
+            startEntrySelection();
+        } else if (m_drag == Drag::Text) {
+            const auto *row = m_pressEntry ? m_pressEntry->property(RowProperty).value<QWidget *>() : nullptr;
+            const int y = m_content->mapFromGlobal(globalPos).y();
+            if (!row || y < row->geometry().top() || y > row->geometry().bottom()) {
+                startEntrySelection();
+            }
+        }
+        if (m_drag == Drag::Entries) {
+            dragEntrySelection(globalPos);
+            return true;
+        }
+        return false;
+    }
+    case QEvent::MouseButtonRelease: {
+        auto *mouse = static_cast<QMouseEvent *>(event);
+        if (mouse->button() != Qt::LeftButton) {
+            return false;
+        }
+        const bool entries = m_drag == Drag::Entries;
+        m_drag = Drag::None;
+        m_autoScrollTimer->stop();
+        // Not a click on what the drag ended on (a tool call title would unfold).
+        return entries;
+    }
+    case QEvent::ShortcutOverride:
+    case QEvent::KeyPress: {
+        auto *key = static_cast<QKeyEvent *>(event);
+        if (!hasSelection()) {
+            return false;
+        }
+        if (key->matches(QKeySequence::Copy)) {
+            // Before the window's Copy (of files) and the label's own.
+            if (event->type() == QEvent::ShortcutOverride) {
+                event->accept();
+            } else {
+                copySelection();
+            }
+            return true;
+        }
+        if (key->key() == Qt::Key_Escape && key->modifiers() == Qt::NoModifier) {
+            if (event->type() == QEvent::ShortcutOverride) {
+                event->accept();
+            } else {
+                clearSelection();
+            }
+            return true;
+        }
+        return false;
+    }
+    case QEvent::ContextMenu:
+        return hasSelection() && showSelectionMenu(static_cast<QContextMenuEvent *>(event)->globalPos());
+    default:
+        return false;
+    }
 }
 
 void WhaleAiTranscript::scrollToBottomLater()

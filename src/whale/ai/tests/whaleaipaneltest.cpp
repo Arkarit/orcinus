@@ -30,6 +30,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QDialog>
 #include <QDir>
@@ -45,6 +46,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QStackedWidget>
@@ -55,6 +57,7 @@
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QVBoxLayout>
+#include <QWindow>
 
 #include <memory>
 
@@ -89,6 +92,7 @@ private Q_SLOTS:
     void rememberCommand();
     void removedAgentEndsConversation();
     void links();
+    void transcriptSelection();
     void panelInMainWindow();
 
     void storedStartMode();
@@ -1080,6 +1084,86 @@ void WhaleAiPanelTest::removedAgentEndsConversation()
     QVERIFY(!panel.session());
     QCOMPARE(panel.agentId(), QStringLiteral("crash"));
     QVERIFY(texts(panel).contains(QLatin1String("The agent of this conversation was removed.")));
+}
+
+void WhaleAiPanelTest::transcriptSelection()
+{
+    QWidget window;
+    window.resize(320, 240);
+    auto *transcript = new WhaleAiTranscript(&window);
+    auto *layout = new QVBoxLayout(&window);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(transcript, 1);
+    // Room below the transcript, for a drag beyond its edge.
+    auto *below = new QWidget(&window);
+    below->setFixedHeight(80);
+    layout->addWidget(below);
+    for (int i = 0; i < 12; ++i) {
+        transcript->addUserMessage(QStringLiteral("question %1").arg(i));
+        transcript->appendAgentText(QStringLiteral("answer **%1**").arg(i));
+        transcript->endTurn();
+    }
+    transcript->setAgentName(QStringLiteral("Fake"));
+    window.show();
+    window.activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(&window));
+    transcript->verticalScrollBar()->setValue(0);
+    QWindow *handle = window.windowHandle();
+    const QList<QWidget *> entries = transcript->entries();
+    QWidget *content = transcript->widget();
+    auto *question = entries.at(0)->findChild<QLabel *>();
+    QVERIFY(question);
+
+    // A drag in a text selects text, as long as it stays in its entry.
+    const QPoint start = question->mapTo(&window, QPoint(2, question->height() / 2));
+    QTest::mousePress(handle, Qt::LeftButton, {}, start);
+    QTest::mouseMove(handle, question->mapTo(&window, QPoint(question->width() - 2, question->height() / 2)));
+    QVERIFY(question->hasSelectedText());
+    QVERIFY(!transcript->hasSelection());
+    // Beyond it: entries, the text selection goes.
+    QTest::mouseMove(handle, entries.at(2)->mapTo(&window, entries.at(2)->rect().center()));
+    QCOMPARE(transcript->selectedEntries(), entries.mid(0, 3));
+    QVERIFY(!question->hasSelectedText());
+    QTest::mouseRelease(handle, Qt::LeftButton, {}, entries.at(2)->mapTo(&window, entries.at(2)->rect().center()));
+    QVERIFY(transcript->hasSelection());
+
+    // Ctrl+C copies them as text: no Markdown, times only when shown.
+    QCOMPARE(QApplication::focusWidget(), transcript);
+    QTest::keyClick(transcript, Qt::Key_C, Qt::ControlModifier);
+    QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("You:\nquestion 0\n\nFake:\nanswer 0\n\nYou:\nquestion 1"));
+    transcript->setShowTimestamps(true);
+    QVERIFY(transcript->selectedText().startsWith(QStringLiteral("You · ")));
+    transcript->setShowTimestamps(false);
+
+    // A click ends the selection.
+    QTest::mouseClick(handle, Qt::LeftButton, {}, start);
+    QVERIFY(!transcript->hasSelection());
+
+    // A drag between entries selects entries at once, from the one nearest; below the edge the view scrolls.
+    const auto *row = entries.at(1)->parentWidget();
+    const QPoint gap = content->mapTo(&window, QPoint(content->width() / 2, row->geometry().bottom() + 1));
+    QCOMPARE(window.childAt(gap), content);
+    QTest::mousePress(handle, Qt::LeftButton, {}, gap);
+    QTest::mouseMove(handle, gap + QPoint(0, 2 * QApplication::startDragDistance()));
+    QVERIFY(transcript->hasSelection());
+    QCOMPARE(transcript->selectedEntries().constFirst(), entries.at(1));
+    const QPoint beyond = below->mapTo(&window, QPoint(gap.x(), 60));
+    QTest::mouseMove(handle, beyond);
+    QTRY_VERIFY(transcript->verticalScrollBar()->value() > 0);
+    QTRY_VERIFY(transcript->selectedEntries().size() > 6);
+    QTest::mouseRelease(handle, Qt::LeftButton, {}, beyond);
+    const int scrolled = transcript->verticalScrollBar()->value();
+    QTest::qWait(100);
+    QCOMPARE(transcript->verticalScrollBar()->value(), scrolled);
+
+    // Hidden entries are not selected, so not copied.
+    transcript->addNotice(QStringLiteral("The agent did something."), WhaleAiTranscript::Kind::Action);
+    transcript->setShowActions(false);
+    transcript->selectEntries(transcript->entries().at(transcript->entryCount() - 2), transcript->entries().constLast());
+    QCOMPARE(transcript->selectedEntries().size(), 1);
+    QVERIFY(!transcript->selectedText().contains(QLatin1String("did something")));
+    transcript->clear();
+    QVERIFY(!transcript->hasSelection());
 }
 
 void WhaleAiPanelTest::links()

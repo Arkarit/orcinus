@@ -1804,6 +1804,8 @@ void WhaleAiPanel::updateState()
             || (!m_pendingPrompt.isEmpty() && m_modeState != ModeState::Blocked));
     m_stop->setVisible(busy);
     m_stop->setProperty("busy", busy);
+    // For copied text: the agent of the conversation shown, else the one chosen.
+    m_transcript->setAgentName(m_conversation ? m_conversation->agentName : m_opened ? m_opened->agentName : m_agents->currentText());
     // Opening another one ends this conversation: not in the middle of an answer.
     m_conversationsButton->setEnabled(!busy);
     // Not while the agent works: it may be changing the same things.
