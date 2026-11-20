@@ -144,7 +144,8 @@ WhaleAiCanvasPanel::WhaleAiCanvasPanel(QWidget *parent)
     };
 
     auto layout = new QVBoxLayout(this);
-    layout->setContentsMargins(0, 0, 0, 0);
+    // Some room to the dock's edges, as in the AI panel.
+    layout->setContentsMargins(4, 4, 4, 4);
     layout->addWidget(m_tabs);
     setFocusProxy(m_canvas);
 }
