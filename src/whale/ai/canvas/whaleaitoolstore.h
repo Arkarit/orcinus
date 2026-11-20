@@ -97,6 +97,8 @@ public:
     /** @return Whether the user closed the hint to keep @p id. */
     bool isKeepHintDismissed(const QString &id) const;
     void dismissKeepHint(const QString &id);
+    /** The hint to keep @p id shows again. */
+    void resetKeepHint(const QString &id);
 
     /** The user confirmed the backend of @p id as it is now. */
     void allowBackend(const QString &id);

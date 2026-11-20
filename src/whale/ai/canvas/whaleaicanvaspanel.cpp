@@ -20,7 +20,6 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QIcon>
-#include <QLabel>
 #include <QMenu>
 #include <QQmlContext>
 #include <QQmlEngine>
@@ -303,16 +302,22 @@ void WhaleAiCanvasPanel::updateToolTab(WhaleAiToolTab *tab)
     m_tabs->setTabIcon(index, QIcon::fromTheme(tool.icon, QIcon::fromTheme(QStringLiteral("tools"))));
     m_tabs->setTabToolTip(index, kept ? i18nc("@info:tooltip %1 is a tool's description", "%1\nKept on the canvas", tool.description) : tool.description);
     tab->setKept(kept);
-    // A pin before the icon of a kept tool.
+    // A pin before the icon of a kept tool; a click on it does not keep it any more.
     QTabBar *bar = m_tabs->tabBar();
     QWidget *pin = bar->tabButton(index, QTabBar::LeftSide);
     if (kept && !pin) {
-        auto label = new QLabel(bar);
-        label->setObjectName(QStringLiteral("keptPin"));
-        const int size = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this);
-        label->setPixmap(QIcon::fromTheme(QStringLiteral("window-pin")).pixmap(size * 3 / 4));
-        label->setToolTip(i18nc("@info:tooltip", "Kept on the canvas: starts with Orcinus"));
-        bar->setTabButton(index, QTabBar::LeftSide, label);
+        auto button = new QToolButton(bar);
+        button->setObjectName(QStringLiteral("keptPin"));
+        button->setAutoRaise(true);
+        const int size = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this) * 3 / 4;
+        button->setIconSize(QSize(size, size));
+        button->setIcon(QIcon::fromTheme(QStringLiteral("window-pin")));
+        button->setToolTip(i18nc("@info:tooltip", "Kept on the canvas: starts with Orcinus. Click to no longer keep it."));
+        const QString id = tool.id;
+        connect(button, &QToolButton::clicked, this, [this, id] {
+            unkeepTool(id);
+        });
+        bar->setTabButton(index, QTabBar::LeftSide, button);
     } else if (!kept && pin) {
         bar->setTabButton(index, QTabBar::LeftSide, nullptr);
         pin->deleteLater();
@@ -430,6 +435,8 @@ bool WhaleAiCanvasPanel::keepTool(const QString &id)
 void WhaleAiCanvasPanel::unkeepTool(const QString &id)
 {
     m_store.unpin(id);
+    // Back to where it was before it was kept: the hint to keep it shows again.
+    m_store.resetKeepHint(id);
     if (WhaleAiToolTab *tab = toolTab(id)) {
         updateToolTab(tab);
     }

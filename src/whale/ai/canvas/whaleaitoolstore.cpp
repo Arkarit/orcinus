@@ -257,6 +257,16 @@ void WhaleAiToolStore::dismissKeepHint(const QString &id)
     }
 }
 
+void WhaleAiToolStore::resetKeepHint(const QString &id)
+{
+    KConfigGroup config = group();
+    QStringList ids = config.readEntry("KeepHintDismissed", QStringList());
+    if (ids.removeAll(id) > 0) {
+        config.writeEntry("KeepHintDismissed", ids);
+        config.sync();
+    }
+}
+
 void WhaleAiToolStore::allowBackend(const QString &id)
 {
     KConfigGroup config = group();

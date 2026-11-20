@@ -638,6 +638,16 @@ void WhaleAiToolTest::testKeepHint()
     tab->load();
     QTRY_VERIFY(tab->isLoaded());
     QVERIFY(!hint->isVisibleTo(tab));
+
+    // Kept again, then the pin clicked: not kept, back to the start, the hint shows again.
+    QVERIFY(panel->keepTool(QStringLiteral("hinted")));
+    auto *pin = qobject_cast<QToolButton *>(bar->tabButton(1, QTabBar::LeftSide));
+    QVERIFY(pin);
+    pin->click();
+    QVERIFY(!m_store.pinned().contains(QStringLiteral("hinted")));
+    QVERIFY(!m_store.isKeepHintDismissed(QStringLiteral("hinted")));
+    QVERIFY(hint->isVisibleTo(tab));
+    QVERIFY(!bar->tabButton(1, QTabBar::LeftSide));
     panel->closeTool(QStringLiteral("hinted"));
     QDir(m_tools + QStringLiteral("/hinted")).removeRecursively();
 }
