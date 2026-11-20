@@ -28,6 +28,7 @@ class QComboBox;
 class QLabel;
 class QMenu;
 class QPlainTextEdit;
+class QPushButton;
 class QSplitter;
 class QStackedWidget;
 class QTimer;
@@ -196,6 +197,10 @@ private:
     int hiddenDelayMs() const;
     /** Shows Orcinus' own greeting at the top of an empty conversation. */
     void greet();
+    /** The suggestions button over the input: only for a new conversation while the input is empty. */
+    void updateSuggestions();
+    /** Puts @p text into the input, the cursor at its end; nothing is sent. */
+    void insertSuggestion(const QString &text);
     void sendPending();
     void applyStartMode();
     void requestMode(const QString &value, bool byUser);
@@ -233,6 +238,8 @@ private:
     WhaleAiTranscript *m_transcript = nullptr;
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_stop = nullptr;
+    QPushButton *m_suggestions = nullptr; ///< prompts to start with, over the input
+    bool m_fresh = false; ///< a new conversation, nothing sent or opened yet
     QSplitter *m_inputSplitter = nullptr;
     bool m_inputSizesSet = false;
     bool m_titleChanged = false; ///< the agent named the conversation since it was saved

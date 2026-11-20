@@ -79,6 +79,7 @@ private Q_SLOTS:
     void promptTurn();
     void enterAndShiftEnter();
     void inputHeight();
+    void suggestions();
     void stopWithEscape();
     void agentFails();
     void otherAgentEndsConversation();
@@ -1134,6 +1135,51 @@ void WhaleAiPanelTest::otherAgentEndsConversation()
     QVERIFY(!panel.session());
     QCOMPARE(session->state(), WhaleAcpSession::State::Closed);
     QVERIFY(texts(panel).endsWith(QLatin1String("Now talking to Fake crash. The next message starts a new conversation.")));
+}
+
+void WhaleAiPanelTest::suggestions()
+{
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto *button = panel.findChild<QPushButton *>(QStringLiteral("suggestions"));
+    QVERIFY(button);
+    auto *input = panel.findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    // Only while a new conversation has an empty input.
+    QVERIFY(button->isVisibleTo(&panel));
+    input->setPlainText(QStringLiteral("x"));
+    QVERIFY(!button->isVisibleTo(&panel));
+    input->clear();
+    QVERIFY(button->isVisibleTo(&panel));
+
+    // Groups, and the requests without their careful part.
+    QStringList sections;
+    for (QAction *action : button->menu()->actions()) {
+        if (action->isSeparator()) {
+            sections << action->text();
+        }
+    }
+    QCOMPARE(sections, (QStringList{QStringLiteral("Files"), QStringLiteral("Software"), QStringLiteral("System")}));
+    auto *repair = button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"));
+    QVERIFY(repair);
+    QCOMPARE(repair->text(), QStringLiteral("A program does not work properly"));
+
+    // Into the input, the cursor at the end to go on typing; nothing is sent.
+    repair->trigger();
+    QCOMPARE(input->toPlainText(), QStringLiteral("Please look into it first and ask me before every change.\nA program does not work properly: "));
+    QCOMPARE(input->textCursor().position(), input->toPlainText().size());
+    QVERIFY(!panel.session());
+    QVERIFY(!button->isVisibleTo(&panel));
+    button->menu()->findChild<QAction *>(QStringLiteral("checkSystem"))->trigger();
+    QCOMPARE(input->toPlainText(),
+             QStringLiteral("Please check my operating system and suggest what to do. Please look into it first and ask me before every change."));
+
+    // Gone once the conversation started, also with an empty input; back with a new one.
+    input->clear();
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(!button->isVisibleTo(&panel));
+    panel.findChild<QToolButton *>(QStringLiteral("newConversation"))->click();
+    QVERIFY(button->isVisibleTo(&panel));
 }
 
 void WhaleAiPanelTest::newConversation()

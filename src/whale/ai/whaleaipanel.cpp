@@ -275,6 +275,58 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     upperLayout->addWidget(m_proposalBar);
     m_chips->setParent(upper);
     upperLayout->addWidget(m_chips);
+    // Suggestions to start with (user, 2026-11-21): over the input, where a new conversation has room
+    // anyway; it goes once the user types or picks one, so the input never moves.
+    m_suggestions = new QPushButton(QIcon::fromTheme(QStringLiteral("help-hint")), i18nc("@action:button", "Suggestions"), upper);
+    m_suggestions->setObjectName(QStringLiteral("suggestions"));
+    m_suggestions->setToolTip(i18nc("@info:tooltip", "Puts a request into the input, for you to complete and send"));
+    auto *suggestionsMenu = new QMenu(m_suggestions);
+    suggestionsMenu->setObjectName(QStringLiteral("suggestionsMenu"));
+    {
+        // Changes to the system: the agent looks first and asks (shown, the user may delete it).
+        const QString careful = i18nc("@info part of a request to an AI agent", "Please look into it first and ask me before every change.");
+        struct Suggestion {
+            QString id;
+            QString text;
+        };
+        const QList<std::pair<QString, QList<Suggestion>>> groups{
+            {i18nc("@title:menu", "Files"),
+             {{QStringLiteral("renameFiles"), i18nc("@info request to an AI agent", "Please give the selected files sensible names.")},
+              {QStringLiteral("explainFile"), i18nc("@info request to an AI agent", "Please explain the selected file to me.")}}},
+            {i18nc("@title:menu", "Software"),
+             {{QStringLiteral("installSoftware"), i18nc("@info request to an AI agent, the user adds which", "Please help me install software: ")},
+              {QStringLiteral("repairProgram"),
+               careful + QLatin1Char('\n') + i18nc("@info request to an AI agent, the user adds which", "A program does not work properly: ")}}},
+            {i18nc("@title:menu", "System"),
+             {{QStringLiteral("checkSystem"),
+               i18nc("@info request to an AI agent", "Please check my operating system and suggest what to do.") + QLatin1Char(' ') + careful},
+              {QStringLiteral("repairSystem"),
+               i18nc("@info request to an AI agent", "Please help me repair my operating system.") + QLatin1Char(' ') + careful},
+              {QStringLiteral("virusScan"),
+               i18nc("@info request to an AI agent", "Please check my system for viruses. If there is no virus scanner, suggest one.") + QLatin1Char(' ')
+                   + careful}}},
+        };
+        for (const auto &[title, suggestions] : groups) {
+            suggestionsMenu->addSection(title);
+            for (const Suggestion &suggestion : suggestions) {
+                // The menu shows the request itself, without the careful part.
+                QString label = suggestion.text;
+                label.remove(careful);
+                label = label.simplified();
+                if (label.endsWith(QLatin1Char(':'))) {
+                    label.chop(1);
+                }
+                auto *action = suggestionsMenu->addAction(label.replace(QLatin1Char('&'), QStringLiteral("&&")));
+                action->setObjectName(suggestion.id);
+                connect(action, &QAction::triggered, this, [this, text = suggestion.text] {
+                    insertSuggestion(text);
+                });
+            }
+        }
+    }
+    m_suggestions->setMenu(suggestionsMenu);
+    upperLayout->addWidget(m_suggestions);
+    connect(m_input, &QPlainTextEdit::textChanged, this, &WhaleAiPanel::updateSuggestions);
 
     // Setup, while no agent is set up
     auto *setup = new QWidget(this);
@@ -1618,6 +1670,8 @@ void WhaleAiPanel::beginConversation(const WhaleAiAgent &agent, const QString &f
     conversation.folder = folder;
     m_conversation = conversation;
     m_conversationStart = m_transcript->entryCount();
+    m_fresh = false;
+    updateSuggestions();
 }
 
 void WhaleAiPanel::saveConversation()
@@ -1814,6 +1868,8 @@ bool WhaleAiPanel::openConversation(const QString &id)
     Q_EMIT conversationCleared();
     m_transcript->restore(conversation->entries);
     m_opened = conversation;
+    m_fresh = false;
+    updateSuggestions();
     if (m_agents->findData(conversation->agentId) >= 0) {
         setAgentId(conversation->agentId);
     } else {
@@ -1860,6 +1916,20 @@ void WhaleAiPanel::greet()
     m_transcript->addNotice(i18nc("@info",
                                   "Ask the agent about your files. It sees the folder you have open and what you selected, and it can open "
                                   "folders and select files for you."));
+    m_fresh = true;
+    updateSuggestions();
+}
+
+void WhaleAiPanel::updateSuggestions()
+{
+    m_suggestions->setVisible(m_fresh && m_input->document()->isEmpty());
+}
+
+void WhaleAiPanel::insertSuggestion(const QString &text)
+{
+    m_input->setPlainText(text);
+    m_input->moveCursor(QTextCursor::End);
+    m_input->setFocus(Qt::OtherFocusReason);
 }
 
 void WhaleAiPanel::updateState()
