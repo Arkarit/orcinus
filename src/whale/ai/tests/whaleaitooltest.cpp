@@ -24,13 +24,16 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QMainWindow>
+#include <QMenu>
 #include <QPointer>
 #include <QProcess>
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QStandardPaths>
+#include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QToolButton>
 
 #include <algorithm>
 #include <cmath>
@@ -56,6 +59,7 @@ private Q_SLOTS:
     void testApiSettingsAndContext();
     void testSoundTriage();
     void testKeepAndTrust();
+    void testToolsMenu();
     void testBrokenTool();
     void testDevelopmentLoop();
     void testBackend();
@@ -457,6 +461,65 @@ void WhaleAiToolTest::testSoundTriage()
     QVERIFY(panel->closeTool(QStringLiteral("sound-triage")));
     QVERIFY(panel->openTools().isEmpty());
     m_store.settingsGroup(QStringLiteral("sound-triage")).deleteGroup();
+}
+
+void WhaleAiToolTest::testToolsMenu()
+{
+    writeTool(QStringLiteral("hello"), "import QtQuick\nItem { objectName: \"hello\" }");
+    writeTool(QStringLiteral("second"), "import QtQuick\nItem { objectName: \"second\" }");
+    QMainWindow window;
+    auto panel = new WhaleAiCanvasPanel;
+    panel->setToolStore(m_store);
+    panel->setToolHost(m_host);
+    window.setCentralWidget(panel);
+    window.show();
+    // Many tabs: titles shorten, then arrows.
+    auto *tabs = panel->findChild<QTabWidget *>();
+    QCOMPARE(tabs->elideMode(), Qt::ElideRight);
+    QVERIFY(tabs->usesScrollButtons());
+
+    QMenu *menu = panel->findChild<QToolButton *>(QStringLiteral("aiCanvasTools"))->menu();
+    auto texts = [menu](const QString &name) {
+        Q_EMIT menu->aboutToShow();
+        QStringList list;
+        for (const QAction *action : menu->actions()) {
+            if (action->objectName() == name) {
+                list.append(action->text());
+            }
+        }
+        return list;
+    };
+    auto action = [menu](const QString &name, const QString &text) -> QAction * {
+        Q_EMIT menu->aboutToShow();
+        for (QAction *action : menu->actions()) {
+            if (action->objectName() == name && action->text() == text) {
+                return action;
+            }
+        }
+        return nullptr;
+    };
+    // Only the canvas is open; the tools come after it.
+    QCOMPARE(texts(QStringLiteral("openTab")), QStringList{QStringLiteral("Canvas")});
+    QVERIFY(texts(QStringLiteral("tool")).contains(QStringLiteral("hello")));
+    QVERIFY(action(QStringLiteral("openTab"), QStringLiteral("Canvas"))->isChecked());
+
+    // Opened from the menu: listed with the open ones, shown.
+    action(QStringLiteral("tool"), QStringLiteral("hello"))->trigger();
+    QVERIFY(panel->toolTab(QStringLiteral("hello")));
+    QCOMPARE(tabs->currentWidget(), panel->toolTab(QStringLiteral("hello")));
+    QCOMPARE(texts(QStringLiteral("openTab")), (QStringList{QStringLiteral("Canvas"), QStringLiteral("hello")}));
+    QVERIFY(!texts(QStringLiteral("tool")).contains(QStringLiteral("hello")));
+    QVERIFY(texts(QStringLiteral("tool")).contains(QStringLiteral("second")));
+    // The current one in bold.
+    QVERIFY(action(QStringLiteral("openTab"), QStringLiteral("hello"))->font().bold());
+    QVERIFY(!action(QStringLiteral("openTab"), QStringLiteral("Canvas"))->font().bold());
+
+    // An open one: shown, not opened again.
+    action(QStringLiteral("openTab"), QStringLiteral("Canvas"))->trigger();
+    QCOMPARE(tabs->currentIndex(), 0);
+    action(QStringLiteral("openTab"), QStringLiteral("hello"))->trigger();
+    QCOMPARE(tabs->currentWidget(), panel->toolTab(QStringLiteral("hello")));
+    QCOMPARE(tabs->count(), 2);
 }
 
 void WhaleAiToolTest::testKeepAndTrust()

@@ -105,6 +105,10 @@ WhaleAiCanvasPanel::WhaleAiCanvasPanel(QWidget *parent)
     m_tabs->setDocumentMode(true);
     m_tabs->setTabsClosable(true);
     m_tabs->setMovable(false);
+    // Many tools in a narrow dock: the titles shorten first, then arrows scroll the tabs; the
+    // Tools menu lists them all.
+    m_tabs->setElideMode(Qt::ElideRight);
+    m_tabs->setUsesScrollButtons(true);
     m_tabs->addTab(m_canvas, QIcon::fromTheme(QStringLiteral("view-preview")), i18nc("@title:tab the AI canvas", "Canvas"));
     // The canvas itself stays.
     m_tabs->tabBar()->setTabButton(0, QTabBar::RightSide, nullptr);
@@ -396,16 +400,47 @@ void WhaleAiCanvasPanel::fillToolsMenu()
 {
     QMenu *menu = m_toolsButton->menu();
     menu->clear();
+    // What is open first, in the order of the tabs, checked; a click shows it.
+    for (int i = 0; i < m_tabs->count(); ++i) {
+        QAction *action = menu->addAction(m_tabs->tabIcon(i), m_tabs->tabText(i));
+        action->setObjectName(QStringLiteral("openTab"));
+        action->setToolTip(m_tabs->tabToolTip(i));
+        action->setCheckable(true);
+        action->setChecked(true);
+        if (i == m_tabs->currentIndex()) {
+            QFont font = action->font();
+            font.setBold(true);
+            action->setFont(font);
+        }
+        QWidget *page = m_tabs->widget(i);
+        connect(action, &QAction::triggered, this, [this, page] {
+            if (m_tabs->indexOf(page) >= 0) {
+                m_tabs->setCurrentWidget(page);
+            }
+        });
+    }
+    // Then the tools not open.
+    const QStringList open = openTools();
     const QStringList ids = m_store.ids();
+    bool separated = false;
     for (const QString &id : ids) {
+        if (open.contains(id)) {
+            continue;
+        }
+        if (!separated) {
+            menu->addSeparator();
+            separated = true;
+        }
         const auto tool = m_store.tool(id);
         QAction *action = menu->addAction(QIcon::fromTheme(tool->icon, QIcon::fromTheme(QStringLiteral("tools"))), tool->name);
+        action->setObjectName(QStringLiteral("tool"));
         action->setToolTip(tool->description);
         connect(action, &QAction::triggered, this, [this, id] {
             openTool(id);
         });
     }
     if (ids.isEmpty()) {
+        menu->addSeparator();
         menu->addAction(i18nc("@item:inmenu", "No tools yet; ask the AI agent to make one"))->setEnabled(false);
     }
     menu->addSeparator();
