@@ -7,6 +7,7 @@
 #ifndef WHALEAICONVERSATIONSDIALOG_H
 #define WHALEAICONVERSATIONSDIALOG_H
 
+#include "whaleaiconversationexport.h"
 #include "whaleaiconversationstore.h"
 
 #include <QDialog>
@@ -38,7 +39,7 @@ private:
     void openCurrent();
     void removeCurrent();
     void removeAll();
-    void exportCurrent(bool pdf);
+    void exportCurrent(WhaleAiConversationExport::Format format);
 
     WhaleAiConversationStore m_store;
     QString m_currentId;
@@ -50,8 +51,7 @@ private:
     QPushButton *m_open = nullptr;
     QPushButton *m_remove = nullptr;
     QPushButton *m_removeAll = nullptr;
-    QPushButton *m_exportPdf = nullptr;
-    QPushButton *m_exportMarkdown = nullptr;
+    QPushButton *m_export = nullptr;
 };
 
 #endif

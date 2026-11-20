@@ -51,6 +51,8 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <tuple>
+
 namespace
 {
 enum Page {
@@ -1700,11 +1702,15 @@ void WhaleAiPanel::fillConversationsMenu()
     connect(all, &QAction::triggered, this, &WhaleAiPanel::showAllConversations);
     // AI15: the conversation shown, for reading elsewhere.
     const bool exportable = shownConversation().has_value();
-    for (const auto format : {WhaleAiConversationExport::Format::Pdf, WhaleAiConversationExport::Format::Markdown}) {
-        const bool pdf = format == WhaleAiConversationExport::Format::Pdf;
-        QAction *action = m_conversationsMenu->addAction(QIcon::fromTheme(pdf ? QStringLiteral("application-pdf") : QStringLiteral("text-markdown")),
-                                                         pdf ? i18nc("@action:inmenu", "Export as PDF…") : i18nc("@action:inmenu", "Export as Markdown…"));
-        action->setObjectName(pdf ? QStringLiteral("exportPdf") : QStringLiteral("exportMarkdown"));
+    using Format = WhaleAiConversationExport::Format;
+    const QList<std::tuple<Format, QString, QString, QString>> formats{
+        {Format::Pdf, QStringLiteral("application-pdf"), i18nc("@action:inmenu", "Export as PDF…"), QStringLiteral("exportPdf")},
+        {Format::Markdown, QStringLiteral("text-markdown"), i18nc("@action:inmenu", "Export as Markdown…"), QStringLiteral("exportMarkdown")},
+        {Format::Text, QStringLiteral("text-plain"), i18nc("@action:inmenu", "Export as Text…"), QStringLiteral("exportText")},
+    };
+    for (const auto &[format, icon, text, name] : formats) {
+        QAction *action = m_conversationsMenu->addAction(QIcon::fromTheme(icon), text);
+        action->setObjectName(name);
         action->setEnabled(exportable);
         connect(action, &QAction::triggered, this, [this, format] {
             if (const std::optional<WhaleAiConversation> conversation = shownConversation()) {

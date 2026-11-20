@@ -26,7 +26,9 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QTextBlock>
 #include <QTextDocument>
+#include <QTextList>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -166,6 +168,19 @@ QString markdownHtml(const QString &markdown)
     return start > 0 && end > start ? full.mid(start, end - start) : html(markdown);
 }
 
+QString suffix(Format format)
+{
+    switch (format) {
+    case Format::Pdf:
+        return QStringLiteral(".pdf");
+    case Format::Markdown:
+        return QStringLiteral(".md");
+    case Format::Text:
+        break;
+    }
+    return QStringLiteral(".txt");
+}
+
 QString who(const QString &name, const QJsonObject &entry, const Options &options)
 {
     const QString time = options.times ? timeText(entry) : QString();
@@ -230,6 +245,113 @@ QString toMarkdown(const WhaleAiConversation &conversation, const Options &optio
         }
     }
     return parts.join(QStringLiteral("\n\n")) + QLatin1Char('\n');
+}
+
+QString markdownText(const QString &markdown)
+{
+    QTextDocument document;
+    document.setMarkdown(markdown);
+    QStringList lines;
+    enum class Group {
+        None,
+        Paragraph,
+        List,
+        Code,
+    };
+    Group previous = Group::None;
+    for (QTextBlock block = document.begin(); block.isValid(); block = block.next()) {
+        const QTextBlockFormat format = block.blockFormat();
+        QString line = block.text();
+        Group group = Group::Paragraph;
+        if (QTextList *list = block.textList()) {
+            group = Group::List;
+            const QTextListFormat listFormat = list->format();
+            const int level = std::max(0, listFormat.indent() - 1);
+            QString mark = list->itemText(block).trimmed();
+            if (mark.isEmpty() || listFormat.style() == QTextListFormat::ListDisc || listFormat.style() == QTextListFormat::ListCircle
+                || listFormat.style() == QTextListFormat::ListSquare) {
+                mark = QStringLiteral("-");
+            }
+            if (format.marker() == QTextBlockFormat::MarkerType::Checked) {
+                mark += QStringLiteral(" [x]");
+            } else if (format.marker() == QTextBlockFormat::MarkerType::Unchecked) {
+                mark += QStringLiteral(" [ ]");
+            }
+            line = QString(level * 2, QLatin1Char(' ')) + mark + QLatin1Char(' ') + line;
+        } else if (format.hasProperty(QTextFormat::BlockCodeFence) || format.nonBreakableLines()) {
+            group = Group::Code;
+        } else if (format.hasProperty(QTextFormat::BlockTrailingHorizontalRulerWidth)) {
+            line = QStringLiteral("―――");
+        } else if (format.hasProperty(QTextFormat::BlockQuoteLevel) && format.intProperty(QTextFormat::BlockQuoteLevel) > 0) {
+            line = QStringLiteral("> ") + line;
+        }
+        line.replace(QChar::LineSeparator, QLatin1Char('\n'));
+        // A blank line between paragraphs; none inside a list or a code block.
+        if (previous != Group::None && (group != previous || group == Group::Paragraph)) {
+            lines.append(QString());
+        }
+        lines.append(line);
+        previous = group;
+    }
+    return lines.join(QLatin1Char('\n')).trimmed();
+}
+
+QString entriesToText(const QJsonArray &entries, const QString &agentName, const Options &options)
+{
+    QStringList parts;
+    const QString you = i18nc("@title the user in an exported AI conversation", "You");
+    for (const QJsonValue &value : entries) {
+        const QJsonObject entry = value.toObject();
+        if (!included(entry, options)) {
+            continue;
+        }
+        const QString kind = kindOf(entry);
+        const QString text = entry.value(QLatin1String("text")).toString().trimmed();
+        const QString time = options.times ? timeText(entry) : QString();
+        const QString stamp = time.isEmpty() ? QString() : QStringLiteral(" · ") + time;
+        if (kind == QLatin1String("UserMessage")) {
+            QString part = who(you, entry, options) + QStringLiteral(":\n") + text;
+            const QString context = entry.value(QLatin1String("context")).toString();
+            if (!context.isEmpty()) {
+                part += QStringLiteral("\n(") + context + QLatin1Char(')');
+            }
+            parts.append(part);
+        } else if (kind == QLatin1String("AgentMessage")) {
+            parts.append(who(agentName, entry, options) + QStringLiteral(":\n") + markdownText(text));
+        } else if (kind == QLatin1String("Thought")) {
+            parts.append(i18nc("@title an AI agent's thinking", "Thinking") + stamp + QStringLiteral(":\n") + text);
+        } else if (kind == QLatin1String("ToolCall")) {
+            const QJsonObject toolCall = entry.value(QLatin1String("toolCall")).toObject();
+            parts.append(QStringLiteral("- ") + toolTitle(toolCall) + QStringLiteral(" — ") + statusText(toolCall.value(QLatin1String("status")).toString())
+                         + stamp);
+        } else if (kind == QLatin1String("Permission")) {
+            const QJsonObject toolCall = entry.value(QLatin1String("toolCall")).toObject();
+            parts.append(i18nc("@title an AI agent asks the user", "Permission") + stamp + QStringLiteral(": ") + toolTitle(toolCall) + QLatin1Char('\n')
+                         + permissionAnswer(entry));
+        } else if (kind == QLatin1String("Error")) {
+            QString part = i18nc("@title", "Error") + stamp + QStringLiteral(": ") + text;
+            const QString details = entry.value(QLatin1String("details")).toString().trimmed();
+            if (!details.isEmpty()) {
+                part += QStringLiteral("\n") + details;
+            }
+            parts.append(part);
+        } else {
+            const QString status = entry.value(QLatin1String("status")).toString();
+            parts.append(text + stamp + (status.isEmpty() ? QString() : QStringLiteral(" — ") + status));
+        }
+    }
+    return parts.join(QStringLiteral("\n\n"));
+}
+
+QString toText(const WhaleAiConversation &conversation, const Options &options)
+{
+    QStringList meta{agentLine(conversation), periodText(conversation)};
+    if (!conversation.folder.isEmpty()) {
+        meta.insert(1, conversation.folder);
+    }
+    const QString head = conversation.title + QLatin1Char('\n') + meta.join(QStringLiteral(" · "));
+    const QString body = entriesToText(conversation.entries, conversation.agentName, options);
+    return head + QStringLiteral("\n\n") + (body.isEmpty() ? QString() : body + QLatin1Char('\n'));
 }
 
 QString toHtml(const WhaleAiConversation &conversation, const Options &options)
@@ -309,7 +431,7 @@ QString toHtml(const WhaleAiConversation &conversation, const Options &options)
 
 bool write(const WhaleAiConversation &conversation, Format format, const Options &options, const QString &path, QString *error)
 {
-    if (format == Format::Markdown) {
+    if (format == Format::Markdown || format == Format::Text) {
         QSaveFile file(path);
         if (!file.open(QIODevice::WriteOnly)) {
             if (error) {
@@ -317,7 +439,7 @@ bool write(const WhaleAiConversation &conversation, Format format, const Options
             }
             return false;
         }
-        file.write(toMarkdown(conversation, options).toUtf8());
+        file.write((format == Format::Markdown ? toMarkdown(conversation, options) : toText(conversation, options)).toUtf8());
         if (!file.commit()) {
             if (error) {
                 *error = file.errorString();
@@ -378,7 +500,7 @@ QString fileName(const WhaleAiConversation &conversation, Format format)
     if (name.isEmpty()) {
         name = i18nc("@info file name of an exported AI conversation", "Conversation");
     }
-    return name + (format == Format::Pdf ? QStringLiteral(".pdf") : QStringLiteral(".md"));
+    return name + suffix(format);
 }
 
 bool exportInteractively(const WhaleAiConversation &conversation, Format format, QWidget *parent)
@@ -391,18 +513,28 @@ bool exportInteractively(const WhaleAiConversation &conversation, Format format,
     if (folder.isEmpty()) {
         folder = QDir::homePath();
     }
-    const QString filter = format == Format::Pdf ? i18nc("@item:inlistbox file type", "PDF (*.pdf)") : i18nc("@item:inlistbox file type", "Markdown (*.md)");
-    QString path = QFileDialog::getSaveFileName(parent,
-                                                format == Format::Pdf ? i18nc("@title:window", "Export Conversation as PDF")
-                                                                      : i18nc("@title:window", "Export Conversation as Markdown"),
-                                                folder + QLatin1Char('/') + fileName(conversation, format),
-                                                filter);
+    QString filter;
+    QString title;
+    switch (format) {
+    case Format::Pdf:
+        filter = i18nc("@item:inlistbox file type", "PDF (*.pdf)");
+        title = i18nc("@title:window", "Export Conversation as PDF");
+        break;
+    case Format::Markdown:
+        filter = i18nc("@item:inlistbox file type", "Markdown (*.md)");
+        title = i18nc("@title:window", "Export Conversation as Markdown");
+        break;
+    case Format::Text:
+        filter = i18nc("@item:inlistbox file type", "Text (*.txt)");
+        title = i18nc("@title:window", "Export Conversation as Text");
+        break;
+    }
+    QString path = QFileDialog::getSaveFileName(parent, title, folder + QLatin1Char('/') + fileName(conversation, format), filter);
     if (path.isEmpty()) {
         return false;
     }
-    const QString suffix = format == Format::Pdf ? QStringLiteral(".pdf") : QStringLiteral(".md");
-    if (!path.endsWith(suffix, Qt::CaseInsensitive)) {
-        path += suffix;
+    if (!path.endsWith(suffix(format), Qt::CaseInsensitive)) {
+        path += suffix(format);
     }
     QString error;
     if (!write(conversation, format, dialog.options(), path, &error)) {
@@ -416,7 +548,17 @@ bool exportInteractively(const WhaleAiConversation &conversation, Format format,
 WhaleAiExportDialog::WhaleAiExportDialog(WhaleAiConversationExport::Format format, QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(format == WhaleAiConversationExport::Format::Pdf ? i18nc("@title:window", "Export as PDF") : i18nc("@title:window", "Export as Markdown"));
+    switch (format) {
+    case WhaleAiConversationExport::Format::Pdf:
+        setWindowTitle(i18nc("@title:window", "Export as PDF"));
+        break;
+    case WhaleAiConversationExport::Format::Markdown:
+        setWindowTitle(i18nc("@title:window", "Export as Markdown"));
+        break;
+    case WhaleAiConversationExport::Format::Text:
+        setWindowTitle(i18nc("@title:window", "Export as Text"));
+        break;
+    }
     auto *label = new QLabel(i18nc("@info", "What goes in besides the messages and answers:"), this);
     m_actions = new QCheckBox(i18nc("@option:check what an AI agent did", "Actions"), this);
     m_actions->setObjectName(QStringLiteral("exportActions"));
