@@ -241,6 +241,22 @@ void WhaleAiToolStore::setOpenTabs(const QStringList &ids, const QString &curren
     config.sync();
 }
 
+bool WhaleAiToolStore::isKeepHintDismissed(const QString &id) const
+{
+    return group().readEntry("KeepHintDismissed", QStringList()).contains(id);
+}
+
+void WhaleAiToolStore::dismissKeepHint(const QString &id)
+{
+    KConfigGroup config = group();
+    QStringList ids = config.readEntry("KeepHintDismissed", QStringList());
+    if (!ids.contains(id)) {
+        ids.append(id);
+        config.writeEntry("KeepHintDismissed", ids);
+        config.sync();
+    }
+}
+
 void WhaleAiToolStore::allowBackend(const QString &id)
 {
     KConfigGroup config = group();

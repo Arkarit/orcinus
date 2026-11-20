@@ -167,6 +167,7 @@ WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &
     , m_message(new KMessageWidget(this))
     , m_messageTimer(new QTimer(this))
     , m_backendMessage(new KMessageWidget(this))
+    , m_keepHint(new KMessageWidget(this))
 {
     setObjectName(QStringLiteral("aiTool_%1").arg(tool.id));
     m_layout->setContentsMargins(0, 0, 0, 0);
@@ -180,6 +181,22 @@ WhaleAiToolTab::WhaleAiToolTab(const WhaleAiTool &tool, const WhaleAiToolStore &
     m_backendMessage->setCloseButtonVisible(true);
     m_backendMessage->hide();
     m_layout->addWidget(m_backendMessage);
+    // A tool the agent made is easily lost: how to keep it, where it is seen.
+    m_keepHint->setObjectName(QStringLiteral("keepHint"));
+    m_keepHint->setWordWrap(true);
+    m_keepHint->setMessageType(KMessageWidget::Information);
+    m_keepHint->setCloseButtonVisible(true);
+    m_keepHint->setText(i18nc("@info", "Not kept yet: after a restart it waits until you start it. Keep it to have it start with Orcinus."));
+    auto keep = new QAction(QIcon::fromTheme(QStringLiteral("window-pin")), i18nc("@action:button", "Keep…"), m_keepHint);
+    keep->setObjectName(QStringLiteral("keepHintKeep"));
+    connect(keep, &QAction::triggered, this, &WhaleAiToolTab::keepRequested);
+    m_keepHint->addAction(keep);
+    m_keepHint->hide();
+    // Only the close button hides it with the animation: closed for good.
+    connect(m_keepHint, &KMessageWidget::hideAnimationFinished, this, [this] {
+        m_store.dismissKeepHint(m_tool.id);
+    });
+    m_layout->addWidget(m_keepHint);
     m_messageTimer->setSingleShot(true);
     m_messageTimer->setInterval(6000);
     connect(m_messageTimer, &QTimer::timeout, m_message, &KMessageWidget::animatedHide);
@@ -340,6 +357,7 @@ void WhaleAiToolTab::load()
         m_quick->setFocus();
         startBackend();
     }
+    updateKeepHint();
     Q_EMIT loaded(m_loaded);
 }
 
@@ -477,6 +495,22 @@ void WhaleAiToolTab::waitForStart()
                        m_tool.name),
                 KMessageWidget::Information,
                 {start, keep, close});
+}
+
+void WhaleAiToolTab::setKept(bool kept)
+{
+    m_kept = kept;
+    updateKeepHint();
+}
+
+void WhaleAiToolTab::updateKeepHint()
+{
+    const bool show = m_loaded && !m_kept && !m_store.isKeepHintDismissed(m_tool.id);
+    if (show && m_keepHint->isHidden()) {
+        m_keepHint->show();
+    } else if (!show && !m_keepHint->isHidden()) {
+        m_keepHint->hide();
+    }
 }
 
 void WhaleAiToolTab::notifyContextChanged()

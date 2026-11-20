@@ -94,6 +94,10 @@ public:
     QString currentTab() const;
     void setOpenTabs(const QStringList &ids, const QString &current);
 
+    /** @return Whether the user closed the hint to keep @p id. */
+    bool isKeepHintDismissed(const QString &id) const;
+    void dismissKeepHint(const QString &id);
+
     /** The user confirmed the backend of @p id as it is now. */
     void allowBackend(const QString &id);
     /** @return Whether the backend of @p id may start: confirmed as it is, or the tool is trusted. */

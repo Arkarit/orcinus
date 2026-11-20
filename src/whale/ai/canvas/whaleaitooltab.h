@@ -58,6 +58,11 @@ public:
     bool isBlocked() const;
     /** Shows that the tool, which is not kept, waits to be started; Start loads it. */
     void waitForStart();
+    /**
+     * Whether the tool is kept. A loaded tool that is not kept shows a hint to keep it, until the
+     * user closes it (for good, for this tool).
+     */
+    void setKept(bool kept);
 
     /**
      * The user confirms the backend (the "Start" of the question bar): it is allowed as it is now
@@ -87,6 +92,8 @@ Q_SIGNALS:
     void trustRequested();
     /** The user does not want the changed tool any more. */
     void removeRequested();
+    /** The user wants to keep the tool (the hint's Keep…), as it runs. */
+    void keepRequested();
 
 public Q_SLOTS:
     /** The window's folder or selection changed. */
@@ -108,6 +115,7 @@ private:
     /** The bar that tells about the backend: the question, or that it ended. */
     void showBackendState();
     void showBackendMessage(const QString &text, int type, const QList<QAction *> &actions);
+    void updateKeepHint();
 
     WhaleAiTool m_tool;
     WhaleAiToolStore m_store;
@@ -124,6 +132,8 @@ private:
     QList<QAction *> m_actions;
     KMessageWidget *m_backendMessage;
     QList<QAction *> m_backendActions;
+    KMessageWidget *m_keepHint;
+    bool m_kept = false;
 };
 
 #endif

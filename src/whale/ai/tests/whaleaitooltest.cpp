@@ -30,6 +30,7 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QStandardPaths>
+#include <QTabBar>
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QTest>
@@ -61,6 +62,7 @@ private Q_SLOTS:
     void testKeepAndTrust();
     void testToolsMenu();
     void testRestoreTabs();
+    void testKeepHint();
     void testBrokenTool();
     void testDevelopmentLoop();
     void testBackend();
@@ -591,6 +593,53 @@ void WhaleAiToolTest::testRestoreTabs()
     m_store.unpin(QStringLiteral("second"));
     QDir(m_tools + QStringLiteral("/first")).removeRecursively();
     QDir(m_tools + QStringLiteral("/second")).removeRecursively();
+}
+
+void WhaleAiToolTest::testKeepHint()
+{
+    writeTool(QStringLiteral("hinted"), "import QtQuick\nItem { objectName: \"hinted\" }");
+    QMainWindow window;
+    auto panel = new WhaleAiCanvasPanel;
+    panel->setToolStore(m_store);
+    panel->setToolHost(m_host);
+    panel->setKeepConfirmation([](const WhaleAiTool &, const QStringList &) {
+        return true;
+    });
+    window.setCentralWidget(panel);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QTabBar *bar = panel->findChild<QTabWidget *>()->tabBar();
+
+    // Not kept, running: the hint says how to keep it; no pin.
+    QCOMPARE(panel->openTool(QStringLiteral("hinted")), QString());
+    WhaleAiToolTab *tab = panel->toolTab(QStringLiteral("hinted"));
+    QTRY_VERIFY(tab->isLoaded());
+    auto *hint = tab->findChild<KMessageWidget *>(QStringLiteral("keepHint"));
+    QVERIFY(hint->isVisibleTo(tab));
+    QVERIFY(!bar->tabButton(1, QTabBar::LeftSide));
+
+    // Keep… from the hint: kept as it runs, the hint goes, a pin comes.
+    QQuickItem *root = tab->quickWidget()->rootObject();
+    hint->findChild<QAction *>(QStringLiteral("keepHintKeep"))->trigger();
+    QVERIFY(m_store.pinned().contains(QStringLiteral("hinted")));
+    QVERIFY(!hint->isVisibleTo(tab));
+    QCOMPARE(tab->quickWidget()->rootObject(), root);
+    QVERIFY(bar->tabButton(1, QTabBar::LeftSide));
+    QCOMPARE(bar->tabButton(1, QTabBar::LeftSide)->objectName(), QStringLiteral("keptPin"));
+
+    // No longer kept: the hint is back, the pin gone.
+    panel->unkeepTool(QStringLiteral("hinted"));
+    QVERIFY(hint->isVisibleTo(tab));
+    QVERIFY(!bar->tabButton(1, QTabBar::LeftSide));
+
+    // Closed: for good, for this tool.
+    hint->animatedHide();
+    QTRY_VERIFY(m_store.isKeepHintDismissed(QStringLiteral("hinted")));
+    tab->load();
+    QTRY_VERIFY(tab->isLoaded());
+    QVERIFY(!hint->isVisibleTo(tab));
+    panel->closeTool(QStringLiteral("hinted"));
+    QDir(m_tools + QStringLiteral("/hinted")).removeRecursively();
 }
 
 void WhaleAiToolTest::testKeepAndTrust()

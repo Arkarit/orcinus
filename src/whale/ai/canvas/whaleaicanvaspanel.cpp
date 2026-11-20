@@ -20,10 +20,12 @@
 #include <QDesktopServices>
 #include <QDir>
 #include <QIcon>
+#include <QLabel>
 #include <QMenu>
 #include <QQmlContext>
 #include <QQmlEngine>
 #include <QQuickImageProvider>
+#include <QStyle>
 #include <QTabBar>
 #include <QTabWidget>
 #include <QToolButton>
@@ -268,6 +270,9 @@ WhaleAiToolTab *WhaleAiCanvasPanel::addToolTab(const WhaleAiTool &tool)
 {
     auto tab = new WhaleAiToolTab(tool, m_store, m_host);
     m_tabs->addTab(tab, QString());
+    connect(tab, &WhaleAiToolTab::keepRequested, this, [this, tab] {
+        keepTool(tab->id());
+    });
     connect(tab, &WhaleAiToolTab::trustRequested, this, [this, tab] {
         if (keepTool(tab->id())) {
             tab->load();
@@ -297,6 +302,21 @@ void WhaleAiCanvasPanel::updateToolTab(WhaleAiToolTab *tab)
     m_tabs->setTabText(index, tool.name);
     m_tabs->setTabIcon(index, QIcon::fromTheme(tool.icon, QIcon::fromTheme(QStringLiteral("tools"))));
     m_tabs->setTabToolTip(index, kept ? i18nc("@info:tooltip %1 is a tool's description", "%1\nKept on the canvas", tool.description) : tool.description);
+    tab->setKept(kept);
+    // A pin before the icon of a kept tool.
+    QTabBar *bar = m_tabs->tabBar();
+    QWidget *pin = bar->tabButton(index, QTabBar::LeftSide);
+    if (kept && !pin) {
+        auto label = new QLabel(bar);
+        label->setObjectName(QStringLiteral("keptPin"));
+        const int size = style()->pixelMetric(QStyle::PM_SmallIconSize, nullptr, this);
+        label->setPixmap(QIcon::fromTheme(QStringLiteral("window-pin")).pixmap(size * 3 / 4));
+        label->setToolTip(i18nc("@info:tooltip", "Kept on the canvas: starts with Orcinus"));
+        bar->setTabButton(index, QTabBar::LeftSide, label);
+    } else if (!kept && pin) {
+        bar->setTabButton(index, QTabBar::LeftSide, nullptr);
+        pin->deleteLater();
+    }
 }
 
 void WhaleAiCanvasPanel::restoreTools()
