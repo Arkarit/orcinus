@@ -25,6 +25,7 @@ private Q_SLOTS:
     void brokenAndForeign();
     void prune();
     void title();
+    void titleSource();
 };
 
 namespace
@@ -142,10 +143,40 @@ void WhaleAiConversationStoreTest::prune()
 
 void WhaleAiConversationStoreTest::title()
 {
-    QCOMPARE(WhaleAiConversation::titleFor(QStringLiteral("  Sort my\tpictures  \nby date please")), QStringLiteral("Sort my pictures"));
-    const QString title = WhaleAiConversation::titleFor(QString(200, QLatin1Char('a')));
+    auto user = [](const QString &text) {
+        return QJsonObject{{QStringLiteral("kind"), QStringLiteral("UserMessage")}, {QStringLiteral("text"), text}};
+    };
+    const QJsonObject answer{{QStringLiteral("kind"), QStringLiteral("AgentMessage")}, {QStringLiteral("text"), QStringLiteral("Hello!")}};
+    // The user's messages one after the other, lines as spaces; the agent's answers not.
+    QCOMPARE(WhaleAiConversation::titleFor({user(QStringLiteral("  Hello Elfie ")), answer, user(QStringLiteral("Sort my\tpictures\nby date"))}),
+             QStringLiteral("Hello Elfie · Sort my pictures by date"));
+    QCOMPARE(WhaleAiConversation::titleFor({answer}), QString());
+    const QString title = WhaleAiConversation::titleFor({user(QString(50, QLatin1Char('a'))), user(QString(50, QLatin1Char('b')))});
     QCOMPARE(title.size(), 80);
+    QVERIFY(title.startsWith(QString(50, QLatin1Char('a')) + QStringLiteral(" · b")));
     QVERIFY(title.endsWith(QStringLiteral("…")));
+}
+
+void WhaleAiConversationStoreTest::titleSource()
+{
+    QTemporaryDir dir;
+    const WhaleAiConversationStore store(dir.path());
+    WhaleAiConversation conversation = sample(QStringLiteral("Hello"), QDateTime::currentDateTime());
+    conversation.entries.append(QJsonObject{{QStringLiteral("kind"), QStringLiteral("UserMessage")}, {QStringLiteral("text"), QStringLiteral("Sort them")}});
+    conversation.title = QStringLiteral("Sorting pictures");
+    conversation.titleSource = WhaleAiConversation::TitleSource::Agent;
+    QVERIFY(store.save(conversation));
+    QCOMPARE(store.load(conversation.id)->titleSource, WhaleAiConversation::TitleSource::Agent);
+    QCOMPARE(store.load(conversation.id)->title, QStringLiteral("Sorting pictures"));
+
+    // Saved before titles had a source: the title it gets now.
+    QJsonObject old = conversation.toJson();
+    old.remove(QStringLiteral("titleSource"));
+    old.insert(QStringLiteral("title"), QStringLiteral("Hello"));
+    const std::optional<WhaleAiConversation> migrated = WhaleAiConversation::fromJson(old);
+    QVERIFY(migrated);
+    QCOMPARE(migrated->titleSource, WhaleAiConversation::TitleSource::Auto);
+    QCOMPARE(migrated->title, QStringLiteral("Hello · Sort them"));
 }
 
 QTEST_GUILESS_MAIN(WhaleAiConversationStoreTest)

@@ -485,7 +485,8 @@ void WhaleAiPanelTest::resumeSavedConversation()
     // The same conversation, longer; no system prompt again (the fake echoes what it got).
     QCOMPARE(panel.conversationId(), id);
     std::optional<WhaleAiConversation> saved = store.load(id);
-    QCOMPARE(saved->title, QStringLiteral("nopermission hello"));
+    // The title follows the user's messages.
+    QCOMPARE(saved->title, QStringLiteral("nopermission hello · nopermission more"));
     QCOMPARE(saved->entries, panel.transcript()->record());
     QStringList users;
     for (const QJsonValue &entry : std::as_const(saved->entries)) {

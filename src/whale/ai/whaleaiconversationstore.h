@@ -20,8 +20,19 @@
  * the agent continue it (its ACP session id, working folder, mode).
  */
 struct WhaleAiConversation {
+    /** Who gave the title: only an automatic one follows the messages. */
+    enum class TitleSource {
+        /** titleFor() the user's messages. */
+        Auto,
+        /** The agent named the conversation; it may again. */
+        Agent,
+        /** The user named it; nobody else does then. */
+        User,
+    };
+
     QString id; ///< a UUID, also the file name
-    QString title; ///< the start of the first user message
+    QString title;
+    TitleSource titleSource = TitleSource::Auto;
     QDateTime created;
     QDateTime updated;
     QString agentId;
@@ -36,11 +47,18 @@ struct WhaleAiConversation {
 
     /** @return A new conversation with a fresh id, created now. */
     static WhaleAiConversation create();
-    /** @return The title for @p firstMessage: its first line, at most 80 characters. */
-    static QString titleFor(const QString &firstMessage);
+    /**
+     * @return The automatic title for @p entries (WhaleAiTranscript::record()): the user's
+     *         messages one after the other (" · " between them, lines as spaces), at most 80
+     *         characters. A greeting alone says little; what follows it does.
+     */
+    static QString titleFor(const QJsonArray &entries);
 
     QJsonObject toJson() const;
-    /** @return Nothing if @p object is no conversation (or a newer format). */
+    /**
+     * @return Nothing if @p object is no conversation (or a newer format). One saved before
+     *         titles had a source gets titleFor() its entries.
+     */
     static std::optional<WhaleAiConversation> fromJson(const QJsonObject &object);
 
     bool operator==(const WhaleAiConversation &other) const = default;

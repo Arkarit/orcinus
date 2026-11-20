@@ -1591,8 +1591,10 @@ void WhaleAiPanel::saveConversation()
             conversation.mode = mode->currentValue;
         }
     }
-    conversation.title = WhaleAiConversation::titleFor((*first).toObject().value(QLatin1String("text")).toString());
     conversation.entries = entries;
+    if (conversation.titleSource == WhaleAiConversation::TitleSource::Auto) {
+        conversation.title = WhaleAiConversation::titleFor(entries);
+    }
     if (conversation == *m_conversation) {
         return; // saved as it is
     }
@@ -1657,7 +1659,9 @@ std::optional<WhaleAiConversation> WhaleAiPanel::shownConversation() const
         if (first == conversation.entries.end()) {
             return std::nullopt;
         }
-        conversation.title = WhaleAiConversation::titleFor((*first).toObject().value(QLatin1String("text")).toString());
+        if (conversation.titleSource == WhaleAiConversation::TitleSource::Auto) {
+            conversation.title = WhaleAiConversation::titleFor(conversation.entries);
+        }
         conversation.updated = QDateTime::currentDateTime();
         return conversation;
     }

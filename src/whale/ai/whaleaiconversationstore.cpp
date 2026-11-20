@@ -21,6 +21,30 @@ namespace
 {
 const int FormatVersion = 1;
 const int TitleLength = 80;
+
+QString titleSourceName(WhaleAiConversation::TitleSource source)
+{
+    switch (source) {
+    case WhaleAiConversation::TitleSource::Agent:
+        return QStringLiteral("agent");
+    case WhaleAiConversation::TitleSource::User:
+        return QStringLiteral("user");
+    case WhaleAiConversation::TitleSource::Auto:
+        break;
+    }
+    return QStringLiteral("auto");
+}
+
+WhaleAiConversation::TitleSource titleSourceFrom(const QString &name)
+{
+    if (name == QLatin1String("agent")) {
+        return WhaleAiConversation::TitleSource::Agent;
+    }
+    if (name == QLatin1String("user")) {
+        return WhaleAiConversation::TitleSource::User;
+    }
+    return WhaleAiConversation::TitleSource::Auto;
+}
 }
 
 WhaleAiConversation WhaleAiConversation::create()
@@ -32,10 +56,27 @@ WhaleAiConversation WhaleAiConversation::create()
     return conversation;
 }
 
-QString WhaleAiConversation::titleFor(const QString &firstMessage)
+QString WhaleAiConversation::titleFor(const QJsonArray &entries)
 {
-    const QString line = firstMessage.trimmed().section(QLatin1Char('\n'), 0, 0).simplified();
-    return line.size() > TitleLength ? line.left(TitleLength - 1).trimmed() + QStringLiteral("…") : line;
+    QString title;
+    for (const QJsonValue &value : entries) {
+        const QJsonObject entry = value.toObject();
+        if (entry.value(QLatin1String("kind")).toString() != QLatin1String("UserMessage")) {
+            continue;
+        }
+        const QString text = entry.value(QLatin1String("text")).toString().simplified();
+        if (text.isEmpty()) {
+            continue;
+        }
+        if (!title.isEmpty()) {
+            title += QStringLiteral(" · ");
+        }
+        title += text;
+        if (title.size() > TitleLength) {
+            return title.left(TitleLength - 1).trimmed() + QStringLiteral("…");
+        }
+    }
+    return title;
 }
 
 QJsonObject WhaleAiConversation::toJson() const
@@ -44,6 +85,7 @@ QJsonObject WhaleAiConversation::toJson() const
         {QStringLiteral("version"), FormatVersion},
         {QStringLiteral("id"), id},
         {QStringLiteral("title"), title},
+        {QStringLiteral("titleSource"), titleSourceName(titleSource)},
         {QStringLiteral("created"), created.toString(Qt::ISODateWithMs)},
         {QStringLiteral("updated"), updated.toString(Qt::ISODateWithMs)},
         {QStringLiteral("agent"),
@@ -71,6 +113,15 @@ std::optional<WhaleAiConversation> WhaleAiConversation::fromJson(const QJsonObje
         return std::nullopt;
     }
     conversation.title = object.value(QLatin1String("title")).toString();
+    conversation.entries = object.value(QLatin1String("entries")).toArray();
+    const QJsonValue source = object.value(QLatin1String("titleSource"));
+    conversation.titleSource = titleSourceFrom(source.toString());
+    if (source.isUndefined()) {
+        // Saved with the first line of the first message: the title it gets now.
+        if (const QString title = titleFor(conversation.entries); !title.isEmpty()) {
+            conversation.title = title;
+        }
+    }
     conversation.created = QDateTime::fromString(object.value(QLatin1String("created")).toString(), Qt::ISODateWithMs);
     conversation.updated = QDateTime::fromString(object.value(QLatin1String("updated")).toString(), Qt::ISODateWithMs);
     const QJsonObject agent = object.value(QLatin1String("agent")).toObject();
@@ -82,7 +133,6 @@ std::optional<WhaleAiConversation> WhaleAiConversation::fromJson(const QJsonObje
     conversation.folder = object.value(QLatin1String("folder")).toString();
     conversation.sessionId = object.value(QLatin1String("sessionId")).toString();
     conversation.mode = object.value(QLatin1String("mode")).toString();
-    conversation.entries = object.value(QLatin1String("entries")).toArray();
     return conversation;
 }
 
