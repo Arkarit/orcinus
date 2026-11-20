@@ -160,6 +160,22 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
         m_freeDelays.insert(id, delay);
     }
 
+    // Administrator rights (user, 2026-11-21): agents have no terminal for sudo; pkexec asks the
+    // user in KDE's dialog for every single command.
+    auto *adminGroup = new QGroupBox(i18nc("@title:group", "Administrator rights"), this);
+    auto *adminLayout = new QVBoxLayout(adminGroup);
+    m_allowAdmin = new QCheckBox(i18nc("@option:check", "Let agents ask for administrator rights"), adminGroup);
+    m_allowAdmin->setObjectName(QStringLiteral("allowAdmin"));
+    m_allowAdmin->setChecked(WhaleAiAgents::allowAdmin());
+    adminLayout->addWidget(m_allowAdmin);
+    auto *adminHint = new QLabel(i18nc("@info",
+                                       "For each command, such as installing a program, you are asked for your password and see the "
+                                       "command. Otherwise the agent tells you what to run in a terminal yourself."),
+                                 adminGroup);
+    adminHint->setWordWrap(true);
+    adminLayout->addWidget(adminHint);
+    connect(m_allowAdmin, &QCheckBox::toggled, this, &WhaleAiSettingsPage::changed);
+
     // AI14: the panel saves its conversations, so they can be continued.
     auto *conversationGroup = new QGroupBox(i18nc("@title:group", "Conversations"), this);
     auto *conversationForm = new QFormLayout(conversationGroup);
@@ -202,6 +218,7 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     agentsLayout->addLayout(listRow, 1);
     agentsLayout->addWidget(m_result);
     agentsLayout->addWidget(m_logIn, 0, Qt::AlignLeft);
+    agentsLayout->addWidget(adminGroup);
     agentsLayout->addWidget(localGroup);
     content->addTab(agentsTab, QIcon::fromTheme(QStringLiteral("dialog-messages")), i18nc("@title:tab AI settings", "Agents"));
 
@@ -288,6 +305,7 @@ void WhaleAiSettingsPage::applySettings()
     for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
         WhaleAiAgents::setFreeDelaySeconds(it.key(), it.value()->value() * freeDelayUnit(it.key()));
     }
+    WhaleAiAgents::setAllowAdmin(m_allowAdmin->isChecked());
     WhaleAiAgents::setSaveConversations(m_saveConversations->isChecked());
     WhaleAiAgents::setKeepConversationsDays(m_keepConversations->value());
     m_memoryWidget->apply();
@@ -299,6 +317,7 @@ void WhaleAiSettingsPage::restoreDefaults()
     for (auto it = m_freeDelays.cbegin(); it != m_freeDelays.cend(); ++it) {
         it.value()->setValue(qRound(WhaleAiAgents::defaultFreeDelaySeconds(it.key()) / freeDelayUnit(it.key())));
     }
+    m_allowAdmin->setChecked(true);
     m_saveConversations->setChecked(true);
     m_keepConversations->setValue(90);
     m_memoryWidget->restoreDefaults();

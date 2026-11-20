@@ -42,6 +42,7 @@ const char ExportActionsKey[] = "ExportActions";
 const char ExportTimesKey[] = "ExportTimes";
 const char MemoryKey[] = "Memory";
 const char MemoryBudgetKey[] = "MemoryBudget";
+const char AllowAdminKey[] = "AllowAdmin";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -817,6 +818,38 @@ void setMemoryMode(MemoryMode mode)
                          : mode == MemoryMode::Manual ? QStringLiteral("manual")
                                                       : QStringLiteral("off"));
     group.sync();
+}
+
+bool allowAdmin()
+{
+    return aiGroup().readEntry(AllowAdminKey, true);
+}
+
+void setAllowAdmin(bool allow)
+{
+    KConfigGroup group = aiGroup();
+    group.writeEntry(AllowAdminKey, allow);
+    group.sync();
+}
+
+QString adminGuidance(bool allow)
+{
+    // Agents run commands without a terminal: sudo cannot ask for the password (user, 2026-11-21).
+    // pkexec asks in KDE's polkit dialog, for every command (auth_admin, nothing kept), unlike
+    // sudo -A, whose kept timestamp would let later commands run unseen.
+    if (!allow) {
+        return QStringLiteral(
+            "You have no terminal, so you cannot get administrator rights (sudo cannot ask for a password), and the user turned "
+            "them off for agents in Orcinus (Settings > AI Support > Agents). When a step needs them, give the user the "
+            "command to run in a terminal themselves.");
+    }
+    return QStringLiteral(
+        "You have no terminal, so sudo and su fail: they cannot ask for a password. To run a command as administrator, use "
+        "pkexec <command>; the user confirms each call with their password in a dialog. Tell the user before what you run and "
+        "why, and run one command per call. pkexec keeps neither the environment nor the working directory: use absolute paths, "
+        "and pkexec sh -c '...' for pipes or redirections. If it ends with \"Not authorized\" or code 126 or 127, the user "
+        "declined: do not try again, ask them. If it says \"must be setuid root\", your current mode does not allow "
+        "administrator rights: tell the user.");
 }
 
 QString titleGuidance()

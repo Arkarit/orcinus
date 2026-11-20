@@ -558,11 +558,14 @@ void WhaleAiPanelTest::memoryNotesSent()
     QCOMPARE(count(QStringLiteral("Orcinus has a memory for you")), 1);
     QVERIFY(all.contains(QLatin1String("not files such as AGENTS.md")));
     QVERIFY(all.contains(QLatin1String("tell them you proposed it")));
+    // Administrator rights: pkexec for each command, the user confirms it (on by default).
+    QCOMPARE(count(QStringLiteral("To run a command as administrator, use pkexec")), 1);
 
     // The next message: nothing again.
     turn(QStringLiteral("nopermission two"));
     QCOMPARE(count(QStringLiteral("Notes the user keeps for you")), 1);
     QCOMPARE(count(QStringLiteral("Orcinus has a memory for you")), 1);
+    QCOMPARE(count(QStringLiteral("To run a command as administrator, use pkexec")), 1);
 
     // Into a subfolder with a note of its own: only that one.
     QVERIFY(memory.add(QStringLiteral("sub note S"), sub, QString(), false));

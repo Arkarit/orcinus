@@ -65,6 +65,7 @@ private Q_SLOTS:
     void loginHintText();
     void defaultsKeepAgents();
     void systemPrompt();
+    void allowAdmin();
     void pageInDialog();
     void memoryGroup();
 
@@ -670,6 +671,30 @@ void WhaleAiSettingsPageTest::systemPrompt()
     }
     QVERIFY(!WhaleAiAgents::customSystemPrompt());
     QCOMPARE(WhaleAiAgents::systemPrompt(), WhaleAiAgents::defaultSystemPrompt());
+}
+
+void WhaleAiSettingsPageTest::allowAdmin()
+{
+    // On by default: each command is confirmed by the user anyway.
+    QVERIFY(WhaleAiAgents::allowAdmin());
+    QVERIFY(WhaleAiAgents::adminGuidance(true).contains(QLatin1String("pkexec <command>")));
+    QVERIFY(!WhaleAiAgents::adminGuidance(false).contains(QLatin1String("pkexec")));
+    {
+        WhaleAiSettingsPage page;
+        auto *allow = child<QCheckBox>(page, QStringLiteral("allowAdmin"));
+        QVERIFY(allow);
+        QVERIFY(allow->isChecked());
+        QSignalSpy changed(&page, &WhaleAiSettingsPage::changed);
+        allow->setChecked(false);
+        QCOMPARE(changed.count(), 1);
+        page.applySettings();
+    }
+    QVERIFY(!WhaleAiAgents::allowAdmin());
+    WhaleAiSettingsPage page;
+    QVERIFY(!child<QCheckBox>(page, QStringLiteral("allowAdmin"))->isChecked());
+    page.restoreDefaults();
+    page.applySettings();
+    QVERIFY(WhaleAiAgents::allowAdmin());
 }
 
 void WhaleAiSettingsPageTest::pageInDialog()

@@ -1455,6 +1455,7 @@ void WhaleAiPanel::sendPending()
         // prompt of its own); later messages carry only the live context. What the agent is
         // told about the memory follows it, also after a prompt of the user's own (AI16).
         m_systemPromptSent = true;
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::adminGuidance(WhaleAiAgents::allowAdmin())));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::titleGuidance()));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::memoryGuidance(WhaleAiAgents::memoryMode())));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::systemPrompt()));

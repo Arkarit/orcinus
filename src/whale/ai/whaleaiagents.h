@@ -250,6 +250,15 @@ MemoryMode memoryMode();
 void setMemoryMode(MemoryMode mode);
 /** @return How many characters of notes go to an agent (default 2000). */
 int memoryBudget();
+/** @return Whether agents may ask for administrator rights with pkexec, each command confirmed by the user (on by default). */
+bool allowAdmin();
+void setAllowAdmin(bool allow);
+/**
+ * @return What an agent is told about administrator rights (for the first message; English): it
+ * has no terminal for passwords, so pkexec for each command (the user confirms it in KDE's
+ * dialog) if @p allow, else to give the user the command.
+ */
+QString adminGuidance(bool allow);
 /** @return What the agent is told about naming the conversation (set_conversation_title). */
 QString titleGuidance();
 /**

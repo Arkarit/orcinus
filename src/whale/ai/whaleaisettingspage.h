@@ -102,6 +102,7 @@ private:
     QPlainTextEdit *m_prompt = nullptr;
     QPushButton *m_resetPrompt = nullptr;
     QHash<QString, QSpinBox *> m_freeDelays; ///< per provider (AI13)
+    QCheckBox *m_allowAdmin = nullptr; ///< agents may use pkexec
     QCheckBox *m_saveConversations = nullptr; ///< AI14
     QSpinBox *m_keepConversations = nullptr; ///< days; 0: always
     WhaleAiMemoryWidget *m_memoryWidget = nullptr; ///< AI16e
