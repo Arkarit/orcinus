@@ -17,7 +17,7 @@ class QPushButton;
 class QTreeWidget;
 
 /**
- * @brief All saved conversations of the AI panel (AI14b): search, open, delete.
+ * @brief All saved conversations of the AI panel (AI14b): search, open, rename, delete, export.
  *
  * The search looks at the titles, the agents and what was written. Accepted with the conversation
  * to open in chosenId().
@@ -31,6 +31,11 @@ public:
     explicit WhaleAiConversationsDialog(const WhaleAiConversationStore &store, const QString &currentId, QWidget *parent = nullptr);
 
     QString chosenId() const;
+    /**
+     * Gives the conversation @p id the user's title @p title; an empty one makes the title
+     * automatic again. @return False if it could not be saved.
+     */
+    bool rename(const QString &id, const QString &title);
 
 private:
     void fill();
@@ -38,6 +43,7 @@ private:
     void updateButtons();
     void openCurrent();
     void removeCurrent();
+    void renameCurrent();
     void removeAll();
     void exportCurrent(WhaleAiConversationExport::Format format);
 
@@ -50,6 +56,7 @@ private:
     QTreeWidget *m_list = nullptr;
     QPushButton *m_open = nullptr;
     QPushButton *m_remove = nullptr;
+    QPushButton *m_rename = nullptr;
     QPushButton *m_removeAll = nullptr;
     QPushButton *m_export = nullptr;
 };

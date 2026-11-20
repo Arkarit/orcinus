@@ -633,6 +633,36 @@ void WhaleAiPanelTest::conversationTitle()
     QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("Sorting and renaming"));
     call({{QStringLiteral("title"), QStringLiteral("  ")}}, &error, &notice);
     QVERIFY(error);
+
+    // The user renames it in Show All: the panel keeps that, the agent cannot change it.
+    auto renameInDialog = [&panel](const QString &title) {
+        QTimer::singleShot(0, [&panel, title] {
+            auto *dialog = qobject_cast<WhaleAiConversationsDialog *>(QApplication::activeModalWidget());
+            QVERIFY(dialog);
+            QVERIFY(dialog->findChild<QPushButton *>(QStringLiteral("rename"))->isEnabled());
+            QVERIFY(dialog->rename(panel.conversationId(), title));
+            dialog->reject();
+        });
+        auto *menu = panel.findChild<QMenu *>(QStringLiteral("conversationsMenu"));
+        Q_EMIT menu->aboutToShow();
+        menu->findChild<QAction *>(QStringLiteral("showAllConversations"))->trigger();
+    };
+    renameInDialog(QStringLiteral("  My   pictures "));
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("My pictures"));
+    QCOMPARE(store.load(panel.conversationId())->titleSource, WhaleAiConversation::TitleSource::User);
+    error = false;
+    result = call({{QStringLiteral("title"), QStringLiteral("Something else")}}, &error, &notice);
+    QVERIFY(!error);
+    QVERIFY(!result.value(QLatin1String("set")).toBool());
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission again")));
+    QVERIFY(waitForReady(panel));
+    saved = store.load(panel.conversationId());
+    QCOMPARE(saved->title, QStringLiteral("My pictures"));
+
+    // Empty: automatic again.
+    renameInDialog(QString());
+    QCOMPARE(store.load(panel.conversationId())->titleSource, WhaleAiConversation::TitleSource::Auto);
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("nopermission hello · nopermission more · nopermission again"));
 }
 
 void WhaleAiPanelTest::memoryTools()

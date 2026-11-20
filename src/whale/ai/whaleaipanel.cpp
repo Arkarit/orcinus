@@ -1781,7 +1781,17 @@ void WhaleAiPanel::fillConversationsMenu()
 void WhaleAiPanel::showAllConversations()
 {
     WhaleAiConversationsDialog dialog(WhaleAiConversationStore(), m_conversation ? m_conversation->id : openedConversationId(), this);
-    if (dialog.exec() == QDialog::Accepted && !dialog.chosenId().isEmpty()) {
+    const int result = dialog.exec();
+    // The user may have renamed the one shown: its next save keeps that.
+    for (std::optional<WhaleAiConversation> *shown : {&m_conversation, &m_opened}) {
+        if (*shown) {
+            if (const std::optional<WhaleAiConversation> saved = WhaleAiConversationStore().load((*shown)->id)) {
+                (*shown)->title = saved->title;
+                (*shown)->titleSource = saved->titleSource;
+            }
+        }
+    }
+    if (result == QDialog::Accepted && !dialog.chosenId().isEmpty()) {
         openConversation(dialog.chosenId());
     }
 }

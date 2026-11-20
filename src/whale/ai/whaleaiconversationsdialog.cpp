@@ -13,6 +13,7 @@
 #include <QDialogButtonBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QInputDialog>
 #include <QJsonObject>
 #include <QLineEdit>
 #include <QLocale>
@@ -53,6 +54,14 @@ WhaleAiConversationsDialog::WhaleAiConversationsDialog(const WhaleAiConversation
 
     m_open = new QPushButton(QIcon::fromTheme(QStringLiteral("document-open")), i18nc("@action:button", "Open"), this);
     m_open->setObjectName(QStringLiteral("open"));
+    m_rename = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-rename")), i18nc("@action:button", "Rename…"), this);
+    m_rename->setObjectName(QStringLiteral("rename"));
+    m_rename->setToolTip(i18nc("@info:tooltip", "Rename (F2)"));
+    auto *renameAction = new QAction(this);
+    renameAction->setShortcut(Qt::Key_F2);
+    renameAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+    addAction(renameAction);
+    connect(renameAction, &QAction::triggered, this, &WhaleAiConversationsDialog::renameCurrent);
     m_remove = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-delete")), i18nc("@action:button", "Delete"), this);
     m_remove->setObjectName(QStringLiteral("remove"));
     m_removeAll = new QPushButton(QIcon::fromTheme(QStringLiteral("edit-clear-history")), i18nc("@action:button", "Delete All…"), this);
@@ -80,6 +89,7 @@ WhaleAiConversationsDialog::WhaleAiConversationsDialog(const WhaleAiConversation
 
     auto *row = new QHBoxLayout;
     row->addWidget(m_open);
+    row->addWidget(m_rename);
     row->addWidget(m_remove);
     row->addWidget(m_export);
     row->addStretch();
@@ -95,6 +105,7 @@ WhaleAiConversationsDialog::WhaleAiConversationsDialog(const WhaleAiConversation
     connect(m_list, &QTreeWidget::currentItemChanged, this, &WhaleAiConversationsDialog::updateButtons);
     connect(m_list, &QTreeWidget::itemActivated, this, &WhaleAiConversationsDialog::openCurrent);
     connect(m_open, &QPushButton::clicked, this, &WhaleAiConversationsDialog::openCurrent);
+    connect(m_rename, &QPushButton::clicked, this, &WhaleAiConversationsDialog::renameCurrent);
     connect(m_remove, &QPushButton::clicked, this, &WhaleAiConversationsDialog::removeCurrent);
     connect(m_removeAll, &QPushButton::clicked, this, &WhaleAiConversationsDialog::removeAll);
 
@@ -166,7 +177,63 @@ void WhaleAiConversationsDialog::updateButtons()
     // The open one, too: it is saved as it is.
     const bool selected = current && !current->isHidden();
     m_export->setEnabled(selected);
+    m_rename->setEnabled(selected);
     m_removeAll->setEnabled(m_list->topLevelItemCount() > (m_currentId.isEmpty() ? 0 : 1));
+}
+
+void WhaleAiConversationsDialog::renameCurrent()
+{
+    const QTreeWidgetItem *current = m_list->currentItem();
+    if (!current || current->isHidden()) {
+        return;
+    }
+    const QString id = current->data(0, IdRole).toString();
+    const auto conversation = std::find_if(m_conversations.cbegin(), m_conversations.cend(), [&id](const WhaleAiConversation &c) {
+        return c.id == id;
+    });
+    if (conversation == m_conversations.cend()) {
+        return;
+    }
+    bool ok = false;
+    const QString title = QInputDialog::getText(this,
+                                                i18nc("@title:window", "Rename Conversation"),
+                                                i18nc("@label:textbox", "Title (empty: made from your messages):"),
+                                                QLineEdit::Normal,
+                                                conversation->title,
+                                                &ok);
+    if (ok && !rename(id, title)) {
+        KMessageBox::error(this, i18nc("@info", "The conversation could not be renamed."));
+    }
+}
+
+bool WhaleAiConversationsDialog::rename(const QString &id, const QString &title)
+{
+    std::optional<WhaleAiConversation> conversation = m_store.load(id);
+    if (!conversation) {
+        return false;
+    }
+    const QString name = title.simplified();
+    if (name.isEmpty()) {
+        conversation->titleSource = WhaleAiConversation::TitleSource::Auto;
+        conversation->title = WhaleAiConversation::titleFor(conversation->entries);
+    } else {
+        conversation->titleSource = WhaleAiConversation::TitleSource::User;
+        conversation->title =
+            name.size() > WhaleAiConversation::TitleLength ? name.left(WhaleAiConversation::TitleLength - 1).trimmed() + QStringLiteral("…") : name;
+    }
+    if (!m_store.save(*conversation)) {
+        return false;
+    }
+    // The list as it is now, the renamed one still chosen.
+    const QString search = m_search->text();
+    fill();
+    m_search->setText(search);
+    for (int i = 0; i < m_list->topLevelItemCount(); ++i) {
+        if (m_list->topLevelItem(i)->data(0, IdRole).toString() == id) {
+            m_list->setCurrentItem(m_list->topLevelItem(i));
+        }
+    }
+    return true;
 }
 
 void WhaleAiConversationsDialog::openCurrent()
