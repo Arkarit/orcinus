@@ -20,7 +20,6 @@
 namespace
 {
 const int FormatVersion = 1;
-const int TitleLength = 80;
 
 QString titleSourceName(WhaleAiConversation::TitleSource source)
 {
@@ -72,8 +71,8 @@ QString WhaleAiConversation::titleFor(const QJsonArray &entries)
             title += QStringLiteral(" · ");
         }
         title += text;
-        if (title.size() > TitleLength) {
-            return title.left(TitleLength - 1).trimmed() + QStringLiteral("…");
+        if (title.size() > WhaleAiConversation::TitleLength) {
+            return title.left(WhaleAiConversation::TitleLength - 1).trimmed() + QStringLiteral("…");
         }
     }
     return title;

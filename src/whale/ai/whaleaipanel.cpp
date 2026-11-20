@@ -430,6 +430,7 @@ void WhaleAiPanel::setViewActions(const WhaleAiViewActions &actions)
     m_viewActions = actions;
     m_viewActions.windowTools += agentTools();
     m_viewActions.windowTools += memoryTools();
+    m_viewActions.windowTools += conversationTools();
     if (m_mcp) {
         m_mcp->setViewActions(sessionActions());
     }
@@ -619,6 +620,56 @@ WhaleAiViewActions WhaleAiPanel::sessionActions()
         });
     }
     return actions;
+}
+
+QList<WhaleAiWindowTool> WhaleAiPanel::conversationTools()
+{
+    QPointer<WhaleAiPanel> guard(this);
+    return {
+        {QStringLiteral("set_conversation_title"),
+         QStringLiteral("Name this conversation"),
+         QStringLiteral("Sets the title the user finds this conversation by in Orcinus' list of conversations: short and telling (3 to 6 "
+                        "words), in the user's language. A title the user gave stays; the answer says so."),
+         false,
+         {{QStringLiteral("title"),
+           QJsonObject{{QStringLiteral("type"), QStringLiteral("string")}, {QStringLiteral("description"), QStringLiteral("The title")}}}},
+         {QStringLiteral("title")},
+         [guard](const QJsonObject &arguments, bool *error, QString *notice) -> QJsonObject {
+             if (!guard) {
+                 *error = true;
+                 return {{QStringLiteral("error"), QStringLiteral("The AI panel is gone.")}};
+             }
+             if (!guard->m_conversation) {
+                 *error = true;
+                 return {{QStringLiteral("error"), QStringLiteral("There is no conversation to name.")}};
+             }
+             if (guard->m_conversation->titleSource == WhaleAiConversation::TitleSource::User) {
+                 return {{QStringLiteral("set"), false},
+                         {QStringLiteral("title"), guard->m_conversation->title},
+                         {QStringLiteral("reason"), QStringLiteral("The user named this conversation; the title stays.")}};
+             }
+             QString title = arguments.value(QLatin1String("title")).toString().simplified();
+             // Quotes around it are no part of it.
+             static const QRegularExpression quotes(QStringLiteral("^[\"'„“”«»]+|[\"'„“”«»]+$"));
+             title.remove(quotes);
+             title = title.trimmed();
+             if (title.isEmpty()) {
+                 *error = true;
+                 return {{QStringLiteral("error"), QStringLiteral("The title is empty.")}};
+             }
+             if (title.size() > WhaleAiConversation::TitleLength) {
+                 title = title.left(WhaleAiConversation::TitleLength - 1).trimmed() + QStringLiteral("…");
+             }
+             if (title != guard->m_conversation->title || guard->m_conversation->titleSource != WhaleAiConversation::TitleSource::Agent) {
+                 guard->m_conversation->title = title;
+                 guard->m_conversation->titleSource = WhaleAiConversation::TitleSource::Agent;
+                 *notice = i18nc("@info %1 is the title of a conversation", "The agent named this conversation “%1”.", title);
+                 guard->m_titleChanged = true;
+                 guard->saveConversation();
+             }
+             return {{QStringLiteral("set"), true}, {QStringLiteral("title"), title}};
+         }},
+    };
 }
 
 QList<WhaleAiWindowTool> WhaleAiPanel::memoryTools()
@@ -1352,6 +1403,7 @@ void WhaleAiPanel::sendPending()
         // prompt of its own); later messages carry only the live context. What the agent is
         // told about the memory follows it, also after a prompt of the user's own (AI16).
         m_systemPromptSent = true;
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::titleGuidance()));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::memoryGuidance(WhaleAiAgents::memoryMode())));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::systemPrompt()));
     }
@@ -1595,7 +1647,9 @@ void WhaleAiPanel::saveConversation()
     if (conversation.titleSource == WhaleAiConversation::TitleSource::Auto) {
         conversation.title = WhaleAiConversation::titleFor(entries);
     }
-    if (conversation == *m_conversation) {
+    // The agent's title is in m_conversation already, not yet in the file.
+    const bool titleChanged = std::exchange(m_titleChanged, false);
+    if (conversation == *m_conversation && !titleChanged) {
         return; // saved as it is
     }
     conversation.updated = QDateTime::currentDateTime();

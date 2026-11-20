@@ -30,6 +30,9 @@ struct WhaleAiConversation {
         User,
     };
 
+    /** The longest title, in characters. */
+    static constexpr int TitleLength = 80;
+
     QString id; ///< a UUID, also the file name
     QString title;
     TitleSource titleSource = TitleSource::Auto;

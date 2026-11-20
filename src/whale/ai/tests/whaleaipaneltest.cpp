@@ -88,6 +88,7 @@ private Q_SLOTS:
     void resumeSavedConversation();
     void memoryNotesSent();
     void memoryTools();
+    void conversationTitle();
     void conversationSearch();
     void rememberCommand();
     void removedAgentEndsConversation();
@@ -585,6 +586,53 @@ void WhaleAiPanelTest::memoryNotesSent()
     QCOMPARE(count(QStringLiteral("Orcinus has a memory for you")), 0);
     QCOMPARE(count(QStringLiteral("Orcinus' memory is turned off")), 1);
     QFile::remove(memory.path());
+}
+
+void WhaleAiPanelTest::conversationTitle()
+{
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    panel.setViewActions({});
+    auto call = [&panel](const QJsonObject &arguments, bool *error, QString *notice) {
+        for (const WhaleAiWindowTool &tool : panel.viewActions().windowTools) {
+            if (tool.name == QLatin1String("set_conversation_title")) {
+                return tool.call(arguments, error, notice);
+            }
+        }
+        return QJsonObject{{QStringLiteral("missing"), true}};
+    };
+    QVERIFY(WhaleAiMcpServer::windowToolNames().contains(QStringLiteral("set_conversation_title")));
+    bool error = false;
+    QString notice;
+    // No conversation yet: nothing to name.
+    call({{QStringLiteral("title"), QStringLiteral("x")}}, &error, &notice);
+    QVERIFY(error);
+
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission hello")));
+    QVERIFY(waitForReady(panel));
+    // The agent is told to name it.
+    QVERIFY(texts(panel).contains(QLatin1String("set_conversation_title")));
+    const WhaleAiConversationStore store;
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("nopermission hello"));
+
+    // Quotes go; the title is kept and saved.
+    error = false;
+    QJsonObject result = call({{QStringLiteral("title"), QStringLiteral(" „Sorting pictures“ ")}}, &error, &notice);
+    QVERIFY(!error);
+    QCOMPARE(result.value(QLatin1String("title")).toString(), QStringLiteral("Sorting pictures"));
+    QCOMPARE(notice, QStringLiteral("The agent named this conversation “Sorting pictures”."));
+    std::optional<WhaleAiConversation> saved = store.load(panel.conversationId());
+    QCOMPARE(saved->title, QStringLiteral("Sorting pictures"));
+    QCOMPARE(saved->titleSource, WhaleAiConversation::TitleSource::Agent);
+
+    // Further messages do not change it; the agent may.
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission more")));
+    QVERIFY(waitForReady(panel));
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("Sorting pictures"));
+    call({{QStringLiteral("title"), QStringLiteral("Sorting and renaming")}}, &error, &notice);
+    QCOMPARE(store.load(panel.conversationId())->title, QStringLiteral("Sorting and renaming"));
+    call({{QStringLiteral("title"), QStringLiteral("  ")}}, &error, &notice);
+    QVERIFY(error);
 }
 
 void WhaleAiPanelTest::memoryTools()

@@ -819,6 +819,14 @@ void setMemoryMode(MemoryMode mode)
     group.sync();
 }
 
+QString titleGuidance()
+{
+    return QStringLiteral(
+        "The user finds this conversation again in Orcinus by its title. Once it is clear what the conversation is about, give it "
+        "a short, telling title (3 to 6 words, in the user's language, no quotes) with set_conversation_title. Call it again only "
+        "when the topic clearly changes.");
+}
+
 QString memoryGuidance(MemoryMode mode)
 {
     // AI16 (user, 2026-11-19): asked to remember something, Codex wrote an AGENTS.md into the

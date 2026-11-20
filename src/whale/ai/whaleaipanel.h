@@ -169,6 +169,8 @@ private:
     QList<WhaleAiWindowTool> agentTools();
     /** AI16c: remember, forget, list_memories. */
     QList<WhaleAiWindowTool> memoryTools();
+    /** set_conversation_title: the agent names the conversation (unless the user did). */
+    QList<WhaleAiWindowTool> conversationTools();
     /** What the back channel of a new session may do: without the memory tools while memory is off. */
     WhaleAiViewActions sessionActions();
     /** "/remember [global] text" in the input (AI16e). @return Whether it was kept. */
@@ -233,6 +235,7 @@ private:
     QToolButton *m_stop = nullptr;
     QSplitter *m_inputSplitter = nullptr;
     bool m_inputSizesSet = false;
+    bool m_titleChanged = false; ///< the agent named the conversation since it was saved
     QTimer *m_inputHeightTimer = nullptr; ///< saves the input's height a little after the splitter moved
     KBusyIndicatorWidget *m_busy = nullptr;
     QToolButton *m_modelButton = nullptr; ///< start or unload the local model (AI13f)

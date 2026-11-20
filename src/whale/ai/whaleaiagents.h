@@ -250,6 +250,8 @@ MemoryMode memoryMode();
 void setMemoryMode(MemoryMode mode);
 /** @return How many characters of notes go to an agent (default 2000). */
 int memoryBudget();
+/** @return What the agent is told about naming the conversation (set_conversation_title). */
+QString titleGuidance();
 /**
  * @return What an agent is told about Orcinus' memory in @p mode (for the first message, after
  * the system prompt; English): to keep lasting things with remember instead of files such as

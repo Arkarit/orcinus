@@ -404,7 +404,9 @@ const QStringList &WhaleAiMcpServer::windowToolNames()
                                    QStringLiteral("forget"),
                                    QStringLiteral("list_memories"),
                                    QStringLiteral("search_conversations"),
-                                   QStringLiteral("read_conversation")};
+                                   QStringLiteral("read_conversation"),
+                                   // The title the conversation is listed by (not one the user gave).
+                                   QStringLiteral("set_conversation_title")};
     return names;
 }
 
