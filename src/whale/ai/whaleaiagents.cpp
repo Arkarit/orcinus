@@ -15,7 +15,9 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QLocale>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStandardPaths>
 
 #include <algorithm>
@@ -43,6 +45,7 @@ const char ExportTimesKey[] = "ExportTimes";
 const char MemoryKey[] = "Memory";
 const char MemoryBudgetKey[] = "MemoryBudget";
 const char AllowAdminKey[] = "AllowAdmin";
+const char ConversationLanguageKey[] = "ConversationLanguage";
 // Of the sandbox of AI5d/AI5e, removed again: no longer read, deleted when the agents are stored.
 const char AccessKey[] = "Access";
 const char SandboxPathsKey[] = "SandboxPaths";
@@ -850,6 +853,58 @@ QString adminGuidance(bool allow)
         "and pkexec sh -c '...' for pipes or redirections. If it ends with \"Not authorized\" or code 126 or 127, the user "
         "declined: do not try again, ask them. If it says \"must be setuid root\", your current mode does not allow "
         "administrator rights: tell the user.");
+}
+
+QString conversationLanguage()
+{
+    return aiGroup().readEntry(ConversationLanguageKey, QString());
+}
+
+void setConversationLanguage(const QString &language)
+{
+    KConfigGroup group = aiGroup();
+    if (language.isEmpty()) {
+        group.deleteEntry(ConversationLanguageKey);
+    } else {
+        group.writeEntry(ConversationLanguageKey, language);
+    }
+    group.sync();
+}
+
+QStringList availableConversationLanguages()
+{
+    QStringList languages = KLocalizedString::availableDomainTranslations(TRANSLATION_DOMAIN).values();
+    languages.removeIf([](const QString &language) {
+        return language.startsWith(QLatin1String("en"));
+    });
+    languages.append(QStringLiteral("en_US"));
+    std::sort(languages.begin(), languages.end());
+    return languages;
+}
+
+QString uiLanguage()
+{
+    // KI18n takes the first of the user's languages it has a translation for; English is the source.
+    const QSet<QString> translated = KLocalizedString::availableDomainTranslations(TRANSLATION_DOMAIN);
+    for (const QString &language : KLocalizedString::languages()) {
+        if (language.startsWith(QLatin1String("en")) || translated.contains(language)) {
+            return language;
+        }
+    }
+    return QStringLiteral("en_US");
+}
+
+QString languageGuidance(const QString &uiLanguage, const QString &conversationLanguage)
+{
+    const auto name = [](const QString &language) {
+        return QLocale::languageToString(QLocale(language).language());
+    };
+    QString text = QStringLiteral("Orcinus' user interface is in %1: name its menus, buttons and settings as they appear there.").arg(name(uiLanguage));
+    if (!conversationLanguage.isEmpty()) {
+        text += QStringLiteral(" Talk to the user in %1, also in conversation titles, even though these instructions are in English.")
+                    .arg(name(conversationLanguage));
+    }
+    return text;
 }
 
 QString titleGuidance()

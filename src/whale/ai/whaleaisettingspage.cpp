@@ -16,6 +16,7 @@
 #include <KTerminalLauncherJob>
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
@@ -26,6 +27,7 @@
 #include <QJsonObject>
 #include <QLabel>
 #include <QListWidget>
+#include <QLocale>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
@@ -176,6 +178,31 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     adminLayout->addWidget(adminHint);
     connect(m_allowAdmin, &QCheckBox::toggled, this, &WhaleAiSettingsPage::changed);
 
+    // Conversation language (user, 2026-11-21): Orcinus may be in English while the user talks to
+    // agents in their own language. Only the suggestions and what the agent is told follow it.
+    auto *languageGroup = new QGroupBox(i18nc("@title:group", "Language"), this);
+    auto *languageForm = new QFormLayout(languageGroup);
+    m_conversationLanguage = new QComboBox(languageGroup);
+    m_conversationLanguage->setObjectName(QStringLiteral("conversationLanguage"));
+    m_conversationLanguage->addItem(i18nc("@item:inlistbox conversation language", "Same as Orcinus"), QString());
+    for (const QString &language : WhaleAiAgents::availableConversationLanguages()) {
+        const QLocale locale(language);
+        QString name = locale.nativeLanguageName();
+        if (language.contains(QLatin1Char('_')) && language != QLatin1String("en_US")) {
+            name = i18nc("@item:inlistbox %1 is a language, %2 a country", "%1 (%2)", name, locale.nativeTerritoryName());
+        }
+        m_conversationLanguage->addItem(name.isEmpty() ? language : name, language);
+    }
+    m_conversationLanguage->setCurrentIndex(qMax(0, m_conversationLanguage->findData(WhaleAiAgents::conversationLanguage())));
+    languageForm->addRow(i18nc("@label:listbox", "Talk with agents in:"), m_conversationLanguage);
+    auto *languageHint = new QLabel(i18nc("@info",
+                                          "The suggestions of the AI panel use this language, and agents are asked to answer in it. The rest "
+                                          "of Orcinus stays in its own language."),
+                                    languageGroup);
+    languageHint->setWordWrap(true);
+    languageForm->addRow(languageHint);
+    connect(m_conversationLanguage, &QComboBox::currentIndexChanged, this, &WhaleAiSettingsPage::changed);
+
     // AI14: the panel saves its conversations, so they can be continued.
     auto *conversationGroup = new QGroupBox(i18nc("@title:group", "Conversations"), this);
     auto *conversationForm = new QFormLayout(conversationGroup);
@@ -218,6 +245,7 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     agentsLayout->addLayout(listRow, 1);
     agentsLayout->addWidget(m_result);
     agentsLayout->addWidget(m_logIn, 0, Qt::AlignLeft);
+    agentsLayout->addWidget(languageGroup);
     agentsLayout->addWidget(adminGroup);
     agentsLayout->addWidget(localGroup);
     content->addTab(agentsTab, QIcon::fromTheme(QStringLiteral("dialog-messages")), i18nc("@title:tab AI settings", "Agents"));
@@ -306,6 +334,7 @@ void WhaleAiSettingsPage::applySettings()
         WhaleAiAgents::setFreeDelaySeconds(it.key(), it.value()->value() * freeDelayUnit(it.key()));
     }
     WhaleAiAgents::setAllowAdmin(m_allowAdmin->isChecked());
+    WhaleAiAgents::setConversationLanguage(m_conversationLanguage->currentData().toString());
     WhaleAiAgents::setSaveConversations(m_saveConversations->isChecked());
     WhaleAiAgents::setKeepConversationsDays(m_keepConversations->value());
     m_memoryWidget->apply();
@@ -318,6 +347,7 @@ void WhaleAiSettingsPage::restoreDefaults()
         it.value()->setValue(qRound(WhaleAiAgents::defaultFreeDelaySeconds(it.key()) / freeDelayUnit(it.key())));
     }
     m_allowAdmin->setChecked(true);
+    m_conversationLanguage->setCurrentIndex(0);
     m_saveConversations->setChecked(true);
     m_keepConversations->setValue(90);
     m_memoryWidget->restoreDefaults();

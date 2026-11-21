@@ -28,6 +28,7 @@
 #include <KMessageWidget>
 #include <KSharedConfig>
 
+#include <KLocalizedString>
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
@@ -81,6 +82,7 @@ private Q_SLOTS:
     void enterAndShiftEnter();
     void inputHeight();
     void suggestions();
+    void suggestionsInConversationLanguage();
     void stopWithEscape();
     void agentFails();
     void otherAgentEndsConversation();
@@ -1139,6 +1141,35 @@ void WhaleAiPanelTest::otherAgentEndsConversation()
     QVERIFY(!panel.session());
     QCOMPARE(session->state(), WhaleAcpSession::State::Closed);
     QVERIFY(texts(panel).endsWith(QLatin1String("Now talking to Fake crash. The next message starts a new conversation.")));
+}
+
+void WhaleAiPanelTest::suggestionsInConversationLanguage()
+{
+    // The build's catalogs: the requests in the conversation language, the group titles in Orcinus' (English).
+    KLocalizedString::addDomainLocaleDir(TRANSLATION_DOMAIN, QStringLiteral(WHALE_LOCALE_DIR));
+    WhaleAiAgents::setConversationLanguage(QStringLiteral("de"));
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto *button = panel.findChild<QPushButton *>(QStringLiteral("suggestions"));
+    QVERIFY(button);
+    QStringList sections;
+    for (QAction *action : button->menu()->actions()) {
+        if (action->isSeparator()) {
+            sections << action->text();
+        }
+    }
+    QCOMPARE(sections, (QStringList{QStringLiteral("Files"), QStringLiteral("Software"), QStringLiteral("System"), QStringLiteral("Orcinus")}));
+    auto *repair = button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"));
+    QCOMPARE(repair->text(), QStringLiteral("Ein Programm funktioniert nicht richtig"));
+    QCOMPARE(button->menu()->findChild<QAction *>(QStringLiteral("reportProblem"))->text(), QStringLiteral("Ein Problem mit Orcinus melden"));
+    repair->trigger();
+    auto *input = panel.findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    QCOMPARE(input->toPlainText(), QStringLiteral("Bitte sieh es dir zuerst an und frag mich vor jeder Änderung.\nEin Programm funktioniert nicht richtig: "));
+
+    // Back to Orcinus' language; the menu follows when it opens next.
+    WhaleAiAgents::setConversationLanguage(QString());
+    Q_EMIT button->menu()->aboutToShow();
+    QCOMPARE(button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"))->text(), QStringLiteral("A program does not work properly"));
 }
 
 void WhaleAiPanelTest::suggestions()

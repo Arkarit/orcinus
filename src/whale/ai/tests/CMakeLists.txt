@@ -40,8 +40,9 @@ ecm_add_test(whaleaipaneltest.cpp ${CMAKE_SOURCE_DIR}/src/tests/testdir.cpp ${CM
     TEST_NAME whaleaipaneltest
     LINK_LIBRARIES dolphinstatic Qt6::Test)
 target_include_directories(whaleaipaneltest PRIVATE ${CMAKE_SOURCE_DIR}/src/tests ${CMAKE_SOURCE_DIR}/src)
-target_compile_definitions(whaleaipaneltest PRIVATE WHALE_ACP_FAKE_AGENT="$<TARGET_FILE:whaleacpfakeagent>")
-add_dependencies(whaleaipaneltest whaleacpfakeagent)
+target_compile_definitions(whaleaipaneltest PRIVATE WHALE_ACP_FAKE_AGENT="$<TARGET_FILE:whaleacpfakeagent>"
+    WHALE_LOCALE_DIR="${CMAKE_BINARY_DIR}/locale")
+add_dependencies(whaleaipaneltest whaleacpfakeagent whale-translations)
 
 ecm_add_test(whaleailocalmodelstest.cpp
     TEST_NAME whaleailocalmodelstest

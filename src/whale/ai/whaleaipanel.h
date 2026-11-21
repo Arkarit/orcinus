@@ -198,6 +198,8 @@ private:
     /** Shows Orcinus' own greeting at the top of an empty conversation. */
     void greet();
     /** The suggestions button over the input: only for a new conversation while the input is empty. */
+    /** Fills the suggestions menu in the conversation language. */
+    void fillSuggestions(QMenu *menu);
     void updateSuggestions();
     /** Puts @p text into the input, the cursor at its end; nothing is sent. */
     void insertSuggestion(const QString &text);

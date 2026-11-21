@@ -283,59 +283,11 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_suggestions->setToolTip(i18nc("@info:tooltip", "Puts a request into the input, for you to complete and send"));
     auto *suggestionsMenu = new QMenu(m_suggestions);
     suggestionsMenu->setObjectName(QStringLiteral("suggestionsMenu"));
-    {
-        // Changes to the system: the agent looks first and asks (shown, the user may delete it).
-        const QString careful = i18nc("@info part of a request to an AI agent", "Please look into it first and ask me before every change.");
-        struct Suggestion {
-            QString id;
-            QString text;
-            // Shown in the menu; derived from the text when empty.
-            QString label = {};
-        };
-        const QString bugReportUrl = QStringLiteral(WHALE_BUG_URL "/new?template=bug_report.yml");
-        const QList<std::pair<QString, QList<Suggestion>>> groups{
-            {i18nc("@title:menu", "Files"),
-             {{QStringLiteral("renameFiles"), i18nc("@info request to an AI agent", "Please give the selected files sensible names.")},
-              {QStringLiteral("explainFile"), i18nc("@info request to an AI agent", "Please explain the selected file to me.")}}},
-            {i18nc("@title:menu", "Software"),
-             {{QStringLiteral("installSoftware"), i18nc("@info request to an AI agent, the user adds which", "Please help me install software: ")},
-              {QStringLiteral("repairProgram"),
-               careful + QLatin1Char('\n') + i18nc("@info request to an AI agent, the user adds which", "A program does not work properly: ")}}},
-            {i18nc("@title:menu", "System"),
-             {{QStringLiteral("checkSystem"),
-               i18nc("@info request to an AI agent", "Please check my operating system and suggest what to do.") + QLatin1Char(' ') + careful},
-              {QStringLiteral("repairSystem"),
-               i18nc("@info request to an AI agent", "Please help me repair my operating system.") + QLatin1Char(' ') + careful},
-              {QStringLiteral("virusScan"),
-               i18nc("@info request to an AI agent", "Please check my system for viruses. If there is no virus scanner, suggest one.") + QLatin1Char(' ')
-                   + careful}}},
-            {QStringLiteral("Orcinus"),
-             {{QStringLiteral("reportProblem"),
-               i18nc("@info request to an AI agent, %1 is the URL of the bug report form, the user adds the problem",
-                     "Please help me report a problem with Orcinus. Collect what the bug report needs (Orcinus version, system, and for a crash "
-                     "the backtrace via coredumpctl) and write a draft from it that follows the form at %1. Remove personal data such as user "
-                     "names and paths. Do not submit the report yourself, I will do that. The problem: ",
-                     bugReportUrl),
-               i18nc("@action:inmenu", "Report a problem with Orcinus")}}},
-        };
-        for (const auto &[title, suggestions] : groups) {
-            suggestionsMenu->addSection(title);
-            for (const Suggestion &suggestion : suggestions) {
-                // The menu shows the request itself, without the careful part.
-                QString label = suggestion.label.isEmpty() ? suggestion.text : suggestion.label;
-                label.remove(careful);
-                label = label.simplified();
-                if (label.endsWith(QLatin1Char(':'))) {
-                    label.chop(1);
-                }
-                auto *action = suggestionsMenu->addAction(label.replace(QLatin1Char('&'), QStringLiteral("&&")));
-                action->setObjectName(suggestion.id);
-                connect(action, &QAction::triggered, this, [this, text = suggestion.text] {
-                    insertSuggestion(text);
-                });
-            }
-        }
-    }
+    fillSuggestions(suggestionsMenu);
+    // The conversation language may change in the settings meanwhile.
+    connect(suggestionsMenu, &QMenu::aboutToShow, this, [this, suggestionsMenu] {
+        fillSuggestions(suggestionsMenu);
+    });
     m_suggestions->setMenu(suggestionsMenu);
     upperLayout->addWidget(m_suggestions);
     connect(m_input, &QPlainTextEdit::textChanged, this, &WhaleAiPanel::updateSuggestions);
@@ -1467,6 +1419,7 @@ void WhaleAiPanel::sendPending()
         // prompt of its own); later messages carry only the live context. What the agent is
         // told about the memory follows it, also after a prompt of the user's own (AI16).
         m_systemPromptSent = true;
+        blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::languageGuidance(WhaleAiAgents::uiLanguage(), WhaleAiAgents::conversationLanguage())));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::adminGuidance(WhaleAiAgents::allowAdmin())));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::titleGuidance()));
         blocks.prepend(WhaleAcpContent::text(WhaleAiAgents::memoryGuidance(WhaleAiAgents::memoryMode())));
@@ -1931,6 +1884,69 @@ void WhaleAiPanel::greet()
                                   "folders and select files for you."));
     m_fresh = true;
     updateSuggestions();
+}
+
+void WhaleAiPanel::fillSuggestions(QMenu *menu)
+{
+    menu->clear();
+    // The requests and their menu entries in the conversation language, so the agent answers in it
+    // (user, 2026-11-21); the group titles in Orcinus' language.
+    const QString language = WhaleAiAgents::conversationLanguage();
+    const auto request = [&language](const KLocalizedString &text) {
+        return language.isEmpty() ? text.toString() : text.toString(QStringList{language});
+    };
+    // Changes to the system: the agent looks first and asks (shown, the user may delete it).
+    const QString careful = request(ki18nc("@info part of a request to an AI agent", "Please look into it first and ask me before every change."));
+    struct Suggestion {
+        QString id;
+        QString text;
+        // Shown in the menu; derived from the text when empty.
+        QString label = {};
+    };
+    const QString bugReportUrl = QStringLiteral(WHALE_BUG_URL "/new?template=bug_report.yml");
+    const QList<std::pair<QString, QList<Suggestion>>> groups{
+        {i18nc("@title:menu", "Files"),
+         {{QStringLiteral("renameFiles"), request(ki18nc("@info request to an AI agent", "Please give the selected files sensible names."))},
+          {QStringLiteral("explainFile"), request(ki18nc("@info request to an AI agent", "Please explain the selected file to me."))}}},
+        {i18nc("@title:menu", "Software"),
+         {{QStringLiteral("installSoftware"), request(ki18nc("@info request to an AI agent, the user adds which", "Please help me install software: "))},
+          {QStringLiteral("repairProgram"),
+           careful + QLatin1Char('\n') + request(ki18nc("@info request to an AI agent, the user adds which", "A program does not work properly: "))}}},
+        {i18nc("@title:menu", "System"),
+         {{QStringLiteral("checkSystem"),
+           request(ki18nc("@info request to an AI agent", "Please check my operating system and suggest what to do.")) + QLatin1Char(' ') + careful},
+          {QStringLiteral("repairSystem"),
+           request(ki18nc("@info request to an AI agent", "Please help me repair my operating system.")) + QLatin1Char(' ') + careful},
+          {QStringLiteral("virusScan"),
+           request(ki18nc("@info request to an AI agent", "Please check my system for viruses. If there is no virus scanner, suggest one.")) + QLatin1Char(' ')
+               + careful}}},
+        {QStringLiteral("Orcinus"),
+         {{QStringLiteral("reportProblem"),
+           request(ki18nc("@info request to an AI agent, %1 is the URL of the bug report form, the user adds the problem",
+                          "Please help me report a problem with Orcinus. Collect what the bug report needs (Orcinus version, system, and for a crash "
+                          "the backtrace via coredumpctl) and write a draft from it that follows the form at %1. Remove personal data such as user "
+                          "names and paths. Do not submit the report yourself, I will do that. The problem: ")
+                       .subs(bugReportUrl)),
+           request(ki18nc("@action:inmenu", "Report a problem with Orcinus"))}}},
+    };
+    for (const auto &[title, suggestions] : groups) {
+        menu->addSection(title);
+        for (const Suggestion &suggestion : suggestions) {
+            // The menu shows the request itself, without the careful part.
+            QString label = suggestion.label.isEmpty() ? suggestion.text : suggestion.label;
+            label.remove(careful);
+            label = label.simplified();
+            if (label.endsWith(QLatin1Char(':')) || label.endsWith(QChar(0xFF1A))) {
+                label.chop(1);
+                label = label.trimmed();
+            }
+            auto *action = menu->addAction(label.replace(QLatin1Char('&'), QStringLiteral("&&")));
+            action->setObjectName(suggestion.id);
+            connect(action, &QAction::triggered, this, [this, text = suggestion.text] {
+                insertSuggestion(text);
+            });
+        }
+    }
 }
 
 void WhaleAiPanel::updateSuggestions()

@@ -66,6 +66,7 @@ private Q_SLOTS:
     void defaultsKeepAgents();
     void systemPrompt();
     void allowAdmin();
+    void conversationLanguage();
     void pageInDialog();
     void memoryGroup();
 
@@ -695,6 +696,33 @@ void WhaleAiSettingsPageTest::allowAdmin()
     page.restoreDefaults();
     page.applySettings();
     QVERIFY(WhaleAiAgents::allowAdmin());
+}
+
+void WhaleAiSettingsPageTest::conversationLanguage()
+{
+    // Same as Orcinus by default: the agent hears Orcinus' language, nothing about how to talk.
+    QVERIFY(WhaleAiAgents::conversationLanguage().isEmpty());
+    QCOMPARE(WhaleAiAgents::languageGuidance(QStringLiteral("en_US"), QString()),
+             QStringLiteral("Orcinus' user interface is in English: name its menus, buttons and settings as they appear there."));
+    QVERIFY(WhaleAiAgents::languageGuidance(QStringLiteral("en_US"), QStringLiteral("de")).contains(QLatin1String("Talk to the user in German")));
+    QVERIFY(WhaleAiAgents::availableConversationLanguages().contains(QLatin1String("en_US")));
+    {
+        WhaleAiSettingsPage page;
+        auto *language = child<QComboBox>(page, QStringLiteral("conversationLanguage"));
+        QVERIFY(language);
+        QCOMPARE(language->currentIndex(), 0);
+        QCOMPARE(language->currentData().toString(), QString());
+        QSignalSpy changed(&page, &WhaleAiSettingsPage::changed);
+        language->setCurrentIndex(language->findData(QStringLiteral("en_US")));
+        QCOMPARE(changed.count(), 1);
+        page.applySettings();
+    }
+    QCOMPARE(WhaleAiAgents::conversationLanguage(), QStringLiteral("en_US"));
+    WhaleAiSettingsPage page;
+    QCOMPARE(child<QComboBox>(page, QStringLiteral("conversationLanguage"))->currentData().toString(), QStringLiteral("en_US"));
+    page.restoreDefaults();
+    page.applySettings();
+    QVERIFY(WhaleAiAgents::conversationLanguage().isEmpty());
 }
 
 void WhaleAiSettingsPageTest::pageInDialog()

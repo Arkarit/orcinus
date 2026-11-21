@@ -259,6 +259,23 @@ void setAllowAdmin(bool allow);
  * dialog) if @p allow, else to give the user the command.
  */
 QString adminGuidance(bool allow);
+/**
+ * @return The language to talk with agents in (e.g. "de"), set apart from Orcinus' own language:
+ * the suggestions of the AI panel use it and the agent is asked to answer in it. Empty (the
+ * default) means the same as Orcinus.
+ */
+QString conversationLanguage();
+void setConversationLanguage(const QString &language);
+/** @return The languages Orcinus has translations for, plus English (codes such as "de", "pt_BR", "en_US"), sorted. */
+QStringList availableConversationLanguages();
+/** @return The language Orcinus' user interface shows (a code such as "de" or "en_US"). */
+QString uiLanguage();
+/**
+ * @return What an agent is told about languages (for the first message; English): which
+ * language Orcinus' user interface shows, so it names menus and settings as they appear there,
+ * and, if @p conversationLanguage is set, to talk to the user in it.
+ */
+QString languageGuidance(const QString &uiLanguage, const QString &conversationLanguage);
 /** @return What the agent is told about naming the conversation (set_conversation_title). */
 QString titleGuidance();
 /**

@@ -14,6 +14,7 @@
 #include <QHash>
 
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QListWidget;
 class QMenu;
@@ -103,6 +104,7 @@ private:
     QPushButton *m_resetPrompt = nullptr;
     QHash<QString, QSpinBox *> m_freeDelays; ///< per provider (AI13)
     QCheckBox *m_allowAdmin = nullptr; ///< agents may use pkexec
+    QComboBox *m_conversationLanguage = nullptr; ///< empty data: same as Orcinus
     QCheckBox *m_saveConversations = nullptr; ///< AI14
     QSpinBox *m_keepConversations = nullptr; ///< days; 0: always
     WhaleAiMemoryWidget *m_memoryWidget = nullptr; ///< AI16e
