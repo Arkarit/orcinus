@@ -45,6 +45,7 @@
 #if KIO_VERSION >= QT_VERSION_CHECK(6, 24, 0)
 #include "servicemenushortcutmanager.h"
 #endif
+#include "dolphinviewbridge.h"
 #include "settings/dolphinsettingsdialog.h"
 #include "statusbar/diskspaceusagemenu.h"
 #include "views/dolphinnewfilemenuobserver.h"
@@ -2904,9 +2905,10 @@ void DolphinMainWindow::setupDockWidgets()
             changeUrl(url);
             return;
         }
-        changeUrl(url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash));
-        m_activeViewContainer->view()->markUrlsAsSelected({url});
-        m_activeViewContainer->view()->markUrlAsCurrent(url);
+        // Marking the item alone selects it only when a folder is loaded next, so nothing happened
+        // for an item of the folder already shown (canvas tools' orcinus.reveal()). The bridge
+        // selects it at once there, and otherwise enters its folder and selects it when loaded.
+        m_activeViewContainer->viewHost()->bridge()->showItemInFolder(url);
     };
     connect(aiPanel, &WhaleAiPanel::localUrlActivated, this, showLocalUrl);
 #if HAVE_AI_CANVAS

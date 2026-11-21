@@ -1829,7 +1829,7 @@ void DolphinMainWindowTest::testOpenFilesAtStartupInSplitView()
     m_mainWindow->openFiles(urls, true);
 
     QCOMPARE(m_mainWindow->m_tabWidget->count(), 1);
-    const DolphinTabPage *tabPage = m_mainWindow->m_tabWidget->currentTabPage();
+    const DolphinTabPage *tabPage = m_mainWindow->findChild<DolphinTabWidget *>(QStringLiteral("tabWidget"))->currentTabPage();
     QVERIFY(tabPage->splitViewEnabled());
 
     // Each view shows the parent folder of one file and has that file selected.
@@ -2981,6 +2981,43 @@ void DolphinMainWindowTest::testAiCanvas()
                  QUrl::fromLocalFile(testDir->url().toLocalFile() + QStringLiteral("/pictures")));
     QTRY_COMPARE(view->selectedItems().count(), 1);
     QCOMPARE(view->selectedItems().constFirst().url(), QUrl::fromLocalFile(picture));
+
+    // Another file of the folder shown is selected at once (orcinus.reveal() of canvas tools did
+    // nothing there: the marks wait for the next loading), also with characters a URL encodes.
+    const QString other = testDir->url().toLocalFile() + QStringLiteral("/pictures/blue #1.png");
+    image.fill(Qt::blue);
+    QVERIFY(image.save(other));
+    QTRY_COMPARE(view->items().count(), 2);
+    QSignalSpy selectionChanged(m_mainWindow.data(), &DolphinMainWindow::selectionChanged);
+    canvas->activate(QUrl::fromLocalFile(other).toString());
+    QTRY_COMPARE(view->selectedItems().count(), 1);
+    QCOMPARE(view->selectedItems().constFirst().url(), QUrl::fromLocalFile(other));
+    // DolphinView reports selection changes after a short delay.
+    QTRY_VERIFY(selectionChanged.count() >= 1);
+    // Again the same: nothing changes, so a tool that follows the selection does not loop.
+    selectionChanged.clear();
+    canvas->activate(QUrl::fromLocalFile(other).toString());
+    QVERIFY(!selectionChanged.wait(500));
+
+    // In split view the active view shows it; the other one stays.
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    DolphinTabPage *tabPage = m_mainWindow->m_tabWidget->currentTabPage();
+    QTRY_VERIFY(tabPage->splitViewEnabled());
+    DolphinViewContainer *right = tabPage->secondaryViewContainer();
+    QVERIFY(right);
+    right->setActive(true);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer(), right);
+    right->setUrl(testDir->url());
+    QTRY_VERIFY(!right->view()->items().isEmpty());
+    const QUrl leftUrl = tabPage->primaryViewContainer()->url();
+    canvas->activate(QUrl::fromLocalFile(picture).toString());
+    QTRY_COMPARE(right->url().adjusted(QUrl::StripTrailingSlash), QUrl::fromLocalFile(testDir->url().toLocalFile() + QStringLiteral("/pictures")));
+    QTRY_COMPARE(right->view()->selectedItems().count(), 1);
+    QCOMPARE(right->view()->selectedItems().constFirst().url(), QUrl::fromLocalFile(picture));
+    QCOMPARE(tabPage->primaryViewContainer()->url(), leftUrl);
+    m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
+    QTRY_VERIFY(!tabPage->splitViewEnabled());
+    view = m_mainWindow->activeViewContainer()->view();
 
     // A new conversation clears it.
     Q_EMIT panel->conversationCleared();
