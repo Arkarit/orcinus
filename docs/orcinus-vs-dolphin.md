@@ -138,8 +138,8 @@ A typical use: the Cushion Treemap on the left, the file list on the right.
 
 ### 4.1 View plugins
 
-Besides Icons, Compact and Details, Orcinus can show a folder with other views provided by
-plugins. Orcinus 0.1 comes with one, the Cushion Treemap. All views are listed together in
+Besides Icons, Compact, Details and Columns (4.7), Orcinus can show a folder with other views
+provided by plugins. Orcinus 0.1 comes with one, the Cushion Treemap. All views are listed together in
 the View menu and in the view mode button of the file view toolbar; with more than five,
 they move into a *View Modes* submenu. Options a view does not support stay visible but
 disabled.
@@ -203,18 +203,35 @@ off and their opacity set.
 
 ### 4.6 Information density
 
-Dolphin leaves 2 pixels above and below every item. *View → Icons / Compact / Details →
-Density* sets this space for each view mode:
+Dolphin leaves 2 pixels above and below every item. *View → Icons / Compact / Details /
+Columns → Density* sets this space for each view mode:
 
 - *Normal*: 2 pixels, Dolphin's look (default for existing users; *Defaults* restores it).
 - *Compact*: 1 pixel (default for new users, see section 10).
 - *Very compact*: no space; with 16 pixel icons and the usual system font a row is about
   18 pixels high instead of 22.
-- *Custom*: the space in pixels (0 to 10) and, in Compact and Details, the height of a text
+- *Custom*: the space in pixels (0 to 10) and, in Compact, Details and Columns, the height of a text
   line in percent of the font's (50 to 150 %). Below 100 % letters may touch the next row.
 
 In the Compact view the gap between the columns shrinks with the density as well (8, 6 and
 4 pixels). The space to the left and right of icon and name does not change.
+
+### 4.7 Columns view
+
+The Columns view (Miller columns, *Ctrl+4*) comes from Dolphin's development version: every
+folder of the path is a column of its own, and selecting a folder opens it in a new column to
+the right. Orcinus offers it as a fourth view mode next to Icons, Compact and Details. On top
+of Dolphin's Columns view:
+
+- It is listed with the view plugins (4.1), may be put on the file view toolbar and is part
+  of profiles (5), including its zoom and density (4.6).
+- With one display style for all folders, each view keeps its own mode (3.1): a Columns view
+  stays a Columns view when it moves to another folder.
+- Linked views (3.3) work with it: the other view follows the folder opened last, and the
+  selection of the other view is shown in the column of that folder, without opening
+  anything.
+- The built-in viewer (6) moves the selection in the column it was opened from.
+- *Show flat* (4.3) is not offered: each column lists one folder.
 
 ## 5. Profiles
 
@@ -324,7 +341,7 @@ A new user (no Orcinus settings yet) starts with these differences from Dolphin'
 - File name highlighting is on (7).
 - The filter bar is shown in new windows, the status bar spans the full width and has the
   zoom slider; Compact view previews are 16 pixels.
-- The information density is *Compact* in all three view modes (4.6), and so is the bar
+- The information density is *Compact* in all four view modes (4.6), and so is the bar
   density (2.5).
 
 ## 11. Smaller differences
