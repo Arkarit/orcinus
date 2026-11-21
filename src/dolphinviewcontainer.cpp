@@ -359,7 +359,7 @@ void DolphinViewContainer::setViewMode(DolphinView::Mode mode)
         swapView(mode);
 
         // Stored after the swap, because the old view may still be on the folder being left.
-        ViewProperties props(m_view->viewPropertiesUrl());
+        ViewProperties props(m_view->viewPropertiesUrl(), m_view->panelRole()); // Whale: PI
         props.setViewMode(mode);
     } else {
         m_view->setViewMode(mode);
@@ -1222,7 +1222,9 @@ void DolphinViewContainer::slotUrlNavigatorLocationChanged(const QUrl &url)
         // folders passed through keep no record of their own. Back and Forward come with the view
         // state of the history, which holds the mode of the view that showed the folder.
         const bool isColumns = qobject_cast<DolphinColumnsView *>(m_view) != nullptr;
-        const DolphinView::Mode savedMode = ViewProperties(url).viewMode();
+        const ViewProperties urlProps(url, m_view->panelRole()); // Whale: PI
+        // Whale (VS): with one style for all folders the view keeps its own, so its mode stays.
+        const DolphinView::Mode savedMode = urlProps.usesGlobalStyle() && !m_view->ownStyleData().isEmpty() ? m_view->viewMode() : urlProps.viewMode();
         const bool stateShowsColumns = viewModeOfState(m_urlNavigator->locationState()) == DolphinView::ColumnsView;
         if (!isColumns && savedMode == DolphinView::ColumnsView) {
             setViewMode(DolphinView::ColumnsView);

@@ -90,6 +90,7 @@ private:
     void update();
     void scheduleUpdate();
     void connectContainer(DolphinViewContainer *container);
+    void connectView(DolphinViewContainer *container); // the connections to its DolphinView
     /// E1: the other view goes to the location of @p leader.
     void follow(DolphinViewContainer *leader);
     /// LK4: the other view shows the selection of @p source.

@@ -263,7 +263,7 @@ void WhaleViewHostTest::testSwitcherListsViewsById()
         ids.append(viewActions->viewModeId(action));
     }
     QCOMPARE(ids.removeDuplicates(), 0);
-    QCOMPARE(ids.mid(0, 3), QStringList({QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details")}));
+    QCOMPARE(ids.mid(0, 4), QStringList({QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details"), QStringLiteral("columns")}));
     QVERIFY(fileList->isChecked());
     QVERIFY(!hello->isChecked());
 }

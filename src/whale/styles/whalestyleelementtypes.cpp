@@ -107,6 +107,8 @@ QString modeName(DolphinView::Mode mode)
         return i18nc("@item:intext view mode", "Compact");
     case DolphinView::DetailsView:
         return i18nc("@item:intext view mode", "Details");
+    case DolphinView::ColumnsView:
+        return i18nc("@item:intext view mode", "Columns");
     }
     return QString();
 }
@@ -205,8 +207,12 @@ public:
         stored.setDirProperties(data);
         stored.save();
         // and shown by the view of the position in the current tab.
-        if (DolphinView *view = shownView(window)) {
-            view->setOwnStyleData(data);
+        if (DolphinViewContainer *container = shownContainer(window)) {
+            container->view()->setOwnStyleData(data);
+            // The columns mode needs a view of its own class, which only the container swaps in.
+            if (container->view()->viewMode() != stored.viewMode()) {
+                container->setViewMode(stored.viewMode());
+            }
         }
     }
     QString describe(const QString &value) const override
@@ -241,15 +247,18 @@ private:
         return lines.join(u'\n');
     }
 
-    DolphinView *shownView(const DolphinMainWindow *window) const
+    DolphinViewContainer *shownContainer(const DolphinMainWindow *window) const
     {
         const DolphinTabPage *page = currentTabPage(window);
         if (!page) {
             return nullptr;
         }
-        DolphinViewContainer *container = m_role == DolphinView::PanelRole::Left ? page->primaryViewContainer()
-            : page->splitViewEnabled()                                           ? page->secondaryViewContainer()
-                                                                                 : nullptr;
+        return m_role == DolphinView::PanelRole::Left ? page->primaryViewContainer() : page->splitViewEnabled() ? page->secondaryViewContainer() : nullptr;
+    }
+
+    DolphinView *shownView(const DolphinMainWindow *window) const
+    {
+        DolphinViewContainer *container = shownContainer(window);
         return container ? container->view() : nullptr;
     }
 
@@ -574,10 +583,11 @@ struct ZoomMode {
     QLatin1String name;
 };
 
-constexpr std::array<ZoomMode, 3> zoomModes{{
+constexpr std::array<ZoomMode, 4> zoomModes{{
     {DolphinView::IconsView, QLatin1String("Icons")},
     {DolphinView::CompactView, QLatin1String("Compact")},
     {DolphinView::DetailsView, QLatin1String("Details")},
+    {DolphinView::ColumnsView, QLatin1String("Columns")},
 }};
 
 // The icon and preview sizes of the modes in @p value; sizes that cannot be read are 0.

@@ -101,6 +101,7 @@ private:
         std::optional<int> priority;
     };
 
+    void connectView();
     void updateRestoreDefaultsAction(bool isDefault);
     void updateSelectionActions();
     void setDisabledReason(const QString &name, const QString &reason);

@@ -28,6 +28,7 @@ QStringList WhaleViewCommandScope::allowedActions()
         QStringLiteral("icons"),
         QStringLiteral("compact"),
         QStringLiteral("details"),
+        QStringLiteral("columns"),
         QStringLiteral("view_mode"),
         QStringLiteral("view_settings"),
         QStringLiteral("view_zoom_in"),
@@ -118,19 +119,40 @@ WhaleViewCommandScope::WhaleViewCommandScope(DolphinViewContainer *container, QO
 
     // The actions on selected items follow the selection of this view: the file list's, or
     // a plugin view's own (T2), which WhaleViewActions announces.
-    connect(container->view(), &DolphinView::selectionChanged, this, &WhaleViewCommandScope::updateSelectionActions);
     connect(m_viewActions, &WhaleViewActions::commandSelectionChanged, this, &WhaleViewCommandScope::updateSelectionActions);
-    updateSelectionActions();
+    connectView();
 
-    // What the window sets for its own actions (DolphinMainWindow::updateViewActions()).
-    connect(container->view(), &DolphinView::viewSettingsChanged, this, &WhaleViewCommandScope::updateRestoreDefaultsAction);
-    updateRestoreDefaultsAction(container->view()->isViewSettingsDefaults());
+    // A chosen view mode goes through the container, which swaps the view for the columns view.
+    connect(m_actionHandler, &DolphinViewActionHandler::viewModeChangeRequested, this, [this](DolphinView::Mode mode) {
+        if (m_container) {
+            m_container->setViewMode(mode);
+        }
+    });
+    connect(container, &DolphinViewContainer::viewReplaced, this, [this]() {
+        if (m_container) {
+            m_actionHandler->setCurrentView(m_container->view());
+            m_actionHandler->updateViewActions();
+            connectView();
+        }
+    });
 
     // Last: the creators above set the actions' default shortcuts.
     WhaleViewActions::clearShortcuts(m_actionCollection);
 }
 
 WhaleViewCommandScope::~WhaleViewCommandScope() = default;
+
+void WhaleViewCommandScope::connectView()
+{
+    DolphinView *view = m_container->view();
+    // The actions on selected items follow the selection of this view: the file list's, or
+    // a plugin view's own (T2), which WhaleViewActions announces.
+    connect(view, &DolphinView::selectionChanged, this, &WhaleViewCommandScope::updateSelectionActions);
+    updateSelectionActions();
+    // What the window sets for its own actions (DolphinMainWindow::updateViewActions()).
+    connect(view, &DolphinView::viewSettingsChanged, this, &WhaleViewCommandScope::updateRestoreDefaultsAction);
+    updateRestoreDefaultsAction(view->isViewSettingsDefaults());
+}
 
 DolphinViewContainer *WhaleViewCommandScope::container() const
 {

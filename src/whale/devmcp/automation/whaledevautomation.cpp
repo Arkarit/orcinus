@@ -166,6 +166,7 @@ const QList<std::pair<QString, QString>> &actions()
         {QStringLiteral("view_icons"), QStringLiteral("icons")},
         {QStringLiteral("view_compact"), QStringLiteral("compact")},
         {QStringLiteral("view_details"), QStringLiteral("details")},
+        {QStringLiteral("view_columns"), QStringLiteral("columns")},
         {QStringLiteral("zoom_in"), KStandardAction::name(KStandardAction::ZoomIn)},
         {QStringLiteral("zoom_out"), KStandardAction::name(KStandardAction::ZoomOut)},
         // Only with WHALE_DEV_MCP_FILE_OPERATIONS=1, see fileOperations().
@@ -233,6 +234,8 @@ QString viewModeName(DolphinView::Mode mode)
         return QStringLiteral("compact");
     case DolphinView::DetailsView:
         return QStringLiteral("details");
+    case DolphinView::ColumnsView:
+        return QStringLiteral("columns");
     }
     return QStringLiteral("unknown");
 }

@@ -242,7 +242,7 @@ TOOLS = [
         "and move_to_other_pane change files or the clipboard and are refused "
         "unless Whale was started for a test profile with WHALE_DEV_MCP_FILE_OPERATIONS=1. rename opens Whale's "
         "rename path (inline in views that can, else the dialog: see rename_dialog); properties opens a dialog; "
-        "show_preview toggles 'Show Previews' of the location; view_icons/view_compact/view_details choose the "
+        "show_preview toggles 'Show Previews' of the location; view_icons/view_compact/view_details/view_columns choose the "
         "file list's view mode.",
         "inputSchema": {
             "type": "object",
@@ -253,7 +253,7 @@ TOOLS = [
                              "invert_selection", "rename", "properties", "new_tab", "close_tab",
                              "whale_show_file_view_toolbars", "activate_next_tab",
                              "activate_prev_tab", "show_preview", "reload", "show_information_panel", "view_icons",
-                             "view_compact", "view_details", "zoom_in", "zoom_out", "copy", "cut",
+                             "view_compact", "view_details", "view_columns", "zoom_in", "zoom_out", "copy", "cut",
                              "paste", "trash", "delete", "duplicate", "copy_location", "copy_to_other_pane",
                              "move_to_other_pane"],
                 }

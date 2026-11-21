@@ -232,7 +232,7 @@ void WhaleViewMenuTest::testDirectViewModes()
     QVERIFY(showMainWindow(url(QStringLiteral("a"))));
 
     // The product's views: the file list's modes, then the treemap. No test views.
-    QCOMPARE(viewModeIds(), QStringList({QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details"), treemapId}));
+    QCOMPARE(viewModeIds(), QStringList({QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details"), QStringLiteral("columns"), treemapId}));
     QCOMPARE(viewActions()->viewModeMenuEntries(), viewActions()->viewModeActions());
     QVERIFY(!action(QStringLiteral("whale_view_switcher")));
 
@@ -241,9 +241,13 @@ void WhaleViewMenuTest::testDirectViewModes()
     QMenu *menu = viewSettingsMenu();
     QVERIFY(menu);
     const QStringList texts = entryTexts(menu);
-    QCOMPARE(
-        texts.mid(0, 5),
-        QStringList({QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Cushion Treemap"), QStringLiteral("-")}));
+    QCOMPARE(texts.mid(0, 6),
+             QStringList({QStringLiteral("Icons"),
+                          QStringLiteral("Compact"),
+                          QStringLiteral("Details"),
+                          QStringLiteral("Columns"),
+                          QStringLiteral("Cushion Treemap"),
+                          QStringLiteral("-")}));
     QVERIFY2(!texts.contains(QStringLiteral("View Type >")), qPrintable(texts.join(QLatin1Char('|'))));
     QVERIFY2(!texts.contains(QStringLiteral("File List")), qPrintable(texts.join(QLatin1Char('|'))));
     QVERIFY2(!texts.contains(QStringLiteral("Hello")) && !texts.contains(QStringLiteral("Test List")), qPrintable(texts.join(QLatin1Char('|'))));
@@ -269,7 +273,7 @@ void WhaleViewMenuTest::testDirectViewModes()
     const int menuModes = menuTexts.indexOf(QStringLiteral("Icons"));
     QVERIFY2(menuModes > 0, qPrintable(menuTexts.join(QLatin1Char('|'))));
     QCOMPARE(menuTexts.at(menuModes - 1), QStringLiteral("-"));
-    QCOMPARE(menuTexts.mid(menuModes, 6), texts.mid(0, 4) + QStringList({QStringLiteral("-"), QStringLiteral("Sort By >")}));
+    QCOMPARE(menuTexts.mid(menuModes, 7), texts.mid(0, 5) + QStringList({QStringLiteral("-"), QStringLiteral("Sort By >")}));
     QVERIFY(menuTexts.indexOf(QStringLiteral("Zoom Out")) < menuModes);
     QVERIFY2(!menuTexts.contains(QStringLiteral("View Type >")), qPrintable(menuTexts.join(QLatin1Char('|'))));
     QVERIFY2(!menuTexts.contains(QStringLiteral("Change View Mode >")), qPrintable(menuTexts.join(QLatin1Char('|'))));
@@ -297,10 +301,10 @@ void WhaleViewMenuTest::testViewModeCount_data()
     const QString product = QStringLiteral(WHALE_TEST_PLUGIN_DIR);
     const QString dynamic = QStringLiteral(WHALE_TEST_DYNAMIC_PLUGIN_DIR);
     const QString testViews = QStringLiteral(WHALE_TEST_VIEW_PLUGIN_DIR);
-    QTest::newRow("product: 4") << QStringList{product} << 4 << false;
-    QTest::newRow("5") << QStringList{product, dynamic} << 5 << false;
-    QTest::newRow("6") << QStringList{product, testViews} << 6 << true;
-    QTest::newRow("7") << QStringList{product, testViews, dynamic} << 7 << true;
+    QTest::newRow("product: 5") << QStringList{product} << 5 << false;
+    QTest::newRow("6") << QStringList{product, dynamic} << 6 << true;
+    QTest::newRow("7") << QStringList{product, testViews} << 7 << true;
+    QTest::newRow("8") << QStringList{product, testViews, dynamic} << 8 << true;
 }
 
 void WhaleViewMenuTest::testViewModeCount()
@@ -312,7 +316,7 @@ void WhaleViewMenuTest::testViewModeCount()
     createMainWindow(pluginDirs);
     QVERIFY(showMainWindow(url(QStringLiteral("a"))));
     QCOMPARE(viewActions()->viewModeActions().count(), count);
-    QCOMPARE(viewModeIds().mid(0, 3), QStringList(std::begin(fileListModes), std::end(fileListModes)));
+    QCOMPARE(viewModeIds().mid(0, 4), QStringList(std::begin(fileListModes), std::end(fileListModes)) << QStringLiteral("columns"));
 
     const QStringList texts = entryTexts(viewSettingsMenu());
     const QStringList menuTexts = entryTexts(menuBarViewMenu());
@@ -347,6 +351,7 @@ void WhaleViewMenuTest::testSubmenuHoldsAllViewModes()
              QStringList({QStringLiteral("Icons"),
                           QStringLiteral("Compact"),
                           QStringLiteral("Details"),
+                          QStringLiteral("Columns"),
                           QStringLiteral("Cushion Treemap"),
                           QStringLiteral("Hello"),
                           QStringLiteral("Test List")}));
@@ -550,8 +555,10 @@ void WhaleViewMenuTest::testLocations()
     QVERIFY(container->viewHost()->isDolphinViewShown());
     QVERIFY(!treemapEntry->isEnabled());
     QCOMPARE(viewActions()->viewModeActions(), modes);
-    QCOMPARE(entryTexts(viewSettingsMenu()).mid(0, 4),
-             QStringList({QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Cushion Treemap")}));
+    QCOMPARE(
+        entryTexts(viewSettingsMenu()).mid(0, 5),
+        QStringList(
+            {QStringLiteral("Icons"), QStringLiteral("Compact"), QStringLiteral("Details"), QStringLiteral("Columns"), QStringLiteral("Cushion Treemap")}));
     QCOMPARE(checkedViewModes().count(), 1);
     QVERIFY(!action(QStringLiteral("whale_include_subfolders"))->isEnabled());
     QVERIFY(action(QStringLiteral("show_preview"))->isEnabled());

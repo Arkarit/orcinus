@@ -191,6 +191,8 @@ QString viewModeName(DolphinView::Mode mode)
         return QStringLiteral("compact");
     case DolphinView::DetailsView:
         return QStringLiteral("details");
+    case DolphinView::ColumnsView:
+        return QStringLiteral("columns");
     }
     return QString();
 }

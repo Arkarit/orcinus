@@ -926,7 +926,7 @@ void WhaleFileViewToolBarTest::testAllowedActions()
     if (QTest::currentTestFailed()) {
         return; // no window to test with (e.g. not activated under Wayland)
     }
-    QCOMPARE(allowed.count(), 36);
+    QCOMPARE(allowed.count(), 37);
     QCOMPARE(QSet<QString>(allowed.cbegin(), allowed.cend()).count(), allowed.count());
     // One definition: the toolbars' descriptor offers exactly this set.
     // ... plus the location bar (location bar plan, LB2).

@@ -834,7 +834,9 @@ void DolphinMainWindow::closeEvent(QCloseEvent *event)
     }
 
     // Whale: what the window shows when it closes is the last state of the split view.
-    WhaleSplitViewStartup::rememberSplitView(m_tabWidget->currentTabPage()->splitViewEnabled());
+    if (const DolphinTabPage *page = m_tabWidget->currentTabPage()) {
+        WhaleSplitViewStartup::rememberSplitView(page->splitViewEnabled());
+    }
 
     GeneralSettings::setVersion(CurrentDolphinVersion);
     GeneralSettings::self()->save();
@@ -2898,12 +2900,25 @@ void DolphinMainWindow::setupDockWidgets()
     connect(this, &DolphinMainWindow::selectionChanged, aiPanel, refreshAiContext);
     // The other view can change its folder while it is not active (linked views).
     auto otherViewConnection = std::make_shared<QMetaObject::Connection>();
-    connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, aiPanel, [this, aiPanel, refreshAiContext, otherViewConnection] {
+    auto otherContainerConnection = std::make_shared<QMetaObject::Connection>();
+    auto connectOtherView = std::make_shared<std::function<void()>>();
+    *connectOtherView = [this, aiPanel, refreshAiContext, otherViewConnection, otherContainerConnection, weakConnect = std::weak_ptr(connectOtherView)] {
         QObject::disconnect(*otherViewConnection);
+        QObject::disconnect(*otherContainerConnection);
         DolphinTabPage *tabPage = m_tabWidget->currentTabPage();
         if (tabPage && tabPage->inactiveViewContainer()) {
-            *otherViewConnection = connect(tabPage->inactiveViewContainer()->view(), &DolphinView::urlChanged, aiPanel, refreshAiContext);
+            DolphinViewContainer *other = tabPage->inactiveViewContainer();
+            *otherViewConnection = connect(other->view(), &DolphinView::urlChanged, aiPanel, refreshAiContext);
+            // Upstream's swapView() (columns view) replaces the view.
+            *otherContainerConnection = connect(other, &DolphinViewContainer::viewReplaced, aiPanel, [weakConnect] {
+                if (auto connectAgain = weakConnect.lock()) {
+                    (*connectAgain)();
+                }
+            });
         }
+    };
+    connect(m_tabWidget, &DolphinTabWidget::activeViewChanged, aiPanel, [refreshAiContext, connectOtherView] {
+        (*connectOtherView)();
         refreshAiContext();
     });
     connect(aiPanel, &WhaleAiPanel::attentionRequested, aiDock, [aiDock] {

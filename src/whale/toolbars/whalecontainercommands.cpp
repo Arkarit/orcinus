@@ -117,7 +117,19 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
 
     // The state of this view only.
     connect(container->urlNavigatorInternalWithHistory(), &KUrlNavigator::historyChanged, this, &WhaleContainerCommands::updateHistory);
-    DolphinView *view = container->view();
+    connectView();
+    // Upstream's swapView() (columns view) replaces the view.
+    connect(container, &DolphinViewContainer::viewReplaced, this, [this]() {
+        connectView();
+        updateUp();
+    });
+    updateHistory();
+    updateUp();
+}
+
+void WhaleContainerCommands::connectView()
+{
+    DolphinView *view = m_container->view();
     connect(view, &DolphinView::urlChanged, this, &WhaleContainerCommands::updateUp);
     connect(view, &DolphinView::directoryLoadingStarted, m_stop, [this]() {
         m_stop->setEnabled(true);
@@ -125,8 +137,6 @@ WhaleContainerCommands::WhaleContainerCommands(DolphinViewContainer *container, 
     connect(view, &DolphinView::directoryLoadingCompleted, m_stop, [this]() {
         m_stop->setEnabled(false);
     });
-    updateHistory();
-    updateUp();
 }
 
 WhaleContainerCommands::~WhaleContainerCommands() = default;

@@ -64,6 +64,7 @@ private:
     void selectAll();
     void invertSelection();
 
+    void connectView();
     void updateHistory();
     void updateUp();
     void fillHistoryMenu(KToolBarPopupAction *action, int direction);

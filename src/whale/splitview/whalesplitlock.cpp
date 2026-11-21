@@ -157,10 +157,13 @@ void WhaleSplitLock::scheduleUpdate()
 
 void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
 {
-    // Whatever decides about the lockability: the location and the shown view.
-    connect(container->view(), &DolphinView::urlChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
-    connect(container->view(), &DolphinView::urlChanged, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
-        follow(view);
+    connectView(container);
+    // Upstream's swapView() (columns view): the new view gets the connections and the lock's state.
+    connect(container, &DolphinViewContainer::viewReplaced, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
+        if (view) {
+            connectView(view);
+            scheduleUpdate();
+        }
     });
     if (WhaleViewHost *host = container->viewHost()) {
         connect(host, &WhaleViewHost::currentViewChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
@@ -173,6 +176,15 @@ void WhaleSplitLock::connectContainer(DolphinViewContainer *container)
         });
     }
     connect(container, &QObject::destroyed, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+}
+
+void WhaleSplitLock::connectView(DolphinViewContainer *container)
+{
+    // Whatever decides about the lockability: the location and the shown view.
+    connect(container->view(), &DolphinView::urlChanged, this, &WhaleSplitLock::scheduleUpdate, Qt::UniqueConnection);
+    connect(container->view(), &DolphinView::urlChanged, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
+        follow(view);
+    });
     // LK4: what the user selects in the active view.
     connect(container->view(), &DolphinView::linkedSelectionChanged, this, [this, view = QPointer<DolphinViewContainer>(container)]() {
         if (view && m_page && m_page->activeViewContainer() == view) {

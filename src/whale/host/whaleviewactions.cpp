@@ -68,7 +68,7 @@ WhaleViewActions::WhaleViewActions(WhaleViewServices *services, KActionCollectio
     m_viewModesSeparator->setSeparator(true);
     // The view modes: the file list's modes, then the plugin views, in one exclusive group.
     auto viewModeGroup = qobject_cast<KSelectAction *>(actionCollection->action(QStringLiteral("view_mode")));
-    for (const QString &mode : {QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details")}) {
+    for (const QString &mode : {QStringLiteral("icons"), QStringLiteral("compact"), QStringLiteral("details"), QStringLiteral("columns")}) {
         if (QAction *action = actionCollection->action(mode)) {
             m_viewModes.append(action);
             // Choosing a view mode of the file list shows the file list.
