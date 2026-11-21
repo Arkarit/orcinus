@@ -46,6 +46,7 @@ Rules-Requires-Root: no
 Package: orcinus
 Architecture: any
 Depends: kio,
+         python3,
          qml6-module-qtquick,
          qml6-module-qtquick-controls,
          qml6-module-qtquick-layouts,

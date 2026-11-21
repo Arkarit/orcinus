@@ -67,7 +67,8 @@ this release.
 ## Building from source
 
 You need Qt 6, KDE Frameworks 6 and Extra CMake Modules; libmpv is optional (videos in the
-built-in viewer). Use a build and install prefix separate from any Dolphin build:
+built-in viewer). At run time the AI canvas tools need Python 3. Use a build and install prefix
+separate from any Dolphin build:
 
 ```bash
 cmake -S . -B ../build-orcinus -G Ninja \
