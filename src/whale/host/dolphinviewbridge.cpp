@@ -11,6 +11,7 @@
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
 #include "kitemviews/kitemlistselectionmanager.h"
+#include "kitemviews/kitemlistview.h"
 #include "views/dolphinview.h"
 #include "views/draganddrophelper.h"
 #include "whaleitemlist.h"
@@ -387,8 +388,10 @@ void DolphinViewBridge::showItemInFolder(const QUrl &url)
     m_dolphinView->setActive(true);
     if (folder.matches(m_dolphinView->url(), QUrl::StripTrailingSlash)) {
         m_revealUrl.clear();
-        if (model()->index(url) >= 0) {
+        if (const int index = model()->index(url); index >= 0) {
             setSelection(WhaleSelection({url}, url));
+            // Selecting does not scroll (the marks below do).
+            controller()->view()->scrollToItem(index);
         } else {
             // Still loading: the DolphinView selects it when the folder is complete.
             m_dolphinView->markUrlsAsSelected({url});
@@ -432,6 +435,7 @@ void DolphinViewBridge::slotLoadingCompletedForReveal()
     const int index = model()->index(url);
     if (index >= 0 && !controller()->selectionManager()->isSelected(index)) {
         setSelection(WhaleSelection({url}, url));
+        controller()->view()->scrollToItem(index);
     }
 }
 

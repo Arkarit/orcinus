@@ -32,6 +32,7 @@
 #include "whaleaichangelog.h"
 #include "whaleaipanel.h"
 #include "whaleaisettingstools.h"
+#include <QScrollBar>
 #if HAVE_AI_CANVAS
 #include "whaleaicanvasmodel.h"
 #include "whaleaicanvaspanel.h"
@@ -2998,6 +2999,19 @@ void DolphinMainWindowTest::testAiCanvas()
     selectionChanged.clear();
     canvas->activate(QUrl::fromLocalFile(other).toString());
     QVERIFY(!selectionChanged.wait(500));
+
+    // A file further down is scrolled to (selecting alone did not scroll).
+    for (int i = 0; i < 150; ++i) {
+        testDir->createFile(QStringLiteral("pictures/zz-%1.txt").arg(i, 3, 10, QLatin1Char('0')));
+    }
+    QTRY_COMPARE(view->items().count(), 152);
+    auto *scrollBar = view->findChild<KItemListContainer *>()->verticalScrollBar();
+    QCOMPARE(scrollBar->value(), 0);
+    const QUrl last = QUrl::fromLocalFile(testDir->url().toLocalFile() + QStringLiteral("/pictures/zz-149.txt"));
+    canvas->activate(last.toString());
+    QTRY_COMPARE(view->selectedItems().count(), 1);
+    QCOMPARE(view->selectedItems().constFirst().url(), last);
+    QTRY_VERIFY(scrollBar->value() > 0);
 
     // In split view the active view shows it; the other one stays.
     m_mainWindow->actionCollection()->action(QStringLiteral("split_view"))->trigger();
