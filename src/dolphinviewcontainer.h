@@ -66,6 +66,8 @@ class DolphinViewContainer : public QWidget
 {
     Q_OBJECT
 
+    friend class DolphinViewContainerTest;
+
 public:
     /** @param role Whale: the position of the view in its tab (see DolphinView::setPanelRole()). */
     DolphinViewContainer(const QUrl &url, QWidget *parent, DolphinView::PanelRole role = DolphinView::PanelRole::Left);
@@ -124,6 +126,7 @@ public:
      */
     DolphinUrlNavigator *urlNavigatorInternalWithHistory();
 
+    // See @viewReplaced
     const DolphinView *view() const;
     DolphinView *view();
 
@@ -249,6 +252,17 @@ public:
 
 public Q_SLOTS:
     /**
+     * Sets the view mode and stores it, replacing the view when the mode needs another class.
+     */
+    void setViewMode(DolphinView::Mode mode);
+
+    /**
+     * Restores a state that DolphinView::saveState() wrote. A state of the columns view comes back
+     * in the columns view, whatever the mode of the folder.
+     */
+    void restoreViewState(QDataStream &stream);
+
+    /**
      * Sets the current active URL, where all actions are applied. The
      * URL navigator is synchronized with this URL. The signals
      * KUrlNavigator::urlChanged() and KUrlNavigator::historyChanged()
@@ -266,6 +280,12 @@ public Q_SLOTS:
     void setUrlWithoutActivation(const QUrl &url, bool replaceHistoryEntry = false);
 
     /**
+     * The next setUrl() with \a url opens a place, which the columns view shows as its
+     * first column. The other view modes do not change.
+     */
+    void markNextUrlAsPlace(const QUrl &url);
+
+    /**
      * Popups the filter bar above the status bar if \a visible is true.
      * It \a visible is true, it is assured that the filter bar gains
      * the keyboard focus.
@@ -276,6 +296,7 @@ public Q_SLOTS:
     void slotSplitTabDisabled();
 
 Q_SIGNALS:
+
     /**
      * Is emitted whenever the filter bar has changed its visibility state.
      */
@@ -298,6 +319,11 @@ Q_SIGNALS:
      * state.
      */
     void writeStateChanged(bool isFolderWritable);
+
+    /**
+     * Is emitted after the view has been replaced, so that its listeners connect to the new one.
+     */
+    void viewReplaced();
 
     /**
      * Is emitted when the Caption has been changed.
@@ -478,6 +504,17 @@ private Q_SLOTS:
     void slotOpenUrlFinished(KJob *job);
 
 private:
+    /** Connects m_view, again after each swapView(). */
+    void connectViewSignals();
+
+    /** Connects m_view and \a urlNavigator to each other, and shows the folder of m_view in it. */
+    void connectViewToUrlNavigator(DolphinUrlNavigator *urlNavigator);
+    /** Reverses connectViewToUrlNavigator(). */
+    void disconnectViewFromUrlNavigator(DolphinUrlNavigator *urlNavigator);
+
+    /** Replaces m_view with the view class that draws \a mode. */
+    void swapView(DolphinView::Mode mode);
+
     /**
      * Saves the state of the current view: contents position,
      * root URL, ...

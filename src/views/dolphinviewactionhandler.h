@@ -83,6 +83,12 @@ public:
      */
     KActionCollection *actionCollection();
 
+    /**
+     * Takes the Columns view mode out of the view mode button and the menus, for a view that
+     * cannot show columns.
+     */
+    void removeColumnsMode();
+
 public Q_SLOTS:
     /**
      * Update all actions in the 'View' menu, i.e. those that depend on the
@@ -113,6 +119,11 @@ Q_SIGNALS:
 
     /** Used to request either entering or leaving of selection mode */
     void selectionModeChangeTriggered(bool enabled, SelectionMode::BottomBar::Contents bottomBarContents = SelectionMode::BottomBar::Contents::GeneralContents);
+
+    /**
+     * Emitted when the user chose a view mode. The receiver applies it to the container.
+     */
+    void viewModeChangeRequested(DolphinView::Mode mode);
 
 private Q_SLOTS:
     /**
@@ -310,6 +321,12 @@ private:
      * folder, and gives the others the reason as tooltip.
      */
     void updateIndexerRoleActions();
+
+    /**
+     * Returns the "switch to columns mode" action.
+     * Helper method for createActions();
+     */
+    KToggleAction *columnsModeAction();
 
     KActionCollection *m_actionCollection;
     DolphinView *m_currentView;

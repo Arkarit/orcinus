@@ -6,6 +6,7 @@
 
 #include "viewsettingstab.h"
 
+#include "dolphin_columnsmodesettings.h"
 #include "dolphin_compactmodesettings.h"
 #include "dolphin_detailsmodesettings.h"
 #include "dolphin_iconsmodesettings.h"
@@ -36,6 +37,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
     , m_fontRequester(nullptr)
     , m_widthBox(nullptr)
     , m_maxLinesBox(nullptr)
+    , m_columnWidthBox(nullptr)
     , m_expandableFolders(nullptr)
     , m_dragFromAnywhereOnRow(nullptr)
 {
@@ -142,7 +144,7 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
         topLayout->addRow(i18nc("@label:checkbox", "Folders:"), m_expandableFolders);
         break;
     }
-    case DetailsMode:
+    case DetailsMode: {
         m_expandableFolders = new QCheckBox(i18nc("@option:check", "Expandable"));
         topLayout->addRow(i18nc("@label:checkbox", "Folders:"), m_expandableFolders);
 
@@ -165,6 +167,14 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
             i18nc("@info:tooltip", "Hold Shift while dragging from the empty part of a row to start a selection rectangle instead."));
         topLayout->addRow(i18nc("@label:checkbox", "Dragging:"), m_dragFromAnywhereOnRow);
         break;
+    }
+    case ColumnsViewMode: {
+        m_columnWidthBox = new QComboBox();
+        m_columnWidthBox->addItem(i18nc("@item:inlistbox Column width", "Fixed"));
+        m_columnWidthBox->addItem(i18nc("@item:inlistbox Column width", "Adjust to content"));
+        topLayout->addRow(i18nc("@label:listbox", "Column width:"), m_columnWidthBox);
+        break;
+    }
     }
 
     loadSettings();
@@ -197,7 +207,8 @@ ViewSettingsTab::ViewSettingsTab(Mode mode, QWidget *parent)
         connect(m_expandableFolders, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
         connect(m_dragFromAnywhereOnRow, &QCheckBox::toggled, this, &ViewSettingsTab::changed);
         break;
-    default:
+    case ColumnsViewMode:
+        connect(m_columnWidthBox, &QComboBox::currentIndexChanged, this, &ViewSettingsTab::changed);
         break;
     }
 }
@@ -235,7 +246,7 @@ void ViewSettingsTab::applySettings()
         CompactModeSettings::setExpandableFolders(m_expandableFolders->isChecked());
         CompactModeSettings::self()->save();
         break;
-    case DetailsMode:
+    case DetailsMode: {
         auto detailsModeSettings = DetailsModeSettings::self();
         // We need side-padding when the full row is a click target to still be able to not click items.
         // So here the default padding is enabled when the full row highlight is enabled.
@@ -260,6 +271,11 @@ void ViewSettingsTab::applySettings()
         detailsModeSettings->setExpandableFolders(m_expandableFolders->isChecked());
         detailsModeSettings->setDragFromAnywhereOnRow(m_dragFromAnywhereOnRow->isChecked());
         detailsModeSettings->save();
+        break;
+    }
+    case ColumnsViewMode:
+        ColumnsModeSettings::setDynamicColumnWidth(m_columnWidthBox->currentIndex() == 1);
+        ColumnsModeSettings::self()->save();
         break;
     }
 
@@ -320,7 +336,8 @@ void ViewSettingsTab::loadSettings()
         m_expandableFolders->setChecked(DetailsModeSettings::expandableFolders());
         m_dragFromAnywhereOnRow->setChecked(DetailsModeSettings::dragFromAnywhereOnRow());
         break;
-    default:
+    case ColumnsViewMode:
+        m_columnWidthBox->setCurrentIndex(ColumnsModeSettings::dynamicColumnWidth() ? 1 : 0);
         break;
     }
 

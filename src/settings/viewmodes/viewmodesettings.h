@@ -13,6 +13,7 @@
 
 #include <variant>
 
+class ColumnsModeSettings;
 class CompactModeSettings;
 class DetailsModeSettings;
 class IconsModeSettings;
@@ -79,7 +80,7 @@ public:
 private:
     explicit ViewModeSettings();
 
-    std::variant<IconsModeSettings *, CompactModeSettings *, DetailsModeSettings *> m_viewModeSettingsVariant;
+    std::variant<IconsModeSettings *, CompactModeSettings *, DetailsModeSettings *, ColumnsModeSettings *> m_viewModeSettingsVariant;
 };
 
 #endif

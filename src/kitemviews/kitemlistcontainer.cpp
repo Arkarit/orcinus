@@ -447,6 +447,8 @@ void KItemListContainer::updateGeometries()
 {
     QRect rect = geometry();
 
+    m_controller->view()->setHorizontalScrollingEnabled(horizontalScrollBarPolicy() != Qt::ScrollBarAlwaysOff);
+
     int extra = frameWidth() * 2;
     QStyleOption option;
     option.initFrom(this);

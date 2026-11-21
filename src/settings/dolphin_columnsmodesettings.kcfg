@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE kcfg SYSTEM "http://www.kde.org/standards/kcfg/1.0/kcfg.dtd">
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <include>kiconloader.h</include>
+    <include>QFontDatabase</include>
+    <kcfgfile name="orcinusrc"/>
+    <group name="ColumnsMode">
+        <entry name="ViewFont" type="Font">
+            <default code="true">QFont()</default>
+        </entry>
+        <entry name="UseSystemFont" type="Bool">
+            <label>Use system font</label>
+            <default>true</default>
+        </entry>
+        <entry name="IconSize" type="Int">
+            <label>Icon size</label>
+            <default code="true">KIconLoader::SizeSmall</default>
+        </entry>
+        <entry name="PreviewSize" type="Int">
+            <label>Preview size</label>
+            <default code="true">KIconLoader::SizeLarge</default>
+        </entry>
+        <entry name="MinColumnWidth" type="Int">
+            <label>Minimum column width in pixels</label>
+            <default>320</default>
+        </entry>
+        <entry name="MinContentColumnWidth" type="Int">
+            <label>Minimum width in pixels of a column adjusted to its content</label>
+            <default>150</default>
+        </entry>
+        <entry name="MaxVisibleColumns" type="Int">
+            <label>Maximum number of visible columns before scrolling</label>
+            <default>4</default>
+            <min>1</min>
+        </entry>
+        <entry name="DynamicColumnWidth" type="Bool">
+            <label>Adjust column width to its content</label>
+            <default>true</default>
+        </entry>
+        <!-- Whale: information density (ID1), as in the other view modes. -->
+        <entry name="Density" type="Enum">
+            <label>Information density</label>
+            <choices>
+                <choice name="Normal"/>
+                <choice name="Compact"/>
+                <choice name="VeryCompact"/>
+                <choice name="Custom"/>
+            </choices>
+            <default>Normal</default>
+        </entry>
+        <entry name="CustomPadding" type="Int">
+            <label>Space above and below each item with the custom density, in pixels</label>
+            <default>2</default>
+            <min>0</min>
+            <max>10</max>
+        </entry>
+        <entry name="CustomLineHeight" type="Int">
+            <label>Height of a text line with the custom density, in percent of the font's line height</label>
+            <default>100</default>
+            <min>50</min>
+            <max>150</max>
+        </entry>
+    </group>
+</kcfg>

@@ -97,9 +97,18 @@ DolphinPart::DolphinPart(QWidget *parentWidget, QObject *parent, const KPluginMe
 
     m_actionHandler = new DolphinViewActionHandler(actionCollection(), nullptr, this);
     m_actionHandler->setCurrentView(m_view);
+    // The part shows a plain DolphinView, which cannot draw columns.
+    m_actionHandler->removeColumnsMode();
     connect(m_actionHandler, &DolphinViewActionHandler::createDirectoryTriggered, this, [this](const QUrl &parent) {
         setNewFileMenuWorkingDirectory(parent);
         createDirectory();
+    });
+    connect(m_actionHandler, &DolphinViewActionHandler::viewModeChangeRequested, this, [this](DolphinView::Mode mode) {
+        if (mode == DolphinView::ColumnsView) {
+            m_actionHandler->updateViewActions();
+            return;
+        }
+        m_view->setViewMode(mode);
     });
 
     m_remoteEncoding = new DolphinRemoteEncoding(this, m_actionHandler);
@@ -255,7 +264,7 @@ void DolphinPart::slotSelectionChanged(const KFileItemList &selection)
 
 void DolphinPart::updatePasteAction()
 {
-    QPair<bool, QString> pasteInfo = m_view->pasteInfo();
+    const std::pair<bool, QString> pasteInfo = m_view->pasteInfo();
     Q_EMIT m_extension->enableAction("paste", pasteInfo.first);
     Q_EMIT m_extension->setActionText("paste", pasteInfo.second);
 }

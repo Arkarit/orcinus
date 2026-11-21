@@ -299,7 +299,8 @@ int main(int argc, char **argv)
         const KSharedConfig::Ptr config = KSharedConfig::openConfig();
         const std::pair<DolphinView::Mode, const char *> modes[] = {{DolphinView::IconsView, "IconsMode"},
                                                                     {DolphinView::CompactView, "CompactMode"},
-                                                                    {DolphinView::DetailsView, "DetailsMode"}};
+                                                                    {DolphinView::DetailsView, "DetailsMode"},
+                                                                    {DolphinView::ColumnsView, "ColumnsMode"}};
         for (const auto &[mode, group] : modes) {
             if (config->group(QLatin1String(group)).hasKey("Density")) {
                 continue;

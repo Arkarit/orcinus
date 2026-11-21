@@ -61,6 +61,8 @@
 
 #include <kwidgetsaddons_version.h>
 
+#include <memory>
+
 #include <QAbstractItemView>
 #ifndef QT_NO_ACCESSIBILITY
 #include <QAccessible>
@@ -109,9 +111,10 @@ bool fitsInASession(const UrlContainer &urls)
 }
 }
 
-DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
+DolphinView::DolphinView(const QUrl &url, QWidget *parent, std::optional<Mode> initialMode, bool canDisplayColumns, PanelRole role)
     : QWidget(parent)
     , m_active(true)
+    , m_canDisplayColumns(canDisplayColumns)
     , m_tabsForFiles(false)
     , m_assureVisibleCurrentIndex(false)
     , m_isFolderWritable(false)
@@ -159,12 +162,12 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     m_view = new DolphinItemListView();
     m_view->setEnabledSelectionToggles(DolphinItemListView::SelectionTogglesEnabled::FollowSetting);
     m_view->setVisibleRoles({"text"});
+    m_view->setViewMode(m_mode);
     applyModeToView();
 
     KItemListController *controller = new KItemListController(m_model, m_view, this);
     controller->setAutoActivationEnabled(GeneralSettings::autoExpandFolders());
     connect(controller, &KItemListController::clickViewBackground, this, &DolphinView::clickViewBackground);
-    connect(controller, &KItemListController::doubleClickViewBackground, this, &DolphinView::doubleClickViewBackground);
     connect(controller, &KItemListController::typeAheadUsed, this, [this](const QString &typedString, std::optional<int> foundIndex) {
         if (foundIndex.has_value()) {
             const KFileItem item = m_model->fileItem(foundIndex.value());
@@ -208,47 +211,20 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     connect(m_showLoadingPlaceholderTimer, &QTimer::timeout, this, &DolphinView::showLoadingPlaceholder);
 
     // Show some placeholder text for empty folders
-    // This is made using a heavily-modified QLabel rather than a KTitleWidget
-    // because KTitleWidget can't be told to turn off mouse-selectable text
-    m_placeholderLabel = new QLabel(this);
-    // Don't consume mouse events
-    m_placeholderLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-    QFont placeholderLabelFont;
-    // To match the size of a level 2 Heading/KTitleWidget
-    placeholderLabelFont.setPointSize(qRound(placeholderLabelFont.pointSize() * 1.3));
-    m_placeholderLabel->setFont(placeholderLabelFont);
-    m_placeholderLabel->setWordWrap(true);
-    m_placeholderLabel->setAlignment(Qt::AlignCenter);
-    // Match opacity of QML placeholder label component
-    auto *effect = new QGraphicsOpacityEffect(m_placeholderLabel);
-    effect->setOpacity(0.5);
-    m_placeholderLabel->setGraphicsEffect(effect);
+    m_placeholderLabel = createPlaceholderLabel(m_container);
     // Set initial text and visibility
     updatePlaceholderLabel();
 
-    auto *centeringLayout = new QVBoxLayout(m_container);
-    centeringLayout->addWidget(m_placeholderLabel);
-    centeringLayout->setAlignment(m_placeholderLabel, Qt::AlignCenter);
-
     controller->setSelectionBehavior(KItemListController::MultiSelection);
     connect(controller, &KItemListController::itemActivated, this, &DolphinView::slotItemActivated);
-    connect(controller, &KItemListController::itemsActivated, this, &DolphinView::slotItemsActivated);
-    connect(controller, &KItemListController::itemMiddleClicked, this, &DolphinView::slotItemMiddleClicked);
-    connect(controller, &KItemListController::itemContextMenuRequested, this, &DolphinView::slotItemContextMenuRequested);
-    connect(controller, &KItemListController::viewContextMenuRequested, this, &DolphinView::slotViewContextMenuRequested);
     connect(controller, &KItemListController::headerContextMenuRequested, this, &DolphinView::slotHeaderContextMenuRequested);
     connect(controller, &KItemListController::mouseButtonPressed, this, &DolphinView::slotMouseButtonPressed);
     connect(controller, &KItemListController::itemHovered, this, &DolphinView::slotItemHovered);
     connect(controller, &KItemListController::itemUnhovered, this, &DolphinView::slotItemUnhovered);
     connect(controller, &KItemListController::itemDropEvent, this, &DolphinView::slotItemDropEvent);
-    connect(controller, &KItemListController::escapePressed, this, &DolphinView::stopLoading);
     connect(controller, &KItemListController::modelChanged, this, &DolphinView::slotModelChanged);
     connect(controller, &KItemListController::selectedItemTextPressed, this, &DolphinView::slotSelectedItemTextPressed);
-    connect(controller, &KItemListController::increaseZoom, this, &DolphinView::slotIncreaseZoom);
-    connect(controller, &KItemListController::decreaseZoom, this, &DolphinView::slotDecreaseZoom);
-    connect(controller, &KItemListController::swipeUp, this, &DolphinView::slotSwipeUp);
-    connect(controller, &KItemListController::selectionModeChangeRequested, this, &DolphinView::selectionModeChangeRequested);
+    connectItemController(controller);
 
     connect(m_model, &KFileItemModel::directoryLoadingStarted, this, &DolphinView::slotDirectoryLoadingStarted);
     connect(m_model, &KFileItemModel::directoryLoadingCompleted, this, &DolphinView::slotDirectoryLoadingCompleted);
@@ -287,7 +263,6 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     connect(m_view->header(), &KItemListHeader::sidePaddingChanged, this, &DolphinView::slotSidePaddingWidthChanged);
 
     KItemListSelectionManager *selectionManager = controller->selectionManager();
-    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, &DolphinView::slotSelectionChanged);
     connect(selectionManager, &KItemListSelectionManager::selectionRestricted, this, &DolphinView::selectionLimited); // Whale
     // Whale: LK4, the linked views of a split view.
     const auto emitLinkedSelectionChanged = [this]() {
@@ -333,7 +308,14 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     m_twoClicksRenamingTimer->setSingleShot(true);
     connect(m_twoClicksRenamingTimer, &QTimer::timeout, this, &DolphinView::slotTwoClicksRenamingTimerTimeout);
 
-    applyViewProperties();
+    if (initialMode.has_value()) {
+        ViewProperties props(viewPropertiesUrl(), m_panelRole);
+        props.setAutoSaveEnabled(false);
+        props.setViewMode(initialMode.value());
+        applyViewProperties(props);
+    } else {
+        applyViewProperties();
+    }
     if (m_panelRole == PanelRole::Right) {
         // Whale: the style the right view shows from now on is its own.
         if (ViewProperties *own = ownStyle()) {
@@ -343,7 +325,10 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, PanelRole role)
     m_topLayout->addWidget(m_container);
     updateContainerFrame();
 
-    loadDirectory(url);
+    // The columns view lists each folder in the model of its column.
+    if (!(m_canDisplayColumns && m_mode == ColumnsView)) {
+        loadDirectory(url);
+    }
 }
 
 DolphinView::~DolphinView()
@@ -384,7 +369,6 @@ bool DolphinView::isActive() const
 void DolphinView::setViewMode(Mode mode)
 {
     if (mode != m_mode) {
-        // Reset scrollbars before changing the view mode.
         m_container->horizontalScrollBar()->setValue(0);
         m_container->verticalScrollBar()->setValue(0);
 
@@ -430,6 +414,12 @@ void DolphinView::setSelectionModeEnabled(const bool enabled)
 bool DolphinView::selectionMode() const
 {
     return m_container->controller()->selectionMode();
+}
+
+KItemListController *DolphinView::draggingController() const
+{
+    KItemListController *controller = m_container->controller();
+    return controller->isDragging() ? controller : nullptr;
 }
 
 void DolphinView::setPreviewsShown(bool show)
@@ -521,30 +511,30 @@ int DolphinView::itemsCount() const
 
 KFileItemList DolphinView::selectedItems() const
 {
-    const KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    auto *selectionManager = activeSelectionManager();
+    auto *model = activeModel();
 
     KFileItemList selectedItems;
     const auto items = selectionManager->selectedItems();
     selectedItems.reserve(items.count());
     for (int index : items) {
-        selectedItems.append(m_model->fileItem(index));
+        selectedItems.append(model->fileItem(index));
     }
     return selectedItems;
 }
 
 std::optional<KFileItem> DolphinView::firstSelectedItem() const
 {
-    const KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    auto *selectionManager = activeSelectionManager();
     if (selectionManager->selectedItems().count() == 1) {
-        return {m_model->fileItem(selectionManager->selectedItems().first())};
+        return {activeModel()->fileItem(selectionManager->selectedItems().first())};
     }
     return std::nullopt;
 }
 
 int DolphinView::selectedItemsCount() const
 {
-    const KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
-    return selectionManager->selectedItems().count();
+    return activeSelectionManager()->selectedItems().count();
 }
 
 void DolphinView::markUrlsAsSelected(const QList<QUrl> &urls)
@@ -610,12 +600,10 @@ void DolphinView::setSortRole(const QByteArray &role)
         const Qt::SortOrder preferredOrder = preferredSortOrder(role);
         if (sortOrder() != preferredOrder) {
             props->setSortOrder(preferredOrder);
-            KItemModelBase *model = m_container->controller()->model();
-            model->setSortOrder(preferredOrder);
+            m_model->setSortOrder(preferredOrder);
         }
 
-        KItemModelBase *model = m_container->controller()->model();
-        model->setSortRole(role);
+        m_model->setSortRole(role);
 
         Q_EMIT sortRoleChanged(role);
         Q_EMIT viewSettingsChanged(props->isDefaults());
@@ -624,35 +612,31 @@ void DolphinView::setSortRole(const QByteArray &role)
 
 QByteArray DolphinView::sortRole() const
 {
-    const KItemModelBase *model = m_container->controller()->model();
-    return model->sortRole();
+    return m_model->sortRole();
 }
 
 void DolphinView::setGroupRole(const QByteArray &role)
 {
-    KItemModelBase *model = m_container->controller()->model();
-    if (role == model->rawGroupRole()) {
+    if (role == m_model->rawGroupRole()) {
         return;
     }
 
     PropertiesForChange props(this);
     props->setGroupRole(role);
 
-    model->setGroupRole(role);
+    m_model->setGroupRole(role);
 
     Q_EMIT groupRoleChanged(role);
 }
 
 QByteArray DolphinView::groupRole() const
 {
-    const KItemModelBase *model = m_container->controller()->model();
-    return model->groupRole();
+    return m_model->groupRole();
 }
 
 QByteArray DolphinView::rawGroupRole() const
 {
-    const KItemModelBase *model = m_container->controller()->model();
-    return model->rawGroupRole();
+    return m_model->rawGroupRole();
 }
 
 void DolphinView::setSortOrder(Qt::SortOrder order)
@@ -810,7 +794,7 @@ void DolphinView::requestStatusBarText()
         m_statJobForStatusBarText->kill();
     }
 
-    if (m_container->controller()->selectionManager()->hasSelection()) {
+    if (activeSelectionManager()->hasSelection()) {
         int folderCount = 0;
         int fileCount = 0;
         KIO::filesize_t totalFileSize = 0;
@@ -834,11 +818,12 @@ void DolphinView::requestStatusBarText()
             emitStatusBarText(folderCount, fileCount, totalFileSize, HasSelection);
         }
     } else { // has no selection
-        if (!m_model->rootItem().url().isValid()) {
+        const KFileItem root = rootItem();
+        if (!root.url().isValid()) {
             return;
         }
 
-        m_statJobForStatusBarText = KIO::stat(m_model->rootItem().url(), KIO::StatJob::SourceSide, KIO::StatRecursiveSize, KIO::HideProgressInfo);
+        m_statJobForStatusBarText = KIO::stat(root.url(), KIO::StatJob::SourceSide, KIO::StatRecursiveSize, KIO::HideProgressInfo);
         connect(m_statJobForStatusBarText, &KJob::result, this, &DolphinView::slotStatJobResult);
         m_statJobForStatusBarText->start();
     }
@@ -942,41 +927,43 @@ QUrl folderOfItem(const KFileItemModel *model, int index)
 
 void DolphinView::selectAll()
 {
-    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    KItemListSelectionManager *selectionManager = activeSelectionManager();
+    KFileItemModel *model = activeModel();
     if (selectionManager->isGroupLimited()) {
         // Whale: the items of the current folder.
         const int current = selectionManager->currentItem();
-        const QUrl folder = current >= 0 ? folderOfItem(m_model, current) : url().adjusted(QUrl::StripTrailingSlash);
+        const QUrl folder = current >= 0 ? folderOfItem(model, current) : url().adjusted(QUrl::StripTrailingSlash);
         KItemSet items;
-        for (int index = 0; index < m_model->count(); ++index) {
-            if (folderOfItem(m_model, index) == folder) {
+        for (int index = 0; index < model->count(); ++index) {
+            if (folderOfItem(model, index) == folder) {
                 items.insert(index);
             }
         }
         selectionManager->setSelectedItems(items);
         return;
     }
-    selectionManager->setSelected(0, m_model->count());
+    selectionManager->setSelected(0, model->count());
 }
 
 void DolphinView::invertSelection()
 {
-    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    KItemListSelectionManager *selectionManager = activeSelectionManager();
+    KFileItemModel *model = activeModel();
     if (selectionManager->isGroupLimited()) {
         // Whale: within the current folder.
         const int current = selectionManager->currentItem();
-        const QUrl folder = current >= 0 ? folderOfItem(m_model, current) : url().adjusted(QUrl::StripTrailingSlash);
+        const QUrl folder = current >= 0 ? folderOfItem(model, current) : url().adjusted(QUrl::StripTrailingSlash);
         const KItemSet selected = selectionManager->selectedItems();
         KItemSet items;
-        for (int index = 0; index < m_model->count(); ++index) {
-            if (folderOfItem(m_model, index) == folder && !selected.contains(index)) {
+        for (int index = 0; index < model->count(); ++index) {
+            if (folderOfItem(model, index) == folder && !selected.contains(index)) {
                 items.insert(index);
             }
         }
         selectionManager->setSelectedItems(items);
         return;
     }
-    selectionManager->setSelected(0, m_model->count(), KItemListSelectionManager::Toggle);
+    selectionManager->setSelected(0, model->count(), KItemListSelectionManager::Toggle);
 }
 
 void DolphinView::setSelectionLimitedToOneFolder(bool limited)
@@ -1180,7 +1167,7 @@ void DolphinView::clearSelection()
 {
     m_selectJobCreatedItems = false;
     m_selectedUrls.clear();
-    m_container->controller()->selectionManager()->clearSelection();
+    activeSelectionManager()->clearSelection();
 }
 
 void DolphinView::scrollToItemOnceResorted(const QUrl &url)
@@ -1207,32 +1194,34 @@ void DolphinView::renameSelectedItems()
     }
 
     if (items.count() == 1 && GeneralSettings::renameInline()) {
-        const int index = m_model->index(items.first());
+        DolphinItemListView *view = activeItemListView();
+        const int index = activeModel()->index(items.first());
 
         connect(
-            m_view,
+            view,
             &KItemListView::scrollingStopped,
             this,
-            [this, index]() {
-                m_view->editRole(index, "text");
+            [this, view, index]() {
+                view->editRole(index, "text");
 
                 hideToolTip();
 
-                connect(m_view, &DolphinItemListView::roleEditingFinished, this, &DolphinView::slotRoleEditingFinished, Qt::UniqueConnection);
+                connect(view, &DolphinItemListView::roleEditingFinished, this, &DolphinView::slotRoleEditingFinished, Qt::UniqueConnection);
             },
             Qt::SingleShotConnection);
-        m_view->scrollToItem(index);
+        view->scrollToItem(index);
 
     } else {
         KIO::RenameFileDialog *dialog = new KIO::RenameFileDialog(items, this);
         connect(dialog, &KIO::RenameFileDialog::renamingFinished, this, [this, items](const QList<QUrl> &urls) {
             // The model may have already been updated, so it's possible that we don't find the old items.
+            KFileItemModel *model = activeModel();
             for (int i = 0; i < items.count(); ++i) {
-                const int index = m_model->index(items[i]);
+                const int index = model->index(items[i]);
                 if (index >= 0) {
                     SmallHash data;
                     data.insert("text", urls[i].fileName());
-                    m_model->setData(index, data);
+                    model->setData(index, data);
                 }
             }
 
@@ -1423,6 +1412,16 @@ void DolphinView::updateContainerFrame()
     if (m_container->frameWidth() > 0) {
         m_container->setFrameShape(QFrame::NoFrame);
     }
+}
+
+QVBoxLayout *DolphinView::topLayout() const
+{
+    return m_topLayout;
+}
+
+void DolphinView::updateUrl(const QUrl &url)
+{
+    m_url = url;
 }
 
 void DolphinView::updatePalette()
@@ -1681,7 +1680,7 @@ void DolphinView::slotItemContextMenuRequested(int index, const QPointF &pos)
         abortTwoClicksRenaming();
     }
 
-    const KFileItem item = m_model->fileItem(index);
+    const KFileItem item = activeModel()->fileItem(index);
     Q_EMIT requestContextMenu(pos.toPoint(), item, selectedItems(), url());
 }
 
@@ -1851,13 +1850,33 @@ void DolphinView::slotSidePaddingWidthChanged(qreal leftPaddingWidth, qreal righ
     m_view->writeSettings();
 }
 
+QList<QMetaObject::Connection> DolphinView::connectItemController(KItemListController *controller)
+{
+    return {
+        connect(controller->selectionManager(), &KItemListSelectionManager::selectionChanged, this, &DolphinView::slotSelectionChanged),
+        connect(controller, &KItemListController::itemsActivated, this, &DolphinView::slotItemsActivated),
+        connect(controller, &KItemListController::itemMiddleClicked, this, &DolphinView::slotItemMiddleClicked),
+        connect(controller, &KItemListController::itemContextMenuRequested, this, &DolphinView::slotItemContextMenuRequested),
+        connect(controller, &KItemListController::viewContextMenuRequested, this, &DolphinView::slotViewContextMenuRequested),
+        connect(controller, &KItemListController::escapePressed, this, &DolphinView::stopLoading),
+        connect(controller, &KItemListController::increaseZoom, this, &DolphinView::slotIncreaseZoom),
+        connect(controller, &KItemListController::decreaseZoom, this, &DolphinView::slotDecreaseZoom),
+        connect(controller, &KItemListController::swipeUp, this, &DolphinView::slotSwipeUp),
+        connect(controller, &KItemListController::doubleClickViewBackground, this, &DolphinView::doubleClickViewBackground),
+        connect(controller, &KItemListController::selectionModeChangeRequested, this, &DolphinView::selectionModeChangeRequested),
+    };
+}
+
 void DolphinView::slotItemHovered(int index)
 {
-    const KFileItem item = m_model->fileItem(index);
+    showHoveredItem(m_container, m_model->fileItem(index), index);
+}
 
+void DolphinView::showHoveredItem(KItemListContainer *container, const KFileItem &item, int index)
+{
     if (GeneralSettings::showToolTips() && !m_dragging) {
-        QRectF itemRect = m_container->controller()->view()->itemContextRect(index);
-        const QPoint pos = m_container->mapToGlobal(itemRect.topLeft().toPoint());
+        QRectF itemRect = container->controller()->view()->itemContextRect(index);
+        const QPoint pos = container->mapToGlobal(itemRect.topLeft().toPoint());
         itemRect.moveTo(pos);
 
 #if HAVE_BALOO
@@ -1880,25 +1899,32 @@ void DolphinView::slotItemUnhovered(int index)
 
 void DolphinView::slotItemDropEvent(int index, QGraphicsSceneDragDropEvent *event)
 {
+    handleItemDropEvent(m_model, url(), index, event);
+}
+
+void DolphinView::handleItemDropEvent(KFileItemModel *model, const QUrl &fallbackUrl, int index, QGraphicsSceneDragDropEvent *event, bool selectDroppedItems)
+{
     QUrl destUrl;
-    KFileItem destItem = m_model->fileItem(index);
+    KFileItem destItem = model->fileItem(index);
     if (destItem.isNull() || (!destItem.isDir() && !destItem.isDesktopFile() && !destItem.isExecutable())) {
-        // Use the URL of the view as drop target if the item is no directory
-        // or desktop-file
-        destItem = m_model->rootItem();
-        destUrl = url();
+        destUrl = fallbackUrl;
     } else {
-        // The item represents a directory or desktop-file
         destUrl = destItem.mostLocalUrl();
     }
 
-    QDropEvent dropEvent(event->pos().toPoint(), event->possibleActions(), event->mimeData(), event->buttons(), event->modifiers());
-    dropUrls(destUrl, &dropEvent, this);
+    // KIO::drop() places its menu in the coordinates of this widget.
+    QDropEvent dropEvent(mapFromGlobal(event->screenPos()), event->possibleActions(), event->mimeData(), event->buttons(), event->modifiers());
+    dropUrls(destUrl, &dropEvent, this, selectDroppedItems && destUrl == url());
 
     setActive(true);
 }
 
 void DolphinView::dropUrls(const QUrl &destUrl, QDropEvent *dropEvent, QWidget *dropWidget)
+{
+    dropUrls(destUrl, dropEvent, dropWidget, destUrl == url());
+}
+
+void DolphinView::dropUrls(const QUrl &destUrl, QDropEvent *dropEvent, QWidget *dropWidget, bool selectDroppedItems)
 {
     KIO::DropJobFlags dropjobFlags;
     if (qobject_cast<KFilePlacesView *>(dropEvent->source())) {
@@ -1912,7 +1938,7 @@ void DolphinView::dropUrls(const QUrl &destUrl, QDropEvent *dropEvent, QWidget *
     if (job) {
         connect(job, &KIO::DropJob::result, this, &DolphinView::slotJobResult);
 
-        if (destUrl == url()) {
+        if (selectDroppedItems) {
             // Mark the dropped urls as selected.
             m_clearSelectionBeforeSelectingNewItems = true;
             m_markFirstNewlySelectedItemAsCurrent = true;
@@ -2050,6 +2076,15 @@ void DolphinView::emitSelectionChangedSignal()
     Q_EMIT selectionChanged(selectedItems());
 }
 
+void DolphinView::scheduleSelectionChangedSignal()
+{
+    // A pending emission reads the selection when it fires.
+    if (!m_selectionChangedTimer->isActive()) {
+        m_selectionChangedTimer->setInterval(0);
+        m_selectionChangedTimer->start();
+    }
+}
+
 void DolphinView::slotStatJobResult(KJob *job)
 {
     int folderCount = 0;
@@ -2103,10 +2138,10 @@ void DolphinView::updateSortHiddenLast(bool hiddenLast)
     Q_EMIT viewSettingsChanged(props->isDefaults());
 }
 
-QPair<bool, QString> DolphinView::pasteInfo() const
+std::pair<bool, QString> DolphinView::pasteInfo() const
 {
     const QMimeData *mimeData = QApplication::clipboard()->mimeData();
-    QPair<bool, QString> info;
+    std::pair<bool, QString> info;
     info.second = KIO::pasteActionText(mimeData, &info.first, rootItem());
     return info;
 }
@@ -2141,9 +2176,14 @@ void DolphinView::restoreState(QDataStream &stream)
     // Read the version number of the view state and check if the version is supported.
     quint32 version = 0;
     stream >> version;
-    if (version != 1) {
+    if (version != 1 && version != 2) {
         // The version of the view state isn't supported, we can't restore it.
         return;
+    }
+    if (version >= 2) {
+        // The mode is for the container, which picks the view before the view reads this state.
+        quint32 mode = 0;
+        stream >> mode;
     }
 
     QUrl currentItemUrl;
@@ -2165,18 +2205,19 @@ void DolphinView::restoreState(QDataStream &stream)
     // Restore the view position
     m_restoredContentsPosition = contentsPosition;
 
-    // Restore expanded folders (only relevant for the details view - will be ignored by the view in other view modes)
-    m_model->restoreExpandedDirectories(expandedDirectories);
+    // The expanded folders of the details view, or the folders of the open columns.
+    restoreOpenFolders(expandedDirectories, m_currentItemUrl);
 }
 
 void DolphinView::saveState(QDataStream &stream)
 {
-    stream << quint32(1); // View state version
+    stream << quint32(2); // View state version
+    stream << quint32(m_mode);
 
     // Save the current item that has the keyboard focus
-    const int currentIndex = m_container->controller()->selectionManager()->currentItem();
+    const int currentIndex = activeSelectionManager()->currentItem();
     if (currentIndex != -1) {
-        KFileItem item = m_model->fileItem(currentIndex);
+        KFileItem item = activeModel()->fileItem(currentIndex);
         Q_ASSERT(!item.isNull()); // If the current index is valid a item must exist
         QUrl currentItemUrl = item.url();
         stream << currentItemUrl;
@@ -2193,9 +2234,20 @@ void DolphinView::saveState(QDataStream &stream)
     const qreal y = m_container->verticalScrollBar()->value();
     stream << QPoint(x, y);
 
-    // Save expanded folders (only relevant for the details view - the set will be empty in other view modes)
-    const QSet<QUrl> expandedDirectories = m_model->expandedDirectories();
-    stream << (fitsInASession(expandedDirectories) ? expandedDirectories : QSet<QUrl>());
+    // The expanded folders of the details view, or the folders of the open columns.
+    const QSet<QUrl> folders = openFolders();
+    stream << (fitsInASession(folders) ? folders : QSet<QUrl>());
+}
+
+QSet<QUrl> DolphinView::openFolders() const
+{
+    return m_model->expandedDirectories();
+}
+
+void DolphinView::restoreOpenFolders(const QSet<QUrl> &folders, const QUrl &currentItemUrl)
+{
+    Q_UNUSED(currentItemUrl)
+    m_model->restoreExpandedDirectories(folders);
 }
 
 KFileItem DolphinView::rootItem() const
@@ -2291,13 +2343,15 @@ void DolphinView::resetZoomLevel()
 
 void DolphinView::selectFileOnceAvailable(const QUrl &url, const std::function<bool()> &condition)
 {
-    // need to wait for the item to be added to the model
-    QMetaObject::Connection *connection = new QMetaObject::Connection;
-    *connection = connect(m_model, &KFileItemModel::itemsInserted, this, [this, url, connection, condition](const KItemRangeList &ranges) {
+    // need to wait for the item to be added to the model.
+    // The columns view moves m_model to another column when the user clicks it, so the model is captured.
+    KFileItemModel *model = m_model;
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = connect(model, &KFileItemModel::itemsInserted, this, [this, model, url, connection, condition](const KItemRangeList &ranges) {
         bool found = false;
         for (const KItemRange &it : ranges) {
             for (int i = 0; i < it.count; ++i) {
-                if (m_model->fileItem(it.index + i).url() == url) {
+                if (model->fileItem(it.index + i).url() == url) {
                     found = true;
                     break;
                 }
@@ -2306,15 +2360,15 @@ void DolphinView::selectFileOnceAvailable(const QUrl &url, const std::function<b
                 break;
             }
         }
+        if (!found) {
+            return;
+        }
         // check whether the selection should be changed, but only once the item really is there:
         // forceUrlsSelection() clears the current selection, so calling it early would drop it
-        if (found && condition()) {
+        if (model == m_model && condition()) {
             forceUrlsSelection(url, {url});
         }
-        if (found) {
-            disconnect(*connection);
-            delete connection;
-        }
+        disconnect(*connection);
     });
 }
 
@@ -2323,6 +2377,7 @@ void DolphinView::observeCreatedDirectory(const QUrl &newDirectoryUrl)
     if (!m_active) {
         return;
     }
+    activateUrlFolder();
 
     // select the new directory
     if (!m_model->fileItem(newDirectoryUrl).isNull()) {
@@ -2360,6 +2415,7 @@ void DolphinView::observeCreatedItem(const QUrl &url)
     if (!m_active) {
         return;
     }
+    activateUrlFolder();
 
     // select the new file
     if (!m_model->fileItem(url).isNull()) {
@@ -2368,9 +2424,9 @@ void DolphinView::observeCreatedItem(const QUrl &url)
     }
 
     // since this is async make sure the selection state hasn't change in the meantime
-    auto selection = m_container->controller()->selectionManager()->selectedItems();
+    auto selection = activeSelectionManager()->selectedItems();
     std::function<bool()> condition([this, selection]() {
-        return selection == m_container->controller()->selectionManager()->selectedItems();
+        return selection == activeSelectionManager()->selectedItems();
     });
 
     // need to wait for the item to be added to the model
@@ -2390,7 +2446,7 @@ void DolphinView::slotDirectoryRedirection(const QUrl &oldUrl, const QUrl &newUr
 void DolphinView::updateSelectionState()
 {
     if (!m_selectedUrls.isEmpty()) {
-        KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+        KItemListSelectionManager *selectionManager = activeSelectionManager();
 
         const bool shouldScrollToCurrentItem = m_clearSelectionBeforeSelectingNewItems;
         // if there is a selection already, leave it that way
@@ -2405,7 +2461,7 @@ void DolphinView::updateSelectionState()
 
             QList<QUrl>::iterator it = m_selectedUrls.begin();
             while (it != m_selectedUrls.end()) {
-                const int index = m_model->index(*it);
+                const int index = activeModel()->index(*it);
                 if (index >= 0) {
                     selectedItems.insert(index);
                     it = m_selectedUrls.erase(it);
@@ -2418,7 +2474,7 @@ void DolphinView::updateSelectionState()
                 selectionManager->beginAnchoredSelection(selectionManager->currentItem());
                 selectionManager->setSelectedItems(selectedItems);
                 if (shouldScrollToCurrentItem) {
-                    m_view->scrollToItem(selectedItems.first());
+                    activeItemListView()->scrollToItem(selectedItems.first());
                 }
             }
         }
@@ -2428,7 +2484,7 @@ void DolphinView::updateSelectionState()
 void DolphinView::updateViewState()
 {
     if (m_currentItemUrl != QUrl()) {
-        KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+        KItemListSelectionManager *selectionManager = activeSelectionManager();
 
         // if there is a selection already, leave it that way
         if (!selectionManager->hasSelection()) {
@@ -2438,7 +2494,7 @@ void DolphinView::updateViewState()
 
                 // scroll to current item and reset the state
                 if (m_scrollToCurrentItem) {
-                    m_view->scrollToItem(currentIndex, KItemListView::ViewItemPosition::Middle);
+                    activeItemListView()->scrollToItem(currentIndex, KItemListView::ViewItemPosition::Middle);
                     m_scrollToCurrentItem = false;
                 }
                 m_currentItemUrl = QUrl();
@@ -2491,6 +2547,11 @@ void DolphinView::hideToolTip(const ToolTipManager::HideBehavior behavior)
     }
 }
 
+bool DolphinView::urlChangeLeavesTheSelectionBehind() const
+{
+    return true;
+}
+
 bool DolphinView::handleSpaceAsNormalKey() const
 {
     return !m_container->hasFocus() || m_container->controller()->isSearchAsYouTypeActive();
@@ -2498,7 +2559,7 @@ bool DolphinView::handleSpaceAsNormalKey() const
 
 void DolphinView::slotTwoClicksRenamingTimerTimeout()
 {
-    const KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    const KItemListSelectionManager *selectionManager = activeSelectionManager();
 
     // verify that only one item is selected
     if (selectionManager->selectedItems().count() == 1) {
@@ -2535,12 +2596,12 @@ void DolphinView::slotDeleteFileFinished(KJob *job)
 void DolphinView::selectNextItem()
 {
     if (m_active && m_selectNextItem) {
-        KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+        KItemListSelectionManager *selectionManager = activeSelectionManager();
         if (selectedItems().isEmpty()) {
             Q_ASSERT_X(false, "DolphinView", "Selecting the next item failed.");
             return;
         }
-        const auto lastSelectedIndex = m_model->index(selectedItems().constLast());
+        const auto lastSelectedIndex = activeModel()->index(selectedItems().constLast());
         if (lastSelectedIndex < 0) {
             Q_ASSERT_X(false, "DolphinView", "Selecting the next item failed.");
             return;
@@ -2670,7 +2731,7 @@ void DolphinView::slotRoleEditingCanceled()
 
 void DolphinView::slotRoleEditingFinished(int index, const QByteArray &role, const QVariant &value)
 {
-    disconnect(m_view, &DolphinItemListView::roleEditingFinished, this, &DolphinView::slotRoleEditingFinished);
+    disconnect(activeItemListView(), &DolphinItemListView::roleEditingFinished, this, &DolphinView::slotRoleEditingFinished);
 
     const KFileItemList items = selectedItems();
     if (items.count() != 1) {
@@ -2800,7 +2861,7 @@ void DolphinView::slotRoleEditingFinished(int index, const QByteArray &role, con
             // The renamed item is re-sorted to a new position but stays selected, so scroll to keep it in view.
             scrollToItemOnceResorted(newUrl);
 
-            if (m_model->index(newUrl) < 0) {
+            if (activeModel()->index(newUrl) < 0) {
                 forceUrlsSelection(newUrl, {newUrl});
                 updateSelectionState();
 
@@ -2812,22 +2873,31 @@ void DolphinView::slotRoleEditingFinished(int index, const QByteArray &role, con
         }
         if (retVal.direction != EditDone) {
             const short indexShift = retVal.direction == EditNext ? 1 : -1;
-            m_container->controller()->selectionManager()->setSelected(index, 1, KItemListSelectionManager::Deselect);
-            m_container->controller()->selectionManager()->setSelected(index + indexShift, 1, KItemListSelectionManager::Select);
+            KItemListSelectionManager *selectionManager = activeSelectionManager();
+            selectionManager->setSelected(index, 1, KItemListSelectionManager::Deselect);
+            selectionManager->setSelected(index + indexShift, 1, KItemListSelectionManager::Select);
             renameSelectedItems();
         }
     }
 }
 
+bool DolphinView::reportInvalidUrl(const QUrl &url)
+{
+    if (url.isValid()) {
+        return true;
+    }
+    const QString location(url.toDisplayString(QUrl::PreferLocalFile));
+    if (location.isEmpty()) {
+        Q_EMIT errorMessage(i18nc("@info:status", "The location is empty."), KIO::ERR_UNKNOWN);
+    } else {
+        Q_EMIT errorMessage(i18nc("@info:status", "The location '%1' is invalid.", location), KIO::ERR_UNKNOWN);
+    }
+    return false;
+}
+
 void DolphinView::loadDirectory(const QUrl &url, bool reload)
 {
-    if (!url.isValid()) {
-        const QString location(url.toDisplayString(QUrl::PreferLocalFile));
-        if (location.isEmpty()) {
-            Q_EMIT errorMessage(i18nc("@info:status", "The location is empty."), KIO::ERR_UNKNOWN);
-        } else {
-            Q_EMIT errorMessage(i18nc("@info:status", "The location '%1' is invalid.", location), KIO::ERR_UNKNOWN);
-        }
+    if (!reportInvalidUrl(url)) {
         return;
     }
 
@@ -2893,7 +2963,12 @@ void DolphinView::applyViewProperties(const ViewProperties &props)
     // Caches old zoom level change for signal emitting
     int zoomLevelChangeFrom = -1;
 
-    const Mode mode = props.viewMode();
+    Mode mode = props.viewMode();
+    if (!canDisplayMode(mode)) {
+        // Which view draws the folder is the container's decision, so a mode this view cannot
+        // draw is not taken.
+        mode = m_canDisplayColumns ? ColumnsView : IconsView;
+    }
     if (m_mode != mode) {
         const Mode previousMode = m_mode;
         m_mode = mode;
@@ -2904,6 +2979,7 @@ void DolphinView::applyViewProperties(const ViewProperties &props)
         // the zoom level. Remember the old zoom level so
         // that zoomLevelChanged() can get emitted.
         const int oldZoomLevel = m_view->zoomLevel();
+        m_view->setViewMode(m_mode);
         applyModeToView();
 
         Q_EMIT modeChanged(m_mode, previousMode);
@@ -3039,10 +3115,17 @@ void DolphinView::applyModeToView()
     case DetailsView:
         m_view->setItemLayout(KFileItemListView::DetailsLayout);
         break;
-    default:
-        Q_ASSERT(false);
+    case ColumnsView:
+        // Handled by DolphinColumnsView::applyModeToView() override.
         break;
     }
+}
+
+bool DolphinView::canDisplayMode(Mode mode) const
+{
+    // The columns view draws the columns mode and nothing else. Every other view draws every
+    // other mode.
+    return m_canDisplayColumns ? mode == ColumnsView : mode != ColumnsView;
 }
 
 void DolphinView::applyDynamicView()
@@ -3053,7 +3136,7 @@ void DolphinView::applyDynamicView()
      * - dynamic view has previously changed the view mode
      */
     // Whale: not in a linked view (setViewModeKept()).
-    if (!GeneralSettings::dynamicView() || m_mode == IconsView || m_viewModeKept) {
+    if (!GeneralSettings::dynamicView() || m_mode == IconsView || m_mode == ColumnsView || m_viewModeKept) {
         return;
     }
 
@@ -3160,10 +3243,27 @@ QList<QUrl> DolphinView::simplifiedSelectedUrls() const
 
 QMimeData *DolphinView::selectionMimeData() const
 {
-    const KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
-    const KItemSet selectedIndexes = selectionManager->selectedItems();
+    const KItemSet selectedIndexes = activeSelectionManager()->selectedItems();
+    return activeModel()->createMimeData(selectedIndexes);
+}
 
-    return m_model->createMimeData(selectedIndexes);
+KItemListSelectionManager *DolphinView::activeSelectionManager() const
+{
+    return m_container->controller()->selectionManager();
+}
+
+void DolphinView::activateUrlFolder()
+{
+}
+
+KFileItemModel *DolphinView::activeModel() const
+{
+    return m_model;
+}
+
+DolphinItemListView *DolphinView::activeItemListView() const
+{
+    return m_view;
 }
 
 void DolphinView::updateWritableState()
@@ -3171,7 +3271,7 @@ void DolphinView::updateWritableState()
     const bool wasFolderWritable = m_isFolderWritable;
     m_isFolderWritable = false;
 
-    KFileItem item = m_model->rootItem();
+    KFileItem item = rootItem();
     if (item.isNull()) {
         // Try to find out if the URL is writable even if the "root item" is
         // null, see https://bugs.kde.org/show_bug.cgi?id=330001
@@ -3196,6 +3296,14 @@ int DolphinView::horizontalScrollBarHeight() const
 {
     if (m_container && m_container->horizontalScrollBar() && m_container->horizontalScrollBar()->isVisible()) {
         return m_container->horizontalScrollBar()->height();
+    }
+    return 0;
+}
+
+int DolphinView::verticalScrollBarWidth() const
+{
+    if (m_container && m_container->verticalScrollBar() && m_container->verticalScrollBar()->isVisible()) {
+        return m_container->verticalScrollBar()->width();
     }
     return 0;
 }
@@ -3272,6 +3380,69 @@ void DolphinView::showLoadingPlaceholder()
 #endif
 }
 
+QLabel *DolphinView::createPlaceholderLabel(QWidget *container)
+{
+    // This is made using a heavily-modified QLabel rather than a KTitleWidget
+    // because KTitleWidget can't be told to turn off mouse-selectable text
+    auto *label = new QLabel(container);
+    // Don't consume mouse events
+    label->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+    QFont placeholderLabelFont;
+    // To match the size of a level 2 Heading/KTitleWidget
+    placeholderLabelFont.setPointSize(qRound(placeholderLabelFont.pointSize() * 1.3));
+    label->setFont(placeholderLabelFont);
+    label->setWordWrap(true);
+    label->setAlignment(Qt::AlignCenter);
+    // Match opacity of QML placeholder label component
+    auto *effect = new QGraphicsOpacityEffect(label);
+    effect->setOpacity(0.5);
+    label->setGraphicsEffect(effect);
+
+    auto *centeringLayout = new QVBoxLayout(container);
+    centeringLayout->addWidget(label);
+    centeringLayout->setAlignment(label, Qt::AlignCenter);
+    return label;
+}
+
+QString DolphinView::emptyFolderText(const QUrl &url, const QString &nameFilter)
+{
+    if (!nameFilter.isEmpty()) {
+        return i18n("No items matching the filter");
+    } else if (url.scheme() == QLatin1String("baloosearch") || url.scheme() == QLatin1String("filenamesearch")) {
+        return i18n("No items matching the search");
+    } else if (url.scheme() == QLatin1String("trash") && url.path() == QLatin1String("/")) {
+        return i18n("Trash is empty");
+    } else if (url.scheme() == QLatin1String("tags")) {
+        if (url.path() == QLatin1Char('/')) {
+            return i18n("No tags");
+        } else {
+            const QString tagName = url.path().mid(1); // Remove leading /
+            return i18n("No files tagged with \"%1\"", tagName);
+        }
+    } else if (url.scheme() == QLatin1String("recentlyused")) {
+        return i18n("No recently used items");
+    } else if (url.scheme() == QLatin1String("smb") && (url.host().isEmpty() || url.path().isEmpty() || url.path() == QLatin1String("/"))) {
+        return i18n("No shared folders found");
+    } else if (url.scheme() == QLatin1String("network")) {
+        return i18n("No relevant network resources found");
+    } else if (url.scheme() == QLatin1String("mtp") && url.path() == QLatin1String("/")) {
+        return i18n("No MTP-compatible devices found");
+    } else if (url.scheme() == QLatin1String("afc") && url.path() == QLatin1String("/")) {
+        return i18n("No Apple devices found");
+    } else if (url.scheme() == QLatin1String("kdeconnect") && url.path() == QLatin1String("/")) {
+        if (url.host().isEmpty()) {
+            return i18n("No KDE Connect devices found");
+        } else {
+            return i18n("No storage found on this device");
+        }
+    } else if (url.scheme() == QLatin1String("bluetooth")) {
+        return i18n("No Bluetooth devices found");
+    } else {
+        return i18n("Folder is empty");
+    }
+}
+
 void DolphinView::updatePlaceholderLabel()
 {
     m_showLoadingPlaceholderTimer->stop();
@@ -3293,40 +3464,8 @@ void DolphinView::updatePlaceholderLabel()
 
     if (m_loadingState == LoadingState::Canceled) {
         m_placeholderLabel->setText(i18n("Loading canceled"));
-    } else if (!nameFilter().isEmpty()) {
-        m_placeholderLabel->setText(i18n("No items matching the filter"));
-    } else if (m_url.scheme() == QLatin1String("baloosearch") || m_url.scheme() == QLatin1String("filenamesearch")) {
-        m_placeholderLabel->setText(i18n("No items matching the search"));
-    } else if (m_url.scheme() == QLatin1String("trash") && m_url.path() == QLatin1String("/")) {
-        m_placeholderLabel->setText(i18n("Trash is empty"));
-    } else if (m_url.scheme() == QLatin1String("tags")) {
-        if (m_url.path() == QLatin1Char('/')) {
-            m_placeholderLabel->setText(i18n("No tags"));
-        } else {
-            const QString tagName = m_url.path().mid(1); // Remove leading /
-            m_placeholderLabel->setText(i18n("No files tagged with \"%1\"", tagName));
-        }
-
-    } else if (m_url.scheme() == QLatin1String("recentlyused")) {
-        m_placeholderLabel->setText(i18n("No recently used items"));
-    } else if (m_url.scheme() == QLatin1String("smb") && (m_url.host().isEmpty() || m_url.path().isEmpty() || m_url.path() == QLatin1String("/"))) {
-        m_placeholderLabel->setText(i18n("No shared folders found"));
-    } else if (m_url.scheme() == QLatin1String("network")) {
-        m_placeholderLabel->setText(i18n("No relevant network resources found"));
-    } else if (m_url.scheme() == QLatin1String("mtp") && m_url.path() == QLatin1String("/")) {
-        m_placeholderLabel->setText(i18n("No MTP-compatible devices found"));
-    } else if (m_url.scheme() == QLatin1String("afc") && m_url.path() == QLatin1String("/")) {
-        m_placeholderLabel->setText(i18n("No Apple devices found"));
-    } else if (m_url.scheme() == QLatin1String("kdeconnect") && m_url.path() == QLatin1String("/")) {
-        if (m_url.host().isEmpty()) {
-            m_placeholderLabel->setText(i18n("No KDE Connect devices found"));
-        } else {
-            m_placeholderLabel->setText(i18n("No storage found on this device"));
-        }
-    } else if (m_url.scheme() == QLatin1String("bluetooth")) {
-        m_placeholderLabel->setText(i18n("No Bluetooth devices found"));
     } else {
-        m_placeholderLabel->setText(i18n("Folder is empty"));
+        m_placeholderLabel->setText(emptyFolderText(m_url, nameFilter()));
     }
 
     m_placeholderLabel->setVisible(true);

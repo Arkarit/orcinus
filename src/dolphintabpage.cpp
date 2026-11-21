@@ -47,7 +47,6 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
     // Create a new primary view
     m_primaryViewContainer = createViewContainer(primaryUrl, DolphinView::PanelRole::Left);
     connect(m_primaryViewContainer->view(), &DolphinView::urlChanged, this, &DolphinTabPage::activeViewUrlChanged);
-    connect(m_primaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
 
     m_splitter->addWidget(m_primaryViewContainer);
     m_primaryViewContainer->show();
@@ -60,7 +59,6 @@ DolphinTabPage::DolphinTabPage(const QUrl &primaryUrl, const QUrl &secondaryUrl,
         m_splitViewEnabled = true;
         const QUrl &url = secondaryUrl.isValid() ? secondaryUrl : primaryUrl;
         m_secondaryViewContainer = createViewContainer(url, DolphinView::PanelRole::Right);
-        connect(m_secondaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
         m_splitter->addWidget(m_secondaryViewContainer);
         m_secondaryViewContainer->show();
     }
@@ -117,7 +115,6 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
             m_navigatorsWidget->setSecondaryNavigatorVisible(true);
             m_navigatorsWidget->followViewContainersGeometry(m_primaryViewContainer, m_secondaryViewContainer);
         }
-        connect(m_secondaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
 
         m_splitter->addWidget(m_secondaryViewContainer);
         m_secondaryViewContainer->setActive(true);
@@ -136,7 +133,6 @@ void DolphinTabPage::setSplitViewEnabled(bool enabled, Animated animated, const 
             m_navigatorsWidget->setSecondaryNavigatorVisible(false);
             m_secondaryViewContainer->disconnectUrlNavigator();
         }
-        disconnect(m_secondaryViewContainer->view(), &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
 
         DolphinViewContainer *view;
 
@@ -376,7 +372,7 @@ void DolphinTabPage::restoreState(const QByteArray &state)
     bool primaryUrlEditable;
     stream >> primaryUrlEditable;
     m_primaryViewContainer->urlNavigatorInternalWithHistory()->setUrlEditable(primaryUrlEditable);
-    m_primaryViewContainer->view()->restoreState(stream);
+    m_primaryViewContainer->restoreViewState(stream);
 
     if (isSplitViewEnabled) {
         if (version <= 3) {
@@ -392,7 +388,7 @@ void DolphinTabPage::restoreState(const QByteArray &state)
         bool secondaryUrlEditable;
         stream >> secondaryUrlEditable;
         m_secondaryViewContainer->urlNavigatorInternalWithHistory()->setUrlEditable(secondaryUrlEditable);
-        m_secondaryViewContainer->view()->restoreState(stream);
+        m_secondaryViewContainer->restoreViewState(stream);
     }
 
     bool primaryViewActive = true;
@@ -572,15 +568,29 @@ void DolphinTabPage::switchActiveView()
     }
 }
 
-DolphinViewContainer *DolphinTabPage::createViewContainer(const QUrl &url, WhalePanelRole role) const
+void DolphinTabPage::connectToContainerView(DolphinViewContainer *container) const
+{
+    const DolphinView *view = container->view();
+    connect(view, &DolphinView::activated, this, &DolphinTabPage::slotViewActivated);
+    connect(view, &DolphinView::toggleActiveViewRequested, this, &DolphinTabPage::switchActiveView);
+    connect(view, &DolphinView::redirection, this, &DolphinTabPage::slotViewUrlRedirection);
+}
+
+DolphinViewContainer *DolphinTabPage::createViewContainer(const QUrl &url, WhalePanelRole role)
 {
     DolphinViewContainer *container = new DolphinViewContainer(url, m_splitter, role);
     container->setActive(false);
+    connectToContainerView(container);
 
-    const DolphinView *view = container->view();
-    connect(view, &DolphinView::activated, this, &DolphinTabPage::slotViewActivated);
-
-    connect(view, &DolphinView::toggleActiveViewRequested, this, &DolphinTabPage::switchActiveView);
+    connect(container, &DolphinViewContainer::viewReplaced, this, [this, container] {
+        connectToContainerView(container);
+        if (container == activeViewContainer()) {
+            // The connection that makes the tab and window titles follow this container was
+            // made to the view it held until now, and went away with it.
+            connect(container->view(), &DolphinView::urlChanged, this, &DolphinTabPage::activeViewUrlChanged);
+            Q_EMIT activeViewUrlChanged(container->url());
+        }
+    });
 
     return container;
 }

@@ -282,6 +282,13 @@ public:
     bool treeLinesShown() const;
 
     /**
+     * Follows the horizontal scrollbar policy of the container. Without horizontal
+     * scrolling a single column wider than the view is shrunk to fit. Enabled by default.
+     */
+    void setHorizontalScrollingEnabled(bool enabled);
+    bool horizontalScrollingEnabled() const;
+
+    /**
      * @return The rectangle of the item relative to the top/left of
      *         the currently visible area (see KItemListView::offset()).
      */
@@ -875,6 +882,7 @@ private:
     qreal m_expansionNameOpacity;
     bool m_treeLinesShown;
     KItemListExpansionTintItem *m_expansionTintItem;
+    bool m_horizontalScrollingEnabled = true;
 
     // The widget that shows the scene. The items paint with its palette, except for Base.
     QPointer<QWidget> m_paletteWidget;

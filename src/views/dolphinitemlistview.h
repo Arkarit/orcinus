@@ -9,6 +9,7 @@
 
 #include "dolphin_export.h"
 #include "kitemviews/kfileitemlistview.h"
+#include "settings/viewmodes/viewmodesettings.h"
 #include "views/expansiontintsettings.h"
 
 #include <memory>
@@ -34,6 +35,12 @@ public:
 
     void setZoomLevel(int level);
     int zoomLevel() const;
+
+    /**
+     * Sets the view mode this view draws. The settings of that mode hold the icon size, the
+     * preview size and the font. The default is the mode that matches the item layout.
+     */
+    void setViewMode(DolphinView::Mode mode);
 
     enum SelectionTogglesEnabled {
         True,
@@ -81,6 +88,8 @@ private:
     void loadExpansionTint();
     void updateExpansionTintColors();
 
+    ViewModeSettings viewModeSettings() const;
+
     using KItemListView::setEnabledSelectionToggles; // Makes sure that the setEnabledSelectionToggles() declaration above doesn't hide
                                                      // the one from the base class so we can still use it privately.
     SelectionTogglesEnabled m_selectionTogglesEnabled = FollowSetting;
@@ -91,6 +100,8 @@ private:
     int m_iconSize = 0;
     std::shared_ptr<const FileNameHighlighter> m_fileNameHighlighter;
     std::optional<ExpansionTintSettings> m_expansionTint;
+    // Empty while the view mode follows the item layout.
+    std::optional<DolphinView::Mode> m_viewMode;
 };
 
 #endif

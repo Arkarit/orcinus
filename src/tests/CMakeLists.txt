@@ -131,6 +131,18 @@ if(NOT WIN32)
     LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
 endif()
 
+# DolphinColumnsViewTest
+ecm_add_test(dolphincolumnsviewtest.cpp testdir.cpp
+TEST_NAME dolphincolumnsviewtest
+LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
+
+# DolphinViewContainerTest
+ecm_add_test(dolphinviewcontainertest.cpp testdir.cpp
+TEST_NAME dolphinviewcontainertest
+LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
+# A drag runs its own event loop on the minimal platform. The offscreen platform ends it at once.
+set_tests_properties(dolphinviewcontainertest PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=minimal")
+
 # DragAndDropHelperTest
 ecm_add_test(draganddrophelpertest.cpp LINK_LIBRARIES dolphinprivate Qt6::Test)
 
@@ -237,3 +249,9 @@ endif()
 ecm_add_test(movetonewfolderitemactiontest.cpp ../itemactions/movetonewfolderitemaction.cpp
 TEST_NAME movetonewfolderitemactiontest
 LINK_LIBRARIES Qt6::Test KF6::I18n KF6::KIOCore KF6::KIOWidgets KF6::KIOFileWidgets)
+
+# The Windows CI has no desktop, so a window of the windows platform is never exposed there.
+if(WIN32)
+    set_property(TEST dolphinitemlistviewtest dolphinviewtest kitemlistroleeditortest folderspaneltest dolphincolumnsviewtest
+        APPEND PROPERTY ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

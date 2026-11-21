@@ -11,6 +11,8 @@
 #include <QUrl>
 #include <QWidget>
 
+#include <utility>
+
 class KConfigGroup;
 class OrgKdeDolphinMainWindowInterface;
 
@@ -66,9 +68,9 @@ bool attachToExistingInstance(const QList<QUrl> &inputUrls, bool openFiles, bool
 /**
  * Returns a QVector with all GUI-capable Dolphin instances
  */
-QVector<QPair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> dolphinGuiInstances(const QString &preferredService = QString());
+QVector<std::pair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> dolphinGuiInstances(const QString &preferredService = QString());
 
-QPair<QString, Qt::SortOrder> sortOrderForUrl(QUrl &url);
+std::pair<QString, Qt::SortOrder> sortOrderForUrl(QUrl &url);
 
 /**
  * TODO: Use global KDE spacings instead of Dolphin-specific ones once we have them.

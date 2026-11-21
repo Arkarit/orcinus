@@ -37,6 +37,8 @@ public:
     // Whale: information density (ID1). The height of a text line of the Compact and Details
     // layouts in percent of the font's line height.
     int lineHeightPercent;
+    /// A selected item draws a neutral background while its view has no focus.
+    bool neutralInactiveSelection;
 
     /**
      * Whale: the space above and below the content of an item (ID1).

@@ -159,14 +159,14 @@ bool Dolphin::attachToExistingInstance(const QList<QUrl> &inputUrls,
     return attached;
 }
 
-QVector<QPair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> Dolphin::dolphinGuiInstances(const QString &preferredService)
+QVector<std::pair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> Dolphin::dolphinGuiInstances(const QString &preferredService)
 {
-    QVector<QPair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> dolphinInterfaces;
+    QVector<std::pair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> dolphinInterfaces;
     if (!preferredService.isEmpty()) {
         QSharedPointer<OrgKdeDolphinMainWindowInterface> preferredInterface(
             new OrgKdeDolphinMainWindowInterface(preferredService, mainWindowDbusPath(), QDBusConnection::sessionBus()));
         if (preferredInterface->isValid() && !preferredInterface->lastError().isValid()) {
-            dolphinInterfaces.append(qMakePair(preferredInterface, QStringList()));
+            dolphinInterfaces.append(std::make_pair(preferredInterface, QStringList()));
         }
     }
 
@@ -186,7 +186,7 @@ QVector<QPair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> Do
                 auto isActiveWindowReply = interface->isActiveWindow();
                 isActiveWindowReply.waitForFinished();
                 if (!isActiveWindowReply.isError()) {
-                    dolphinInterfaces.append(qMakePair(interface, QStringList()));
+                    dolphinInterfaces.append(std::make_pair(interface, QStringList()));
                 }
             }
         }
@@ -195,10 +195,10 @@ QVector<QPair<QSharedPointer<OrgKdeDolphinMainWindowInterface>, QStringList>> Do
     return dolphinInterfaces;
 }
 
-QPair<QString, Qt::SortOrder> Dolphin::sortOrderForUrl(QUrl &url)
+std::pair<QString, Qt::SortOrder> Dolphin::sortOrderForUrl(QUrl &url)
 {
     ViewProperties globalProps(url);
-    return QPair<QString, Qt::SortOrder>(globalProps.sortRole(), globalProps.sortOrder());
+    return std::pair<QString, Qt::SortOrder>(globalProps.sortRole(), globalProps.sortOrder());
 }
 
 double GlobalConfig::animationDurationFactor()
