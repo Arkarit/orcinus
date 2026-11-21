@@ -22,6 +22,7 @@
 #include <KPluginMetaData>
 #include <KSambaShare>
 #include <KSharedConfig>
+#include <kio_version.h>
 
 #include "dolphin_contentdisplaysettings.h"
 
@@ -68,6 +69,46 @@ const int ResolveAllItemsLimit = 500;
 // Not only the visible area, but up to ReadAheadPages before and after
 // this area will be resolved.
 const int ReadAheadPages = 5;
+
+/**
+ * Kills a KIO::PreviewJob.
+ *
+ * Before KIO 6.25, killing a PreviewJob detaches its per-file sub-jobs and only schedules them
+ * for deferred deletion, while their 2 s timeout timer keeps running. Their internal transfer
+ * job is not killed and is referenced through a raw pointer. If a nested event loop runs in the
+ * meantime (e.g. a context menu opened right after start-up), the transfer job can finish and
+ * get deleted inside it, the deferred deletion of the sub-job does not happen there, and the
+ * sub-job's timeout then calls kill() on the deleted transfer job, which crashes.
+ *
+ * As a workaround, the detached sub-jobs are deleted on the next event loop iteration. Unlike a
+ * deferred deletion this also happens inside nested event loops, so it is long before the
+ * timeout. It is not deleted synchronously because the kill may come from one of its signals.
+ */
+void killPreviewJob(KIO::PreviewJob *job)
+{
+#if KIO_VERSION < QT_VERSION_CHECK(6, 25, 0)
+    // While the job is running, its sub-jobs are its direct children.
+    const QList<KJob *> children = job->findChildren<KJob *>(Qt::FindDirectChildrenOnly);
+    job->kill();
+
+    // Killing detaches the sub-jobs (KCompositeJob::clearSubjobs() resets their parent).
+    QList<QPointer<KJob>> detachedSubJobs;
+    for (KJob *child : children) {
+        if (child->parent() != job) {
+            detachedSubJobs.append(child);
+        }
+    }
+    if (!detachedSubJobs.isEmpty()) {
+        QTimer::singleShot(0, qApp, [detachedSubJobs]() {
+            for (const QPointer<KJob> &subJob : detachedSubJobs) {
+                delete subJob.data();
+            }
+        });
+    }
+#else
+    job->kill();
+#endif
+}
 }
 
 KFileItemModelRolesUpdater::KFileItemModelRolesUpdater(KFileItemModel *model, QObject *parent)
@@ -1166,7 +1207,7 @@ void KFileItemModelRolesUpdater::killHoverSequencePreviewJob()
         disconnect(m_hoverSequencePreviewJob, &KIO::PreviewJob::generated, this, &KFileItemModelRolesUpdater::slotHoverSequenceGotPreview);
         disconnect(m_hoverSequencePreviewJob, &KIO::PreviewJob::failed, this, &KFileItemModelRolesUpdater::slotHoverSequencePreviewFailed);
         disconnect(m_hoverSequencePreviewJob, &KIO::PreviewJob::finished, this, &KFileItemModelRolesUpdater::slotHoverSequencePreviewJobFinished);
-        m_hoverSequencePreviewJob->kill();
+        ::killPreviewJob(m_hoverSequencePreviewJob);
         m_hoverSequencePreviewJob = nullptr;
     }
 }
@@ -1519,7 +1560,7 @@ void KFileItemModelRolesUpdater::killPreviewJob()
         disconnect(m_previewJob, &KIO::PreviewJob::generated, this, &KFileItemModelRolesUpdater::slotGotPreview);
         disconnect(m_previewJob, &KIO::PreviewJob::failed, this, &KFileItemModelRolesUpdater::slotPreviewFailed);
         disconnect(m_previewJob, &KIO::PreviewJob::finished, this, &KFileItemModelRolesUpdater::slotPreviewJobFinished);
-        m_previewJob->kill();
+        ::killPreviewJob(m_previewJob);
         m_previewJob = nullptr;
         m_pendingPreviewItems.clear();
     }
