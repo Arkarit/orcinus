@@ -93,6 +93,7 @@
 #include <QDrag>
 #include <QDropEvent>
 #include <QElapsedTimer>
+#include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QJsonArray>
 #include <QKeySequence>
@@ -223,6 +224,25 @@ QJsonObject failure(const QString &error)
 bool contains(const QWidget *widget, const QWidget *focus)
 {
     return widget && focus && (widget == focus || widget->isAncestorOf(focus));
+}
+
+/** The item view the user works with: the file list's, or the active column of the columns view. */
+struct ActiveItemList {
+    QGraphicsView *graphicsView = nullptr;
+    KItemListView *itemListView = nullptr;
+    KFileItemModel *model = nullptr;
+};
+
+ActiveItemList activeItemList(const DolphinView *view)
+{
+    ActiveItemList result;
+    KItemListController *controller = view->activeItemListController();
+    result.itemListView = controller->view();
+    result.model = qobject_cast<KFileItemModel *>(controller->model());
+    if (result.itemListView && result.itemListView->scene() && !result.itemListView->scene()->views().isEmpty()) {
+        result.graphicsView = result.itemListView->scene()->views().constFirst();
+    }
+    return result;
 }
 
 QString viewModeName(DolphinView::Mode mode)
@@ -631,10 +651,7 @@ QJsonValue WhaleDevAutomation::fileListPoints(DolphinViewContainer *container) c
     if (!container->viewHost()->isDolphinViewShown() || !container->view()->isVisible()) {
         return QJsonValue::Null;
     }
-    KItemListContainer *itemListContainer = container->view()->itemListContainer();
-    auto graphicsView = qobject_cast<QGraphicsView *>(itemListContainer->viewport());
-    KItemListView *itemListView = itemListContainer->controller()->view();
-    auto model = qobject_cast<KFileItemModel *>(itemListContainer->controller()->model());
+    const auto [graphicsView, itemListView, model] = activeItemList(container->view());
     if (!graphicsView || !itemListView || !model) {
         return QJsonValue::Null;
     }
@@ -1608,7 +1625,7 @@ QJsonObject WhaleDevAutomation::setExpanded(int paneIndexArg, const QStringList 
     if (!container->viewHost()->isDolphinViewShown()) {
         return failure(QStringLiteral("the pane does not show the file list"));
     }
-    auto model = qobject_cast<KFileItemModel *>(container->view()->itemListContainer()->controller()->model());
+    KFileItemModel *model = activeItemList(container->view()).model;
     if (!model) {
         return failure(QStringLiteral("the pane has no file item model"));
     }
@@ -2019,10 +2036,8 @@ QJsonObject WhaleDevAutomation::deliverDrag(DolphinViewContainer *target, const 
             }
         }
     } else {
-        // The file list's own item view (KItemListContainer's QGraphicsView).
-        KItemListContainer *container = target->view()->itemListContainer();
-        auto graphicsView = qobject_cast<QGraphicsView *>(container->viewport());
-        KItemListView *itemListView = container->controller()->view();
+        // The file list's own item view (KItemListContainer's QGraphicsView), or the active column's.
+        const auto [graphicsView, itemListView, model] = activeItemList(target->view());
         widget = graphicsView->viewport();
         if (item.isEmpty()) {
             position = QPoint(widget->width() - 20, widget->height() - 20);
@@ -2033,7 +2048,6 @@ QJsonObject WhaleDevAutomation::deliverDrag(DolphinViewContainer *target, const 
                 return failure(QStringLiteral("the target file list shows no background to drop onto"));
             }
         } else {
-            auto model = qobject_cast<KFileItemModel *>(container->controller()->model());
             const int index = model->index(item);
             const QRectF rect = index >= 0 ? itemListView->itemRect(index) : QRectF();
             position = graphicsView->mapFromScene(itemListView->mapToScene(rect.center()));

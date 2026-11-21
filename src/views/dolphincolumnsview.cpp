@@ -330,6 +330,19 @@ KFileItemModel *DolphinColumnsView::activeModel() const
     return DolphinView::activeModel();
 }
 
+DolphinItemListView *DolphinColumnsView::linkedItemListView() const
+{
+    // Whale (LK4): the column of the location, the folder the other view shows as well.
+    const QUrl location = url().adjusted(QUrl::StripTrailingSlash);
+    for (int index = columnCount() - 1; index >= 0; --index) {
+        DolphinColumnPane *pane = columnAt(index);
+        if (pane && pane->dirUrl().adjusted(QUrl::StripTrailingSlash) == location) {
+            return pane->itemListView();
+        }
+    }
+    return activeItemListView();
+}
+
 DolphinItemListView *DolphinColumnsView::activeItemListView() const
 {
     if (auto *pane = activePane()) {
@@ -1652,6 +1665,7 @@ void DolphinColumnsView::connectActivePane(DolphinColumnPane *newPane)
 
     if (!newPane) {
         setBaseModel(m_baseModel);
+        Q_EMIT activeItemListChanged(); // Whale
         return;
     }
 
@@ -1667,12 +1681,17 @@ void DolphinColumnsView::connectActivePane(DolphinColumnPane *newPane)
     // The status bar counts the items of the active column.
     m_activePaneConnections.append(connect(newPane->model(), &KFileItemModel::itemsInserted, this, &DolphinView::itemCountChanged));
     m_activePaneConnections.append(connect(newPane->model(), &KFileItemModel::itemsRemoved, this, &DolphinView::itemCountChanged));
+    Q_EMIT activeItemListChanged(); // Whale
 }
 
 void DolphinColumnsView::slotActiveSelectionChanged(const KItemSet &current)
 {
     // Not for a selection made by the view, such as openChild() marking the folder in its parent.
     if (m_blockNavigation || current.count() != 1) {
+        return;
+    }
+    // Whale (LK4): the selection of the other view of a linked split view opens nothing.
+    if (isApplyingLinkedSelection()) {
         return;
     }
     // A press selects the item, and a click navigates on the release, see handleMouseButtonReleased().

@@ -5,7 +5,12 @@
  */
 
 #include "dolphinviewbridge.h"
+#include "kitemviews/kfileitemmodel.h"
+#include "kitemviews/kitemlistcontroller.h"
+#include "kitemviews/kitemlistselectionmanager.h"
 #include "testdir.h"
+#include "views/dolphincolumnpane.h"
+#include "views/dolphincolumnsview.h"
 #include "views/dolphinview.h"
 #include "whaleitemlist.h"
 #include "whaleview.h"
@@ -124,6 +129,8 @@ private Q_SLOTS:
     void initTestCase();
     void init();
     void cleanup();
+    void testColumnsViewSelectionIsTheActiveColumns();
+    void testColumnsViewShowsALinkedSelectionInTheColumnOfItsLocation();
 
     void testInitialItems();
     void testLoading();
@@ -202,6 +209,94 @@ void DolphinViewBridgeTest::cleanup()
     m_view = nullptr;
     m_host = nullptr;
     m_dir.reset();
+}
+
+// The columns view lists each folder in a model of its own column: the bridge follows the
+// active column, in both directions, also when another column becomes active.
+void DolphinViewBridgeTest::testColumnsViewSelectionIsTheActiveColumns()
+{
+    QWidget window;
+    auto columns = new DolphinColumnsView(m_dir->url(), nullptr, DolphinView::ColumnsView);
+    auto host = new WhaleViewHost(columns, &window);
+    auto layout = new QVBoxLayout(&window);
+    layout->addWidget(host);
+    DolphinViewBridge bridge(columns);
+    window.resize(800, 400);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QTRY_COMPARE(columns->columnCount(), 1);
+    DolphinColumnPane *first = columns->columnAt(0);
+    QTRY_VERIFY(first->model()->count() > 0);
+
+    // A selection in the column reaches the bridge.
+    const QUrl b = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/b.txt"));
+    QSignalSpy selectionSpy(&bridge, &DolphinViewBridge::selectionChanged);
+    first->controller()->selectionManager()->setSelected(first->model()->index(b));
+    QTRY_COMPARE(bridge.selection().selected(), QList<QUrl>{b});
+    QVERIFY(bridge.hasSelection());
+    QTRY_VERIFY(!selectionSpy.isEmpty());
+
+    // And the bridge's selection reaches the column.
+    const QUrl c = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/c.txt"));
+    bridge.setSelection(WhaleSelection({c}, c));
+    QCOMPARE(urls(columns->selectedItems()), QList<QUrl>{c});
+
+    // Another column becomes the active one.
+    const QUrl sub = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub"));
+    columns->setUrl(sub);
+    QTRY_COMPARE(columns->columnCount(), 2);
+    QTRY_COMPARE(columns->activeColumnIndex(), 1);
+    DolphinColumnPane *second = columns->columnAt(1);
+    QTRY_VERIFY(second->model()->count() > 0);
+    QCOMPARE(bridge.url().adjusted(QUrl::StripTrailingSlash), sub);
+    const QUrl inner = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub/inner.txt"));
+    second->controller()->selectionManager()->setSelected(second->model()->index(inner));
+    QTRY_COMPARE(bridge.selection().selected(), QList<QUrl>{inner});
+    QCOMPARE(bridge.item(inner).url(), inner);
+}
+
+// The other view of a linked split view selects in the column of the location, not in the hidden
+// list of the columns view, and not in an active parent column, where a change would close the
+// column of the location (LK4).
+void DolphinViewBridgeTest::testColumnsViewShowsALinkedSelectionInTheColumnOfItsLocation()
+{
+    QWidget window;
+    auto columns = new DolphinColumnsView(m_dir->url(), &window, DolphinView::ColumnsView);
+    auto layout = new QVBoxLayout(&window);
+    layout->addWidget(columns);
+    window.resize(800, 400);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QTRY_COMPARE(columns->columnCount(), 1);
+    DolphinColumnPane *first = columns->columnAt(0);
+    QTRY_VERIFY(first->model()->count() > 0);
+
+    const QUrl a = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/a.txt"));
+    columns->showLinkedSelection({a}, a);
+    QCOMPARE(first->controller()->selectionManager()->selectedItems().count(), 1);
+    QCOMPARE(first->model()->fileItem(first->controller()->selectionManager()->currentItem()).url(), a);
+
+    // A selection by the user is announced for the other view.
+    QSignalSpy linkedSpy(columns, &DolphinView::linkedSelectionChanged);
+    const QUrl b = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/b.txt"));
+    first->controller()->selectionManager()->setSelected(first->model()->index(b));
+    QVERIFY(!linkedSpy.isEmpty());
+
+    // The location is a column after the active one, as after opening a folder by a click.
+    const QUrl sub = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub"));
+    columns->setUrl(sub);
+    QTRY_COMPARE(columns->columnCount(), 2);
+    DolphinColumnPane *second = columns->columnAt(1);
+    QTRY_VERIFY(second->model()->count() > 0);
+    columns->setActiveColumn(0);
+    QCOMPARE(columns->activeColumnIndex(), 0);
+    const QUrl deeper = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/sub/deeper"));
+    columns->showLinkedSelection({deeper}, deeper);
+    // Selected in the column of the location, which opens nothing and closes nothing.
+    QCOMPARE(second->model()->fileItem(second->controller()->selectionManager()->currentItem()).url(), deeper);
+    QTest::qWait(50); // UNAVOIDABLE: a column would close or open from a queued check
+    QCOMPARE(columns->columnCount(), 2);
+    QCOMPARE(columns->url().adjusted(QUrl::StripTrailingSlash), sub);
 }
 
 bool DolphinViewBridgeTest::mirrors(const WhaleItemList *list, const ListFollower &follower) const

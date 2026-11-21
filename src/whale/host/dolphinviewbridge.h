@@ -249,6 +249,8 @@ public:
 
 private:
     void connectView();
+    void connectController();
+    void updateHasSelection();
     KItemListController *controller() const;
     KFileItemModel *model() const;
     void reportSelection();
@@ -256,7 +258,8 @@ private:
     void slotLoadingCompletedForReveal();
 
     DolphinView *m_dolphinView;
-    QList<QMetaObject::Connection> m_viewConnections; // to m_dolphinView and its controller
+    QList<QMetaObject::Connection> m_viewConnections; // to m_dolphinView
+    QList<QMetaObject::Connection> m_controllerConnections; // to its active controller
     QTimer *m_selectionTimer;
     std::optional<WhaleSelection> m_reportedSelection;
     bool m_hasSelection = false;

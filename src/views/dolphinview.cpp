@@ -262,28 +262,19 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, std::optional<Mode> i
     connect(m_view->header(), &KItemListHeader::columnWidthChangeFinished, this, &DolphinView::slotHeaderColumnWidthChangeFinished);
     connect(m_view->header(), &KItemListHeader::sidePaddingChanged, this, &DolphinView::slotSidePaddingWidthChanged);
 
-    KItemListSelectionManager *selectionManager = controller->selectionManager();
-    connect(selectionManager, &KItemListSelectionManager::selectionRestricted, this, &DolphinView::selectionLimited); // Whale
-    // Whale: LK4, the linked views of a split view.
-    const auto emitLinkedSelectionChanged = [this]() {
-        if (!m_applyingLinkedSelection) {
-            Q_EMIT linkedSelectionChanged();
-        }
-    };
-    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, emitLinkedSelectionChanged);
-    connect(selectionManager, &KItemListSelectionManager::currentChanged, this, emitLinkedSelectionChanged);
-    // Queued: after the view and the selection manager took the new items.
+    // Whale: LK4, the linked views of a split view. Queued: after the view and the selection manager
+    // took the new items. The view's signals, since the columns view lists in models of its columns.
     connect(
-        m_model,
-        &KFileItemModel::itemsInserted,
+        this,
+        &DolphinView::itemCountChanged,
         this,
         [this]() {
             applyLinkedSelection();
         },
         Qt::QueuedConnection);
     connect(
-        m_model,
-        &KFileItemModel::directoryLoadingCompleted,
+        this,
+        &DolphinView::directoryLoadingCompleted,
         this,
         [this]() {
             applyLinkedSelection();
@@ -311,8 +302,11 @@ DolphinView::DolphinView(const QUrl &url, QWidget *parent, std::optional<Mode> i
     if (initialMode.has_value()) {
         ViewProperties props(viewPropertiesUrl(), m_panelRole);
         props.setAutoSaveEnabled(false);
-        props.setViewMode(initialMode.value());
-        applyViewProperties(props);
+        // Whale (VS): with one style for all folders the view shows its own style, in that mode.
+        ViewProperties *own = ownStyleFor(props);
+        ViewProperties &shown = own ? *own : props;
+        shown.setViewMode(initialMode.value());
+        applyViewProperties(shown);
     } else {
         applyViewProperties();
     }
@@ -1097,9 +1091,16 @@ void DolphinView::applyLinkedSelection()
     const QUrl location = url().adjusted(QUrl::StripTrailingSlash);
     bool waiting = false;
 
+    DolphinItemListView *itemListView = linkedItemListView();
+    KItemListController *controller = itemListView->controller();
+    const auto *model = qobject_cast<const KFileItemModel *>(controller->model());
+    if (!model) {
+        return;
+    }
+
     // @return The index of @p url to select, or -1.
     const auto resolve = [&](const QUrl &url) {
-        const int index = m_model->index(url);
+        const int index = model->index(url);
         if (index < 0 && url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash) == location) {
             // Still being listed, or not shown (filter, hidden files).
             waiting = waiting || m_loadingState == LoadingState::Loading;
@@ -1115,7 +1116,7 @@ void DolphinView::applyLinkedSelection()
     }
     const int currentIndex = m_linkedCurrent.isValid() ? resolve(m_linkedCurrent) : -1;
 
-    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    KItemListSelectionManager *selectionManager = controller->selectionManager();
     m_applyingLinkedSelection = true;
     // No anchored range of before reaches to the new current item: the view would draw it,
     // and beginAnchoredSelection() below would drop it again without a signal.
@@ -1127,7 +1128,7 @@ void DolphinView::applyLinkedSelection()
     if (currentIndex >= 0) {
         selectionManager->setCurrentItem(currentIndex);
         selectionManager->beginAnchoredSelection(currentIndex);
-        m_container->controller()->view()->scrollToItem(currentIndex);
+        itemListView->scrollToItem(currentIndex);
     }
     m_applyingLinkedSelection = false;
     m_linkedPending = waiting;
@@ -1864,7 +1865,29 @@ QList<QMetaObject::Connection> DolphinView::connectItemController(KItemListContr
         connect(controller, &KItemListController::swipeUp, this, &DolphinView::slotSwipeUp),
         connect(controller, &KItemListController::doubleClickViewBackground, this, &DolphinView::doubleClickViewBackground),
         connect(controller, &KItemListController::selectionModeChangeRequested, this, &DolphinView::selectionModeChangeRequested),
+        // Whale: A1, the selection limited to one folder.
+        connect(controller->selectionManager(), &KItemListSelectionManager::selectionRestricted, this, &DolphinView::selectionLimited),
+        // Whale: LK4, the linked views of a split view.
+        connect(controller->selectionManager(), &KItemListSelectionManager::selectionChanged, this, &DolphinView::emitLinkedSelectionChanged),
+        connect(controller->selectionManager(), &KItemListSelectionManager::currentChanged, this, &DolphinView::emitLinkedSelectionChanged),
     };
+}
+
+void DolphinView::emitLinkedSelectionChanged()
+{
+    if (!m_applyingLinkedSelection) {
+        Q_EMIT linkedSelectionChanged();
+    }
+}
+
+DolphinItemListView *DolphinView::linkedItemListView() const
+{
+    return activeItemListView();
+}
+
+KItemListController *DolphinView::activeItemListController() const
+{
+    return activeItemListView()->controller();
 }
 
 void DolphinView::slotItemHovered(int index)

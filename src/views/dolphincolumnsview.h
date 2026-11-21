@@ -83,6 +83,7 @@ protected:
     KItemListSelectionManager *activeSelectionManager() const override;
     KFileItemModel *activeModel() const override;
     DolphinItemListView *activeItemListView() const override;
+    DolphinItemListView *linkedItemListView() const override; // Whale (LK4)
 
     /// The folders of the columns, when more than one column is open.
     QSet<QUrl> openFolders() const override;

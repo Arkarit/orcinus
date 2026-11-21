@@ -233,15 +233,13 @@ void DolphinViewBridge::setDolphinView(DolphinView *dolphinView)
     }
     m_viewConnections.clear();
     m_dolphinView = dolphinView;
+    // connectView() connects the controller of the new view.
     m_revealUrl.clear();
     m_revealFolder.clear();
     m_revealFolderShown = false;
     m_externalItemsPending = false;
     connectView();
-    if (hasSelection() != m_hasSelection) {
-        m_hasSelection = !m_hasSelection;
-        Q_EMIT hasSelectionChanged(m_hasSelection);
-    }
+    updateHasSelection();
     m_selectionTimer->start();
 }
 
@@ -271,19 +269,38 @@ void DolphinViewBridge::connectView()
                 }),
     };
 
+    // The columns view: the selection of another column.
+    m_viewConnections.append(connect(dolphinView, &DolphinView::activeItemListChanged, this, [this]() {
+        connectController();
+        updateHasSelection();
+        m_selectionTimer->start();
+    }));
+    connectController();
+}
+
+void DolphinViewBridge::connectController()
+{
+    for (const QMetaObject::Connection &connection : std::as_const(m_controllerConnections)) {
+        disconnect(connection);
+    }
     auto schedule = [this]() {
         m_selectionTimer->start();
     };
     KItemListSelectionManager *selectionManager = controller()->selectionManager();
-    m_viewConnections.append(connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, schedule));
-    m_viewConnections.append(connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, [this]() {
-        if (hasSelection() != m_hasSelection) {
-            m_hasSelection = !m_hasSelection;
-            Q_EMIT hasSelectionChanged(m_hasSelection);
-        }
-    }));
-    m_viewConnections.append(connect(selectionManager, &KItemListSelectionManager::currentChanged, this, schedule));
-    m_viewConnections.append(connect(model(), &KFileItemModel::itemsChanged, this, schedule));
+    m_controllerConnections = {
+        connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, schedule),
+        connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, &DolphinViewBridge::updateHasSelection),
+        connect(selectionManager, &KItemListSelectionManager::currentChanged, this, schedule),
+        connect(model(), &KFileItemModel::itemsChanged, this, schedule),
+    };
+}
+
+void DolphinViewBridge::updateHasSelection()
+{
+    if (hasSelection() != m_hasSelection) {
+        m_hasSelection = !m_hasSelection;
+        Q_EMIT hasSelectionChanged(m_hasSelection);
+    }
 }
 
 DolphinViewBridge::~DolphinViewBridge() = default;
@@ -592,7 +609,8 @@ bool DolphinViewBridge::drop(QDropEvent *event, const QUrl &url, QWidget *widget
 
 KItemListController *DolphinViewBridge::controller() const
 {
-    return m_dolphinView->itemListContainer()->controller();
+    // The columns view: the active column.
+    return m_dolphinView->activeItemListController();
 }
 
 KFileItemModel *DolphinViewBridge::model() const

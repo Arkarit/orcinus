@@ -467,6 +467,12 @@ public:
     }
 
     /**
+     * Whale: the controller of the items the user works with: that of itemListContainer(), or in the
+     * columns view the one of the active column (activeItemListChanged()).
+     */
+    KItemListController *activeItemListController() const;
+
+    /**
      * Whale: @p shownInternally tells which files the built-in viewer shows when they are
      * opened. Opening many items at once asks first, but not for those (V1b).
      */
@@ -780,6 +786,12 @@ Q_SIGNALS:
     void selectionLimited();
 
     /**
+     * Whale: activeItemListController() changed, e.g. another column of the columns view became
+     * active.
+     */
+    void activeItemListChanged();
+
+    /**
      * Whale: the selection or the current item changed, at once (selectionChanged() comes
      * later), unless showLinkedSelection() changed it.
      */
@@ -1012,6 +1024,19 @@ protected:
      * Returns the item list view of the currently active view, such as the active column.
      */
     virtual DolphinItemListView *activeItemListView() const;
+
+    /**
+     * Whale (LK4): the item view that shows the items of url(), where the selection of the other view
+     * of a linked split view goes. In the columns view that is the column of url(), which need not be
+     * the active one.
+     */
+    virtual DolphinItemListView *linkedItemListView() const;
+
+    /** Whale (LK4): showLinkedSelection() is changing the selection. */
+    bool isApplyingLinkedSelection() const
+    {
+        return m_applyingLinkedSelection;
+    }
 
     /** Updates m_isFolderWritable from the folder of the active view, emitting writeStateChanged(). */
     void updateWritableState();
@@ -1346,6 +1371,7 @@ private:
 
     // Whale: showLinkedSelection()
     void applyLinkedSelection();
+    void emitLinkedSelectionChanged(); // Whale: LK4
     QList<QUrl> m_linkedSelected;
     QUrl m_linkedCurrent;
     bool m_linkedPending = false;
