@@ -32,6 +32,7 @@
 #include <QScrollBar>
 #include <QStyle>
 #include <QStyleOptionButton>
+#include <QTextDocument>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -45,6 +46,23 @@ const char TimeProperty[] = "entryTime";
 const char RowProperty[] = "transcriptRow";
 const char EntryProperty[] = "transcriptEntry";
 const char RecordProperty[] = "entryRecord";
+const char MarkdownProperty[] = "markdown";
+
+/**
+ * @return @p markdown as HTML for a QLabel, with code blocks that wrap: Qt's Markdown keeps
+ * their lines whole, and the transcript cuts what does not fit (it must not widen the panel).
+ */
+QString wrappingHtml(const QString &markdown)
+{
+    QTextDocument document;
+    document.setMarkdown(markdown);
+    QString html = document.toHtml();
+    html.replace(QStringLiteral("<pre style=\""), QStringLiteral("<pre style=\" white-space:pre-wrap;"));
+    // The label's font, not the one the document had.
+    static const QRegularExpression bodyStyle(QStringLiteral("<body style=\"[^\"]*\">"));
+    html.replace(bodyStyle, QStringLiteral("<body>"));
+    return html;
+}
 
 QString statusName(WhaleAcpToolCall::Status status)
 {
@@ -590,11 +608,12 @@ void WhaleAiTranscript::appendAgentText(const QString &text)
     m_currentThought = nullptr;
     if (!m_currentAnswer) {
         m_currentAnswerText.clear();
-        m_currentAnswer = createTextLabel(Qt::MarkdownText);
+        m_currentAnswer = createTextLabel(Qt::RichText);
         addEntry(Kind::AgentMessage, m_currentAnswer);
     }
     m_currentAnswerText += text;
-    m_currentAnswer->setText(m_currentAnswerText);
+    m_currentAnswer->setText(wrappingHtml(m_currentAnswerText));
+    m_currentAnswer->setProperty(MarkdownProperty, m_currentAnswerText);
     updateRecord(m_currentAnswer, {{QStringLiteral("text"), m_currentAnswerText}});
 }
 

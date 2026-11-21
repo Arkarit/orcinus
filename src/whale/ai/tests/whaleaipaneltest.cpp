@@ -82,6 +82,7 @@ private Q_SLOTS:
     void enterAndShiftEnter();
     void inputHeight();
     void suggestions();
+    void codeBlocksWrap();
     void suggestionsInConversationLanguage();
     void stopWithEscape();
     void agentFails();
@@ -179,11 +180,16 @@ QString WhaleAiPanelTest::texts(WhaleAiPanel &panel)
     const QList<QWidget *> entries = panel.transcript()->entries();
     for (const QWidget *entry : entries) {
         const auto labels = entry->findChildren<QLabel *>();
+        // An agent's answer is shown as HTML; its Markdown is kept with it.
+        const auto text = [](const QLabel *label) {
+            const QVariant markdown = label->property("markdown");
+            return markdown.isValid() ? markdown.toString() : label->text();
+        };
         if (auto *label = qobject_cast<const QLabel *>(entry)) {
-            list.append(label->text());
+            list.append(text(label));
         }
         for (const QLabel *label : labels) {
-            list.append(label->text());
+            list.append(text(label));
         }
     }
     return list.join(QLatin1Char('|'));
@@ -1173,6 +1179,30 @@ void WhaleAiPanelTest::suggestionsInConversationLanguage()
     panel.readSettings();
     QCOMPARE(button->text(), QStringLiteral("Suggestions"));
     QCOMPARE(button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"))->text(), QStringLiteral("A program does not work properly"));
+}
+
+void WhaleAiPanelTest::codeBlocksWrap()
+{
+    // A code line wider than the transcript wraps; it was cut at the right edge (user, 2026-11-21).
+    QWidget window;
+    window.resize(320, 400);
+    auto *transcript = new WhaleAiTranscript(&window);
+    auto *layout = new QVBoxLayout(&window);
+    layout->addWidget(transcript);
+    const QString line = QStringLiteral("orcinus.reveal(item.url) ").repeated(12).trimmed();
+    transcript->appendAgentText(QStringLiteral("Here:\n\n```\n%1\n    indented\n```\n").arg(line));
+    transcript->endTurn();
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto *answer = transcript->entries().constFirst()->findChild<QLabel *>();
+    if (!answer) {
+        answer = qobject_cast<QLabel *>(transcript->entries().constFirst());
+    }
+    QVERIFY(answer);
+    QCOMPARE(answer->property("markdown").toString(), QStringLiteral("Here:\n\n```\n%1\n    indented\n```\n").arg(line));
+    QTRY_VERIFY(answer->width() > 0 && answer->width() < 320);
+    // "Here:", the wrapped line in at least three rows, the indented one.
+    QVERIFY2(answer->height() >= 5 * answer->fontMetrics().lineSpacing(), qPrintable(QString::number(answer->height())));
 }
 
 void WhaleAiPanelTest::suggestions()
