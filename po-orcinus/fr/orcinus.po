@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-11 10:24+0100\n"
+"POT-Creation-Date: 2026-11-21 09:51+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: fr\n"
@@ -50,32 +50,87 @@ msgstr ""
 "shortcut></numbereditem><numbereditem>Après autorisation, vous pouvez gérer "
 "les fichiers en tant qu'administrateur.</numbereditem></numberedlist></para>"
 
-#: dolphinmainwindow.cpp:1958
+#: dolphinmainwindow.cpp:1973
 #, kde-format
 msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "Ouvrir une nouvelle fenêtre d'Orcinus"
 
-#: dolphinmainwindow.cpp:3164
+#: dolphinmainwindow.cpp:2675
+#, kde-format
+msgctxt "@title:window"
+msgid "AI Canvas"
+msgstr ""
+
+#: dolphinmainwindow.cpp:2687
+#, kde-format
+msgctxt "@title:window"
+msgid "AI Assistant"
+msgstr ""
+
+#: dolphinmainwindow.cpp:2822
+#, kde-format
+msgctxt "@info %1 is a folder name"
+msgid "the view of “%1”"
+msgstr ""
+
+#: dolphinmainwindow.cpp:2946
+#, kde-kuit-format
+msgctxt "@info:whatsthis"
+msgid ""
+"<para>This toggles the <emphasis>AI Canvas</emphasis> panel.</"
+"para><para>There the AI agent of the <emphasis>AI Assistant</emphasis> panel "
+"shows its work: images, videos, sounds, texts and files.</para>"
+msgstr ""
+
+#: dolphinmainwindow.cpp:2950
+#, kde-kuit-format
+msgctxt "@info:whatsthis"
+msgid ""
+"<para>This is the <emphasis>AI Canvas</emphasis> panel. The AI agent shows "
+"its work here; click a file to show it in the view. A new conversation "
+"clears it.</para>"
+msgstr ""
+
+#: dolphinmainwindow.cpp:2957
+#, kde-kuit-format
+msgctxt "@info:whatsthis"
+msgid ""
+"<para>This toggles the <emphasis>AI Assistant</emphasis> panel.</"
+"para><para>It talks to an AI agent installed on this computer, such as "
+"Claude Code, Codex or OpenCode, set up in <interface>Configure Orcinus… > AI "
+"Support</interface>.</para>"
+msgstr ""
+
+#: dolphinmainwindow.cpp:2961
+#, kde-kuit-format
+msgctxt "@info:whatsthis"
+msgid ""
+"<para>This is the <emphasis>AI Assistant</emphasis> panel. Write to the AI "
+"agent chosen at the top; it works in the folder shown when the conversation "
+"started.</para>"
+msgstr ""
+
+#: dolphinmainwindow.cpp:3479
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "Licence : %1"
 
-#: dolphinmainwindow.cpp:3172
+#: dolphinmainwindow.cpp:3487
 #, kde-format
 msgctxt ""
 "@info:credit %1 is the version of Dolphin's code that Orcinus is based on"
 msgid "Based on Dolphin %1"
 msgstr "Basé sur Dolphin %1"
 
-#: dolphinmainwindow.cpp:3177
+#: dolphinmainwindow.cpp:3492
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus : %1"
 
-#: dolphinmainwindow.cpp:3181
+#: dolphinmainwindow.cpp:3496
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -85,7 +140,7 @@ msgstr ""
 "Orcinus est un fork non officiel de Dolphin, sans lien avec KDE et non "
 "approuvé par KDE."
 
-#: dolphinmainwindow.cpp:3250
+#: dolphinmainwindow.cpp:3565
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -104,7 +159,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3270
+#: dolphinmainwindow.cpp:3585
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -120,7 +175,7 @@ msgstr ""
 "userbase.kde.org/Dolphin/File_Management'>cliquez ici</link>. Ceci ouvre la "
 "page consacrée à Dolphin dans le wiki KDE UserBase.</para>"
 
-#: dolphinmainwindow.cpp:3275
+#: dolphinmainwindow.cpp:3590
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -143,21 +198,21 @@ msgstr ""
 "« Qu'est-ce que c'est ? » manque dans la plupart des autres fenêtres, ne "
 "vous y habituez donc pas trop.</para>"
 
-#: dolphinviewcontainer.cpp:130
+#: dolphinviewcontainer.cpp:131
 #, kde-format
 msgid "Running Orcinus as root can be dangerous. Please be careful."
 msgstr ""
 "Lancer Orcinus en tant que superutilisateur peut être dangereux. Soyez "
 "prudent."
 
-#: dolphinviewcontainer.cpp:1085
+#: dolphinviewcontainer.cpp:1087
 #, kde-format
 msgctxt "@info:status"
 msgid "Orcinus does not support web pages, the web browser has been launched"
 msgstr ""
 "Orcinus ne prend pas en charge les pages web, le navigateur web a été lancé"
 
-#: dolphinviewcontainer.cpp:1088
+#: dolphinviewcontainer.cpp:1090
 #, kde-format
 msgctxt "@info:status"
 msgid ""
@@ -208,7 +263,7 @@ msgctxt "@info:tooltip"
 msgid "Filter Applies To: %1"
 msgstr "Le filtre s'applique à : %1"
 
-#: main.cpp:103
+#: main.cpp:106
 #, kde-kuit-format
 msgctxt "@info:shell %1 is a terminal command"
 msgid ""
@@ -218,42 +273,48 @@ msgstr ""
 "Il est déconseillé de lancer <application>Orcinus</application> avec "
 "<command>sudo</command>. Veuillez plutôt lancer <icode>%1</icode>."
 
-#: main.cpp:193
+#: main.cpp:196
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will get started with a split view."
 msgstr "Orcinus démarrera avec une vue scindée."
 
-#: main.cpp:194
+#: main.cpp:197
 #, kde-format
 msgctxt "@info:shell"
 msgid "Orcinus will explicitly open in a new window."
 msgstr "Orcinus s'ouvrira explicitement dans une nouvelle fenêtre."
 
-#: main.cpp:203
+#: main.cpp:206
 #, kde-format
 msgctxt "@info:shell"
 msgid "Set up Orcinus for administrative tasks."
 msgstr "Configurer Orcinus pour les tâches d'administration."
 
-#: main.cpp:206
+#: main.cpp:209
 #, kde-format
 msgctxt "@info:shell"
 msgid "Start Orcinus Daemon (only required for DBus Interface)."
 msgstr ""
 "Démarrer le démon d'Orcinus (nécessaire uniquement pour l'interface D-Bus)."
 
-#: settings/dolphinsettingsdialog.cpp:60
+#: settings/dolphinsettingsdialog.cpp:63
 #, kde-format
 msgctxt "@title:group"
 msgid "Profiles"
 msgstr "Profils"
 
-#: settings/dolphinsettingsdialog.cpp:66
+#: settings/dolphinsettingsdialog.cpp:69
 #, kde-format
 msgctxt "@title:group"
 msgid "Viewer"
 msgstr "Visionneuse"
+
+#: settings/dolphinsettingsdialog.cpp:76
+#, kde-format
+msgctxt "@title:group"
+msgid "AI Support"
+msgstr ""
 
 #: settings/interface/confirmationssettingspage.cpp:70
 #, kde-format
@@ -379,6 +440,38 @@ msgstr ""
 "consomme beaucoup de ressources réseau.</para><para>Désactivez cette option "
 "si la navigation dans les dossiers distants est lente dans Orcinus ou si "
 "vous accédez à un stockage par une connexion facturée au volume.</para>"
+
+#: settings/interface/statusandlocationbarssettingspage.cpp:50
+#, kde-format
+msgctxt "@item:inlistbox Density of the bars"
+msgid "Normal"
+msgstr ""
+
+#: settings/interface/statusandlocationbarssettingspage.cpp:51
+#, kde-format
+msgctxt "@item:inlistbox Density of the bars"
+msgid "Compact"
+msgstr ""
+
+#: settings/interface/statusandlocationbarssettingspage.cpp:52
+#, kde-format
+msgctxt "@item:inlistbox Density of the bars"
+msgid "Very compact"
+msgstr ""
+
+#: settings/interface/statusandlocationbarssettingspage.cpp:54
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"How much room the toolbars, the location bars, the filter bar and the status "
+"bar take. Very compact draws text fields without a frame."
+msgstr ""
+
+#: settings/interface/statusandlocationbarssettingspage.cpp:56
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Bar density:"
+msgstr ""
 
 #: settings/viewmodes/expansiontintwidget.cpp:163
 #, kde-format
@@ -543,6 +636,7 @@ msgid "File Name Highlighting Rule"
 msgstr "Règle de mise en évidence des noms de fichiers"
 
 #: settings/viewmodes/filenamehighlightingruledialog.cpp:114
+#: whale/ai/whaleaiagentdialog.cpp:40
 #: whale/styles/whalestylessettingspage.cpp:79
 #, kde-format
 msgctxt "@label:textbox"
@@ -793,18 +887,21 @@ msgid "Highlight file names"
 msgstr "Mettre en évidence les noms de fichiers"
 
 #: settings/viewmodes/filenamehighlightingtab.cpp:203
+#: whale/ai/whaleaimemorywidget.cpp:70 whale/ai/whaleaipanel.cpp:265
 #, kde-format
 msgctxt "@action:button"
 msgid "Add…"
 msgstr "Ajouter…"
 
 #: settings/viewmodes/filenamehighlightingtab.cpp:204
+#: whale/ai/whaleaimemorywidget.cpp:72 whale/ai/whaleaisettingspage.cpp:72
 #, kde-format
 msgctxt "@action:button"
 msgid "Edit…"
 msgstr "Modifier…"
 
 #: settings/viewmodes/filenamehighlightingtab.cpp:205
+#: whale/ai/whaleaisettingspage.cpp:74
 #, kde-format
 msgctxt "@action:button"
 msgid "Remove"
@@ -851,7 +948,7 @@ msgctxt "@title:tab how file names are highlighted"
 msgid "Highlighting"
 msgstr "Mise en évidence"
 
-#: settings/viewmodes/viewsettingstab.cpp:73
+#: settings/viewmodes/viewsettingstab.cpp:74
 #, kde-format
 msgctxt "@info"
 msgid "Some font styles are reserved by Orcinus and may be overridden."
@@ -859,7 +956,82 @@ msgstr ""
 "Certains styles de police sont réservés par Orcinus et peuvent être "
 "remplacés."
 
-#: settings/viewmodes/viewsettingstab.cpp:133
+#: settings/viewmodes/viewsettingstab.cpp:84
+#, kde-format
+msgctxt "@item:inlistbox Information density"
+msgid "Normal"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:85
+#, kde-format
+msgctxt "@item:inlistbox Information density"
+msgid "Compact"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:86
+#, kde-format
+msgctxt "@item:inlistbox Information density"
+msgid "Very compact"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:87
+#, kde-format
+msgctxt "@item:inlistbox Information density"
+msgid "Custom"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:88
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"The space above and below each item. Less space shows more items at once."
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:89
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Density:"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:94
+#, kde-format
+msgctxt "@item:valuesuffix pixels"
+msgid " px"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:95
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The space above and below each item."
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:96
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "Padding:"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:104
+#, kde-format
+msgctxt "@item:valuesuffix percent"
+msgid " %"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:106
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"The height of a text line in percent of the font's line height. Below 100 % "
+"letters may touch the next row."
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:107
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "Line height:"
+msgstr ""
+
+#: settings/viewmodes/viewsettingstab.cpp:163
 #, kde-format
 msgctxt "@option:check"
 msgid "Drag files and folders from anywhere on the row"
@@ -867,7 +1039,7 @@ msgstr ""
 "Faire glisser les fichiers et dossiers depuis n'importe quel endroit de la "
 "ligne"
 
-#: settings/viewmodes/viewsettingstab.cpp:135
+#: settings/viewmodes/viewsettingstab.cpp:165
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -877,7 +1049,7 @@ msgstr ""
 "Maintenez Maj enfoncée en faisant glisser depuis la partie vide d'une ligne "
 "pour commencer plutôt un rectangle de sélection."
 
-#: settings/viewmodes/viewsettingstab.cpp:136
+#: settings/viewmodes/viewsettingstab.cpp:166
 #, kde-format
 msgctxt "@label:checkbox"
 msgid "Dragging:"
@@ -935,6 +1107,2829 @@ msgstr "Liens symboliques"
 msgctxt "@item:inlistbox file name highlighting rule"
 msgid "Media files"
 msgstr "Fichiers multimédias"
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:91
+#, kde-format
+msgctxt "@info placeholder of the AI canvas"
+msgid ""
+"The AI agent shows its work here: images it made, files it found, sounds, "
+"videos, texts."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:92
+#, kde-format
+msgctxt "@label left side of a comparison"
+msgid "Before"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:93
+#, kde-format
+msgctxt "@label right side of a comparison"
+msgid "After"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:94
+#, kde-format
+msgctxt "@action:button open a file in another program"
+msgid "Open"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:95
+#, kde-format
+msgctxt "@action:button"
+msgid "Play"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:96
+#, kde-format
+msgctxt "@action:button"
+msgid "Pause"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:97
+#, kde-format
+msgctxt "@info"
+msgid "Orcinus was built without a player (libmpv)."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:98
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Videos cannot be shown here when Qt Quick does not use OpenGL; the sound "
+"still plays."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:99
+#, kde-format
+msgctxt "@info"
+msgid "Could not be played."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:101
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Newest in %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:102
+#, kde-format
+msgctxt "@info"
+msgid "No image or video in this folder yet."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:113
+#, kde-format
+msgctxt "@title:tab the AI canvas"
+msgid "Canvas"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:130
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Tools"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:140
+#, kde-kuit-format
+msgctxt "@info"
+msgid ""
+"<para>Keep the tool <emphasis>%1</emphasis> on the canvas?</para><para>It "
+"then starts by itself with Orcinus, also without the AI agent. A tool works "
+"with your files through Orcinus, so its changes can be undone, but like any "
+"program it is not locked in: keep only tools you trust.</para>"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:147
+#, kde-format
+msgctxt "@title:window"
+msgid "Keep Tool"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:148
+#, kde-format
+msgctxt "@action:button"
+msgid "Keep Tool"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:303
+#, kde-format
+msgctxt "@info:tooltip %1 is a tool's description"
+msgid ""
+"%1\n"
+"Kept on the canvas"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:315
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Kept on the canvas: starts with Orcinus. Click to no longer keep it."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:347
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:382
+#, kde-format
+msgctxt "@info %1 is the name of a tool"
+msgid ""
+"“%1” changed since you kept it. It does not run until you have looked at it "
+"and keep it again."
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:408
+#, kde-format
+msgctxt "@item %1 is a folder"
+msgid "Folder: %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:410
+#, kde-format
+msgctxt "@item a file of a tool"
+msgid "File: %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:414
+#, kde-format
+msgctxt "@item %1 is a command"
+msgid "Runs: %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:417
+#, kde-format
+msgctxt "@item %1 is where a tool writes, as the tool says"
+msgid "Writes to: %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:499
+#, kde-format
+msgctxt "@item:inmenu"
+msgid "No tools yet; ask the AI agent to make one"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:502
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Show Tools Folder"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:519
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Keep on Canvas"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:529
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Reload"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:534
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Show Folder"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvaspanel.cpp:538
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Close"
+msgstr ""
+
+#: whale/ai/canvas/whaleaicanvastools.cpp:120
+#, kde-format
+msgctxt "@info"
+msgid "The agent showed something on the canvas."
+msgid_plural "The agent showed %1 things on the canvas."
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/canvas/whaleaicanvastools.cpp:136
+#, kde-format
+msgctxt "@info"
+msgid "The agent cleared the canvas."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:189
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Not kept yet: after a restart it waits until you start it. Keep it to have "
+"it start with Orcinus."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:190
+#: whale/ai/canvas/whaleaitooltab.cpp:487
+#, kde-format
+msgctxt "@action:button"
+msgid "Keep…"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:308
+#, kde-format
+msgctxt "@info %1 is an error message in English"
+msgid "The tool cannot be loaded: %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:350
+#, kde-format
+msgctxt "@action:button"
+msgid "Reload"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:352
+#, kde-format
+msgctxt "@info %1 is a list of QML errors"
+msgid ""
+"The tool has errors:\n"
+"%1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:437
+#, kde-format
+msgctxt "@info %1 is a command line"
+msgid ""
+"This tool runs a program: %1\n"
+"It runs with your rights and can change files."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:441
+#, kde-format
+msgctxt "@info %1 is a list of places, as the tool describes them"
+msgid "It says it writes to: %1"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:443
+#, kde-format
+msgctxt "@action:button"
+msgid "Start"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:445
+#, kde-format
+msgctxt "@action:button"
+msgid "Not Now"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:451
+#, kde-format
+msgctxt "@info"
+msgid "The tool's program has ended."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:452
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "The tool's program has stopped (exit code %1)."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:457
+#, kde-format
+msgctxt "@action:button"
+msgid "Restart"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:473
+#, kde-format
+msgctxt "@action:button"
+msgid "Keep Again…"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:475
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove from Canvas"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:484
+#, kde-format
+msgctxt "@action:button start a tool"
+msgid "Start"
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltab.cpp:494
+#, kde-kuit-format
+msgctxt "@info %1 is the name of a tool"
+msgid ""
+"<emphasis>%1</emphasis> is not kept, so it does not start by itself. Keep it "
+"to have it start with Orcinus."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltools.cpp:224
+#, kde-format
+msgctxt "@info %1 is a file name, %2 a tool's id"
+msgid "The agent wrote “%1” of the tool “%2”."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltools.cpp:248
+#, kde-format
+msgctxt "@info %1 is a file name, %2 a tool's id"
+msgid "The agent deleted “%1” of the tool “%2”."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltools.cpp:275
+#, kde-format
+msgctxt "@info %1 is a tool's name"
+msgid "The agent opened the tool “%1”."
+msgstr ""
+
+#: whale/ai/canvas/whaleaitooltools.cpp:354
+#, kde-format
+msgctxt "@info %1 is a button, key or function, %2 a tool's name"
+msgid "The agent used “%1” in the tool “%2”."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:34
+#, kde-format
+msgctxt "@title:window"
+msgid "Add AI Agent"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:34
+#, kde-format
+msgctxt "@title:window"
+msgid "Edit AI Agent"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:44
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "e.g. opencode acp"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:45
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"A program that speaks the Agent Client Protocol (ACP) on its standard input "
+"and output."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:46
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Command:"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:58
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"A model of LM Studio or Strata that Orcinus starts before the agent and "
+"frees again when no conversation uses it. The agent must be set up to use it "
+"(for OpenCode, Orcinus does that in the environment)."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:60
+#, kde-format
+msgctxt "@item:inlistbox no local model"
+msgid "None"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:75
+#, kde-format
+msgctxt "@item size in gigabytes"
+msgid "%1 GB"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:78
+#, kde-format
+msgctxt "@item of a language model"
+msgid "no tool calls"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:81
+#, kde-format
+msgctxt "@item %1 is a model name, %2 details"
+msgid "%1 – %2"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:87
+#, kde-format
+msgctxt "@item %1 is a model id"
+msgid "%1 (not found)"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:90
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Local model:"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:96
+#, kde-format
+msgctxt "@item:inrange"
+msgid "LM Studio's default"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:97
+#, kde-format
+msgctxt "@item:valuesuffix"
+msgid " tokens"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:99
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "Context length:"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:117
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "NAME=value, one per line"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:120
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Environment:"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:249
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "Runs %1"
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:256
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Strata's configuration of this model sets it."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:257
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"How much of the conversation the model keeps in mind. More takes more memory "
+"of the graphics card."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:261 whale/ai/whaleailocalruntime.cpp:688
+#, kde-format
+msgctxt "@info"
+msgid "Strata was not found."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:261
+#, kde-format
+msgctxt "@info"
+msgid "LM Studio was not found."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:263
+#, kde-format
+msgctxt "@info"
+msgid "Strata has no model with this id."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:263
+#, kde-format
+msgctxt "@info"
+msgid "LM Studio has no model with this id."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:265
+#, kde-format
+msgctxt "@info"
+msgid "This model was not trained for tool calls, which an agent needs."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:268
+#, kde-format
+msgctxt "@info"
+msgid "The program is in npx' cache, which can be cleaned up at any time."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:279
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The OpenCode configuration in the environment is your own: choose the model "
+"there too."
+msgstr ""
+
+#: whale/ai/whaleaiagentdialog.cpp:284
+#, kde-format
+msgctxt "@info"
+msgid ""
+"OpenCode runs local models as an agent; it is not installed (npm i -g "
+"opencode-ai)."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:81
+#, kde-format
+msgctxt "@info"
+msgid "The command cannot be read: check the quotes."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:84
+#, kde-format
+msgctxt "@info"
+msgid "No command is set."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:91
+#, kde-format
+msgctxt "@info"
+msgid "The program “%1” was not found."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:100
+#, kde-format
+msgctxt "@info"
+msgid "The environment entry “%1” is not of the form NAME=value."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:304
+#, kde-format
+msgctxt "@info"
+msgid "Claude Code through its ACP adapter. Uses the login of Claude Code."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:311
+#, kde-format
+msgctxt "@info"
+msgid "OpenAI Codex through its ACP adapter. Uses the login of the Codex CLI."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:318
+#, kde-format
+msgctxt "@info"
+msgid ""
+"OpenCode. Works with local models (LM Studio, Ollama, …) set up in its own "
+"configuration."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:334
+#, kde-format
+msgctxt "@info %1 is an npm package"
+msgid "Install it with: npm install -g %1"
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:378
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Codex uses the login of the Codex CLI: run “codex login” in a terminal once. "
+"With an API key instead, set OPENAI_API_KEY or CODEX_API_KEY in the agent's "
+"environment (Edit…)."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:384
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Claude uses the login of Claude Code: start “claude” in a terminal once and "
+"log in there."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:390
+#, kde-format
+msgctxt "@info"
+msgid ""
+"OpenCode keeps its providers in its own configuration: run “opencode auth "
+"login” in a terminal, or set up a local model there."
+msgstr ""
+
+#: whale/ai/whaleaiagents.cpp:566
+#, kde-format
+msgctxt "@item %1 is the name of a language model"
+msgid "%1 (local)"
+msgstr ""
+
+#: whale/ai/whaleaiagenttest.cpp:64
+#, kde-format
+msgctxt "@info"
+msgid "The agent needs a login first."
+msgstr ""
+
+#: whale/ai/whaleaiagenttest.cpp:67
+#, kde-format
+msgctxt "@info"
+msgid "The agent did not answer in time."
+msgstr ""
+
+#: whale/ai/whaleaiagenttest.cpp:70
+#, kde-format
+msgctxt "@info"
+msgid "The agent ended before it was ready."
+msgstr ""
+
+#: whale/ai/whaleaiagenttest.cpp:73
+#, kde-format
+msgctxt "@info"
+msgid "The agent could not be started."
+msgstr ""
+
+#: whale/ai/whaleaicontextchips.cpp:304
+#, kde-format
+msgctxt "@label chip in the AI panel, %1 is a folder name"
+msgid "Other view: %1"
+msgstr ""
+
+#: whale/ai/whaleaicontextchips.cpp:358
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Do not send this with the next message"
+msgstr ""
+
+#: whale/ai/whaleaicontext.cpp:119
+#, kde-format
+msgctxt "@info part of a list of what was sent to an AI agent"
+msgid "folder “%1”"
+msgstr ""
+
+#: whale/ai/whaleaicontext.cpp:122
+#, kde-format
+msgctxt "@info part of a list of what was sent to an AI agent"
+msgid "selected “%1”"
+msgstr ""
+
+#: whale/ai/whaleaicontext.cpp:124
+#, kde-format
+msgctxt "@info part of a list of what was sent to an AI agent"
+msgid "%1 selected item"
+msgid_plural "%1 selected items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaicontext.cpp:127
+#, kde-format
+msgctxt "@info part of a list of what was sent to an AI agent"
+msgid "other view “%1”"
+msgstr ""
+
+#: whale/ai/whaleaicontext.cpp:130
+#, kde-format
+msgctxt "@info part of a list of what was sent to an AI agent"
+msgid "“%1”"
+msgstr ""
+
+#: whale/ai/whaleaicontext.cpp:132
+#, kde-format
+msgctxt "@info part of a list of what was sent to an AI agent"
+msgid "%1 added item"
+msgid_plural "%1 added items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaicontext.cpp:137
+#, kde-format
+msgctxt ""
+"@info %1 is a list of what was sent to an AI agent along with a message"
+msgid "With: %1"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:78
+#, kde-format
+msgctxt "@info %1 is an AI agent, %2 a language model"
+msgid "%1 with %2"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:91
+#, kde-format
+msgctxt "@info a period of time: %1 a date, %2 and %3 times"
+msgid "%1, %2 – %3"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:97
+#, kde-format
+msgctxt "@info a period of time"
+msgid "%1 – %2"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:111
+#, kde-format
+msgctxt "@info status of a tool call"
+msgid "done"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:114
+#, kde-format
+msgctxt "@info status of a tool call"
+msgid "failed"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:117
+#, kde-format
+msgctxt "@info status of a tool call"
+msgid "cancelled"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:119
+#, kde-format
+msgctxt "@info status of a tool call"
+msgid "not finished"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:126
+#: whale/ai/whaleaitranscript.cpp:768 whale/ai/whaleaitranscript.cpp:1050
+#, kde-format
+msgctxt "@info the option the user chose for a permission request"
+msgid "Answered: %1"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:128
+#: whale/ai/whaleaitranscript.cpp:831 whale/ai/whaleaitranscript.cpp:1047
+#, kde-format
+msgctxt "@info a permission request of an AI agent"
+msgid "No longer needed."
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:202
+#: whale/ai/whaleaiconversationexport.cpp:302
+#: whale/ai/whaleaiconversationexport.cpp:373
+#, kde-format
+msgctxt "@title the user in an exported AI conversation"
+msgid "You"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:222
+#: whale/ai/whaleaiconversationexport.cpp:322
+#: whale/ai/whaleaiconversationexport.cpp:402
+#, kde-format
+msgctxt "@title an AI agent's thinking"
+msgid "Thinking"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:231
+#: whale/ai/whaleaiconversationexport.cpp:329
+#: whale/ai/whaleaiconversationexport.cpp:411
+#, kde-format
+msgctxt "@title an AI agent asks the user"
+msgid "Permission"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:234
+#: whale/ai/whaleaiconversationexport.cpp:332
+#: whale/ai/whaleaiconversationexport.cpp:416
+#, kde-format
+msgctxt "@title"
+msgid "Error"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:501
+#, kde-format
+msgctxt "@info file name of an exported AI conversation"
+msgid "Conversation"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:520
+#, kde-format
+msgctxt "@item:inlistbox file type"
+msgid "PDF (*.pdf)"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:521
+#, kde-format
+msgctxt "@title:window"
+msgid "Export Conversation as PDF"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:524
+#, kde-format
+msgctxt "@item:inlistbox file type"
+msgid "Markdown (*.md)"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:525
+#, kde-format
+msgctxt "@title:window"
+msgid "Export Conversation as Markdown"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:528
+#, kde-format
+msgctxt "@item:inlistbox file type"
+msgid "Text (*.txt)"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:529
+#, kde-format
+msgctxt "@title:window"
+msgid "Export Conversation as Text"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:541
+#, kde-format
+msgctxt "@info %1 is a file, %2 the reason"
+msgid "The conversation could not be written to %1: %2"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:553
+#, kde-format
+msgctxt "@title:window"
+msgid "Export as PDF"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:556
+#, kde-format
+msgctxt "@title:window"
+msgid "Export as Markdown"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:559
+#, kde-format
+msgctxt "@title:window"
+msgid "Export as Text"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:562
+#, kde-format
+msgctxt "@info"
+msgid "What goes in besides the messages and answers:"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:563
+#, kde-format
+msgctxt "@option:check what an AI agent did"
+msgid "Actions"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:565
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"The commands and tools the agent used, its thinking, and the panel's notices."
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:567
+#, kde-format
+msgctxt "@option:check"
+msgid "Times"
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:569
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "When each message, action and request came."
+msgstr ""
+
+#: whale/ai/whaleaiconversationexport.cpp:572
+#, kde-format
+msgctxt "@action:button"
+msgid "Export…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:37
+#, kde-format
+msgctxt "@title:window"
+msgid "Saved Conversations"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:41
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Search titles, agents and messages…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:46
+#, kde-format
+msgctxt "@title:column"
+msgid "Conversation"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:46
+#, kde-format
+msgctxt "@title:column"
+msgid "Agent"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:46
+#, kde-format
+msgctxt "@title:column"
+msgid "Last Message"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:55
+#, kde-format
+msgctxt "@action:button"
+msgid "Open"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:57
+#, kde-format
+msgctxt "@action:button"
+msgid "Rename…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:59
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Rename (F2)"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:67
+#, kde-format
+msgctxt "@action:button"
+msgid "Delete All…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:70
+#, kde-format
+msgctxt "@action:button"
+msgid "Export"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:75
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "As PDF…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:76
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "As Markdown…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:77
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "As Text…"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:141
+#, kde-format
+msgctxt "@item %1 is the title of the conversation the AI panel shows"
+msgid "%1 (open)"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:199
+#, kde-format
+msgctxt "@title:window"
+msgid "Rename Conversation"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:200
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Title (empty: made from your messages):"
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:205
+#, kde-format
+msgctxt "@info"
+msgid "The conversation could not be renamed."
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:277
+#, kde-format
+msgctxt "@info"
+msgid "Delete all saved conversations? This cannot be undone."
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:278
+#, kde-format
+msgctxt "@info"
+msgid "Delete all saved conversations but the open one? This cannot be undone."
+msgstr ""
+
+#: whale/ai/whaleaiconversationsdialog.cpp:279
+#, kde-format
+msgctxt "@title:window"
+msgid "Delete All Conversations"
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:46
+#, kde-format
+msgctxt "@title"
+msgid "Before you start using AI agents"
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:72
+#, kde-format
+msgctxt "@info"
+msgid ""
+"AI agents are powerful tools. They can modify files, execute commands, "
+"install software, and change system settings. Mistakes can cause data loss "
+"or damage your operating system."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:74
+#, kde-format
+msgctxt "@info"
+msgid "Please keep the following in mind:"
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:75
+#, kde-format
+msgctxt "@info lead of a list item"
+msgid "Start safely."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:76
+#, kde-format
+msgctxt "@info"
+msgid ""
+"If you are new to AI agents, experiment in a virtual machine first. You can "
+"run Orcinus inside one."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:77
+#, kde-format
+msgctxt "@info lead of a list item"
+msgid "Know the basics."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:79
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Familiarity with Linux users, permissions, and file systems is strongly "
+"recommended. Advanced system administration knowledge is helpful, but not "
+"required."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:81
+#, kde-format
+msgctxt "@info lead of a list item"
+msgid "Ask when unsure."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:82
+#, kde-format
+msgctxt "@info"
+msgid ""
+"If you do not understand an action or its consequences, ask the agent to "
+"explain before proceeding."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:83
+#, kde-format
+msgctxt "@info lead of a list item"
+msgid "Keep backups."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:83
+#, kde-format
+msgctxt "@info"
+msgid "Protect important files before giving agents access to your system."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:84
+#, kde-format
+msgctxt "@info lead of a list item"
+msgid "No undo."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:86
+#, kde-format
+msgctxt "@info"
+msgid ""
+"What an agent changes on your system bypasses Orcinus' Undo and Redo and "
+"cannot be taken back there. Only the agent itself may offer a way to reverse "
+"its changes."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:88
+#, kde-format
+msgctxt "@title the user decides about AI agents and answers for it"
+msgid "Your system, your responsibility."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:90
+#, kde-format
+msgctxt "@info"
+msgid ""
+"You decide which agents to trust and what access to grant them. Orcinus is "
+"free software under the GNU General Public License, version 2 or later. As "
+"its sections 11 and 12 state, it comes with no warranty, to the extent "
+"permitted by applicable law, and no copyright holder or contributor is "
+"liable for any damage arising from its use, including what an AI agent does "
+"through it."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:98
+#, kde-format
+msgctxt "@action:button"
+msgid "View License"
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:106
+#, kde-format
+msgctxt "@option:check"
+msgid "I understand the risks of using AI agents."
+msgstr ""
+
+#: whale/ai/whaleaidisclaimer.cpp:108
+#, kde-format
+msgctxt "@action:button"
+msgid "Continue"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:222
+#, kde-format
+msgctxt "@info %1 is a name like lmstudio"
+msgid ""
+"Orcinus cannot start local models of “%1”, only of LM Studio and Strata."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:229
+#, kde-format
+msgctxt "@info %1 is the name of a language model"
+msgid ""
+"%1 is still in use in another conversation. Only one local model fits into "
+"memory at a time: end that conversation first."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:364
+#, kde-format
+msgctxt "@info"
+msgid "LM Studio is not installed."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:375
+#, kde-format
+msgctxt "@info"
+msgid ""
+"LM Studio's command line tool “lms” was not found, so Orcinus cannot start "
+"LM Studio."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:383
+#, kde-format
+msgctxt "@info"
+msgid "Starting LM Studio…"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:390
+#, kde-format
+msgctxt "@info %1 is an error message"
+msgid "LM Studio's server did not start: %1"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:408
+#, kde-format
+msgctxt "@info %1 is an error message"
+msgid "LM Studio did not start: %1"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:425
+#, kde-format
+msgctxt "@info %1 is an address like 127.0.0.1:1234"
+msgid "LM Studio's server does not answer at %1."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:471
+#, kde-format
+msgctxt "@info"
+msgid "LM Studio's server does not answer."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:475
+#, kde-format
+msgctxt "@info %1 is a model id"
+msgid "LM Studio has no model “%1”."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:503
+#, kde-format
+msgctxt "@info %1 is a model name, %2 seconds"
+msgid "Loading %1 … %2 s"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:532
+#, kde-format
+msgctxt "@info %1 is a model name, %2 an error message"
+msgid "LM Studio could not load %1: %2"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:611 whale/ai/whaleailocalruntime.cpp:976
+#, kde-format
+msgctxt "@info"
+msgid "The local model was stopped."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:695
+#, kde-format
+msgctxt "@info %1 is a model id"
+msgid "Strata has no model “%1”."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:718
+#, kde-format
+msgctxt "@info %1 and %2 are model names"
+msgid ""
+"Strata runs %1 at the moment, not %2. Orcinus does not stop a Strata it did "
+"not start."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:733
+#, kde-format
+msgctxt "@info"
+msgid "Strata is starting with another model at the moment."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:738
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Strata's Python environment (.venv) was not found; run Strata's setup first."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:760
+#, kde-format
+msgctxt "@info %1 is an error message"
+msgid "Strata could not be started: %1"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:819
+#, kde-format
+msgctxt "@info what Strata does"
+msgid "starting its engine"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:821
+#, kde-format
+msgctxt "@info what Strata does"
+msgid "loading the model into memory"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:823
+#, kde-format
+msgctxt "@info what Strata does"
+msgid "filling the graphics card's memory"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:825
+#, kde-format
+msgctxt "@info what Strata does"
+msgid "almost ready"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:836
+#, kde-format
+msgctxt "@info what Strata does"
+msgid "starting"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:833
+#, kde-format
+msgctxt "@info %1 is a model name, %2 seconds, %3 what Strata does"
+msgid "Starting %1 … %2 s: %3. The computer may be slow meanwhile."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:879
+#, kde-format
+msgctxt "@info"
+msgid "Strata ended while it loaded the model."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:880
+#, kde-format
+msgctxt "@info %1 is the end of Strata's output"
+msgid ""
+"Strata ended while it loaded the model:\n"
+"%1"
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:892
+#, kde-format
+msgctxt "@info %1 minutes"
+msgid "Strata did not get ready within %1 minutes."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:913
+#, kde-format
+msgctxt "@info %1 is a model name, %2 seconds"
+msgid "Strata loads %1 again … %2 s. The computer may be slow meanwhile."
+msgstr ""
+
+#: whale/ai/whaleailocalruntime.cpp:935
+#, kde-format
+msgctxt "@info %1 is an error message"
+msgid "Strata could not load the model: %1"
+msgstr ""
+
+#: whale/ai/whaleaimcpserver.cpp:466
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Cannot create %1."
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:36
+#, kde-format
+msgctxt "@title:group"
+msgid "Memory"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:42
+#, kde-format
+msgctxt "@item:inlistbox memory of the AI agents"
+msgid "Off"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:43
+#, kde-format
+msgctxt "@item:inlistbox memory of the AI agents"
+msgid "Manual: the agent proposes, you keep"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:44
+#, kde-format
+msgctxt "@item:inlistbox memory of the AI agents"
+msgid "Automatic: the agent keeps notes itself"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:49
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Notes the agents get in later conversations: global ones everywhere, folder "
+"notes in that folder and below. Agents can also look through your saved "
+"conversations. You see every note an agent keeps, and notes never permit "
+"anything. In the AI panel, <nobr>“/remember …”</nobr> keeps a note for the "
+"folder you are in, <nobr>“/remember global …”</nobr> one for everywhere."
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:59
+#, kde-format
+msgctxt "@title:column where a note applies"
+msgid "Where"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:59
+#, kde-format
+msgctxt "@title:column"
+msgid "Note"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:59
+#, kde-format
+msgctxt "@title:column"
+msgid "Changed"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:83
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Memory:"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:116
+#, kde-format
+msgctxt "@item a note of the memory that applies everywhere"
+msgid "Global"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:122
+#, kde-format
+msgctxt "@item %1 is a folder that is gone"
+msgid "%1 (gone)"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:127
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Kept by an agent"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:127
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Written by you"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:151 whale/ai/whaleaipanel.cpp:1701
+#, kde-format
+msgctxt "@info %1 is the reason"
+msgid "The note could not be kept: %1"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:170
+#, kde-format
+msgctxt "@info %1 is the reason"
+msgid "The note could not be changed: %1"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:190
+#, kde-format
+msgctxt "@title:window"
+msgid "Add Note"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:190
+#, kde-format
+msgctxt "@title:window"
+msgid "Edit Note"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:191
+#, kde-format
+msgctxt "@option:radio a note of the memory"
+msgid "Everywhere"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:193
+#, kde-format
+msgctxt "@option:radio a note of the memory"
+msgid "In this folder and below:"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:199
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Choose the folder"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:204
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "e.g. Invoices go into one folder per year; PDFs keep their names."
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:227
+#, kde-format
+msgctxt "@title:window"
+msgid "Folder of the Note"
+msgstr ""
+
+#: whale/ai/whaleaimemorywidget.cpp:251
+#, kde-format
+msgctxt "@info %1 of %2 characters"
+msgid "%1 / %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:96
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The AI agent to talk to"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:101
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "New Conversation"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:108
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Saved Conversations"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:120
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Undo the Agent's Changes (settings, folder views, profiles)"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:127
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Configure AI Support…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:156
+#, kde-format
+msgctxt "@label:listbox what an AI agent may do on its own"
+msgid "Mode:"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:164
+#, kde-format
+msgctxt "@option:check show what an AI agent did in the transcript"
+msgid "Actions"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:168
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Show what the agent does and thinks: the commands it runs, the tools it uses "
+"and its thinking. Permission requests are always shown."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:173
+#, kde-format
+msgctxt "@option:check show when each entry of the AI transcript came"
+msgid "Times"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:175
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Show when each message, action and request came."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:205
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Ask the agent… (Enter sends, Shift+Enter: new line)"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:218
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Stop (Escape)"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:268
+#, kde-format
+msgctxt "@action:button"
+msgid "Discard"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:281
+#, kde-format
+msgctxt "@action:button"
+msgid "Suggestions"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:283
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Puts a request into the input, for you to complete and send"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:298
+#, kde-format
+msgctxt "@info"
+msgid ""
+"No AI agent is set up yet. The AI panel talks to agents installed on this "
+"computer, such as Claude Code, Codex or OpenCode with a local model."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:303
+#, kde-format
+msgctxt "@action:button"
+msgid "Set Up Agents…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:375
+#, kde-format
+msgctxt "@info"
+msgid "The agent of this conversation was removed."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:379
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The local model of this agent was changed. The next message starts a new "
+"conversation."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:532
+#, kde-format
+msgctxt "@info %1 is an agent's name"
+msgid "The agent proposed a new agent: “%1”."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:569
+#, kde-format
+msgctxt "@info %1 is an agent's name, %2 a command line"
+msgid "The agent suggests a new agent: <b>%1</b><br/>%2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:573
+#, kde-format
+msgctxt "@info %1 is a list of names"
+msgid "Environment: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:578
+#, kde-format
+msgctxt "@info %1 is the id of a language model"
+msgid "Local model: %1 (Orcinus starts Strata for it)"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:579
+#, kde-format
+msgctxt "@info %1 is the id of a language model"
+msgid "Local model: %1 (Orcinus starts LM Studio for it)"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:612
+#, kde-format
+msgctxt "@info %1 is an agent's name"
+msgid "Added the agent “%1”. Choose it in the agent list to talk to it."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:682
+#, kde-format
+msgctxt "@info %1 is the title of a conversation"
+msgid "The agent named this conversation “%1”."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:767
+#, kde-format
+msgctxt "@info %1 is a note"
+msgid "The agent proposes to remember: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:768
+#, kde-format
+msgctxt "@info %1 is a folder name, %2 a note"
+msgid "The agent proposes to remember for “%1”: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:769 whale/ai/whaleaipanel.cpp:816
+#, kde-format
+msgctxt "@action:button keep a note in the memory"
+msgid "Keep"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:770
+#, kde-format
+msgctxt "@action:button a proposed note"
+msgid "Discard"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:784
+#, kde-format
+msgctxt "@info %1 is a note"
+msgid "The agent remembered: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:785
+#, kde-format
+msgctxt "@info %1 is a folder name, %2 a note"
+msgid "The agent remembered for “%1”: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:786 whale/ai/whaleaipanel.cpp:815
+#: whale/ai/whaleaipanel.cpp:1711
+#, kde-format
+msgctxt "@action:button remove a note from the memory"
+msgid "Forget"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:813
+#, kde-format
+msgctxt "@info %1 is a note"
+msgid "The agent proposes to forget: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:814
+#, kde-format
+msgctxt "@info %1 is a folder name, %2 a note"
+msgid "The agent proposes to forget for “%1”: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:823
+#, kde-format
+msgctxt "@info %1 is a note"
+msgid "The agent forgot: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:824
+#, kde-format
+msgctxt "@info %1 is a folder name, %2 a note"
+msgid "The agent forgot for “%1”: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:825
+#, kde-format
+msgctxt "@action:button bring a forgotten note back"
+msgid "Undo"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:975 whale/ai/whaleaipanel.cpp:994
+#, kde-format
+msgctxt "@info a note of the memory"
+msgid "Forgotten."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:980 whale/ai/whaleaipanel.cpp:996
+#, kde-format
+msgctxt "@info a note of the memory"
+msgid "Kept."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:981 whale/ai/whaleaipanel.cpp:989
+#, kde-format
+msgctxt "@info %1 is the reason"
+msgid "Could not be kept: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:983
+#, kde-format
+msgctxt "@info a proposed note of the memory"
+msgid "Discarded."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:988
+#, kde-format
+msgctxt "@info a forgotten note of the memory"
+msgid "Kept again."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1102 whale/ai/whaleaipanel.cpp:1110
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent"
+msgid "Now talking to %1. The next message starts a new conversation."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1155
+#, kde-format
+msgctxt "@info what was sent along with a message"
+msgid "%1 note from the memory"
+msgid_plural "%1 notes from the memory"
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaipanel.cpp:1156
+#, kde-format
+msgctxt "@info %1 is e.g. 2 notes from the memory"
+msgid "With: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1157
+#, kde-format
+msgctxt "@info %1 says what was sent along, %2 e.g. 2 notes from the memory"
+msgid "%1, %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1173
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent, %2 the reason"
+msgid "%1 cannot be started: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1225
+#, kde-format
+msgctxt "@info %1 is a folder name"
+msgid "The agent opened “%1” in the left view."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1228
+#, kde-format
+msgctxt "@info %1 is a folder name"
+msgid "The agent opened “%1” in the right view."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1231
+#, kde-format
+msgctxt "@info %1 is a folder name"
+msgid "The agent opened “%1”."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1237
+#, kde-format
+msgctxt "@info"
+msgid "The agent selected %1 item in the left view."
+msgid_plural "The agent selected %1 items in the left view."
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaipanel.cpp:1240
+#, kde-format
+msgctxt "@info"
+msgid "The agent selected %1 item in the right view."
+msgid_plural "The agent selected %1 items in the right view."
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaipanel.cpp:1243
+#, kde-format
+msgctxt "@info"
+msgid "The agent selected %1 item."
+msgid_plural "The agent selected %1 items."
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaipanel.cpp:1252
+#, kde-format
+msgctxt "@info %1 is a command, e.g. View ▸ Show Hidden Files"
+msgid "The agent turned on %1."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1253
+#, kde-format
+msgctxt "@info %1 is a command, e.g. View ▸ Show Hidden Files"
+msgid "The agent turned off %1."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1255
+#, kde-format
+msgctxt "@info %1 is a command, e.g. View ▸ View Mode ▸ Details"
+msgid "The agent used %1."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1270
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent, %2 a folder"
+msgid "%1 continues the conversation in %2."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1272
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent, %2 a folder"
+msgid "%1 works in %2."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1283
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The agent could not continue the saved conversation, so this is a new one."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1304
+#, kde-format
+msgctxt "@info"
+msgid "The agent stopped working."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1306
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The agent needs a login first. See “Test” in the AI Support settings for how "
+"to log in."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1357 whale/ai/whaleaipanel.cpp:1579
+#, kde-format
+msgctxt "@info"
+msgid "Stopped."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1359
+#, kde-format
+msgctxt "@info"
+msgid "The agent refused to go on."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1361
+#, kde-format
+msgctxt "@info"
+msgid "The agent reached its limit for one answer."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1363
+#, kde-format
+msgctxt "@info"
+msgid "The agent could not answer."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1376
+#, kde-format
+msgctxt "@info"
+msgid "Starting the local model…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1377
+#, kde-format
+msgctxt "@info %1 is the id of a language model"
+msgid "Starting the local model %1 first."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1395
+#, kde-format
+msgctxt "@info"
+msgid "The local model could not be started."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1440
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent"
+msgid ""
+"%1 offers no modes, so Orcinus cannot choose what it may do. It works as it "
+"is set up."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1452
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent, %2 the id of a mode"
+msgid ""
+"%1 does not offer the mode “%2” any more. Choose the mode it should work in."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1463
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent"
+msgid ""
+"Orcinus does not know which mode of %1 only reads. Choose the mode it should "
+"work in."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1496
+#, kde-format
+msgctxt "@info %1 is the name of a mode, %2 the agent's reason"
+msgid "The agent did not switch to the mode “%1”: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1501
+#, kde-format
+msgctxt "@info"
+msgid "Choose the mode it should work in."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1510
+#, kde-format
+msgctxt "@info %1 is the name of a mode of an AI agent"
+msgid "You switched the agent to the mode “%1”."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1511
+#, kde-format
+msgctxt "@info %1 is the name of a mode of an AI agent"
+msgid "The agent works in the mode “%1”."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1522
+#, kde-format
+msgctxt "@info"
+msgid "Your message is sent once the agent works in the chosen mode."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1537
+#, kde-format
+msgctxt "@info %1 is the name of a mode of an AI agent"
+msgid "The agent switched to the mode “%1”."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1684
+#, kde-format
+msgctxt "@info"
+msgid "The memory is off. Turn it on in the AI Support settings."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1691
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This is no local folder: use “/remember global …” for a note for everywhere."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1700
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Write the note after “/remember”, e.g. “/remember Invoices go into one "
+"folder per year.”"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1709
+#, kde-format
+msgctxt "@info %1 is a note"
+msgid "Remembered: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1710
+#, kde-format
+msgctxt "@info %1 is a folder name, %2 a note"
+msgid "Remembered for “%1”: %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1761
+#, kde-format
+msgctxt "@item:inmenu"
+msgid "No Saved Conversations"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1768
+#, kde-format
+msgctxt "@info:tooltip %1 is the name of an AI agent, %2 a folder"
+msgid "%1 in %2"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1778
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Show All…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1785
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Export as PDF…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1786
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Export as Markdown…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1787
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Export as Text…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1827
+#, kde-format
+msgctxt "@info"
+msgid "The saved conversation could not be read."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1843
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent"
+msgid "The agent “%1” of this conversation is no longer set up."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1847
+#, kde-format
+msgctxt "@info %1 is a date and time"
+msgid "Saved conversation of %1. The next message continues it."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1848
+#, kde-format
+msgctxt "@info %1 is a date and time"
+msgid "Saved conversation of %1. The next message starts a new conversation."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1873
+#, kde-format
+msgctxt "@info separator of a list"
+msgid ", "
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1872
+#, kde-format
+msgctxt ""
+"@info %1 is a list of things, e.g. the setting “Status bar”, the view of "
+"“Pictures”"
+msgid "Undid the agent's changes: %1."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1883
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Ask the agent about your files. It sees the folder you have open and what "
+"you selected, and it can open folders and select files for you."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1899
+#, kde-format
+msgctxt "@info part of a request to an AI agent"
+msgid "Please look into it first and ask me before every change."
+msgstr ""
+"Examine d'abord la situation et demande-moi avant chaque modification, s'il "
+"te plaît."
+
+#: whale/ai/whaleaipanel.cpp:1908
+#, kde-format
+msgctxt "@title:menu"
+msgid "Files"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1909
+#, kde-format
+msgctxt "@info request to an AI agent"
+msgid "Please give the selected files sensible names."
+msgstr "Donne des noms pertinents aux fichiers sélectionnés, s'il te plaît."
+
+#: whale/ai/whaleaipanel.cpp:1910
+#, kde-format
+msgctxt "@info request to an AI agent"
+msgid "Please explain the selected file to me."
+msgstr "Explique-moi le fichier sélectionné, s'il te plaît."
+
+#: whale/ai/whaleaipanel.cpp:1911
+#, kde-format
+msgctxt "@title:menu"
+msgid "Software"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1912
+#, kde-format
+msgctxt "@info request to an AI agent, the user adds which"
+msgid "Please help me install software: "
+msgstr "Aide-moi à installer un logiciel, s'il te plaît : "
+
+#: whale/ai/whaleaipanel.cpp:1914
+#, kde-format
+msgctxt "@info request to an AI agent, the user adds which"
+msgid "A program does not work properly: "
+msgstr "Un programme ne fonctionne pas correctement : "
+
+#: whale/ai/whaleaipanel.cpp:1915
+#, kde-format
+msgctxt "@title:menu"
+msgid "System"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1917
+#, kde-format
+msgctxt "@info request to an AI agent"
+msgid "Please check my operating system and suggest what to do."
+msgstr ""
+"Vérifie mon système d'exploitation et propose-moi quoi faire, s'il te plaît."
+
+#: whale/ai/whaleaipanel.cpp:1919
+#, kde-format
+msgctxt "@info request to an AI agent"
+msgid "Please help me repair my operating system."
+msgstr "Aide-moi à réparer mon système d'exploitation, s'il te plaît."
+
+#: whale/ai/whaleaipanel.cpp:1921
+#, kde-format
+msgctxt "@info request to an AI agent"
+msgid ""
+"Please check my system for viruses. If there is no virus scanner, suggest "
+"one."
+msgstr ""
+"Recherche des virus sur mon système, s'il te plaît. S'il n'y a pas "
+"d'antivirus, propose-m'en un."
+
+#: whale/ai/whaleaipanel.cpp:1926
+#, kde-format
+msgctxt ""
+"@info request to an AI agent, %1 is the URL of the bug report form, the user "
+"adds the problem"
+msgid ""
+"Please help me report a problem with Orcinus. Collect what the bug report "
+"needs (Orcinus version, system, and for a crash the backtrace via "
+"coredumpctl) and write a draft from it that follows the form at %1. Remove "
+"personal data such as user names and paths. Do not submit the report "
+"yourself, I will do that. The problem: "
+msgstr ""
+"Aide-moi à signaler un problème avec Orcinus, s'il te plaît. Rassemble ce "
+"dont le rapport de bogue a besoin (version d'Orcinus, système et, en cas de "
+"plantage, la trace d'appels via coredumpctl) et rédige à partir de cela un "
+"brouillon qui suit le formulaire à l'adresse %1. Supprime les données "
+"personnelles comme les noms d'utilisateur et les chemins. N'envoie pas le "
+"rapport toi-même, je m'en charge. Le problème : "
+
+#: whale/ai/whaleaipanel.cpp:1930
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Report a problem with Orcinus"
+msgstr "Signaler un problème avec Orcinus"
+
+#: whale/ai/whaleaipanel.cpp:1987
+#, kde-format
+msgctxt "@info"
+msgid "Starts with your first message."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1995
+#, kde-format
+msgctxt "@info"
+msgid "Starting…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2004 whale/ai/whaleaisettingspage.cpp:689
+#, kde-format
+msgctxt "@info %1 is the name of a language model"
+msgid "Model: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2008
+#, kde-format
+msgctxt "@info how much of the context window is used"
+msgid "Context: %1 %"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2048
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "The agent offers no modes"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2050
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Choose a mode…"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2057
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Read-only mode"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2070
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"What the agent may do without asking. Each agent starts in its most "
+"restrictive mode until you choose another one. The agent decides when it "
+"asks: Orcinus can only answer what it is asked."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2104
+#, kde-format
+msgctxt "@info"
+msgid "The agent was stopped and its local model unloaded."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2119
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Stop the Agent and Unload the Local Model"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2123
+#, kde-format
+msgctxt "@info:tooltip %1 is the id of a language model"
+msgid "Load the Local Model (%1) and Start the Agent"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:2235
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The agent was stopped to free the memory of the local model when the panel "
+"was closed. Your next message starts it again."
+msgstr ""
+
+#: whale/ai/whaleaiprofiletools.cpp:76
+#, kde-format
+msgctxt "@info"
+msgid "the look of the window"
+msgstr ""
+
+#: whale/ai/whaleaiprofiletools.cpp:82
+#, kde-format
+msgctxt "@info %1 is the name of a profile"
+msgid "The agent applied the profile “%1”."
+msgstr ""
+
+#: whale/ai/whaleaiprofiletools.cpp:95
+#, kde-format
+msgctxt "@info"
+msgid "the profiles"
+msgstr ""
+
+#: whale/ai/whaleaiprofiletools.cpp:100
+#, kde-format
+msgctxt "@info %1 is the name of a profile"
+msgid "The agent saved the window as the profile “%1” again."
+msgstr ""
+
+#: whale/ai/whaleaiprofiletools.cpp:101
+#, kde-format
+msgctxt "@info %1 is the name of a profile"
+msgid "The agent saved the window as the new profile “%1”."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:56
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI panel talks to AI agents installed on this computer, through the "
+"Agent Client Protocol (ACP). An agent may use a cloud service or a local "
+"model, as it is set up. Nothing is sent before you write in the AI panel."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:65
+#, kde-format
+msgctxt "@action:button"
+msgid "Add"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:76
+#, kde-format
+msgctxt "@action:button"
+msgid "Use by Default"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:78
+#, kde-format
+msgctxt "@action:button"
+msgid "Test"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:80
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Starts the agent without a prompt and shows what it reports. This costs "
+"nothing."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:103
+#, kde-format
+msgctxt "@action:button"
+msgid "Log In in a Terminal…"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:109
+#, kde-format
+msgctxt "@title:group"
+msgid "System prompt"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:110
+#, kde-format
+msgctxt "@option:check"
+msgid "Write my own instructions for every agent"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:113
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These instructions lead the first message of every conversation: who the "
+"agent is and its Orcinus tools. Orcinus keeps them up to date. You can write "
+"your own, but a weak prompt can confuse the agent."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:122
+#, kde-format
+msgctxt "@action:button"
+msgid "Reset to Orcinus' Text"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:142
+#, kde-format
+msgctxt "@title:group"
+msgid "Local models"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:145
+#, kde-format
+msgctxt "@info"
+msgid ""
+"When the AI panel is closed, Orcinus frees the memory of the local model it "
+"started after this time. Loading it again takes a while: a few seconds for "
+"LM Studio, about a minute and a half for Strata."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:157
+#, kde-format
+msgctxt "@item:valuesuffix minutes"
+msgid " min"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:157
+#, kde-format
+msgctxt "@item:valuesuffix seconds"
+msgid " s"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:158
+#, kde-format
+msgctxt "@item:inrange"
+msgid "At once"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:161
+#, kde-format
+msgctxt "@label:spinbox %1 is LM Studio or Strata"
+msgid "%1:"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:167
+#, kde-format
+msgctxt "@title:group"
+msgid "Administrator rights"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:169
+#, kde-format
+msgctxt "@option:check"
+msgid "Let agents ask for administrator rights"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:174
+#, kde-format
+msgctxt "@info"
+msgid ""
+"For each command, such as installing a program, you are asked for your "
+"password and see the command. Otherwise the agent tells you what to run in a "
+"terminal yourself."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:183
+#, kde-format
+msgctxt "@title:group"
+msgid "Language"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:187
+#, kde-format
+msgctxt "@item:inlistbox conversation language"
+msgid "Same as Orcinus"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:192
+#, kde-format
+msgctxt "@item:inlistbox %1 is a language, %2 a country"
+msgid "%1 (%2)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:197
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Talk with agents in:"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:199
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The suggestions of the AI panel use this language, and agents are asked to "
+"answer in it. The rest of Orcinus stays in its own language."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:207
+#, kde-format
+msgctxt "@title:group"
+msgid "Conversations"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:209
+#, kde-format
+msgctxt "@option:check"
+msgid "Save conversations"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:214
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid ""
+"Only on this computer, in %1. They hold what you and the agent wrote, also "
+"paths and what the agent read of your files."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:224
+#, kde-format
+msgctxt "@item:valuesuffix days"
+msgid " days"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:225
+#, kde-format
+msgctxt "@item:inrange keep saved conversations"
+msgid "Always"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:228
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "Keep for:"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:251
+#, kde-format
+msgctxt "@title:tab AI settings"
+msgid "Agents"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:260
+#, kde-format
+msgctxt "@title:tab AI settings"
+msgid "Memory"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:269
+#, kde-format
+msgctxt "@title:tab AI settings"
+msgid "System Prompt"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:288
+#, kde-format
+msgctxt "@info:tooltip %1 is a command line"
+msgid "Runs “%1” in a terminal."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:382
+#, kde-format
+msgctxt "@item:inlistbox %1 is the name of an AI agent"
+msgid "%1 (default)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:407
+#, kde-format
+msgctxt "@action:inmenu %1 is the name of an AI agent"
+msgid "%1 (not found)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:409
+#, kde-format
+msgctxt "@action:inmenu %1 is the name of an AI agent"
+msgid "%1 (downloads its adapter with npx)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:429
+#, kde-format
+msgctxt "@action:inmenu %1 is LM Studio or Strata"
+msgid "Local Model (%1)…"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:431
+#, kde-format
+msgctxt "@action:inmenu %1 is LM Studio or Strata"
+msgid "Local Model (%1 not found)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:433
+#, kde-format
+msgctxt "@action:inmenu %1 is LM Studio or Strata"
+msgid "Local Model (%1 has no models)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:440
+#, kde-format
+msgctxt "@info:tooltip %1 is LM Studio or Strata"
+msgid ""
+"An agent for a language model on this computer, run by OpenCode. Orcinus "
+"starts %1 and loads the model when you talk to it, and frees them again when "
+"it is no longer used."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:450
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Other Agent…"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:555
+#, kde-format
+msgctxt "@title:window"
+msgid "Add Local Model"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:615
+#, kde-format
+msgctxt "@info"
+msgid "Starting %1…"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:645
+#, kde-format
+msgctxt "@info"
+msgid ""
+"You are about to write your own instructions for every agent, instead of the "
+"ones Orcinus keeps up to date. A weak or misleading prompt can confuse the "
+"agent or drop useful guidance. Continue?"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:647
+#, kde-format
+msgctxt "@title:window"
+msgid "Edit the system prompt"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:673
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent"
+msgid "<b>%1</b> is ready."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:674
+#, kde-format
+msgctxt "@info %1 is the name of an AI agent, %2 its version"
+msgid "<b>%1 %2</b> is ready."
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:687
+#, kde-format
+msgctxt "@info %1 is the current mode, %2 a list of all modes"
+msgid "Mode: %1 (of: %2)"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:708
+#, kde-format
+msgctxt "@info %1 is a link"
+msgid "Download and documentation: %1"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:718
+#, kde-format
+msgctxt "@info"
+msgid "Ways to log in:"
+msgstr ""
+
+#: whale/ai/whaleaisettingspage.cpp:726
+#, kde-format
+msgctxt "@info"
+msgid "The agent's log ends with:"
+msgstr ""
+
+#: whale/ai/whaleaisettingstools.cpp:219
+#, kde-format
+msgctxt "@info a setting's value"
+msgid "on"
+msgstr ""
+
+#: whale/ai/whaleaisettingstools.cpp:219
+#, kde-format
+msgctxt "@info a setting's value"
+msgid "off"
+msgstr ""
+
+#: whale/ai/whaleaisettingstools.cpp:323
+#, kde-format
+msgctxt "@info %1 is the name of a setting"
+msgid "the setting “%1”"
+msgstr ""
+
+#: whale/ai/whaleaisettingstools.cpp:338
+#, kde-format
+msgctxt "@info %1 is the name of a setting, %2 its new value"
+msgid "The agent changed the setting “%1” to %2."
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:139
+#, kde-format
+msgctxt "@info:tooltip state of a tool call of an AI agent"
+msgid "Waiting"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:141
+#, kde-format
+msgctxt "@info:tooltip state of a tool call of an AI agent"
+msgid "Running"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:143
+#, kde-format
+msgctxt "@info:tooltip state of a tool call of an AI agent"
+msgid "Done"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:145
+#, kde-format
+msgctxt "@info:tooltip state of a tool call of an AI agent"
+msgid "Failed"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:147
+#, kde-format
+msgctxt "@info:tooltip state of a tool call of an AI agent"
+msgid "Cancelled"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:187
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Read files"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:190
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Change files"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:193
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Delete files"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:196
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Move or rename files"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:199
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Search"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:202
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Run a command"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:205
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Fetch from the internet"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:208
+#, kde-format
+msgctxt "@info what an AI agent wants to do"
+msgid "Change its mode"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:247
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "%1 (new file)"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:262
+#, kde-format
+msgctxt "@info"
+msgid "… and one more line"
+msgid_plural "… and %1 more lines"
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaitranscript.cpp:608
+#, kde-format
+msgctxt "@action:button AI agent's thinking, unfolds it"
+msgid "Thinking"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:686
+#, kde-format
+msgctxt "@info %1 describes what an AI agent wants to do"
+msgid "The agent asks for permission: %1"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:729 whale/ai/whaleaitranscript.cpp:867
+#, kde-format
+msgctxt "@action:button unfolds technical details"
+msgid "Details"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:730
+#, kde-format
+msgctxt "@action:button unfolds the changes an AI agent wants to make"
+msgid "Changes"
+msgstr ""
+
+#: whale/ai/whaleaitranscript.cpp:1188
+#, kde-format
+msgctxt "@title an AI agent in copied text"
+msgid "Agent"
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:332
+#, kde-format
+msgctxt "@info"
+msgid "The agent maximized the window."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:335
+#, kde-format
+msgctxt "@info"
+msgid "The agent switched the window to full screen."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:340
+#, kde-format
+msgctxt "@info"
+msgid "The agent restored the window to its normal size."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:348
+#, kde-format
+msgctxt "@info %1 and %2 are pixels"
+msgid "The agent resized the window to %1 × %2."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:380
+#, kde-format
+msgctxt "@info %1 is a panel, %2 pixels"
+msgid "The agent set the width of the %1 panel to %2 pixels."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:402
+#, kde-format
+msgctxt "@info %1 and %2 are percentages"
+msgid "The agent divided the split view %1 % : %2 %."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:479
+#, kde-format
+msgctxt "@info"
+msgid "The agent cleared the filter."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:484
+#, kde-format
+msgctxt "@info %1 is a text the view is filtered by"
+msgid "The agent filtered the view by “%1”."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:503
+#, kde-format
+msgctxt "@info"
+msgid "The agent closed a message."
+msgid_plural "The agent closed %1 messages."
+msgstr[0] ""
+msgstr[1] ""
+
+#: whale/ai/whaleaiwindowtools.cpp:533
+#, kde-format
+msgctxt "@info %1 is a file name"
+msgid "The agent opened “%1” in the viewer."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:552
+#, kde-format
+msgctxt "@info"
+msgid "The agent closed the viewer."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:560
+#, kde-format
+msgctxt "@info"
+msgid "The agent paused the video."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:560
+#, kde-format
+msgctxt "@info"
+msgid "The agent played the video."
+msgstr ""
+
+#: whale/ai/whaleaiwindowtools.cpp:568
+#, kde-format
+msgctxt "@info %1 is a file name"
+msgid "The agent showed “%1” in the viewer."
+msgstr ""
 
 #: whale/host/whalefileoperationsimpl.cpp:378
 #, kde-format
@@ -1378,307 +4373,393 @@ msgstr ""
 "Fermer la vue de droite\n"
 "Clic droit pour la déplacer dans un nouvel onglet ou une nouvelle fenêtre"
 
-#: whale/styles/whaledefaultstyles.cpp:68
+#: whale/styles/whaledefaultstyles.cpp:70
 #, kde-format
 msgctxt "@item name of a shipped profile"
 msgid "Images Only"
 msgstr "Images seulement"
 
-#: whale/styles/whaledefaultstyles.cpp:79
+#: whale/styles/whaledefaultstyles.cpp:81
 #, kde-format
 msgctxt "@item name of a shipped profile"
 msgid "Locked Cushion Map"
 msgstr "Cushion Map liée"
 
-#: whale/styles/whaledefaultstyles.cpp:86
+#: whale/styles/whaledefaultstyles.cpp:88
 #, kde-format
 msgctxt "@item name of a shipped profile"
 msgid "Compact"
 msgstr "Synthétique"
 
-#: whale/styles/whaledefaultstyles.cpp:87
+#: whale/styles/whaledefaultstyles.cpp:89
 #, kde-format
 msgctxt "@item name of a shipped profile"
 msgid "Dual Compact"
 msgstr "Synthétique double"
 
-#: whale/styles/whaledefaultstyles.cpp:88
+#: whale/styles/whaledefaultstyles.cpp:90
 #, kde-format
 msgctxt "@item name of a shipped profile"
 msgid "Details"
 msgstr "Détails"
 
-#: whale/styles/whaledefaultstyles.cpp:89
+#: whale/styles/whaledefaultstyles.cpp:91
 #, kde-format
 msgctxt "@item name of a shipped profile"
 msgid "Dual Details"
 msgstr "Détails double"
 
-#: whale/styles/whalestyleelementtypes.cpp:104
+#: whale/styles/whaledefaultstyles.cpp:98
+#, kde-format
+msgctxt "@item name of a shipped profile"
+msgid "AI Workbench"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:105
 #, kde-format
 msgctxt "@item:intext view mode"
 msgid "Icons"
 msgstr "Icônes"
 
-#: whale/styles/whalestyleelementtypes.cpp:106
+#: whale/styles/whalestyleelementtypes.cpp:107
 #, kde-format
 msgctxt "@item:intext view mode"
 msgid "Compact"
 msgstr "Synthétique"
 
-#: whale/styles/whalestyleelementtypes.cpp:108
+#: whale/styles/whalestyleelementtypes.cpp:109
 #, kde-format
 msgctxt "@item:intext view mode"
 msgid "Details"
 msgstr "Détails"
 
-#: whale/styles/whalestyleelementtypes.cpp:124
+#: whale/styles/whalestyleelementtypes.cpp:125
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Split view"
 msgstr "Vue scindée"
 
-#: whale/styles/whalestyleelementtypes.cpp:153
+#: whale/styles/whalestyleelementtypes.cpp:154
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "Two views"
 msgstr "Deux vues"
 
-#: whale/styles/whalestyleelementtypes.cpp:153
+#: whale/styles/whalestyleelementtypes.cpp:154
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "One view"
 msgstr "Une vue"
 
-#: whale/styles/whalestyleelementtypes.cpp:172
+#: whale/styles/whalestyleelementtypes.cpp:173
 #, kde-format
 msgctxt "@item:inlistbox profile element"
 msgid "Display style of the left view"
 msgstr "Style d'affichage de la vue de gauche"
 
-#: whale/styles/whalestyleelementtypes.cpp:173
+#: whale/styles/whalestyleelementtypes.cpp:174
 #, kde-format
 msgctxt "@item:inlistbox profile element"
 msgid "Display style of the right view"
 msgstr "Style d'affichage de la vue de droite"
 
-#: whale/styles/whalestyleelementtypes.cpp:224
+#: whale/styles/whalestyleelementtypes.cpp:225
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "previews"
 msgstr "aperçus"
 
-#: whale/styles/whalestyleelementtypes.cpp:227
+#: whale/styles/whalestyleelementtypes.cpp:228
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "hidden files"
 msgstr "fichiers cachés"
 
-#: whale/styles/whalestyleelementtypes.cpp:229
-#: whale/styles/whalestyleelementtypes.cpp:653
+#: whale/styles/whalestyleelementtypes.cpp:230
+#: whale/styles/whalestyleelementtypes.cpp:654
+#: whale/styles/whalestyleelementtypes.cpp:776
 #, kde-format
 msgctxt "@item:intext separator of a list"
 msgid ", "
 msgstr ", "
 
-#: whale/styles/whalestyleelementtypes.cpp:275
+#: whale/styles/whalestyleelementtypes.cpp:276
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "View on the left"
 msgstr "Vue de gauche"
 
-#: whale/styles/whalestyleelementtypes.cpp:276
+#: whale/styles/whalestyleelementtypes.cpp:277
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "View on the right"
 msgstr "Vue de droite"
 
-#: whale/styles/whalestyleelementtypes.cpp:312
+#: whale/styles/whalestyleelementtypes.cpp:313
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "File list"
 msgstr "Liste des fichiers"
 
-#: whale/styles/whalestyleelementtypes.cpp:353
+#: whale/styles/whalestyleelementtypes.cpp:354
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Linked views"
 msgstr "Vues liées"
 
-#: whale/styles/whalestyleelementtypes.cpp:374
+#: whale/styles/whalestyleelementtypes.cpp:375
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "Linked"
 msgstr "Liées"
 
-#: whale/styles/whalestyleelementtypes.cpp:374
+#: whale/styles/whalestyleelementtypes.cpp:375
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "Not linked"
 msgstr "Non liées"
 
-#: whale/styles/whalestyleelementtypes.cpp:483
+#: whale/styles/whalestyleelementtypes.cpp:484
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Filter of the left view"
 msgstr "Filtre de la vue de gauche"
 
-#: whale/styles/whalestyleelementtypes.cpp:484
+#: whale/styles/whalestyleelementtypes.cpp:485
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Filter of the right view"
 msgstr "Filtre de la vue de droite"
 
-#: whale/styles/whalestyleelementtypes.cpp:538
-#: whale/styles/whalestyleelementtypes.cpp:694
-#: whale/styles/whalestyleelementtypes.cpp:780
+#: whale/styles/whalestyleelementtypes.cpp:539
+#: whale/styles/whalestyleelementtypes.cpp:885
+#: whale/styles/whalestyleelementtypes.cpp:971
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "Hidden"
 msgstr "Masqué"
 
-#: whale/styles/whalestyleelementtypes.cpp:543
+#: whale/styles/whalestyleelementtypes.cpp:544
 #, kde-format
 msgctxt "@item:intext the filter applies to"
 msgid "files"
 msgstr "fichiers"
 
-#: whale/styles/whalestyleelementtypes.cpp:546
+#: whale/styles/whalestyleelementtypes.cpp:547
 #, kde-format
 msgctxt "@item:intext the filter applies to"
 msgid "folders"
 msgstr "dossiers"
 
-#: whale/styles/whalestyleelementtypes.cpp:549
+#: whale/styles/whalestyleelementtypes.cpp:550
 #, kde-format
 msgctxt "@item:intext the filter applies to"
 msgid "files and folders"
 msgstr "fichiers et dossiers"
 
-#: whale/styles/whalestyleelementtypes.cpp:552
+#: whale/styles/whalestyleelementtypes.cpp:553
 #, kde-format
 msgctxt "@item:intext style element value, %1 what the filter applies to"
 msgid "Shown, empty (%1)"
 msgstr "Affiché, vide (%1)"
 
-#: whale/styles/whalestyleelementtypes.cpp:553
+#: whale/styles/whalestyleelementtypes.cpp:554
 #, kde-format
 msgctxt ""
 "@item:intext style element value, %1 the filter, %2 what it applies to"
 msgid "\"%1\" (%2)"
 msgstr "« %1 » (%2)"
 
-#: whale/styles/whalestyleelementtypes.cpp:608
+#: whale/styles/whalestyleelementtypes.cpp:609
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Zoom"
 msgstr "Zoom"
 
-#: whale/styles/whalestyleelementtypes.cpp:651
+#: whale/styles/whalestyleelementtypes.cpp:652
 #, kde-format
 msgctxt "@item:intext view mode, icon size / preview size in pixels"
 msgid "%1 %2/%3"
 msgstr "%1 %2/%3"
 
-#: whale/styles/whalestyleelementtypes.cpp:668
+#: whale/styles/whalestyleelementtypes.cpp:713
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Density"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:757
+#, kde-format
+msgctxt "@item:intext information density"
+msgid "Normal"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:760
+#, kde-format
+msgctxt "@item:intext information density"
+msgid "Compact"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:763
+#, kde-format
+msgctxt "@item:intext information density"
+msgid "Very compact"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:767
+#, kde-format
+msgctxt "@item:intext information density, padding in pixels"
+msgid "Custom (%1 px)"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:769
+#, kde-format
+msgctxt ""
+"@item:intext information density, padding in pixels, line height in percent"
+msgid "Custom (%1 px, %2 %)"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:774
+#, kde-format
+msgctxt "@item:intext view mode, information density"
+msgid "%1 %2"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:792
+#, kde-format
+msgctxt "@item:inlistbox style element"
+msgid "Bar density"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:815
+#, kde-format
+msgctxt "@item:intext density of the bars"
+msgid "Normal"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:817
+#, kde-format
+msgctxt "@item:intext density of the bars"
+msgid "Compact"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:819
+#, kde-format
+msgctxt "@item:intext density of the bars"
+msgid "Very compact"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:859
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Menu bar"
 msgstr "Barre de menus"
 
-#: whale/styles/whalestyleelementtypes.cpp:694
-#: whale/styles/whalestyleelementtypes.cpp:780
+#: whale/styles/whalestyleelementtypes.cpp:885
+#: whale/styles/whalestyleelementtypes.cpp:971
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "Shown"
 msgstr "Affichée"
 
-#: whale/styles/whalestyleelementtypes.cpp:709
+#: whale/styles/whalestyleelementtypes.cpp:900
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Toolbars"
 msgstr "Barres d'outils"
 
-#: whale/styles/whalestyleelementtypes.cpp:741
+#: whale/styles/whalestyleelementtypes.cpp:932
 #, kde-format
 msgctxt "@item:intext toolbar"
 msgid "Main Toolbar"
 msgstr "Barre principale"
 
-#: whale/styles/whalestyleelementtypes.cpp:744
-#: whale/styles/whalestyleelementtypes.cpp:911
+#: whale/styles/whalestyleelementtypes.cpp:935
+#: whale/styles/whalestyleelementtypes.cpp:1119
 #, kde-format
 msgctxt "@item:intext style element value"
 msgid "None shown"
 msgstr "Aucune affichée"
 
-#: whale/styles/whalestyleelementtypes.cpp:745
+#: whale/styles/whalestyleelementtypes.cpp:936
 #, kde-format
 msgctxt "@item:intext style element value, list of toolbars"
 msgid "Shown: %1"
 msgstr "Affichées : %1"
 
-#: whale/styles/whalestyleelementtypes.cpp:760
+#: whale/styles/whalestyleelementtypes.cpp:951
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "File View Toolbars"
 msgstr "Barres d'outils des vues de fichiers"
 
-#: whale/styles/whalestyleelementtypes.cpp:806
+#: whale/styles/whalestyleelementtypes.cpp:997
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Status bar"
 msgstr "Barre d'état"
 
-#: whale/styles/whalestyleelementtypes.cpp:832
+#: whale/styles/whalestyleelementtypes.cpp:1023
 #, kde-format
 msgctxt "@item:intext status bar"
 msgid "Small"
 msgstr "Petite"
 
-#: whale/styles/whalestyleelementtypes.cpp:835
+#: whale/styles/whalestyleelementtypes.cpp:1026
 #, kde-format
 msgctxt "@item:intext status bar"
 msgid "Full width"
 msgstr "Toute la largeur"
 
-#: whale/styles/whalestyleelementtypes.cpp:838
+#: whale/styles/whalestyleelementtypes.cpp:1029
 #, kde-format
 msgctxt "@item:intext status bar"
 msgid "Hidden"
 msgstr "Masquée"
 
-#: whale/styles/whalestyleelementtypes.cpp:867
+#: whale/styles/whalestyleelementtypes.cpp:1062
 #, kde-format
 msgctxt "@item:inlistbox style element"
 msgid "Panels"
 msgstr "Panneaux"
 
-#: whale/styles/whalestyleelementtypes.cpp:902
+#: whale/styles/whalestyleelementtypes.cpp:1106
 #, kde-format
 msgctxt "@item:intext panel"
 msgid "Places"
 msgstr "Emplacements"
 
-#: whale/styles/whalestyleelementtypes.cpp:904
+#: whale/styles/whalestyleelementtypes.cpp:1108
 #, kde-format
 msgctxt "@item:intext panel"
 msgid "Folders"
 msgstr "Dossiers"
 
-#: whale/styles/whalestyleelementtypes.cpp:906
+#: whale/styles/whalestyleelementtypes.cpp:1110
 #, kde-format
 msgctxt "@item:intext panel"
 msgid "Information"
 msgstr "Informations"
 
-#: whale/styles/whalestyleelementtypes.cpp:908
+#: whale/styles/whalestyleelementtypes.cpp:1112
 #, kde-format
 msgctxt "@item:intext panel"
 msgid "Terminal"
 msgstr "Terminal"
 
-#: whale/styles/whalestyleelementtypes.cpp:912
+#: whale/styles/whalestyleelementtypes.cpp:1114
+#, kde-format
+msgctxt "@item:intext panel"
+msgid "AI Assistant"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:1116
+#, kde-format
+msgctxt "@item:intext panel"
+msgid "AI Canvas"
+msgstr ""
+
+#: whale/styles/whalestyleelementtypes.cpp:1120
 #, kde-format
 msgctxt "@item:intext style element value, list of panels"
 msgid "Shown: %1"
@@ -1930,19 +5011,19 @@ msgctxt "@title:window"
 msgid "Shortcut in Use"
 msgstr "Raccourci déjà utilisé"
 
-#: whale/toolbars/whalefileviewtoolbar.cpp:355
+#: whale/toolbars/whalefileviewtoolbar.cpp:358
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Configure File View Toolbar…"
 msgstr "Configurer la barre d'outils de la vue de fichiers…"
 
-#: whale/toolbars/whalefileviewtoolbar.cpp:363
+#: whale/toolbars/whalefileviewtoolbar.cpp:366
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Hide File View Toolbars"
 msgstr "Masquer les barres d'outils des vues de fichiers"
 
-#: whale/toolbars/whalelocationbar.cpp:149
+#: whale/toolbars/whalelocationbar.cpp:152
 #: whale/toolbars/whaletoolbarconfigurator.cpp:124
 #, kde-format
 msgctxt "@action:intoolbar"
@@ -2081,6 +5162,32 @@ msgstr "Lire les vidéos en boucle"
 msgctxt "@title:menu"
 msgid "Orcinus Toolbar"
 msgstr "Barre d'outils d'Orcinus"
+
+#. i18n: file: src/settings/dolphin_compactmodesettings.kcfg
+#. i18n: file: src/settings/dolphin_detailsmodesettings.kcfg
+#. i18n: file: src/settings/dolphin_iconsmodesettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid "Information density"
+msgstr ""
+
+#. i18n: file: src/settings/dolphin_compactmodesettings.kcfg
+#. i18n: file: src/settings/dolphin_detailsmodesettings.kcfg
+#. i18n: file: src/settings/dolphin_iconsmodesettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid "Space above and below each item with the custom density, in pixels"
+msgstr ""
+
+#. i18n: file: src/settings/dolphin_compactmodesettings.kcfg
+#. i18n: file: src/settings/dolphin_detailsmodesettings.kcfg
+#. i18n: file: src/settings/dolphin_iconsmodesettings.kcfg
+#: (rc, kcfg or ui file)
+#, kde-format
+msgid ""
+"Height of a text line with the custom density, in percent of the font's line "
+"height"
+msgstr ""
 
 #. i18n: file: src/settings/dolphin_detailsmodesettings.kcfg
 #: (rc, kcfg or ui file)
