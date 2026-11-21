@@ -131,6 +131,7 @@ private Q_SLOTS:
     void cleanup();
     void testColumnsViewSelectionIsTheActiveColumns();
     void testColumnsViewShowsALinkedSelectionInTheColumnOfItsLocation();
+    void testColumnsViewFollowsTheViewerInTheActiveColumn();
 
     void testInitialItems();
     void testLoading();
@@ -297,6 +298,28 @@ void DolphinViewBridgeTest::testColumnsViewShowsALinkedSelectionInTheColumnOfIts
     QTest::qWait(50); // UNAVOIDABLE: a column would close or open from a queued check
     QCOMPARE(columns->columnCount(), 2);
     QCOMPARE(columns->url().adjusted(QUrl::StripTrailingSlash), sub);
+}
+
+// The built-in viewer moves the current item of the column it was opened from (V1), and the view
+// reports that column's current item.
+void DolphinViewBridgeTest::testColumnsViewFollowsTheViewerInTheActiveColumn()
+{
+    QWidget window;
+    auto columns = new DolphinColumnsView(m_dir->url(), &window, DolphinView::ColumnsView);
+    auto layout = new QVBoxLayout(&window);
+    layout->addWidget(columns);
+    window.resize(800, 400);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QTRY_COMPARE(columns->columnCount(), 1);
+    DolphinColumnPane *first = columns->columnAt(0);
+    QTRY_VERIFY(first->model()->count() > 0);
+
+    const QUrl c = QUrl::fromLocalFile(m_dir->path() + QStringLiteral("/c.txt"));
+    QVERIFY(columns->showViewerItem(c, true));
+    QCOMPARE(first->model()->fileItem(first->controller()->selectionManager()->currentItem()).url(), c);
+    QCOMPARE(urls(columns->selectedItems()), QList<QUrl>{c});
+    QCOMPARE(columns->currentItemUrl(), c);
 }
 
 bool DolphinViewBridgeTest::mirrors(const WhaleItemList *list, const ListFollower &follower) const

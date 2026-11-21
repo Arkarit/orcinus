@@ -1066,7 +1066,8 @@ void DolphinView::setOwnStyleData(const QByteArray &data)
 
 QUrl DolphinView::currentItemUrl() const
 {
-    const int index = m_container->controller()->selectionManager()->currentItem();
+    // The active column in the columns view, whose model m_model is then.
+    const int index = activeSelectionManager()->currentItem();
     return index >= 0 ? m_model->fileItem(index).url() : QUrl();
 }
 
@@ -1151,7 +1152,8 @@ bool DolphinView::showViewerItem(const QUrl &url, bool select)
     if (index < 0) {
         return false;
     }
-    KItemListSelectionManager *selectionManager = m_container->controller()->selectionManager();
+    // The active column in the columns view, where the viewer was opened.
+    KItemListSelectionManager *selectionManager = activeSelectionManager();
     selectionManager->endAnchoredSelection();
     selectionManager->setCurrentItem(index);
     if (select) {
@@ -1160,7 +1162,7 @@ bool DolphinView::showViewerItem(const QUrl &url, bool select)
         selectionManager->setSelectedItems(selected);
     }
     selectionManager->beginAnchoredSelection(index);
-    m_container->controller()->view()->scrollToItem(index);
+    activeItemListView()->scrollToItem(index);
     return true;
 }
 
