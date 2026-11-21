@@ -5,6 +5,7 @@
  */
 
 #include "whaleaipanel.h"
+#include "config-dolphin.h"
 #include "whaleaiagentdialog.h"
 #include "whaleaiagents.h"
 #include "whaleaichangelog.h"
@@ -288,7 +289,10 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
         struct Suggestion {
             QString id;
             QString text;
+            // Shown in the menu; derived from the text when empty.
+            QString label = {};
         };
+        const QString bugReportUrl = QStringLiteral(WHALE_BUG_URL "/new?template=bug_report.yml");
         const QList<std::pair<QString, QList<Suggestion>>> groups{
             {i18nc("@title:menu", "Files"),
              {{QStringLiteral("renameFiles"), i18nc("@info request to an AI agent", "Please give the selected files sensible names.")},
@@ -305,12 +309,20 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
               {QStringLiteral("virusScan"),
                i18nc("@info request to an AI agent", "Please check my system for viruses. If there is no virus scanner, suggest one.") + QLatin1Char(' ')
                    + careful}}},
+            {QStringLiteral("Orcinus"),
+             {{QStringLiteral("reportProblem"),
+               i18nc("@info request to an AI agent, %1 is the URL of the bug report form, the user adds the problem",
+                     "Please help me report a problem with Orcinus. Collect what the bug report needs (Orcinus version, system, and for a crash "
+                     "the backtrace via coredumpctl) and write a draft from it that follows the form at %1. Remove personal data such as user "
+                     "names and paths. Do not submit the report yourself, I will do that. The problem: ",
+                     bugReportUrl),
+               i18nc("@action:inmenu", "Report a problem with Orcinus")}}},
         };
         for (const auto &[title, suggestions] : groups) {
             suggestionsMenu->addSection(title);
             for (const Suggestion &suggestion : suggestions) {
                 // The menu shows the request itself, without the careful part.
-                QString label = suggestion.text;
+                QString label = suggestion.label.isEmpty() ? suggestion.text : suggestion.label;
                 label.remove(careful);
                 label = label.simplified();
                 if (label.endsWith(QLatin1Char(':'))) {

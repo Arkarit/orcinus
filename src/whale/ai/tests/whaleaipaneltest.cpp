@@ -1162,7 +1162,7 @@ void WhaleAiPanelTest::suggestions()
             sections << action->text();
         }
     }
-    QCOMPARE(sections, (QStringList{QStringLiteral("Files"), QStringLiteral("Software"), QStringLiteral("System")}));
+    QCOMPARE(sections, (QStringList{QStringLiteral("Files"), QStringLiteral("Software"), QStringLiteral("System"), QStringLiteral("Orcinus")}));
     auto *repair = button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"));
     QVERIFY(repair);
     QCOMPARE(repair->text(), QStringLiteral("A program does not work properly"));
@@ -1176,6 +1176,14 @@ void WhaleAiPanelTest::suggestions()
     button->menu()->findChild<QAction *>(QStringLiteral("checkSystem"))->trigger();
     QCOMPARE(input->toPlainText(),
              QStringLiteral("Please check my operating system and suggest what to do. Please look into it first and ask me before every change."));
+    // A short label for a long request; the request names the bug report form and leaves the submission to the user.
+    auto *report = button->menu()->findChild<QAction *>(QStringLiteral("reportProblem"));
+    QVERIFY(report);
+    QCOMPARE(report->text(), QStringLiteral("Report a problem with Orcinus"));
+    report->trigger();
+    QVERIFY(input->toPlainText().contains(QStringLiteral("https://github.com/Arkarit/orcinus/issues/new?template=bug_report.yml")));
+    QVERIFY(input->toPlainText().contains(QStringLiteral("Do not submit the report yourself")));
+    QVERIFY(input->toPlainText().endsWith(QStringLiteral("The problem: ")));
 
     // Gone once the conversation started, also with an empty input; back with a new one.
     input->clear();
