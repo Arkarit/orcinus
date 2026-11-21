@@ -51,6 +51,7 @@
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStandardPaths>
+#include <QStyleOptionSlider>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTimer>
@@ -1241,6 +1242,38 @@ void WhaleAiPanelTest::transcriptSelection()
     QWidget *content = transcript->widget();
     auto *question = entries.at(0)->findChild<QLabel *>();
     QVERIFY(question);
+
+    // Dragging the scroll bar scrolls, it selects nothing (user, 2026-11-21).
+    {
+        QScrollBar *bar = transcript->verticalScrollBar();
+        QStyleOptionSlider option;
+        option.initFrom(bar);
+        option.orientation = bar->orientation();
+        option.minimum = bar->minimum();
+        option.maximum = bar->maximum();
+        option.sliderPosition = bar->sliderPosition();
+        option.sliderValue = bar->value();
+        option.singleStep = bar->singleStep();
+        option.pageStep = bar->pageStep();
+        const QRect slider = bar->style()->subControlRect(QStyle::CC_ScrollBar, &option, QStyle::SC_ScrollBarSlider, bar);
+        const QPoint grip = bar->mapTo(&window, slider.center());
+        QCOMPARE(window.childAt(grip), bar);
+        QTest::mousePress(handle, Qt::LeftButton, {}, grip);
+        for (int step = 1; step <= 5; ++step) {
+            QTest::mouseMove(handle, grip + QPoint(-step, 10 * step));
+        }
+        QVERIFY(bar->value() > 0);
+        QVERIFY(!transcript->hasSelection());
+        QTest::mouseRelease(handle, Qt::LeftButton, {}, grip + QPoint(-5, 50));
+        QVERIFY(!transcript->hasSelection());
+        // A click into the groove pages, also without a selection.
+        const QPoint groove = bar->mapTo(&window, QPoint(bar->width() / 2, bar->height() - 4));
+        QTest::mousePress(handle, Qt::LeftButton, {}, groove);
+        QTest::mouseMove(handle, groove + QPoint(-30, 0));
+        QTest::mouseRelease(handle, Qt::LeftButton, {}, groove + QPoint(-30, 0));
+        QVERIFY(!transcript->hasSelection());
+        bar->setValue(0);
+    }
 
     // A drag in a text selects text, as long as it stays in its entry.
     const QPoint start = question->mapTo(&window, QPoint(2, question->height() / 2));

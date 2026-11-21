@@ -1269,6 +1269,12 @@ bool WhaleAiTranscript::showSelectionMenu(const QPoint &globalPos)
 
 bool WhaleAiTranscript::selectionEvent(QObject *watched, QEvent *event)
 {
+    // Only the mouse in the entries: the transcript also watches its scroll bar, whose drag must
+    // scroll, not select (user, 2026-11-21).
+    if (const auto *widget = qobject_cast<QWidget *>(watched);
+        dynamic_cast<QMouseEvent *>(event) && (!widget || (widget != m_content && !m_content->isAncestorOf(widget)))) {
+        return false;
+    }
     switch (event->type()) {
     case QEvent::MouseButtonPress:
     case QEvent::MouseButtonDblClick: {
