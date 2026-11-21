@@ -303,15 +303,14 @@ void DolphinViewContainer::swapView(DolphinView::Mode mode)
         disconnectViewFromUrlNavigator(m_urlNavigatorConnected);
     }
 
-    m_topLayout->removeWidget(oldView);
-
     if (mode == DolphinView::ColumnsView) {
-        m_view = new DolphinColumnsView(savedUrl, this, mode);
+        m_view = new DolphinColumnsView(savedUrl, this, mode, oldView->panelRole());
     } else {
-        m_view = new DolphinView(savedUrl, this, mode);
+        m_view = new DolphinView(savedUrl, this, mode, false, oldView->panelRole());
     }
 
-    m_topLayout->addWidget(m_view, positionFor.view, 0);
+    // Whale: the view lives in the view host (view plugins), not in m_topLayout.
+    m_viewHost->replaceDolphinView(m_view);
 
     // A floating small status bar draws above the view only by being the later sibling.
     m_statusBar->raise();
@@ -324,6 +323,7 @@ void DolphinViewContainer::swapView(DolphinView::Mode mode)
     m_view->setFilterCaseSensitive(m_filterBar->isCaseSensitive());
     m_view->setNameFilter(oldView->nameFilter());
     m_view->setSelectionModeEnabled(oldView->selectionMode());
+    m_view->setFilterScope(m_filterBar->filterScope()); // Whale: FB2
 
     if (m_urlNavigatorConnected) {
         connectViewToUrlNavigator(m_urlNavigatorConnected);
@@ -1167,6 +1167,11 @@ void DolphinViewContainer::activate()
 /** The mode that a view state of version 2 holds, or nothing for an empty or older state. */
 static std::optional<DolphinView::Mode> viewModeOfState(QByteArray state)
 {
+    // Whale: the history holds Dolphin's state wrapped together with the shown view (view plugins).
+    QByteArray dolphinState;
+    WhaleViewsState views;
+    WhalePersistence::unwrapLocationState(state, &dolphinState, &views);
+    state = dolphinState;
     if (state.isEmpty()) {
         return std::nullopt;
     }
@@ -1346,7 +1351,12 @@ bool DolphinViewContainer::isTopMostExistingParentFolderWritable(QUrl url)
     Q_ASSERT(url.isLocalFile());
 
     while (!url.toLocalFile().isEmpty()) {
-        url = url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
+        const QUrl parentUrl = url.adjusted(QUrl::RemoveFilename | QUrl::StripTrailingSlash);
+        if (parentUrl == url) {
+            // Whale: a URL with a host (file://localhost/...) never gets an empty local path.
+            return false;
+        }
+        url = parentUrl;
 
         QFileInfo info(url.toLocalFile());
 
@@ -1567,12 +1577,15 @@ QRect DolphinViewContainer::preferredSmallStatusBarGeometry()
     // Add offset depending if horizontal scrollbar or filterbar is visible, we need to add 1 due to how QRect coordinates work.
     const int scrollBarHeight = m_view->horizontalScrollBarHeight();
     const int scrollbarWidth = m_view->verticalScrollBarWidth();
-    const int yPos = m_view->geometry().bottom() - scrollBarHeight - m_statusBar->minimumHeight() + 1;
+    // Whale: the view lies in the view host, with the view's toolbars and bars around it, so its
+    // geometry is taken in the coordinates of this container.
+    const QRect viewRect(m_view->mapTo(this, QPoint(0, 0)), m_view->size());
+    const int yPos = viewRect.bottom() - scrollBarHeight - m_statusBar->minimumHeight() + 1;
     // The bottom rises with the top, or the bar would be as tall as the scrollbar as well.
-    QRect statusBarRect = rect().adjusted(0, yPos, 0, -scrollBarHeight);
+    QRect statusBarRect(QPoint(viewRect.left(), yPos), QPoint(viewRect.right(), viewRect.bottom() - scrollBarHeight));
     // Move to bottomRight in LTR layout
     if (m_view->layoutDirection() == Qt::LeftToRight) {
-        statusBarRect.setLeft(m_view->width() - m_statusBar->width() - scrollbarWidth);
+        statusBarRect.setLeft(viewRect.left() + m_view->width() - m_statusBar->width() - scrollbarWidth);
     } else {
         statusBarRect.setLeft(statusBarRect.left() + scrollbarWidth);
     }

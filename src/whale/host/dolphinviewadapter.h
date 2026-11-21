@@ -29,8 +29,11 @@ public:
     QWidget *widget() override;
     WhaleViewCapabilities capabilities() const override;
 
+    /** The container replaced its DolphinView (e.g. for the columns view). */
+    void setDolphinView(DolphinView *dolphinView);
+
 private:
-    DolphinView *const m_dolphinView;
+    DolphinView *m_dolphinView;
 };
 
 #endif

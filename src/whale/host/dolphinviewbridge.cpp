@@ -211,21 +211,6 @@ DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     , m_dolphinView(dolphinView)
     , m_selectionTimer(new QTimer(this))
 {
-    connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::urlChanged);
-    connect(dolphinView, &DolphinView::directoryLoadingStarted, this, [this]() {
-        // F1: the model's loading waits for the external items of the location, too.
-        m_externalItemsPending = externalItemsEnabled();
-    });
-    connect(dolphinView, &DolphinView::directoryLoadingStarted, this, &DolphinViewBridge::loadingStarted);
-    connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::loadingCompleted);
-    connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, &DolphinViewBridge::loadingCanceled);
-    connect(dolphinView, &DolphinView::previewsShownChanged, this, &DolphinViewBridge::previewsShownChanged);
-    connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::slotUrlChangedForReveal);
-    connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::slotLoadingCompletedForReveal);
-    connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, [this]() {
-        m_revealUrl.clear();
-    });
-
     // The selection manager reports every step (a rubber band, the index shifts of an
     // insertion, ...). They are collected and compared by URL once the event loop is
     // idle; by then the item lists have followed the model as well. Renaming changes
@@ -233,21 +218,72 @@ DolphinViewBridge::DolphinViewBridge(DolphinView *dolphinView, QObject *parent)
     m_selectionTimer->setSingleShot(true);
     m_selectionTimer->setInterval(0);
     connect(m_selectionTimer, &QTimer::timeout, this, &DolphinViewBridge::reportSelection);
+    connectView();
+    m_reportedSelection = selection();
+    m_hasSelection = hasSelection();
+}
+
+void DolphinViewBridge::setDolphinView(DolphinView *dolphinView)
+{
+    if (dolphinView == m_dolphinView) {
+        return;
+    }
+    for (const QMetaObject::Connection &connection : std::as_const(m_viewConnections)) {
+        disconnect(connection);
+    }
+    m_viewConnections.clear();
+    m_dolphinView = dolphinView;
+    m_revealUrl.clear();
+    m_revealFolder.clear();
+    m_revealFolderShown = false;
+    m_externalItemsPending = false;
+    connectView();
+    if (hasSelection() != m_hasSelection) {
+        m_hasSelection = !m_hasSelection;
+        Q_EMIT hasSelectionChanged(m_hasSelection);
+    }
+    m_selectionTimer->start();
+}
+
+void DolphinViewBridge::connectView()
+{
+    DolphinView *dolphinView = m_dolphinView;
+    m_viewConnections = {
+        connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::urlChanged),
+        connect(dolphinView,
+                &DolphinView::directoryLoadingStarted,
+                this,
+                [this]() {
+                    // F1: the model's loading waits for the external items of the location, too.
+                    m_externalItemsPending = externalItemsEnabled();
+                }),
+        connect(dolphinView, &DolphinView::directoryLoadingStarted, this, &DolphinViewBridge::loadingStarted),
+        connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::loadingCompleted),
+        connect(dolphinView, &DolphinView::directoryLoadingCanceled, this, &DolphinViewBridge::loadingCanceled),
+        connect(dolphinView, &DolphinView::previewsShownChanged, this, &DolphinViewBridge::previewsShownChanged),
+        connect(dolphinView, &DolphinView::urlChanged, this, &DolphinViewBridge::slotUrlChangedForReveal),
+        connect(dolphinView, &DolphinView::directoryLoadingCompleted, this, &DolphinViewBridge::slotLoadingCompletedForReveal),
+        connect(dolphinView,
+                &DolphinView::directoryLoadingCanceled,
+                this,
+                [this]() {
+                    m_revealUrl.clear();
+                }),
+    };
+
     auto schedule = [this]() {
         m_selectionTimer->start();
     };
     KItemListSelectionManager *selectionManager = controller()->selectionManager();
-    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, schedule);
-    connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, [this]() {
+    m_viewConnections.append(connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, schedule));
+    m_viewConnections.append(connect(selectionManager, &KItemListSelectionManager::selectionChanged, this, [this]() {
         if (hasSelection() != m_hasSelection) {
             m_hasSelection = !m_hasSelection;
             Q_EMIT hasSelectionChanged(m_hasSelection);
         }
-    });
-    connect(selectionManager, &KItemListSelectionManager::currentChanged, this, schedule);
-    connect(model(), &KFileItemModel::itemsChanged, this, schedule);
-    m_reportedSelection = selection();
-    m_hasSelection = hasSelection();
+    }));
+    m_viewConnections.append(connect(selectionManager, &KItemListSelectionManager::currentChanged, this, schedule));
+    m_viewConnections.append(connect(model(), &KFileItemModel::itemsChanged, this, schedule));
 }
 
 DolphinViewBridge::~DolphinViewBridge() = default;

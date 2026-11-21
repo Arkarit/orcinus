@@ -50,6 +50,7 @@
 #include <KConfig>
 #include <KConfigGui>
 #include <KFileItem>
+#include <KIO/StatJob>
 #include <KMessageWidget>
 #include <KProtocolManager>
 #include <KStandardAction>
@@ -3369,6 +3370,15 @@ void DolphinMainWindowTest::testTheSecondViewOfASplitReportsARedirectionAsTheFir
     testDir->createFile("first/a.txt");
     testDir->createDir("second");
     testDir->createFile("second/a.txt");
+    // Whale: older KIO versions (e.g. 6.24) report that file://localhost/... does not exist.
+    {
+        QUrl redirected = QUrl::fromLocalFile(testDir->path() + QStringLiteral("/first"));
+        redirected.setHost(QStringLiteral("localhost"));
+        KIO::StatJob *stat = KIO::stat(redirected, KIO::HideProgressInfo);
+        if (!stat->exec()) {
+            QSKIP("The file worker of this KIO does not redirect file://localhost/.");
+        }
+    }
     m_mainWindow->openDirectories({testDir->url()}, false);
     m_mainWindow->show();
     QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));

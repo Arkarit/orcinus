@@ -100,6 +100,37 @@ void WhaleViewHost::showLinkedSelection(const WhaleSelection &selection)
     }
 }
 
+void WhaleViewHost::replaceDolphinView(DolphinView *dolphinView)
+{
+    if (dolphinView == m_dolphinView) {
+        return;
+    }
+    showDolphinView();
+    const bool hadFocus = m_dolphinView->isAncestorOf(QApplication::focusWidget());
+    DolphinView *oldView = m_dolphinView;
+
+    // The recursive content works on the model of its view, so the new view gets a new one.
+    const bool recursive = m_recursiveContent->isEnabled();
+    m_recursiveContent->setEnabled(false);
+    delete m_recursiveContent;
+
+    m_dolphinView = dolphinView;
+    m_stack->insertWidget(m_stack->indexOf(oldView), dolphinView);
+    m_stack->setCurrentWidget(dolphinView);
+    m_stack->removeWidget(oldView);
+    setFocusProxy(dolphinView);
+    m_bridge->setDolphinView(dolphinView);
+    m_dolphinViewAdapter->setDolphinView(dolphinView);
+    m_recursiveContent = new WhaleRecursiveContent(dolphinView, m_bridge, this);
+    connect(m_recursiveContent, &WhaleRecursiveContent::requestMessage, this, &WhaleViewHost::messageRequested);
+    if (recursive) {
+        updateRecursiveContent();
+    }
+    if (hadFocus) {
+        dolphinView->setFocus();
+    }
+}
+
 void WhaleViewHost::showDolphinView()
 {
     m_initialPreferencePending = false;
@@ -509,7 +540,8 @@ void WhaleViewHost::setContentScope(WhaleContentScope scope, const QString &orig
 
 bool WhaleViewHost::supportsRecursiveContent() const
 {
-    return isDolphinViewShown() && m_bridge->url().isLocalFile();
+    // The columns view lists each folder in a model of its own column, not in the view's model.
+    return isDolphinViewShown() && m_bridge->url().isLocalFile() && m_dolphinView->viewMode() != DolphinView::ColumnsView;
 }
 
 bool WhaleViewHost::supportsViewOption(ViewOption option) const

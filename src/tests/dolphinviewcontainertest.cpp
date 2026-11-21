@@ -33,6 +33,7 @@
 #include <KActionCollection>
 #include <KConfigGroup>
 #include <KCoreDirLister>
+#include <KIO/StatJob>
 #include <KMessageWidget>
 #include <KSharedConfig>
 #include <KUrlComboBox>
@@ -120,6 +121,10 @@ void DolphinViewContainerTest::initTestCase()
     // Use per-folder view properties so each test's fresh TestDir isolates
     // persistence (the global store would leak modes between tests).
     GeneralSettings::setGlobalViewProps(false);
+    // Whale: these upstream tests expect Dolphin's defaults, a small status bar and a filter that
+    // applies to folders too (Orcinus: full width, files only).
+    GeneralSettings::setShowStatusBar(GeneralSettings::EnumShowStatusBar::Small);
+    KConfigGroup(KSharedConfig::openStateConfig(), QStringLiteral("FilterBar")).writeEntry("filterScope", QStringLiteral("FilesAndFolders"));
 }
 
 void DolphinViewContainerTest::init()
@@ -533,7 +538,9 @@ void DolphinViewContainerTest::testTheSmallStatusBarStaysOffTheScrollbars()
     const int scrollBarHeight = m_container->view()->horizontalScrollBarHeight();
     const QRect barRect = m_container->preferredSmallStatusBarGeometry();
     QCOMPARE(barRect.height(), statusBar->minimumHeight());
-    QCOMPARE_LE(barRect.bottom(), m_container->view()->geometry().bottom() - scrollBarHeight);
+    // Whale: the view lies in the view host, so its rect is taken in the container's coordinates.
+    const QRect viewRect(m_container->view()->mapTo(m_container, QPoint(0, 0)), m_container->view()->size());
+    QCOMPARE_LE(barRect.bottom(), viewRect.bottom() - scrollBarHeight);
 }
 
 void DolphinViewContainerTest::testTheSmallStatusBarDrawsAboveAReplacementView()
@@ -1249,6 +1256,13 @@ void DolphinViewContainerTest::testALocationThatRedirectsShowsItsTarget()
 
     QUrl redirectedUrl = folderUrl;
     redirectedUrl.setHost(QStringLiteral("localhost"));
+    // Whale: older KIO versions (e.g. 6.24) report that such a folder does not exist.
+    {
+        KIO::StatJob *stat = KIO::stat(redirectedUrl, KIO::HideProgressInfo);
+        if (!stat->exec()) {
+            QSKIP("The file worker of this KIO does not redirect file://localhost/.");
+        }
+    }
     m_container->setUrl(m_testDir->url());
     QTRY_COMPARE_WITH_TIMEOUT(m_container->view()->url().adjusted(QUrl::StripTrailingSlash), m_testDir->url().adjusted(QUrl::StripTrailingSlash), 5000);
     m_container->setUrl(redirectedUrl);

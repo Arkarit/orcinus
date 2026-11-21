@@ -95,6 +95,13 @@ public:
     void showDolphinView();
 
     /**
+     * The container replaced its DolphinView by @p dolphinView (upstream's swapView(), e.g. for
+     * the columns view): the host shows the new one in its place and follows it from now on. A
+     * plugin view is closed first. The old view is only taken out; the container deletes it.
+     */
+    void replaceDolphinView(DolphinView *dolphinView);
+
+    /**
      * The user chose the view @p viewId (dolphinViewId() or a plugin ID) for the current
      * location, e.g. in the view switcher: shows it and, if it could be shown, remembers it
      * as the view of the location (WhaleViewPreferences). Automatic changes of the view
@@ -328,7 +335,7 @@ private:
     void updateDestinationGuards();
     void refuseDrag(QDropEvent *event);
 
-    DolphinView *const m_dolphinView;
+    DolphinView *m_dolphinView;
     QStackedLayout *m_stack;
     bool m_active = false;
 

@@ -240,14 +240,23 @@ Q_SIGNALS:
      */
     void previewsShownChanged(bool shown);
 
+public:
+    /**
+     * The container replaced its DolphinView (e.g. for the columns view): follows @p dolphinView
+     * from now on. The location stays; a changed selection is reported.
+     */
+    void setDolphinView(DolphinView *dolphinView);
+
 private:
+    void connectView();
     KItemListController *controller() const;
     KFileItemModel *model() const;
     void reportSelection();
     void slotUrlChangedForReveal(const QUrl &url);
     void slotLoadingCompletedForReveal();
 
-    DolphinView *const m_dolphinView;
+    DolphinView *m_dolphinView;
+    QList<QMetaObject::Connection> m_viewConnections; // to m_dolphinView and its controller
     QTimer *m_selectionTimer;
     std::optional<WhaleSelection> m_reportedSelection;
     bool m_hasSelection = false;

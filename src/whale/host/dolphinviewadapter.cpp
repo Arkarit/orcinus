@@ -21,6 +21,11 @@ QWidget *DolphinViewAdapter::widget()
     return m_dolphinView;
 }
 
+void DolphinViewAdapter::setDolphinView(DolphinView *dolphinView)
+{
+    m_dolphinView = dolphinView;
+}
+
 WhaleViewCapabilities DolphinViewAdapter::capabilities() const
 {
     using C = WhaleViewCapability;
