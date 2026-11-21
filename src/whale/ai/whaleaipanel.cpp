@@ -1849,6 +1849,15 @@ bool WhaleAiPanel::openConversation(const QString &id)
     m_transcript->addNotice(canResumeOpened()
                                 ? i18nc("@info %1 is a date and time", "Saved conversation of %1. The next message continues it.", date)
                                 : i18nc("@info %1 is a date and time", "Saved conversation of %1. The next message starts a new conversation.", date));
+    // The view goes to the conversation's folder, where its agent goes on working, so what the
+    // panel sends along (folder, selection) fits it (user, 2026-11-21).
+    if (!conversation->folder.isEmpty() && QFileInfo(conversation->folder).isDir()) {
+        const QUrl folder = QUrl::fromLocalFile(conversation->folder);
+        if (!folder.matches(url(), QUrl::StripTrailingSlash)) {
+            Q_EMIT localUrlActivated(folder);
+            m_transcript->addNotice(i18nc("@info %1 is a folder", "Opened the folder of this conversation: %1", conversation->folder));
+        }
+    }
     m_input->setFocus();
     updateState();
     updateSessionInfo();

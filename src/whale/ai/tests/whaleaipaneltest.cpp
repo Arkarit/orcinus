@@ -401,7 +401,10 @@ void WhaleAiPanelTest::openSavedConversation()
     panel.setAgentId(QStringLiteral("crash"));
     entry = action(QStringLiteral("conversation-") + id);
     QVERIFY(entry && entry->isEnabled());
+    QSignalSpy folderShown(&panel, &WhaleAiPanel::localUrlActivated);
     entry->trigger();
+    // Its folder is shown already: the view stays.
+    QCOMPARE(folderShown.count(), 0);
     QCOMPARE(panel.openedConversationId(), id);
     QCOMPARE(panel.agentId(), QStringLiteral("basic"));
     QVERIFY(!panel.session());
@@ -409,6 +412,29 @@ void WhaleAiPanelTest::openSavedConversation()
     QCOMPARE(panel.transcript()->record(0, saved.size()), saved);
     QVERIFY(texts(panel).contains(QLatin1String("Saved conversation of")));
     QVERIFY(!action(QStringLiteral("conversation-") + id)->isEnabled());
+
+    // Elsewhere, the view goes to the conversation's folder; not to one that is gone.
+    {
+        QTemporaryDir elsewhere;
+        panel.newConversation();
+        panel.setUrl(QUrl::fromLocalFile(elsewhere.path()));
+        QVERIFY(panel.openConversation(id));
+        QCOMPARE(folderShown.count(), 1);
+        QCOMPARE(folderShown.constFirst().constFirst().toUrl(), QUrl::fromLocalFile(m_work.path()));
+        QVERIFY(texts(panel).contains(QStringLiteral("Opened the folder of this conversation: ") + m_work.path()));
+        WhaleAiConversation gone = *store.load(id);
+        gone.folder = elsewhere.path() + QStringLiteral("/gone");
+        QVERIFY(store.save(gone));
+        panel.newConversation();
+        QVERIFY(panel.openConversation(id));
+        QCOMPARE(folderShown.count(), 1);
+        gone.folder = m_work.path();
+        QVERIFY(store.save(gone));
+        panel.newConversation();
+        panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+        QVERIFY(panel.openConversation(id));
+        QCOMPARE(folderShown.count(), 1);
+    }
 
     // A new conversation instead (resuming is resumeSavedConversation); the opened one stays as it was.
     panel.newConversation();
