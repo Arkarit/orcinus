@@ -10,6 +10,8 @@
 #include "whaleaitoolbackend.h"
 #include "whaleaitoolstore.h"
 
+#include <KFileItem>
+
 #include <QHash>
 #include <QJSValue>
 #include <QObject>
@@ -18,7 +20,9 @@
 
 #include <functional>
 
+class KCoreDirLister;
 class KJob;
+class QTimer;
 class QQmlEngine;
 class WhaleAiCanvasPlayer;
 
@@ -123,10 +127,26 @@ public:
 Q_SIGNALS:
     /** The folder, the selection or the other folder of the window changed. */
     void contextChanged();
+    /**
+     * Files in the current folder were added, removed or changed (not on entering another folder:
+     * contextChanged): {folder, added: [items], removed: [items], changed: [items]}, items as list()
+     * gives them, hidden files left out. Changes within a moment come together; the folder is only
+     * watched while a tool listens.
+     */
+    void folderContentsChanged(const QJSValue &changes);
     void notified(const QString &text);
     void logged(const QString &message);
 
+protected:
+    void connectNotify(const QMetaMethod &signal) override;
+    void disconnectNotify(const QMetaMethod &signal) override;
+
 private:
+    /** Watches the current folder while folderContentsChanged() has listeners. */
+    void updateWatch();
+    void addChange(const KFileItem &item, int kind);
+    void reportChanges();
+    QJSValue itemValue(const KFileItem &item) const;
     void call(const QJSValue &callback, const QJSValueList &arguments);
     /** Runs @p job, records it for undo, and tells @p callback (ok, error). */
     void finish(KJob *job, const QJSValue &callback);
@@ -142,6 +162,15 @@ private:
     WhaleAiCanvasPlayer *m_player;
     WhaleAiToolBackend *m_backend;
     QHash<int, QPointer<KJob>> m_lists;
+    KCoreDirLister *m_watcher = nullptr;
+    QUrl m_watched;
+    bool m_watchReady = false; ///< the first listing of m_watched is through; changes count from then
+    struct Change {
+        int kind;
+        KFileItem item;
+    };
+    QHash<QUrl, Change> m_changes;
+    QTimer *m_changeTimer = nullptr;
     int m_nextId = 1;
 };
 

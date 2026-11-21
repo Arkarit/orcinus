@@ -42,6 +42,10 @@ Paths may be absolute paths or URLs; URLs come back. Asynchronous calls take a c
 it later: reads get (value, error), changes get (ok, error). error is null when it worked.
 Context: orcinus.currentFolder(), orcinus.selection() (list), orcinus.otherFolder() ("" without split
   view); signal orcinus.contextChanged when they change.
+  Signal orcinus.folderContentsChanged(changes) when files in the current folder are added, removed
+  or changed: changes = {folder, added, removed, changed}, lists of items as orcinus.list gives
+  them (hidden files left out; changes within a moment come together). Use it instead of polling.
+  In QML: Connections { target: orcinus; function onFolderContentsChanged(changes) { ... } }.
 Reading: orcinus.list(url, {recursive: false, mime: "audio/*" or a list, hidden: false, limit: 10000,
   progress: function(count)}, function(items, error)) returns an id for orcinus.cancel(id);
   an item is {url, path, name, folder, folderName, isDir, size, modified, mime}.

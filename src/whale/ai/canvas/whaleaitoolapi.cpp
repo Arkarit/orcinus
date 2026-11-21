@@ -9,6 +9,7 @@
 #include "whaleaicanvasmedia.h"
 
 #include <KConfigGroup>
+#include <KCoreDirLister>
 #include <KIO/CopyJob>
 #include <KIO/FileUndoManager>
 #include <KIO/JobUiDelegateFactory>
@@ -24,6 +25,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonValue>
+#include <QMetaMethod>
 #include <QMimeDatabase>
 #include <QQmlEngine>
 #include <QTimer>
@@ -72,6 +74,8 @@ WhaleAiToolApi::WhaleAiToolApi(const WhaleAiTool &tool, const WhaleAiToolStore &
     , m_player(new WhaleAiCanvasPlayer(this))
     , m_backend(new WhaleAiToolBackend(tool, this))
 {
+    // Another folder: watch that one (if a tool listens).
+    connect(this, &WhaleAiToolApi::contextChanged, this, &WhaleAiToolApi::updateWatch);
 }
 
 WhaleAiToolApi::~WhaleAiToolApi()
@@ -437,6 +441,137 @@ void WhaleAiToolApi::writeText(const QString &urlText, const QString &text, bool
             put();
         });
     });
+}
+
+// ---- changes in the current folder ----
+
+namespace
+{
+enum ChangeKind {
+    Added,
+    Changed,
+    Removed
+};
+}
+
+void WhaleAiToolApi::connectNotify(const QMetaMethod &signal)
+{
+    QObject::connectNotify(signal);
+    if (signal == QMetaMethod::fromSignal(&WhaleAiToolApi::folderContentsChanged)) {
+        // Not while connecting.
+        QMetaObject::invokeMethod(this, &WhaleAiToolApi::updateWatch, Qt::QueuedConnection);
+    }
+}
+
+void WhaleAiToolApi::disconnectNotify(const QMetaMethod &signal)
+{
+    QObject::disconnectNotify(signal);
+    if (signal == QMetaMethod::fromSignal(&WhaleAiToolApi::folderContentsChanged)) {
+        QMetaObject::invokeMethod(this, &WhaleAiToolApi::updateWatch, Qt::QueuedConnection);
+    }
+}
+
+void WhaleAiToolApi::updateWatch()
+{
+    const QUrl folder = m_host.currentFolder ? m_host.currentFolder() : QUrl();
+    if (!isSignalConnected(QMetaMethod::fromSignal(&WhaleAiToolApi::folderContentsChanged)) || !folder.isValid()) {
+        if (m_watcher) {
+            m_watcher->stop();
+        }
+        m_watched.clear();
+        m_changes.clear();
+        return;
+    }
+    if (folder.matches(m_watched, QUrl::StripTrailingSlash)) {
+        return;
+    }
+    if (!m_watcher) {
+        // Shares KIO's directory cache and watching with the views.
+        m_watcher = new KCoreDirLister(this);
+        m_watcher->setAutoErrorHandlingEnabled(false);
+        m_changeTimer = new QTimer(this);
+        m_changeTimer->setSingleShot(true);
+        m_changeTimer->setInterval(100);
+        connect(m_changeTimer, &QTimer::timeout, this, &WhaleAiToolApi::reportChanges);
+        connect(m_watcher, &KCoreDirLister::completed, this, [this] {
+            m_watchReady = true;
+        });
+        connect(m_watcher, &KCoreDirLister::itemsAdded, this, [this](const QUrl &, const KFileItemList &items) {
+            for (const KFileItem &item : items) {
+                addChange(item, Added);
+            }
+        });
+        connect(m_watcher, &KCoreDirLister::itemsDeleted, this, [this](const KFileItemList &items) {
+            for (const KFileItem &item : items) {
+                addChange(item, Removed);
+            }
+        });
+        connect(m_watcher, &KCoreDirLister::refreshItems, this, [this](const QList<QPair<KFileItem, KFileItem>> &items) {
+            for (const auto &[before, after] : items) {
+                if (before.url() == after.url()) {
+                    addChange(after, Changed);
+                } else {
+                    // Renamed: gone under its old name, there under the new one.
+                    addChange(before, Removed);
+                    addChange(after, Added);
+                }
+            }
+        });
+    }
+    m_watched = folder;
+    m_watchReady = false;
+    m_changes.clear();
+    m_watcher->openUrl(folder);
+}
+
+void WhaleAiToolApi::addChange(const KFileItem &item, int kind)
+{
+    // The first listing of the folder is no change.
+    if (!m_watchReady || item.isHidden()) {
+        return;
+    }
+    const auto it = m_changes.find(item.url());
+    if (it == m_changes.end()) {
+        m_changes.insert(item.url(), {kind, item});
+    } else if (kind == Removed) {
+        if (it->kind == Added) {
+            m_changes.erase(it); // came and went
+        } else {
+            *it = {Removed, item};
+        }
+    } else if (kind == Added && it->kind == Removed) {
+        *it = {Changed, item}; // replaced
+    } else {
+        it->item = item; // still added or changed, as it is now
+    }
+    m_changeTimer->start();
+}
+
+void WhaleAiToolApi::reportChanges()
+{
+    if (m_changes.isEmpty() || !m_engine) {
+        return;
+    }
+    QJSValue lists[3] = {m_engine->newArray(), m_engine->newArray(), m_engine->newArray()};
+    int counts[3] = {0, 0, 0};
+    for (const Change &change : std::as_const(m_changes)) {
+        lists[change.kind].setProperty(counts[change.kind]++, itemValue(change.item));
+    }
+    m_changes.clear();
+    QJSValue changes = m_engine->newObject();
+    changes.setProperty(QStringLiteral("folder"), m_watched.toString());
+    changes.setProperty(QStringLiteral("added"), lists[Added]);
+    changes.setProperty(QStringLiteral("removed"), lists[Removed]);
+    changes.setProperty(QStringLiteral("changed"), lists[Changed]);
+    Q_EMIT folderContentsChanged(changes);
+}
+
+QJSValue WhaleAiToolApi::itemValue(const KFileItem &item) const
+{
+    // As list() gives them: the type by the name.
+    const QString mime = item.isDir() ? QStringLiteral("inode/directory") : QMimeDatabase().mimeTypeForFile(item.name(), QMimeDatabase::MatchExtension).name();
+    const QDateTime modified = item.time(KFileItem::ModificationTime);
+    return itemValue(item.url(), item.name(), item.isDir(), item.size(), modified.isValid() ? modified.toSecsSinceEpoch() : 0, mime);
 }
 
 // ---- the view ----

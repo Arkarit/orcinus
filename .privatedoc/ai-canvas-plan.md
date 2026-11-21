@@ -191,6 +191,9 @@ a restart, a kept tool whose fingerprint changed is blocked ("Keep Again…" / "
 Keeping asks with a list of the tool's files, what it runs (CV4) and where it says it writes.
 Decisions and deviations from the plan above:
 - API as built: `currentFolder()`, `selection()`, `otherFolder()`, signal `contextChanged`;
+  signal `folderContentsChanged({folder, added, removed, changed})` (added 2026-11-21 on the
+  user's request: a `KCoreDirLister` on the current folder, only while a tool listens; the first
+  listing is no change, hidden files left out, changes within 100 ms come together);
   `list(url, {recursive, mime, hidden, limit, progress}, cb)` + `cancel(id)`, `item(url, cb)`,
   `readText(url, cb, maxBytes)`; `copy`, `move`, `rename`, `trash`, `mkdir`,
   `writeText(url, text, overwrite, cb)`; `reveal(url)` (also covers "go to folder"; no separate

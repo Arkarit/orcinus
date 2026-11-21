@@ -29,6 +29,7 @@
 #include <QProcess>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QScopeGuard>
 #include <QStandardPaths>
 #include <QTabBar>
 #include <QTabWidget>
@@ -58,6 +59,7 @@ private Q_SLOTS:
     void testApiReading();
     void testApiChanging();
     void testApiSettingsAndContext();
+    void testFolderContentsChanged();
     void testSoundTriage();
     void testKeepAndTrust();
     void testToolsMenu();
@@ -381,6 +383,60 @@ void WhaleAiToolTest::testApiChanging()
     result = run(QStringLiteral("orcinus.copy([], '%1', function(ok, error) { result = [ok, error] })").arg(target));
     QCOMPARE(result.property(0).toBool(), false);
     QVERIFY(result.property(1).isString());
+}
+
+void WhaleAiToolTest::testFolderContentsChanged()
+{
+    const QString folder = m_dir.filePath(QStringLiteral("watched"));
+    QVERIFY(QDir().mkpath(folder));
+    writeFile(folder + QStringLiteral("/old.txt"), "old");
+    const QString files = std::exchange(m_files, folder);
+    const auto restore = qScopeGuard([this, files] {
+        m_files = files;
+    });
+    // Evaluated directly: run() waits for a callback's result.
+    const auto evaluate = [this](const QString &script) {
+        return m_engine->evaluate(script);
+    };
+    evaluate(QStringLiteral("var changes = []; orcinus.folderContentsChanged.connect(function(c) { changes.push(c) })"));
+    const auto count = [evaluate] {
+        return evaluate(QStringLiteral("changes.length")).toInt();
+    };
+    const auto names = [evaluate](int index, const QString &list) {
+        return evaluate(QStringLiteral("changes[%1].%2.map(function(i) { return i.name }).sort().join(',')").arg(index).arg(list)).toString();
+    };
+    // The folder's first listing is no change.
+    QTest::qWait(1000);
+    QCOMPARE(count(), 0);
+
+    // Added, together; hidden files left out.
+    writeFile(folder + QStringLiteral("/new.png"), "png");
+    writeFile(folder + QStringLiteral("/new2.png"), "png");
+    writeFile(folder + QStringLiteral("/.hidden"), "x");
+    QTRY_VERIFY_WITH_TIMEOUT(count() >= 1, 10000);
+    QTest::qWait(500);
+    QString added;
+    for (int i = 0; i < count(); ++i) {
+        added += names(i, QStringLiteral("added")) + QLatin1Char(',');
+    }
+    QVERIFY(added.contains(QLatin1String("new.png")) && added.contains(QLatin1String("new2.png")));
+    QVERIFY(!added.contains(QLatin1String(".hidden")));
+    QVERIFY(!added.contains(QLatin1String("old.txt")));
+    QCOMPARE(evaluate(QStringLiteral("changes[0].folder")).toString(), QUrl::fromLocalFile(folder).toString());
+    QCOMPARE(evaluate(QStringLiteral("changes[0].added[0].mime")).toString(), QStringLiteral("image/png"));
+
+    // Removed.
+    int before = count();
+    QVERIFY(QFile::remove(folder + QStringLiteral("/old.txt")));
+    QTRY_VERIFY_WITH_TIMEOUT(count() > before, 10000);
+    QCOMPARE(names(count() - 1, QStringLiteral("removed")), QStringLiteral("old.txt"));
+
+    // Changed.
+    before = count();
+    QTest::qWait(1100); // a newer modification time
+    writeFile(folder + QStringLiteral("/new.png"), "changed png");
+    QTRY_VERIFY_WITH_TIMEOUT(count() > before, 10000);
+    QCOMPARE(names(count() - 1, QStringLiteral("changed")), QStringLiteral("new.png"));
 }
 
 void WhaleAiToolTest::testApiSettingsAndContext()
