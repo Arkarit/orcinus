@@ -278,9 +278,9 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     upperLayout->addWidget(m_chips);
     // Suggestions to start with (user, 2026-11-21): over the input, where a new conversation has room
     // anyway; it goes once the user types or picks one, so the input never moves.
-    m_suggestions = new QPushButton(QIcon::fromTheme(QStringLiteral("help-hint")), i18nc("@action:button", "Suggestions"), upper);
+    // Its text in the conversation language, like its menu (fillSuggestions()).
+    m_suggestions = new QPushButton(QIcon::fromTheme(QStringLiteral("help-hint")), QString(), upper);
     m_suggestions->setObjectName(QStringLiteral("suggestions"));
-    m_suggestions->setToolTip(i18nc("@info:tooltip", "Puts a request into the input, for you to complete and send"));
     auto *suggestionsMenu = new QMenu(m_suggestions);
     suggestionsMenu->setObjectName(QStringLiteral("suggestionsMenu"));
     fillSuggestions(suggestionsMenu);
@@ -369,6 +369,9 @@ void WhaleAiPanel::readSettings()
 {
     Panel::readSettings();
     fillAgents(agentId());
+    if (m_suggestions && m_suggestions->menu()) {
+        fillSuggestions(m_suggestions->menu());
+    }
     // The agent of the conversation was removed.
     if (m_session && WhaleAiAgents::agent(m_sessionAgentId).id.isEmpty()) {
         endSession(true);
@@ -1889,12 +1892,15 @@ void WhaleAiPanel::greet()
 void WhaleAiPanel::fillSuggestions(QMenu *menu)
 {
     menu->clear();
-    // The requests and their menu entries in the conversation language, so the agent answers in it
-    // (user, 2026-11-21); the group titles in Orcinus' language.
+    // The button, the requests and their menu entries in the conversation language, so the agent
+    // answers in it (user, 2026-11-21); the group titles in Orcinus' language.
     const QString language = WhaleAiAgents::conversationLanguage();
     const auto request = [&language](const KLocalizedString &text) {
         return language.isEmpty() ? text.toString() : text.toString(QStringList{language});
     };
+    // The button goes with its menu (user, 2026-11-21).
+    m_suggestions->setText(request(ki18nc("@action:button", "Suggestions")));
+    m_suggestions->setToolTip(request(ki18nc("@info:tooltip", "Puts a request into the input, for you to complete and send")));
     // Changes to the system: the agent looks first and asks (shown, the user may delete it).
     const QString careful = request(ki18nc("@info part of a request to an AI agent", "Please look into it first and ask me before every change."));
     struct Suggestion {

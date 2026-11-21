@@ -2624,13 +2624,14 @@ msgstr ""
 #, kde-format
 msgctxt "@action:button"
 msgid "Suggestions"
-msgstr ""
+msgstr "Suggerimenti"
 
 #: whale/ai/whaleaipanel.cpp:283
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Puts a request into the input, for you to complete and send"
 msgstr ""
+"Inserisce una richiesta nel campo di immissione, da completare e inviare"
 
 #: whale/ai/whaleaipanel.cpp:298
 #, kde-format

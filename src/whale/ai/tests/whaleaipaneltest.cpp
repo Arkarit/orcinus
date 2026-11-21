@@ -1159,6 +1159,8 @@ void WhaleAiPanelTest::suggestionsInConversationLanguage()
         }
     }
     QCOMPARE(sections, (QStringList{QStringLiteral("Files"), QStringLiteral("Software"), QStringLiteral("System"), QStringLiteral("Orcinus")}));
+    // The button goes with its menu.
+    QCOMPARE(button->text(), QStringLiteral("Vorschläge"));
     auto *repair = button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"));
     QCOMPARE(repair->text(), QStringLiteral("Ein Programm funktioniert nicht richtig"));
     QCOMPARE(button->menu()->findChild<QAction *>(QStringLiteral("reportProblem"))->text(), QStringLiteral("Ein Problem mit Orcinus melden"));
@@ -1166,9 +1168,10 @@ void WhaleAiPanelTest::suggestionsInConversationLanguage()
     auto *input = panel.findChild<QPlainTextEdit *>(QStringLiteral("input"));
     QCOMPARE(input->toPlainText(), QStringLiteral("Bitte sieh es dir zuerst an und frag mich vor jeder Änderung.\nEin Programm funktioniert nicht richtig: "));
 
-    // Back to Orcinus' language; the menu follows when it opens next.
+    // Back to Orcinus' language; button and menu follow with the settings.
     WhaleAiAgents::setConversationLanguage(QString());
-    Q_EMIT button->menu()->aboutToShow();
+    panel.readSettings();
+    QCOMPARE(button->text(), QStringLiteral("Suggestions"));
     QCOMPARE(button->menu()->findChild<QAction *>(QStringLiteral("repairProgram"))->text(), QStringLiteral("A program does not work properly"));
 }
 

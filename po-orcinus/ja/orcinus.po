@@ -2615,13 +2615,13 @@ msgstr ""
 #, kde-format
 msgctxt "@action:button"
 msgid "Suggestions"
-msgstr ""
+msgstr "提案"
 
 #: whale/ai/whaleaipanel.cpp:283
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Puts a request into the input, for you to complete and send"
-msgstr ""
+msgstr "入力欄に依頼文を入れます。補足して送信してください"
 
 #: whale/ai/whaleaipanel.cpp:298
 #, kde-format
