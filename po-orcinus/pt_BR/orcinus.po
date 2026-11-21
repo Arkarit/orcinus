@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: orcinus\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 09:51+0100\n"
+"POT-Creation-Date: 2026-11-21 12:14+0100\n"
 "PO-Revision-Date: 2026-10-26 00:00+0100\n"
 "Last-Translator: Orcinus contributors\n"
 "Language: pt_BR\n"
@@ -50,31 +50,31 @@ msgstr ""
 "autorização você pode gerenciar arquivos como administrador.</numbereditem></"
 "numberedlist></para>"
 
-#: dolphinmainwindow.cpp:1973
+#: dolphinmainwindow.cpp:1974
 #, kde-format
 msgctxt "@info"
 msgid "Open a new Orcinus window"
 msgstr "Abrir uma nova janela do Orcinus"
 
-#: dolphinmainwindow.cpp:2675
+#: dolphinmainwindow.cpp:2676
 #, kde-format
 msgctxt "@title:window"
 msgid "AI Canvas"
 msgstr ""
 
-#: dolphinmainwindow.cpp:2687
+#: dolphinmainwindow.cpp:2688
 #, kde-format
 msgctxt "@title:window"
 msgid "AI Assistant"
 msgstr ""
 
-#: dolphinmainwindow.cpp:2822
+#: dolphinmainwindow.cpp:2823
 #, kde-format
 msgctxt "@info %1 is a folder name"
 msgid "the view of “%1”"
 msgstr ""
 
-#: dolphinmainwindow.cpp:2946
+#: dolphinmainwindow.cpp:2948
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -83,7 +83,7 @@ msgid ""
 "shows its work: images, videos, sounds, texts and files.</para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:2950
+#: dolphinmainwindow.cpp:2952
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -92,7 +92,7 @@ msgid ""
 "clears it.</para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:2957
+#: dolphinmainwindow.cpp:2959
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -102,7 +102,7 @@ msgid ""
 "Support</interface>.</para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:2961
+#: dolphinmainwindow.cpp:2963
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -111,26 +111,26 @@ msgid ""
 "started.</para>"
 msgstr ""
 
-#: dolphinmainwindow.cpp:3479
+#: dolphinmainwindow.cpp:3481
 #, kde-format
 msgctxt "@info:credit %1 is the name of a license"
 msgid "License: %1"
 msgstr "Licença: %1"
 
-#: dolphinmainwindow.cpp:3487
+#: dolphinmainwindow.cpp:3489
 #, kde-format
 msgctxt ""
 "@info:credit %1 is the version of Dolphin's code that Orcinus is based on"
 msgid "Based on Dolphin %1"
 msgstr "Baseado no Dolphin %1"
 
-#: dolphinmainwindow.cpp:3492
+#: dolphinmainwindow.cpp:3494
 #, kde-format
 msgctxt "@info:credit"
 msgid "Orcinus: %1"
 msgstr "Orcinus: %1"
 
-#: dolphinmainwindow.cpp:3496
+#: dolphinmainwindow.cpp:3498
 #, kde-format
 msgctxt "@info:credit"
 msgid ""
@@ -140,7 +140,7 @@ msgstr ""
 "O Orcinus é um fork não oficial do Dolphin, sem vínculo com o KDE nem "
 "endossado pelo KDE."
 
-#: dolphinmainwindow.cpp:3565
+#: dolphinmainwindow.cpp:3567
 #, kde-kuit-format
 msgctxt "@info:whatsthis"
 msgid ""
@@ -159,7 +159,7 @@ msgstr ""
 #. frustrate the user. If there are multiple languages that the user might
 #. know with a reasonable chance you might want to have 2 external links.
 #. The same might be true for any external link you translate.
-#: dolphinmainwindow.cpp:3585
+#: dolphinmainwindow.cpp:3587
 #, kde-kuit-format
 msgctxt "@info:whatsthis handbook"
 msgid ""
@@ -175,7 +175,7 @@ msgstr ""
 "Dolphin/File_Management'>clique aqui</link>. Isto abre a página dedicada ao "
 "Dolphin no wiki KDE UserBase.</para>"
 
-#: dolphinmainwindow.cpp:3590
+#: dolphinmainwindow.cpp:3592
 #, kde-kuit-format
 msgctxt "@info:whatsthis whatsthis button"
 msgid ""
@@ -872,7 +872,7 @@ msgid "Highlight file names"
 msgstr "Destacar nomes de arquivos"
 
 #: settings/viewmodes/filenamehighlightingtab.cpp:203
-#: whale/ai/whaleaimemorywidget.cpp:70 whale/ai/whaleaipanel.cpp:265
+#: whale/ai/whaleaimemorywidget.cpp:70 whale/ai/whaleaipanel.cpp:326
 #, kde-format
 msgctxt "@action:button"
 msgid "Add…"
@@ -1806,14 +1806,14 @@ msgid "not finished"
 msgstr ""
 
 #: whale/ai/whaleaiconversationexport.cpp:126
-#: whale/ai/whaleaitranscript.cpp:768 whale/ai/whaleaitranscript.cpp:1050
+#: whale/ai/whaleaitranscript.cpp:787 whale/ai/whaleaitranscript.cpp:1069
 #, kde-format
 msgctxt "@info the option the user chose for a permission request"
 msgid "Answered: %1"
 msgstr ""
 
 #: whale/ai/whaleaiconversationexport.cpp:128
-#: whale/ai/whaleaitranscript.cpp:831 whale/ai/whaleaitranscript.cpp:1047
+#: whale/ai/whaleaitranscript.cpp:850 whale/ai/whaleaitranscript.cpp:1066
 #, kde-format
 msgctxt "@info a permission request of an AI agent"
 msgid "No longer needed."
@@ -2474,7 +2474,7 @@ msgctxt "@info:tooltip"
 msgid "Written by you"
 msgstr ""
 
-#: whale/ai/whaleaimemorywidget.cpp:151 whale/ai/whaleaipanel.cpp:1701
+#: whale/ai/whaleaimemorywidget.cpp:151 whale/ai/whaleaipanel.cpp:1765
 #, kde-format
 msgctxt "@info %1 is the reason"
 msgid "The note could not be kept: %1"
@@ -2534,49 +2534,49 @@ msgctxt "@info %1 of %2 characters"
 msgid "%1 / %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:96
+#: whale/ai/whaleaipanel.cpp:145
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "The AI agent to talk to"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:101
+#: whale/ai/whaleaipanel.cpp:150
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "New Conversation"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:108
+#: whale/ai/whaleaipanel.cpp:157
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Saved Conversations"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:120
+#: whale/ai/whaleaipanel.cpp:169
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Undo the Agent's Changes (settings, folder views, profiles)"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:127
+#: whale/ai/whaleaipanel.cpp:176
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Configure AI Support…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:156
+#: whale/ai/whaleaipanel.cpp:205
 #, kde-format
 msgctxt "@label:listbox what an AI agent may do on its own"
 msgid "Mode:"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:164
+#: whale/ai/whaleaipanel.cpp:213
 #, kde-format
 msgctxt "@option:check show what an AI agent did in the transcript"
 msgid "Actions"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:168
+#: whale/ai/whaleaipanel.cpp:217
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -2584,49 +2584,43 @@ msgid ""
 "and its thinking. Permission requests are always shown."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:173
+#: whale/ai/whaleaipanel.cpp:222
 #, kde-format
 msgctxt "@option:check show when each entry of the AI transcript came"
 msgid "Times"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:175
+#: whale/ai/whaleaipanel.cpp:224
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Show when each message, action and request came."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:205
+#: whale/ai/whaleaipanel.cpp:259
+#, kde-format
+msgctxt "@info"
+msgid "The pasted image could not be saved."
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:266
 #, kde-format
 msgctxt "@info:placeholder"
 msgid "Ask the agent… (Enter sends, Shift+Enter: new line)"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:218
+#: whale/ai/whaleaipanel.cpp:279
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Stop (Escape)"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:268
+#: whale/ai/whaleaipanel.cpp:329
 #, kde-format
 msgctxt "@action:button"
 msgid "Discard"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:281
-#, kde-format
-msgctxt "@action:button"
-msgid "Suggestions"
-msgstr "Sugestões"
-
-#: whale/ai/whaleaipanel.cpp:283
-#, kde-format
-msgctxt "@info:tooltip"
-msgid "Puts a request into the input, for you to complete and send"
-msgstr "Coloca um pedido no campo de entrada para você completar e enviar"
-
-#: whale/ai/whaleaipanel.cpp:298
+#: whale/ai/whaleaipanel.cpp:359
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -2634,19 +2628,19 @@ msgid ""
 "computer, such as Claude Code, Codex or OpenCode with a local model."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:303
+#: whale/ai/whaleaipanel.cpp:364
 #, kde-format
 msgctxt "@action:button"
 msgid "Set Up Agents…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:375
+#: whale/ai/whaleaipanel.cpp:439
 #, kde-format
 msgctxt "@info"
 msgid "The agent of this conversation was removed."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:379
+#: whale/ai/whaleaipanel.cpp:443
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -2654,158 +2648,158 @@ msgid ""
 "conversation."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:532
+#: whale/ai/whaleaipanel.cpp:596
 #, kde-format
 msgctxt "@info %1 is an agent's name"
 msgid "The agent proposed a new agent: “%1”."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:569
+#: whale/ai/whaleaipanel.cpp:633
 #, kde-format
 msgctxt "@info %1 is an agent's name, %2 a command line"
 msgid "The agent suggests a new agent: <b>%1</b><br/>%2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:573
+#: whale/ai/whaleaipanel.cpp:637
 #, kde-format
 msgctxt "@info %1 is a list of names"
 msgid "Environment: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:578
+#: whale/ai/whaleaipanel.cpp:642
 #, kde-format
 msgctxt "@info %1 is the id of a language model"
 msgid "Local model: %1 (Orcinus starts Strata for it)"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:579
+#: whale/ai/whaleaipanel.cpp:643
 #, kde-format
 msgctxt "@info %1 is the id of a language model"
 msgid "Local model: %1 (Orcinus starts LM Studio for it)"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:612
+#: whale/ai/whaleaipanel.cpp:676
 #, kde-format
 msgctxt "@info %1 is an agent's name"
 msgid "Added the agent “%1”. Choose it in the agent list to talk to it."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:682
+#: whale/ai/whaleaipanel.cpp:746
 #, kde-format
 msgctxt "@info %1 is the title of a conversation"
 msgid "The agent named this conversation “%1”."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:767
+#: whale/ai/whaleaipanel.cpp:831
 #, kde-format
 msgctxt "@info %1 is a note"
 msgid "The agent proposes to remember: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:768
+#: whale/ai/whaleaipanel.cpp:832
 #, kde-format
 msgctxt "@info %1 is a folder name, %2 a note"
 msgid "The agent proposes to remember for “%1”: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:769 whale/ai/whaleaipanel.cpp:816
+#: whale/ai/whaleaipanel.cpp:833 whale/ai/whaleaipanel.cpp:880
 #, kde-format
 msgctxt "@action:button keep a note in the memory"
 msgid "Keep"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:770
+#: whale/ai/whaleaipanel.cpp:834
 #, kde-format
 msgctxt "@action:button a proposed note"
 msgid "Discard"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:784
+#: whale/ai/whaleaipanel.cpp:848
 #, kde-format
 msgctxt "@info %1 is a note"
 msgid "The agent remembered: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:785
+#: whale/ai/whaleaipanel.cpp:849
 #, kde-format
 msgctxt "@info %1 is a folder name, %2 a note"
 msgid "The agent remembered for “%1”: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:786 whale/ai/whaleaipanel.cpp:815
-#: whale/ai/whaleaipanel.cpp:1711
+#: whale/ai/whaleaipanel.cpp:850 whale/ai/whaleaipanel.cpp:879
+#: whale/ai/whaleaipanel.cpp:1775
 #, kde-format
 msgctxt "@action:button remove a note from the memory"
 msgid "Forget"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:813
+#: whale/ai/whaleaipanel.cpp:877
 #, kde-format
 msgctxt "@info %1 is a note"
 msgid "The agent proposes to forget: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:814
+#: whale/ai/whaleaipanel.cpp:878
 #, kde-format
 msgctxt "@info %1 is a folder name, %2 a note"
 msgid "The agent proposes to forget for “%1”: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:823
+#: whale/ai/whaleaipanel.cpp:887
 #, kde-format
 msgctxt "@info %1 is a note"
 msgid "The agent forgot: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:824
+#: whale/ai/whaleaipanel.cpp:888
 #, kde-format
 msgctxt "@info %1 is a folder name, %2 a note"
 msgid "The agent forgot for “%1”: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:825
+#: whale/ai/whaleaipanel.cpp:889
 #, kde-format
 msgctxt "@action:button bring a forgotten note back"
 msgid "Undo"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:975 whale/ai/whaleaipanel.cpp:994
+#: whale/ai/whaleaipanel.cpp:1039 whale/ai/whaleaipanel.cpp:1058
 #, kde-format
 msgctxt "@info a note of the memory"
 msgid "Forgotten."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:980 whale/ai/whaleaipanel.cpp:996
+#: whale/ai/whaleaipanel.cpp:1044 whale/ai/whaleaipanel.cpp:1060
 #, kde-format
 msgctxt "@info a note of the memory"
 msgid "Kept."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:981 whale/ai/whaleaipanel.cpp:989
+#: whale/ai/whaleaipanel.cpp:1045 whale/ai/whaleaipanel.cpp:1053
 #, kde-format
 msgctxt "@info %1 is the reason"
 msgid "Could not be kept: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:983
+#: whale/ai/whaleaipanel.cpp:1047
 #, kde-format
 msgctxt "@info a proposed note of the memory"
 msgid "Discarded."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:988
+#: whale/ai/whaleaipanel.cpp:1052
 #, kde-format
 msgctxt "@info a forgotten note of the memory"
 msgid "Kept again."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1102 whale/ai/whaleaipanel.cpp:1110
+#: whale/ai/whaleaipanel.cpp:1166 whale/ai/whaleaipanel.cpp:1174
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent"
 msgid "Now talking to %1. The next message starts a new conversation."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1155
+#: whale/ai/whaleaipanel.cpp:1219
 #, kde-format
 msgctxt "@info what was sent along with a message"
 msgid "%1 note from the memory"
@@ -2813,43 +2807,43 @@ msgid_plural "%1 notes from the memory"
 msgstr[0] ""
 msgstr[1] ""
 
-#: whale/ai/whaleaipanel.cpp:1156
+#: whale/ai/whaleaipanel.cpp:1220
 #, kde-format
 msgctxt "@info %1 is e.g. 2 notes from the memory"
 msgid "With: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1157
+#: whale/ai/whaleaipanel.cpp:1221
 #, kde-format
 msgctxt "@info %1 says what was sent along, %2 e.g. 2 notes from the memory"
 msgid "%1, %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1173
+#: whale/ai/whaleaipanel.cpp:1237
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent, %2 the reason"
 msgid "%1 cannot be started: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1225
+#: whale/ai/whaleaipanel.cpp:1289
 #, kde-format
 msgctxt "@info %1 is a folder name"
 msgid "The agent opened “%1” in the left view."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1228
+#: whale/ai/whaleaipanel.cpp:1292
 #, kde-format
 msgctxt "@info %1 is a folder name"
 msgid "The agent opened “%1” in the right view."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1231
+#: whale/ai/whaleaipanel.cpp:1295
 #, kde-format
 msgctxt "@info %1 is a folder name"
 msgid "The agent opened “%1”."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1237
+#: whale/ai/whaleaipanel.cpp:1301
 #, kde-format
 msgctxt "@info"
 msgid "The agent selected %1 item in the left view."
@@ -2857,7 +2851,7 @@ msgid_plural "The agent selected %1 items in the left view."
 msgstr[0] ""
 msgstr[1] ""
 
-#: whale/ai/whaleaipanel.cpp:1240
+#: whale/ai/whaleaipanel.cpp:1304
 #, kde-format
 msgctxt "@info"
 msgid "The agent selected %1 item in the right view."
@@ -2865,7 +2859,7 @@ msgid_plural "The agent selected %1 items in the right view."
 msgstr[0] ""
 msgstr[1] ""
 
-#: whale/ai/whaleaipanel.cpp:1243
+#: whale/ai/whaleaipanel.cpp:1307
 #, kde-format
 msgctxt "@info"
 msgid "The agent selected %1 item."
@@ -2873,50 +2867,50 @@ msgid_plural "The agent selected %1 items."
 msgstr[0] ""
 msgstr[1] ""
 
-#: whale/ai/whaleaipanel.cpp:1252
+#: whale/ai/whaleaipanel.cpp:1316
 #, kde-format
 msgctxt "@info %1 is a command, e.g. View ▸ Show Hidden Files"
 msgid "The agent turned on %1."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1253
+#: whale/ai/whaleaipanel.cpp:1317
 #, kde-format
 msgctxt "@info %1 is a command, e.g. View ▸ Show Hidden Files"
 msgid "The agent turned off %1."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1255
+#: whale/ai/whaleaipanel.cpp:1319
 #, kde-format
 msgctxt "@info %1 is a command, e.g. View ▸ View Mode ▸ Details"
 msgid "The agent used %1."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1270
+#: whale/ai/whaleaipanel.cpp:1334
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent, %2 a folder"
 msgid "%1 continues the conversation in %2."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1272
+#: whale/ai/whaleaipanel.cpp:1336
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent, %2 a folder"
 msgid "%1 works in %2."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1283
+#: whale/ai/whaleaipanel.cpp:1347
 #, kde-format
 msgctxt "@info"
 msgid ""
 "The agent could not continue the saved conversation, so this is a new one."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1304
+#: whale/ai/whaleaipanel.cpp:1368
 #, kde-format
 msgctxt "@info"
 msgid "The agent stopped working."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1306
+#: whale/ai/whaleaipanel.cpp:1370
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -2924,49 +2918,49 @@ msgid ""
 "to log in."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1357 whale/ai/whaleaipanel.cpp:1579
+#: whale/ai/whaleaipanel.cpp:1421 whale/ai/whaleaipanel.cpp:1643
 #, kde-format
 msgctxt "@info"
 msgid "Stopped."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1359
+#: whale/ai/whaleaipanel.cpp:1423
 #, kde-format
 msgctxt "@info"
 msgid "The agent refused to go on."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1361
+#: whale/ai/whaleaipanel.cpp:1425
 #, kde-format
 msgctxt "@info"
 msgid "The agent reached its limit for one answer."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1363
+#: whale/ai/whaleaipanel.cpp:1427
 #, kde-format
 msgctxt "@info"
 msgid "The agent could not answer."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1376
+#: whale/ai/whaleaipanel.cpp:1440
 #, kde-format
 msgctxt "@info"
 msgid "Starting the local model…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1377
+#: whale/ai/whaleaipanel.cpp:1441
 #, kde-format
 msgctxt "@info %1 is the id of a language model"
 msgid "Starting the local model %1 first."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1395
+#: whale/ai/whaleaipanel.cpp:1459
 #, kde-format
 msgctxt "@info"
 msgid "The local model could not be started."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1440
+#: whale/ai/whaleaipanel.cpp:1504
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent"
 msgid ""
@@ -2974,14 +2968,14 @@ msgid ""
 "is set up."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1452
+#: whale/ai/whaleaipanel.cpp:1516
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent, %2 the id of a mode"
 msgid ""
 "%1 does not offer the mode “%2” any more. Choose the mode it should work in."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1463
+#: whale/ai/whaleaipanel.cpp:1527
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent"
 msgid ""
@@ -2989,56 +2983,56 @@ msgid ""
 "work in."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1496
+#: whale/ai/whaleaipanel.cpp:1560
 #, kde-format
 msgctxt "@info %1 is the name of a mode, %2 the agent's reason"
 msgid "The agent did not switch to the mode “%1”: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1501
+#: whale/ai/whaleaipanel.cpp:1565
 #, kde-format
 msgctxt "@info"
 msgid "Choose the mode it should work in."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1510
+#: whale/ai/whaleaipanel.cpp:1574
 #, kde-format
 msgctxt "@info %1 is the name of a mode of an AI agent"
 msgid "You switched the agent to the mode “%1”."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1511
+#: whale/ai/whaleaipanel.cpp:1575
 #, kde-format
 msgctxt "@info %1 is the name of a mode of an AI agent"
 msgid "The agent works in the mode “%1”."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1522
+#: whale/ai/whaleaipanel.cpp:1586
 #, kde-format
 msgctxt "@info"
 msgid "Your message is sent once the agent works in the chosen mode."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1537
+#: whale/ai/whaleaipanel.cpp:1601
 #, kde-format
 msgctxt "@info %1 is the name of a mode of an AI agent"
 msgid "The agent switched to the mode “%1”."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1684
+#: whale/ai/whaleaipanel.cpp:1748
 #, kde-format
 msgctxt "@info"
 msgid "The memory is off. Turn it on in the AI Support settings."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1691
+#: whale/ai/whaleaipanel.cpp:1755
 #, kde-format
 msgctxt "@info"
 msgid ""
 "This is no local folder: use “/remember global …” for a note for everywhere."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1700
+#: whale/ai/whaleaipanel.cpp:1764
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -3046,85 +3040,91 @@ msgid ""
 "folder per year.”"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1709
+#: whale/ai/whaleaipanel.cpp:1773
 #, kde-format
 msgctxt "@info %1 is a note"
 msgid "Remembered: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1710
+#: whale/ai/whaleaipanel.cpp:1774
 #, kde-format
 msgctxt "@info %1 is a folder name, %2 a note"
 msgid "Remembered for “%1”: %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1761
+#: whale/ai/whaleaipanel.cpp:1825
 #, kde-format
 msgctxt "@item:inmenu"
 msgid "No Saved Conversations"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1768
+#: whale/ai/whaleaipanel.cpp:1832
 #, kde-format
 msgctxt "@info:tooltip %1 is the name of an AI agent, %2 a folder"
 msgid "%1 in %2"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1778
+#: whale/ai/whaleaipanel.cpp:1842
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Show All…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1785
+#: whale/ai/whaleaipanel.cpp:1849
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Export as PDF…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1786
+#: whale/ai/whaleaipanel.cpp:1850
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Export as Markdown…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1787
+#: whale/ai/whaleaipanel.cpp:1851
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Export as Text…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1827
+#: whale/ai/whaleaipanel.cpp:1891
 #, kde-format
 msgctxt "@info"
 msgid "The saved conversation could not be read."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1843
+#: whale/ai/whaleaipanel.cpp:1907
 #, kde-format
 msgctxt "@info %1 is the name of an AI agent"
 msgid "The agent “%1” of this conversation is no longer set up."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1847
+#: whale/ai/whaleaipanel.cpp:1911
 #, kde-format
 msgctxt "@info %1 is a date and time"
 msgid "Saved conversation of %1. The next message continues it."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1848
+#: whale/ai/whaleaipanel.cpp:1912
 #, kde-format
 msgctxt "@info %1 is a date and time"
 msgid "Saved conversation of %1. The next message starts a new conversation."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1873
+#: whale/ai/whaleaipanel.cpp:1919
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Opened the folder of this conversation: %1"
+msgstr ""
+
+#: whale/ai/whaleaipanel.cpp:1946
 #, kde-format
 msgctxt "@info separator of a list"
 msgid ", "
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1872
+#: whale/ai/whaleaipanel.cpp:1945
 #, kde-format
 msgctxt ""
 "@info %1 is a list of things, e.g. the setting “Status bar”, the view of "
@@ -3132,7 +3132,7 @@ msgctxt ""
 msgid "Undid the agent's changes: %1."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1883
+#: whale/ai/whaleaipanel.cpp:1956
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -3140,67 +3140,79 @@ msgid ""
 "you selected, and it can open folders and select files for you."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1899
+#: whale/ai/whaleaipanel.cpp:1972
+#, kde-format
+msgctxt "@action:button"
+msgid "Suggestions"
+msgstr "Sugestões"
+
+#: whale/ai/whaleaipanel.cpp:1973
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Puts a request into the input, for you to complete and send"
+msgstr "Coloca um pedido no campo de entrada para você completar e enviar"
+
+#: whale/ai/whaleaipanel.cpp:1975
 #, kde-format
 msgctxt "@info part of a request to an AI agent"
 msgid "Please look into it first and ask me before every change."
 msgstr "Por favor, analise primeiro e me pergunte antes de cada alteração."
 
-#: whale/ai/whaleaipanel.cpp:1908
+#: whale/ai/whaleaipanel.cpp:1984
 #, kde-format
 msgctxt "@title:menu"
 msgid "Files"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1909
+#: whale/ai/whaleaipanel.cpp:1985
 #, kde-format
 msgctxt "@info request to an AI agent"
 msgid "Please give the selected files sensible names."
 msgstr "Por favor, dê nomes adequados aos arquivos selecionados."
 
-#: whale/ai/whaleaipanel.cpp:1910
+#: whale/ai/whaleaipanel.cpp:1986
 #, kde-format
 msgctxt "@info request to an AI agent"
 msgid "Please explain the selected file to me."
 msgstr "Por favor, me explique o arquivo selecionado."
 
-#: whale/ai/whaleaipanel.cpp:1911
+#: whale/ai/whaleaipanel.cpp:1987
 #, kde-format
 msgctxt "@title:menu"
 msgid "Software"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1912
+#: whale/ai/whaleaipanel.cpp:1988
 #, kde-format
 msgctxt "@info request to an AI agent, the user adds which"
 msgid "Please help me install software: "
 msgstr "Por favor, me ajude a instalar um software: "
 
-#: whale/ai/whaleaipanel.cpp:1914
+#: whale/ai/whaleaipanel.cpp:1990
 #, kde-format
 msgctxt "@info request to an AI agent, the user adds which"
 msgid "A program does not work properly: "
 msgstr "Um programa não funciona direito: "
 
-#: whale/ai/whaleaipanel.cpp:1915
+#: whale/ai/whaleaipanel.cpp:1991
 #, kde-format
 msgctxt "@title:menu"
 msgid "System"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1917
+#: whale/ai/whaleaipanel.cpp:1993
 #, kde-format
 msgctxt "@info request to an AI agent"
 msgid "Please check my operating system and suggest what to do."
 msgstr "Por favor, verifique meu sistema operacional e sugira o que fazer."
 
-#: whale/ai/whaleaipanel.cpp:1919
+#: whale/ai/whaleaipanel.cpp:1995
 #, kde-format
 msgctxt "@info request to an AI agent"
 msgid "Please help me repair my operating system."
 msgstr "Por favor, me ajude a reparar meu sistema operacional."
 
-#: whale/ai/whaleaipanel.cpp:1921
+#: whale/ai/whaleaipanel.cpp:1997
 #, kde-format
 msgctxt "@info request to an AI agent"
 msgid ""
@@ -3210,7 +3222,7 @@ msgstr ""
 "Por favor, verifique se há vírus no meu sistema. Se não houver antivírus, "
 "sugira um."
 
-#: whale/ai/whaleaipanel.cpp:1926
+#: whale/ai/whaleaipanel.cpp:2002
 #, kde-format
 msgctxt ""
 "@info request to an AI agent, %1 is the URL of the bug report form, the user "
@@ -3228,55 +3240,92 @@ msgstr ""
 "siga o formulário em %1. Remova dados pessoais, como nomes de usuário e "
 "caminhos. Não envie o relatório você mesmo, eu farei isso. O problema: "
 
-#: whale/ai/whaleaipanel.cpp:1930
+#: whale/ai/whaleaipanel.cpp:2006
 #, kde-format
 msgctxt "@action:inmenu"
 msgid "Report a problem with Orcinus"
 msgstr "Relatar um problema com o Orcinus"
 
-#: whale/ai/whaleaipanel.cpp:1987
+#: whale/ai/whaleaipanel.cpp:2011
+#, kde-format
+msgctxt "@info request to an AI agent, the user adds what the tool does"
+msgid ""
+"Please build me a tool for Orcinus' AI Canvas side panel. Read Orcinus' tool "
+"guide first (tool_guide). The tool should: "
+msgstr ""
+"Por favor, crie para mim uma ferramenta para o painel lateral AI Canvas do "
+"Orcinus. Leia primeiro o guia de ferramentas do Orcinus (tool_guide). A "
+"ferramenta deve: "
+
+#: whale/ai/whaleaipanel.cpp:2012
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Please build me a side panel tool"
+msgstr "Por favor, crie uma ferramenta de painel lateral"
+
+#: whale/ai/whaleaipanel.cpp:2018
+#, kde-format
+msgctxt "@info request to an AI agent, the user adds what the tool does"
+msgid ""
+"Please build me a tool for the right-click menu of files and folders: a KDE "
+"service menu (a .desktop file in ~/.local/share/kio/servicemenus, made "
+"executable, with a script next to it if needed). Orcinus and Dolphin both "
+"show it. The tool should: "
+msgstr ""
+"Por favor, crie para mim uma ferramenta para o menu de contexto de arquivos "
+"e pastas: um menu de serviço do KDE (um arquivo .desktop em ~/.local/share/"
+"kio/servicemenus, tornado executável, com um script ao lado se necessário). "
+"O Orcinus e o Dolphin o mostram. A ferramenta deve: "
+
+#: whale/ai/whaleaipanel.cpp:2021
+#, kde-format
+msgctxt "@action:inmenu"
+msgid "Please build me a right-click tool"
+msgstr "Por favor, crie uma ferramenta de clique direito"
+
+#: whale/ai/whaleaipanel.cpp:2079
 #, kde-format
 msgctxt "@info"
 msgid "Starts with your first message."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:1995
+#: whale/ai/whaleaipanel.cpp:2087
 #, kde-format
 msgctxt "@info"
 msgid "Starting…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2004 whale/ai/whaleaisettingspage.cpp:689
+#: whale/ai/whaleaipanel.cpp:2096 whale/ai/whaleaisettingspage.cpp:689
 #, kde-format
 msgctxt "@info %1 is the name of a language model"
 msgid "Model: %1"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2008
+#: whale/ai/whaleaipanel.cpp:2100
 #, kde-format
 msgctxt "@info how much of the context window is used"
 msgid "Context: %1 %"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2048
+#: whale/ai/whaleaipanel.cpp:2140
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "The agent offers no modes"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2050
+#: whale/ai/whaleaipanel.cpp:2142
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Choose a mode…"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2057
+#: whale/ai/whaleaipanel.cpp:2149
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Read-only mode"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2070
+#: whale/ai/whaleaipanel.cpp:2162
 #, kde-format
 msgctxt "@info:tooltip"
 msgid ""
@@ -3285,25 +3334,25 @@ msgid ""
 "asks: Orcinus can only answer what it is asked."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2104
+#: whale/ai/whaleaipanel.cpp:2196
 #, kde-format
 msgctxt "@info"
 msgid "The agent was stopped and its local model unloaded."
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2119
+#: whale/ai/whaleaipanel.cpp:2211
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Stop the Agent and Unload the Local Model"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2123
+#: whale/ai/whaleaipanel.cpp:2215
 #, kde-format
 msgctxt "@info:tooltip %1 is the id of a language model"
 msgid "Load the Local Model (%1) and Start the Agent"
 msgstr ""
 
-#: whale/ai/whaleaipanel.cpp:2235
+#: whale/ai/whaleaipanel.cpp:2358
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -3701,91 +3750,91 @@ msgctxt "@info %1 is the name of a setting, %2 its new value"
 msgid "The agent changed the setting “%1” to %2."
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:139
+#: whale/ai/whaleaitranscript.cpp:157
 #, kde-format
 msgctxt "@info:tooltip state of a tool call of an AI agent"
 msgid "Waiting"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:141
+#: whale/ai/whaleaitranscript.cpp:159
 #, kde-format
 msgctxt "@info:tooltip state of a tool call of an AI agent"
 msgid "Running"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:143
+#: whale/ai/whaleaitranscript.cpp:161
 #, kde-format
 msgctxt "@info:tooltip state of a tool call of an AI agent"
 msgid "Done"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:145
+#: whale/ai/whaleaitranscript.cpp:163
 #, kde-format
 msgctxt "@info:tooltip state of a tool call of an AI agent"
 msgid "Failed"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:147
+#: whale/ai/whaleaitranscript.cpp:165
 #, kde-format
 msgctxt "@info:tooltip state of a tool call of an AI agent"
 msgid "Cancelled"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:187
+#: whale/ai/whaleaitranscript.cpp:205
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Read files"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:190
+#: whale/ai/whaleaitranscript.cpp:208
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Change files"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:193
+#: whale/ai/whaleaitranscript.cpp:211
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Delete files"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:196
+#: whale/ai/whaleaitranscript.cpp:214
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Move or rename files"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:199
+#: whale/ai/whaleaitranscript.cpp:217
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Search"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:202
+#: whale/ai/whaleaitranscript.cpp:220
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Run a command"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:205
+#: whale/ai/whaleaitranscript.cpp:223
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Fetch from the internet"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:208
+#: whale/ai/whaleaitranscript.cpp:226
 #, kde-format
 msgctxt "@info what an AI agent wants to do"
 msgid "Change its mode"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:247
+#: whale/ai/whaleaitranscript.cpp:265
 #, kde-format
 msgctxt "@info %1 is a path"
 msgid "%1 (new file)"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:262
+#: whale/ai/whaleaitranscript.cpp:280
 #, kde-format
 msgctxt "@info"
 msgid "… and one more line"
@@ -3793,31 +3842,31 @@ msgid_plural "… and %1 more lines"
 msgstr[0] ""
 msgstr[1] ""
 
-#: whale/ai/whaleaitranscript.cpp:608
+#: whale/ai/whaleaitranscript.cpp:627
 #, kde-format
 msgctxt "@action:button AI agent's thinking, unfolds it"
 msgid "Thinking"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:686
+#: whale/ai/whaleaitranscript.cpp:705
 #, kde-format
 msgctxt "@info %1 describes what an AI agent wants to do"
 msgid "The agent asks for permission: %1"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:729 whale/ai/whaleaitranscript.cpp:867
+#: whale/ai/whaleaitranscript.cpp:748 whale/ai/whaleaitranscript.cpp:886
 #, kde-format
 msgctxt "@action:button unfolds technical details"
 msgid "Details"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:730
+#: whale/ai/whaleaitranscript.cpp:749
 #, kde-format
 msgctxt "@action:button unfolds the changes an AI agent wants to make"
 msgid "Changes"
 msgstr ""
 
-#: whale/ai/whaleaitranscript.cpp:1188
+#: whale/ai/whaleaitranscript.cpp:1207
 #, kde-format
 msgctxt "@title an AI agent in copied text"
 msgid "Agent"
