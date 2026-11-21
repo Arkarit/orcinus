@@ -87,7 +87,8 @@ if(HAVE_AI_CANVAS)
         TEST_NAME whaleaitooltest
         LINK_LIBRARIES dolphinstatic Qt6::Test)
     target_include_directories(whaleaitooltest PRIVATE ${CMAKE_SOURCE_DIR}/src)
-    target_compile_definitions(whaleaitooltest PRIVATE WHALE_AI_TEST_TOOLS="${CMAKE_CURRENT_SOURCE_DIR}/data/tools")
+    target_compile_definitions(whaleaitooltest PRIVATE WHALE_AI_TEST_TOOLS="${CMAKE_CURRENT_SOURCE_DIR}/data/tools"
+        WHALE_AI_EXAMPLE_TOOLS="${CMAKE_CURRENT_SOURCE_DIR}/../canvas/examples")
 endif()
 
 ecm_add_test(whaleaiconversationexporttest.cpp

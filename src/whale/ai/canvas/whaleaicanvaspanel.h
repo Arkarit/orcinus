@@ -48,6 +48,8 @@ public:
     /** Where the tools are and which are kept; before restoreTools() (tests). */
     void setToolStore(const WhaleAiToolStore &store);
     const WhaleAiToolStore &toolStore() const;
+    /** Where the example tools offered in the Tools menu are (tests; default: the installed ones). */
+    void setExampleRoots(const QStringList &roots);
     /** What tools may know and do in the window. */
     void setToolHost(const WhaleAiToolHost &host);
     /** Asks whether to keep a tool (the trust step); a dialog unless set (tests). */
@@ -104,6 +106,7 @@ private:
     WhaleAiQuickWidget *m_canvas;
     QToolButton *m_toolsButton;
     WhaleAiToolStore m_store;
+    QStringList m_exampleRoots = WhaleAiToolStore::exampleRoots();
     WhaleAiToolHost m_host;
     std::function<bool(const WhaleAiTool &, const QStringList &)> m_confirmKeep;
     bool m_restoring = false; ///< restoring or going: the tabs are not saved

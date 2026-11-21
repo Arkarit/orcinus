@@ -22,6 +22,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QImage>
 #include <QJsonArray>
 #include <QMainWindow>
 #include <QMenu>
@@ -70,6 +71,7 @@ private Q_SLOTS:
     void testBackend();
     void testBackendForAgent();
     void testSoundCheck();
+    void testExampleTools();
 
 private:
     QString writeFile(const QString &path, const QByteArray &data);
@@ -1142,6 +1144,79 @@ void WhaleAiToolTest::testBackendForAgent()
     QCOMPARE(backend.value(QLatin1String("stderr")).toArray(), QJsonArray{QStringLiteral("broken")});
     call(QStringLiteral("tool_close"), {{tab, id}});
     QDir(m_tools + QLatin1Char('/') + id).removeRecursively();
+}
+
+void WhaleAiToolTest::testExampleTools()
+{
+    // The shipped example "Photo Triage" (user, 2026-11-21): added from the Tools menu, then it
+    // rates images and writes XMP sidecars, never over another program's.
+    if (QStandardPaths::findExecutable(QStringLiteral("python3")).isEmpty()) {
+        QSKIP("python3 is needed for the backend");
+    }
+    const QString folder = m_dir.filePath(QStringLiteral("photos"));
+    QVERIFY(QDir().mkpath(folder));
+    QImage image(40, 30, QImage::Format_RGB32);
+    image.fill(Qt::red);
+    QVERIFY(image.save(folder + QStringLiteral("/a.png")));
+    image.fill(Qt::blue);
+    QVERIFY(image.save(folder + QStringLiteral("/b.png")));
+    writeFile(folder + QStringLiteral("/b.xmp"), "<x:xmpmeta x:xmptk=\"darktable\"/>");
+    const QString files = std::exchange(m_files, folder);
+    const auto restore = qScopeGuard([this, files] {
+        m_files = files;
+    });
+
+    QMainWindow window;
+    auto panel = new WhaleAiCanvasPanel;
+    panel->setToolStore(m_store);
+    panel->setToolHost(m_host);
+    panel->setExampleRoots({QStringLiteral(WHALE_AI_EXAMPLE_TOOLS)});
+    window.setCentralWidget(panel);
+    window.resize(700, 700);
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    QMenu *menu = panel->findChild<QToolButton *>(QStringLiteral("aiCanvasTools"))->menu();
+    Q_EMIT menu->aboutToShow();
+    auto *examples = menu->findChild<QMenu *>(QStringLiteral("exampleTools"));
+    QVERIFY(examples);
+    QAction *add = examples->findChild<QAction *>(QStringLiteral("example-photo-triage"));
+    QVERIFY(add);
+    QCOMPARE(add->text(), QStringLiteral("Photo Triage"));
+
+    // A tool of the user's own, opened in a tab.
+    add->trigger();
+    QVERIFY(QFile::exists(m_tools + QStringLiteral("/photo-triage/tool.json")));
+    QCOMPARE(m_store.files(QStringLiteral("photo-triage")),
+             (QStringList{QStringLiteral("backend.py"), QStringLiteral("main.qml"), QStringLiteral("tool.json")}));
+    WhaleAiToolTab *tab = panel->toolTab(QStringLiteral("photo-triage"));
+    QVERIFY(tab);
+    QTRY_VERIFY(tab->isLoaded());
+    QVERIFY(tab->confirmBackend());
+    QQuickItem *root = tab->quickWidget()->rootObject();
+    QTRY_COMPARE(root->property("images").toList().size(), 2);
+
+    // Rated (moving on by itself), then written: b.xmp is darktable's and stays.
+    QMetaObject::invokeMethod(root, "rate", Q_ARG(QVariant, 3));
+    QTRY_COMPARE(root->property("index").toInt(), 1);
+    QMetaObject::invokeMethod(root, "rate", Q_ARG(QVariant, 5));
+    QMetaObject::invokeMethod(root, "writeXmp");
+    QTRY_VERIFY_WITH_TIMEOUT(findItem(root, QStringLiteral("status"))->property("text").toString().startsWith(QLatin1String("1 XMP sidecar written")), 10000);
+    QVERIFY(findItem(root, QStringLiteral("status"))->property("text").toString().contains(QLatin1String("1 kept")));
+    QFile written(folder + QStringLiteral("/a.xmp"));
+    QVERIFY(written.open(QIODevice::ReadOnly));
+    // Which one comes first is the folder's order.
+    const QString firstName = root->property("images").toList().constFirst().toMap().value(QStringLiteral("name")).toString();
+    QVERIFY(written.readAll().contains(firstName == QLatin1String("a.png") ? "<xmp:Rating>3</xmp:Rating>" : "<xmp:Rating>5</xmp:Rating>"));
+    QFile kept(folder + QStringLiteral("/b.xmp"));
+    QVERIFY(kept.open(QIODevice::ReadOnly));
+    QCOMPARE(kept.readAll(), QByteArray("<x:xmpmeta x:xmptk=\"darktable\"/>"));
+
+    // Adding it again leaves the user's copy as it is.
+    writeFile(m_tools + QStringLiteral("/photo-triage/notes.txt"), "mine");
+    Q_EMIT menu->aboutToShow();
+    menu->findChild<QMenu *>(QStringLiteral("exampleTools"))->findChild<QAction *>(QStringLiteral("example-photo-triage"))->trigger();
+    QVERIFY(QFile::exists(m_tools + QStringLiteral("/photo-triage/notes.txt")));
+    QVERIFY(panel->closeTool(QStringLiteral("photo-triage")));
 }
 
 void WhaleAiToolTest::testSoundCheck()

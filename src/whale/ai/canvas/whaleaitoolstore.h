@@ -105,6 +105,16 @@ public:
     /** @return Whether the backend of @p id may start: confirmed as it is, or the tool is trusted. */
     bool isBackendAllowed(const QString &id) const;
 
+    /** Where Orcinus' example tools are installed (share/orcinus/ai/example-tools in the data folders). */
+    static QStringList exampleRoots();
+    /** The example tools in @p roots, by id (the first root wins), sorted by name. */
+    QList<WhaleAiTool> examples(const QStringList &roots) const;
+    /**
+     * Copies @p example into the user's tools, as a tool of their own (to change, keep or delete).
+     * An existing tool with its id stays as it is. @return An error (English), or empty.
+     */
+    QString addExample(const WhaleAiTool &example) const;
+
     /** The persistent settings of the tool @p id (the "settings" group of a tool). */
     KConfigGroup settingsGroup(const QString &id) const;
 

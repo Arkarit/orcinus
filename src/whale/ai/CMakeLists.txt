@@ -94,6 +94,8 @@ if(HAVE_AI_CANVAS)
         canvas/whaleaicanvas.qrc
     )
     target_link_libraries(dolphinstatic Qt6::Qml Qt6::Quick Qt6::QuickWidgets Qt6::OpenGL)
+    # Example tools, offered in the canvas' Tools menu (WhaleAiToolStore::exampleRoots()).
+    install(DIRECTORY canvas/examples/ DESTINATION ${KDE_INSTALL_DATADIR}/${WHALE_COMPONENT}/ai/example-tools)
 endif()
 
 if(BUILD_TESTING)

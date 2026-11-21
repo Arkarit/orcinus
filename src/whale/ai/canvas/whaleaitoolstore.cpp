@@ -14,10 +14,13 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QStandardPaths>
+
+#include <algorithm>
 
 namespace
 {
@@ -286,4 +289,50 @@ bool WhaleAiToolStore::isBackendAllowed(const QString &id) const
 KConfigGroup WhaleAiToolStore::settingsGroup(const QString &id) const
 {
     return KConfigGroup(m_config, QStringLiteral("AI Tool %1").arg(id));
+}
+
+QStringList WhaleAiToolStore::exampleRoots()
+{
+    return QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, QStringLiteral("orcinus/ai/example-tools"), QStandardPaths::LocateDirectory);
+}
+
+QList<WhaleAiTool> WhaleAiToolStore::examples(const QStringList &roots) const
+{
+    QList<WhaleAiTool> result;
+    QStringList seen;
+    for (const QString &root : roots) {
+        const WhaleAiToolStore store(root, m_config);
+        for (const QString &id : store.ids()) {
+            if (!seen.contains(id)) {
+                seen.append(id);
+                result.append(*store.tool(id));
+            }
+        }
+    }
+    std::sort(result.begin(), result.end(), [](const WhaleAiTool &a, const WhaleAiTool &b) {
+        return a.name.localeAwareCompare(b.name) < 0;
+    });
+    return result;
+}
+
+QString WhaleAiToolStore::addExample(const WhaleAiTool &example) const
+{
+    const QString target = QDir(m_root).filePath(example.id);
+    if (QFileInfo::exists(target)) {
+        return QString();
+    }
+    const QDir source(example.folder);
+    QDirIterator it(example.folder, QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        const QString file = it.next();
+        const QString relative = source.relativeFilePath(file);
+        const QString copy = QDir(target).filePath(relative);
+        if (!QDir().mkpath(QFileInfo(copy).path()) || !QFile::copy(file, copy)) {
+            QDir(target).removeRecursively();
+            return QStringLiteral("%1 could not be copied to %2.").arg(file, copy);
+        }
+        // Installed files are read-only; the copy is the user's to change.
+        QFile::setPermissions(copy, QFile::permissions(copy) | QFileDevice::WriteOwner);
+    }
+    return QString();
 }

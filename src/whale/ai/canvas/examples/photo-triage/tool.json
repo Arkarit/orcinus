@@ -1,0 +1,9 @@
+{
+  "name": "Photo Triage",
+  "icon": "image-x-generic",
+  "description": "Review images one at a time and rate them with 1–5 stars from the keyboard. Remembers ratings and writes XMP sidecars only on request.",
+  "entry": "main.qml",
+  "writes": ["XMP sidecars (.xmp) next to rated images, only when requested; never over those of other programs"],
+  "backend": {"command": ["python3", "backend.py"]},
+  "settings": {"ratings": "{}", "autoNext": true}
+}

@@ -5,6 +5,7 @@
  */
 
 #include "whaleaicanvaspanel.h"
+#include "whaleaidebug.h"
 
 #include "whaleaicanvasmedia.h"
 #include "whaleaicanvasmodel.h"
@@ -231,6 +232,11 @@ void WhaleAiCanvasPanel::setToolStore(const WhaleAiToolStore &store)
 const WhaleAiToolStore &WhaleAiCanvasPanel::toolStore() const
 {
     return m_store;
+}
+
+void WhaleAiCanvasPanel::setExampleRoots(const QStringList &roots)
+{
+    m_exampleRoots = roots;
 }
 
 void WhaleAiCanvasPanel::setToolHost(const WhaleAiToolHost &host)
@@ -499,6 +505,25 @@ void WhaleAiCanvasPanel::fillToolsMenu()
         menu->addAction(i18nc("@item:inmenu", "No tools yet; ask the AI agent to make one"))->setEnabled(false);
     }
     menu->addSeparator();
+    // Example tools Orcinus ships (user, 2026-11-21): copied into the user's tools on request.
+    const QList<WhaleAiTool> examples = m_store.examples(m_exampleRoots);
+    if (!examples.isEmpty()) {
+        QMenu *examplesMenu = menu->addMenu(QIcon::fromTheme(QStringLiteral("list-add")), i18nc("@action:inmenu", "Add Example Tool"));
+        examplesMenu->setObjectName(QStringLiteral("exampleTools"));
+        for (const WhaleAiTool &example : examples) {
+            QAction *action = examplesMenu->addAction(QIcon::fromTheme(example.icon, QIcon::fromTheme(QStringLiteral("tools"))), example.name);
+            action->setObjectName(QStringLiteral("example-") + example.id);
+            action->setToolTip(example.description);
+            connect(action, &QAction::triggered, this, [this, example] {
+                const QString error = m_store.addExample(example);
+                if (!error.isEmpty()) {
+                    qCWarning(WhaleAiDebug) << error;
+                    return;
+                }
+                openTool(example.id);
+            });
+        }
+    }
     QAction *folder = menu->addAction(QIcon::fromTheme(QStringLiteral("folder-open")), i18nc("@action:inmenu", "Show Tools Folder"));
     connect(folder, &QAction::triggered, this, [this] {
         QDir().mkpath(m_store.root());
