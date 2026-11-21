@@ -8,6 +8,8 @@ body:
     attributes:
       value: |
         Thanks for the report. If the problem also happens in an unmodified Dolphin of the same version, please report it to KDE as well (see CONTRIBUTING.md).
+
+        **Crashes:** please paste the backtrace from the crash dialog ("See Developer Information") into "Additional information" below, or get it with `coredumpctl debug orcinus` and `bt` in gdb. "Send Automatic Report" goes to KDE's crash server, not to the Orcinus developers.
   - type: textarea
     id: description
     attributes:
