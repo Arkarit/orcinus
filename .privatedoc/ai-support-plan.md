@@ -1555,6 +1555,51 @@ conversation (prompt injection that persists). Hence: every note visible and rem
 the user's notes and marked as data, short, Manual mode for the cautious, no note can carry
 permissions (they never change what Orcinus allows).
 
+**AI17 – Slash commands and usage (planned 2026-11-22, user).** The user asked how the
+agent's own commands (e.g. Claude Code's `/status`) and a cloud agent's limits (5-hour and weekly)
+reach the panel.
+
+Findings (2026-11-22, `@agentclientprotocol/claude-agent-acp` 0.106.0, Agent SDK 0.3.322):
+- `available_commands_update` is parsed into `WhaleAcpSession::availableCommands()`, but nothing
+  in the panel reads it. The adapter sends it shortly after the session setup, so before the first
+  prompt of a conversation the list is empty (the session starts with that prompt).
+- Every prompt goes as several blocks: system prompt + guidance (first message), memory notes,
+  context, then the text. Claude Code still ran `/usage` (real run in the panel, offscreen,
+  isolated profile: 3.8 s, no tool calls), but answered with its own plain text, partly without
+  line breaks. The adapter replaces `/usage` (and `/mcp …`) with structured Markdown only when the
+  prompt is exactly one text block (`localCommandMarkdown`, `v1/acp-agent.js`): 5-hour limit,
+  weekly limits (all models, per model) with reset times, the session's cost, API time and tokens.
+- Terminal-only commands (`/status`, `/config`, …) do not exist in SDK mode.
+- `usage_update` also carries `cost {amount, currency}` (Claude: the session's
+  `total_cost_usd`; with a subscription an API equivalent, not billed). We read only `used`/`size`.
+  The prompt response carries `usage` (input/output/cache read/cache write/total tokens) and
+  `_meta.quota` (tokens per model); we read only `stopReason`.
+- The SDK's `rate_limit_event` (status allowed/…) is not forwarded over ACP: no live limit warning
+  without asking the adapter project (outward-facing, only with the user's OK).
+
+Steps:
+- **AI17a – Commands go alone.** A prompt whose first word is `/name` (letters, digits, `-`, `_`,
+  `:`; no further `/`, so `/home/user/x` stays a message) is a command: it goes as exactly one text
+  block, without context, notes or system prompt. The system prompt and guidance then go with the
+  next ordinary message (`m_systemPromptSent` stays false); notes not sent stay pending for it.
+  The transcript shows no "With: …" for it. `/remember` stays Orcinus' own. The rule does not
+  depend on `availableCommands()` (empty before the first prompt). Test with the fake agent: the
+  blocks of `/usage` as first and as later message, the system prompt with the following message,
+  `/home/x what is this` still with context.
+- **AI17b – Command popup.** Typing `/` at the start of the input opens a completion list:
+  Orcinus' own (`/remember`, `/remember global`) plus `availableCommands()` (name, description,
+  input hint as placeholder), filtered while typing, Up/Down/Enter/Tab/Esc; with no session yet
+  only Orcinus' own plus a line "The agent's commands appear after its first answer". Updates on
+  `availableCommandsChanged`. Non-intrusive: nothing shows unless the input starts with `/`.
+- **AI17c – Tokens and cost.** `WhaleAcpSession` reads `cost` from `usage_update` and `usage` from
+  the prompt response (sum per session). The session info keeps "Context: N %"; its tooltip adds
+  the session's tokens (input, output, cache) and, if reported, the cost marked as "API
+  equivalent". Open (user): show the cost in the line itself or only in the tooltip.
+- **AI17d – Real run.** Claude in the panel (offscreen, isolated profile, user's OK for the quota):
+  `/usage` as first and later message gives the adapter's Markdown with the limits; the popup
+  lists the agent's commands after the first answer; tooltip shows tokens. Codex: what it
+  advertises (only with the user's OK).
+
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).
 
