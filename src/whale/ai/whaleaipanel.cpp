@@ -26,14 +26,17 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
 #include <QDropEvent>
+#include <QFile>
 #include <QFileInfo>
 #include <QGraphicsOpacityEffect>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHideEvent>
+#include <QImage>
 #include <QJsonArray>
 #include <QKeyEvent>
 #include <QLabel>
@@ -47,6 +50,7 @@
 #include <QSignalBlocker>
 #include <QSplitter>
 #include <QStackedWidget>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QToolButton>
 #include <QUrl>
@@ -60,6 +64,51 @@ enum Page {
     ChatPage,
     SetupPage,
     DisclaimerPage,
+};
+
+/**
+ * The input. Pasted local files become chips, as dropped ones do (Ctrl+C in the file view, then
+ * Ctrl+V here), and so do pasted images such as screenshots, saved as PNG files (user, 2026-11-21).
+ */
+class WhaleAiInput : public QPlainTextEdit
+{
+public:
+    using QPlainTextEdit::QPlainTextEdit;
+    std::function<void(const QStringList &paths)> filesPasted;
+    std::function<void(const QImage &image)> imagePasted;
+
+protected:
+    bool canInsertFromMimeData(const QMimeData *source) const override
+    {
+        return source->hasImage() || QPlainTextEdit::canInsertFromMimeData(source);
+    }
+
+    void insertFromMimeData(const QMimeData *source) override
+    {
+        if (source->hasUrls()) {
+            QStringList paths;
+            const QList<QUrl> urls = source->urls();
+            for (const QUrl &url : urls) {
+                if (!url.isLocalFile()) {
+                    paths.clear();
+                    break;
+                }
+                paths.append(url.toLocalFile());
+            }
+            if (!paths.isEmpty() && filesPasted) {
+                filesPasted(paths);
+                return;
+            }
+        }
+        if (source->hasImage() && imagePasted) {
+            const QImage image = qvariant_cast<QImage>(source->imageData());
+            if (!image.isNull()) {
+                imagePasted(image);
+                return;
+            }
+        }
+        QPlainTextEdit::insertFromMimeData(source);
+    }
 };
 }
 
@@ -200,7 +249,19 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_chips = new WhaleAiContextChips(chat);
     m_chips->setObjectName(QStringLiteral("contextChips"));
 
-    m_input = new QPlainTextEdit(chat);
+    auto *input = new WhaleAiInput(chat);
+    input->filesPasted = [this](const QStringList &paths) {
+        m_chips->addFiles(paths);
+    };
+    input->imagePasted = [this](const QImage &image) {
+        const QString path = savePastedImage(image);
+        if (path.isEmpty()) {
+            m_transcript->addNotice(i18nc("@info", "The pasted image could not be saved."), WhaleAiTranscript::Kind::Error);
+            return;
+        }
+        m_chips->addFiles({path});
+    };
+    m_input = input;
     m_input->setObjectName(QStringLiteral("input"));
     m_input->setPlaceholderText(i18nc("@info:placeholder", "Ask the agent… (Enter sends, Shift+Enter: new line)"));
     m_input->setTabChangesFocus(true);
@@ -1942,7 +2003,22 @@ void WhaleAiPanel::fillSuggestions(QMenu *menu)
                           "the backtrace via coredumpctl) and write a draft from it that follows the form at %1. Remove personal data such as user "
                           "names and paths. Do not submit the report yourself, I will do that. The problem: ")
                        .subs(bugReportUrl)),
-           request(ki18nc("@action:inmenu", "Report a problem with Orcinus"))}}},
+           request(ki18nc("@action:inmenu", "Report a problem with Orcinus"))},
+#if HAVE_AI_CANVAS
+          // Tools the agent builds for the user (user, 2026-11-21): a canvas tool in the side panel ...
+          {QStringLiteral("buildCanvasTool"),
+           request(ki18nc("@info request to an AI agent, the user adds what the tool does",
+                          "Please build me a tool for Orcinus' AI Canvas side panel. Read Orcinus' tool guide first (tool_guide). The tool should: ")),
+           request(ki18nc("@action:inmenu", "Please build me a side panel tool"))},
+#endif
+          // ... and a service menu, which the file views of Orcinus and Dolphin show on right-click.
+          {QStringLiteral("buildServiceMenu"),
+           careful + QLatin1Char('\n')
+               + request(ki18nc("@info request to an AI agent, the user adds what the tool does",
+                                "Please build me a tool for the right-click menu of files and folders: a KDE service menu (a .desktop file in "
+                                "~/.local/share/kio/servicemenus, made executable, with a script next to it if needed). Orcinus and Dolphin both "
+                                "show it. The tool should: ")),
+           request(ki18nc("@action:inmenu", "Please build me a right-click tool"))}}},
     };
     for (const auto &[title, suggestions] : groups) {
         menu->addSection(title);
@@ -2210,6 +2286,37 @@ bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return Panel::eventFilter(watched, event);
+}
+
+QString WhaleAiPanel::pastedImagesFolder()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/pasted-images");
+}
+
+QString WhaleAiPanel::savePastedImage(const QImage &image)
+{
+    // Where the agent can read it, as a file the user dropped; not into the user's folders.
+    const QDir folder(pastedImagesFolder());
+    if (!folder.mkpath(QStringLiteral("."))) {
+        return QString();
+    }
+    // Kept as long as the conversations that may name them (AI14); a day when none are kept.
+    const int days = WhaleAiAgents::saveConversations() ? WhaleAiAgents::keepConversationsDays() : 1;
+    if (days > 0) {
+        const QDateTime limit = QDateTime::currentDateTime().addDays(-days);
+        const QFileInfoList old = folder.entryInfoList({QStringLiteral("*.png")}, QDir::Files);
+        for (const QFileInfo &info : old) {
+            if (info.lastModified() < limit) {
+                QFile::remove(info.filePath());
+            }
+        }
+    }
+    const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"));
+    QString path = folder.filePath(QStringLiteral("pasted-image-%1.png").arg(stamp));
+    for (int i = 2; QFileInfo::exists(path); ++i) {
+        path = folder.filePath(QStringLiteral("pasted-image-%1-%2.png").arg(stamp).arg(i));
+    }
+    return image.save(path, "PNG") ? path : QString();
 }
 
 void WhaleAiPanel::showEvent(QShowEvent *event)

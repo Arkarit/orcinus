@@ -82,6 +82,7 @@ private Q_SLOTS:
     void enterAndShiftEnter();
     void inputHeight();
     void suggestions();
+    void pasteImagesAndFiles();
     void codeBlocksWrap();
     void suggestionsInConversationLanguage();
     void stopWithEscape();
@@ -1231,6 +1232,44 @@ void WhaleAiPanelTest::codeBlocksWrap()
     QVERIFY2(answer->height() >= 5 * answer->fontMetrics().lineSpacing(), qPrintable(QString::number(answer->height())));
 }
 
+void WhaleAiPanelTest::pasteImagesAndFiles()
+{
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto *input = panel.findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    QVERIFY(input);
+    QClipboard *clipboard = QApplication::clipboard();
+
+    // A pasted image (a screenshot) becomes a PNG file and a chip, not text.
+    QImage image(32, 24, QImage::Format_RGB32);
+    image.fill(Qt::green);
+    auto *imageData = new QMimeData;
+    imageData->setImageData(image);
+    clipboard->setMimeData(imageData);
+    input->paste();
+    QVERIFY(input->toPlainText().isEmpty());
+    const QStringList added = panel.contextChips()->context().added;
+    QCOMPARE(added.size(), 1);
+    QVERIFY(added.constFirst().startsWith(WhaleAiPanel::pastedImagesFolder() + QLatin1Char('/')));
+    QCOMPARE(QImage(added.constFirst()).size(), image.size());
+
+    // Copied local files, as dropped ones.
+    const QString file = m_work.filePath(QStringLiteral("pasted.txt"));
+    QFile(file).open(QIODevice::WriteOnly);
+    auto *fileData = new QMimeData;
+    fileData->setUrls({QUrl::fromLocalFile(file)});
+    clipboard->setMimeData(fileData);
+    input->paste();
+    QVERIFY(input->toPlainText().isEmpty());
+    QCOMPARE(panel.contextChips()->context().added, (QStringList{added.constFirst(), file}));
+
+    // Text stays text.
+    clipboard->setText(QStringLiteral("hello"));
+    input->paste();
+    QCOMPARE(input->toPlainText(), QStringLiteral("hello"));
+    QCOMPARE(panel.contextChips()->context().added.size(), 2);
+}
+
 void WhaleAiPanelTest::suggestions()
 {
     WhaleAiPanel panel;
@@ -1270,6 +1309,19 @@ void WhaleAiPanelTest::suggestions()
     auto *report = button->menu()->findChild<QAction *>(QStringLiteral("reportProblem"));
     QVERIFY(report);
     QCOMPARE(report->text(), QStringLiteral("Report a problem with Orcinus"));
+    // Tools to build: a canvas tool and a service menu.
+    auto *canvasTool = button->menu()->findChild<QAction *>(QStringLiteral("buildCanvasTool"));
+    QVERIFY(canvasTool);
+    QCOMPARE(canvasTool->text(), QStringLiteral("Please build me a side panel tool"));
+    auto *serviceMenu = button->menu()->findChild<QAction *>(QStringLiteral("buildServiceMenu"));
+    QVERIFY(serviceMenu);
+    QCOMPARE(serviceMenu->text(), QStringLiteral("Please build me a right-click tool"));
+    serviceMenu->trigger();
+    QVERIFY(input->toPlainText().startsWith(QStringLiteral("Please look into it first and ask me before every change.\n")));
+    QVERIFY(input->toPlainText().contains(QStringLiteral("~/.local/share/kio/servicemenus")));
+    QVERIFY(input->toPlainText().endsWith(QStringLiteral("The tool should: ")));
+    canvasTool->trigger();
+    QVERIFY(input->toPlainText().contains(QStringLiteral("tool_guide")));
     report->trigger();
     QVERIFY(input->toPlainText().contains(QStringLiteral("https://github.com/Arkarit/orcinus/issues/new?template=bug_report.yml")));
     QVERIFY(input->toPlainText().contains(QStringLiteral("Do not submit the report yourself")));

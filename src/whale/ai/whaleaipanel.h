@@ -25,6 +25,7 @@ class KBusyIndicatorWidget;
 class KMessageWidget;
 class QCheckBox;
 class QComboBox;
+class QImage;
 class QLabel;
 class QMenu;
 class QPlainTextEdit;
@@ -109,6 +110,8 @@ public:
     bool openConversation(const QString &id);
     /** @return The id of the opened saved conversation while it shows (AI14b); empty otherwise. */
     QString openedConversationId() const;
+    /** @return Where images pasted into the input are kept. */
+    static QString pastedImagesFolder();
     /** @return Whether the next message continues the opened conversation with its agent (AI14c). */
     bool canResumeOpened() const;
     /** @return The conversation the panel shows as it would be saved now (AI15); nothing if none. */
@@ -201,6 +204,8 @@ private:
     /** Fills the suggestions menu in the conversation language. */
     void fillSuggestions(QMenu *menu);
     void updateSuggestions();
+    /** @return The PNG file @p image was saved as (pasted into the input), empty if it failed. */
+    QString savePastedImage(const QImage &image);
     /** Puts @p text into the input, the cursor at its end; nothing is sent. */
     void insertSuggestion(const QString &text);
     void sendPending();
