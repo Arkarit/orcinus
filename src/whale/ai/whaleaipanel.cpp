@@ -169,6 +169,10 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_undoChanges->setToolTip(i18nc("@info:tooltip", "Undo the Agent's Changes (settings, folder views, profiles)"));
     m_undoChanges->setAutoRaise(true);
     m_undoChanges->setEnabled(false);
+    // Hidden for now, although it works: it undoes only Orcinus' own settings, folder views and
+    // profiles, not what the agent did to files, and could be read as "undo everything the agent
+    // did" (user, 2026-11-21). Remove this line to bring the button back.
+    m_undoChanges->hide();
 
     auto *configure = new QToolButton(chat);
     configure->setObjectName(QStringLiteral("configure"));
