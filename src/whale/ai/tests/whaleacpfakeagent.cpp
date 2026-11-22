@@ -62,6 +62,7 @@ bool cancelSeen = false;
 bool loaded = false;
 QString modelValue = QStringLiteral("small");
 QString modeValue = QStringLiteral("auto");
+int turns = 0; // answered prompts, for the cost
 
 void send(const QJsonObject &message)
 {
@@ -504,14 +505,25 @@ void handlePrompt(const QJsonObject &message)
             {QStringLiteral("status"), QStringLiteral("completed")},
             {QStringLiteral("rawOutput"), QStringLiteral("ok")}});
     update(QStringLiteral("s1"),
-           {{QStringLiteral("sessionUpdate"), QStringLiteral("usage_update")}, {QStringLiteral("used"), 1500}, {QStringLiteral("size"), 32000}});
+           {{QStringLiteral("sessionUpdate"), QStringLiteral("usage_update")},
+            {QStringLiteral("used"), 1500},
+            {QStringLiteral("size"), 32000},
+            {QStringLiteral("cost"), QJsonObject{{QStringLiteral("amount"), 0.25 * ++turns}, {QStringLiteral("currency"), QStringLiteral("USD")}}}});
     update(QStringLiteral("s1"),
            {{QStringLiteral("sessionUpdate"), QStringLiteral("available_commands_update")},
             {QStringLiteral("availableCommands"),
              QJsonArray{QJsonObject{{QStringLiteral("name"), QStringLiteral("review")},
                                     {QStringLiteral("description"), QStringLiteral("Review")},
                                     {QStringLiteral("input"), QJsonObject{{QStringLiteral("hint"), QStringLiteral("what")}}}}}}});
-    respond(promptId, {{QStringLiteral("stopReason"), QStringLiteral("end_turn")}});
+    // Tokens of this turn (AI17c).
+    respond(promptId,
+            {{QStringLiteral("stopReason"), QStringLiteral("end_turn")},
+             {QStringLiteral("usage"),
+              QJsonObject{{QStringLiteral("inputTokens"), 1000},
+                          {QStringLiteral("outputTokens"), 200},
+                          {QStringLiteral("cachedReadTokens"), 30},
+                          {QStringLiteral("cachedWriteTokens"), 4},
+                          {QStringLiteral("totalTokens"), 1234}}}});
 }
 
 void handleSetConfigOption(const QJsonObject &message)

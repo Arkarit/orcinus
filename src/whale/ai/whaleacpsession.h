@@ -104,6 +104,8 @@ public:
     /** @return The first option of @p category ("mode", "model", …), or nullptr. */
     const WhaleAcpConfigOption *configOption(const QString &category) const;
     QList<WhaleAcpCommand> availableCommands() const;
+    /** @return The tokens and the cost of the session so far, as far as the agent reports them. */
+    WhaleAcpUsage usage() const;
     QList<WhaleAcpPermissionRequest> pendingPermissions() const;
     WhaleAcpToolCall toolCall(const QString &id) const;
     /** @return The last lines the agent wrote to stderr, for error messages. */
@@ -163,6 +165,7 @@ private:
     QList<WhaleAcpConfigOption> m_configOptions;
     bool m_hasConfigOptions = false; ///< the agent sends configOptions, not only modes
     QList<WhaleAcpCommand> m_commands;
+    WhaleAcpUsage m_usage;
     QHash<QString, WhaleAcpToolCall> m_toolCalls;
     struct PendingPermission {
         QJsonValue id;

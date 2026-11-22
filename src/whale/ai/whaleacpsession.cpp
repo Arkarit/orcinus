@@ -237,6 +237,16 @@ bool WhaleAcpSession::prompt(const QJsonArray &content)
                                                         Q_EMIT promptFinished(QStringLiteral("error"));
                                                         return;
                                                     }
+                                                    // Per turn (ACP `usage`); summed for the session.
+                                                    if (const QJsonObject usage = result.toObject().value(QLatin1String("usage")).toObject();
+                                                        !usage.isEmpty()) {
+                                                        m_usage.tokensReported = true;
+                                                        m_usage.inputTokens += usage.value(QLatin1String("inputTokens")).toInteger();
+                                                        m_usage.outputTokens += usage.value(QLatin1String("outputTokens")).toInteger();
+                                                        m_usage.cachedReadTokens += usage.value(QLatin1String("cachedReadTokens")).toInteger();
+                                                        m_usage.cachedWriteTokens += usage.value(QLatin1String("cachedWriteTokens")).toInteger();
+                                                        m_usage.totalTokens += usage.value(QLatin1String("totalTokens")).toInteger();
+                                                    }
                                                     QString stopReason = result.toObject().value(QLatin1String("stopReason")).toString();
                                                     if (stopReason.isEmpty()) {
                                                         stopReason = QStringLiteral("end_turn");
@@ -396,6 +406,11 @@ void WhaleAcpSession::handleUpdate(const QJsonObject &update)
         }
         Q_EMIT availableCommandsChanged();
     } else if (kind == QLatin1String("usage_update")) {
+        // The session's cost so far (not per turn).
+        if (const QJsonObject cost = update.value(QLatin1String("cost")).toObject(); cost.value(QLatin1String("amount")).isDouble()) {
+            m_usage.costAmount = cost.value(QLatin1String("amount")).toDouble();
+            m_usage.costCurrency = cost.value(QLatin1String("currency")).toString();
+        }
         Q_EMIT usageChanged(update.value(QLatin1String("used")).toInteger(), update.value(QLatin1String("size")).toInteger());
     }
 
@@ -517,6 +532,11 @@ const WhaleAcpConfigOption *WhaleAcpSession::configOption(const QString &categor
         }
     }
     return nullptr;
+}
+
+WhaleAcpUsage WhaleAcpSession::usage() const
+{
+    return m_usage;
 }
 
 QList<WhaleAcpCommand> WhaleAcpSession::availableCommands() const

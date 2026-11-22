@@ -166,6 +166,19 @@ struct WhaleAcpPermissionRequest {
     QList<Option> options;
 };
 
+/** What a session used so far (AI17c): tokens summed over the prompt responses, the cost of
+ *  the last `usage_update` (with a subscription only an API equivalent). */
+struct WhaleAcpUsage {
+    qint64 inputTokens = 0;
+    qint64 outputTokens = 0;
+    qint64 cachedReadTokens = 0;
+    qint64 cachedWriteTokens = 0;
+    qint64 totalTokens = 0;
+    bool tokensReported = false;
+    double costAmount = -1; ///< negative: not reported
+    QString costCurrency;
+};
+
 /** A slash command the agent offers (`available_commands_update`). */
 struct WhaleAcpCommand {
     QString name;

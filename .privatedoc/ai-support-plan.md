@@ -1591,7 +1591,7 @@ Steps:
   input hint as placeholder), filtered while typing, Up/Down/Enter/Tab/Esc; with no session yet
   only Orcinus' own plus a line "The agent's commands appear after its first answer". Updates on
   `availableCommandsChanged`. Non-intrusive: nothing shows unless the input starts with `/`.
-- **AI17c – Tokens and cost.** `WhaleAcpSession` reads `cost` from `usage_update` and `usage` from
+- **AI17c – Tokens and cost (done 2026-11-22: cost only in the tooltip).** `WhaleAcpSession` reads `cost` from `usage_update` and `usage` from
   the prompt response (sum per session). The session info keeps "Context: N %"; its tooltip adds
   the session's tokens (input, output, cache) and, if reported, the cost marked as "API
   equivalent". Open (user): show the cost in the line itself or only in the tooltip.

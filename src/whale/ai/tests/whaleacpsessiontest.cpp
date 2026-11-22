@@ -203,6 +203,12 @@ void WhaleAcpSessionTest::promptTurn()
     QCOMPARE(usage.size(), 1);
     QCOMPARE(usage.first().at(0).toLongLong(), 1500);
     QCOMPARE(usage.first().at(1).toLongLong(), 32000);
+    // AI17c: the turn's tokens from the prompt response, the cost from usage_update.
+    QVERIFY(session->usage().tokensReported);
+    QCOMPARE(session->usage().totalTokens, 1234);
+    QCOMPARE(session->usage().cachedWriteTokens, 4);
+    QCOMPARE(session->usage().costAmount, 0.25);
+    QCOMPARE(session->usage().costCurrency, QStringLiteral("USD"));
     QCOMPARE(commands.size(), 1);
     QCOMPARE(session->availableCommands().first().inputHint, QStringLiteral("what"));
 

@@ -1470,6 +1470,8 @@ bool WhaleAiPanel::startSession()
             m_transcript->addNotice(i18nc("@info", "The agent could not answer."), WhaleAiTranscript::Kind::Error, m_session->errorString());
         }
         updateState();
+        // The tokens of the turn came with its answer.
+        updateSessionInfo();
     });
 
     m_sessionInfo->setProperty("usage", -1);
@@ -2126,6 +2128,7 @@ void WhaleAiPanel::updateSessionInfo()
 {
     updateModes();
     updateBusy();
+    m_sessionInfo->setToolTip(QString());
     if (!m_session) {
         m_sessionInfo->setText(i18nc("@info", "Starts with your first message."));
         return;
@@ -2151,6 +2154,27 @@ void WhaleAiPanel::updateSessionInfo()
         parts.append(i18nc("@info how much of the context window is used", "Context: %1 %", usage));
     }
     m_sessionInfo->setText(parts.isEmpty() ? m_session->agentInfo().displayName() : parts.join(QStringLiteral(" · ")));
+
+    // AI17c: tokens and cost only in the tooltip, so the line stays short.
+    const WhaleAcpUsage used = m_session->usage();
+    QStringList lines;
+    const QLocale locale;
+    if (used.tokensReported) {
+        lines.append(i18nc("@info:tooltip %1 is a number of tokens", "Tokens in this conversation: %1", locale.toString(used.totalTokens)));
+        lines.append(i18nc("@info:tooltip numbers of tokens",
+                           "Input: %1, output: %2, read from cache: %3, written to cache: %4",
+                           locale.toString(used.inputTokens),
+                           locale.toString(used.outputTokens),
+                           locale.toString(used.cachedReadTokens),
+                           locale.toString(used.cachedWriteTokens)));
+    }
+    if (used.costAmount >= 0) {
+        const QString currency = used.costCurrency == QLatin1String("USD") ? QStringLiteral("$") : used.costCurrency;
+        lines.append(i18nc("@info:tooltip %1 is an amount of money",
+                           "Cost so far: %1 (as the agent reports it; with a subscription only what the API would cost)",
+                           locale.toCurrencyString(used.costAmount, currency, 2)));
+    }
+    m_sessionInfo->setToolTip(lines.join(QLatin1Char('\n')));
 }
 
 bool WhaleAiPanel::answerOwnToolRequest(const WhaleAcpPermissionRequest &request)

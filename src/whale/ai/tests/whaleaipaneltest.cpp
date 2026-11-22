@@ -99,6 +99,7 @@ private Q_SLOTS:
     void rememberCommand();
     void agentCommandGoesAlone();
     void commandList();
+    void tokensAndCost();
     void removedAgentEndsConversation();
     void links();
     void transcriptSelection();
@@ -1100,6 +1101,27 @@ void WhaleAiPanelTest::commandList()
     // The fake asks for a permission for it.
     QVERIFY(waitForPermission(*panel));
     QVERIFY(texts(*panel).contains(QLatin1String("text=/review;links=0;context=|blocks=1;")));
+}
+
+void WhaleAiPanelTest::tokensAndCost()
+{
+    // AI17c: the line keeps the context; tokens (summed) and cost (the last) in its tooltip.
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    auto *info = panel.findChild<QLabel *>(QStringLiteral("sessionInfo"));
+    QVERIFY(info->toolTip().isEmpty());
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission again")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(info->text().contains(QLatin1String("Context: 4 %")));
+    QVERIFY(!info->text().contains(QLatin1String("Tokens")));
+    const QLocale locale;
+    const QString tip = info->toolTip();
+    QVERIFY2(tip.contains(QStringLiteral("Tokens in this conversation: %1").arg(locale.toString(2468))), qPrintable(tip));
+    QVERIFY2(tip.contains(QStringLiteral("Input: %1, output: 400, read from cache: 60, written to cache: 8").arg(locale.toString(2000))), qPrintable(tip));
+    QVERIFY2(tip.contains(QStringLiteral("Cost so far: %1").arg(locale.toCurrencyString(0.5, QStringLiteral("$"), 2))), qPrintable(tip));
+    QVERIFY(tip.contains(QLatin1String("only what the API would cost")));
 }
 
 void WhaleAiPanelTest::promptTurn()
