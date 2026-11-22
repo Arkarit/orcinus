@@ -197,6 +197,25 @@ qint64 WhaleAiLocalRuntime::pid() const
     return m_options.pid > 0 ? m_options.pid : QCoreApplication::applicationPid();
 }
 
+bool WhaleAiLocalRuntime::processRuns(qint64 pid) const
+{
+    if (pid <= 0 || ::kill(pid_t(pid), 0) != 0) {
+        return false;
+    }
+    // A server we started goes to PID 1 or a subreaper. Where that does not reap it (e.g. a
+    // container without init), it stays a zombie: it has ended all the same. The real /proc, as
+    // for kill() (the discovery's may be a test's).
+    QFile stat(QStringLiteral("/proc/%1/stat").arg(pid));
+    if (stat.open(QIODevice::ReadOnly)) {
+        const QByteArray line = stat.readAll();
+        const qsizetype end = line.lastIndexOf(')');
+        if (end >= 0 && end + 2 < line.size() && line.at(end + 2) == 'Z') {
+            return false;
+        }
+    }
+    return true;
+}
+
 bool WhaleAiLocalRuntime::isAlive(qint64 pid) const
 {
     return pid > 0 && QFileInfo::exists(QStringLiteral("%1/%2").arg(m_options.discovery.procPath).arg(pid));
@@ -865,7 +884,7 @@ void WhaleAiLocalRuntime::strataTick(const QString &key)
         entry->serverSeen = true;
     }
     // A process that ended at once (e.g. its port taken) is gone without having been seen.
-    const bool gone = entry->serverPid == 0 || entry->serverSeen || ::kill(pid_t(entry->serverPid), 0) != 0 || seconds >= 10;
+    const bool gone = entry->serverPid == 0 || entry->serverSeen || !processRuns(entry->serverPid) || seconds >= 10;
     if (!alive && gone) {
         QFile log(strataLogPath());
         if (entry->serverPid > 0 && log.open(QIODevice::ReadOnly)) {

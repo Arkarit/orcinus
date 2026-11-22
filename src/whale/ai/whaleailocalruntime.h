@@ -211,6 +211,8 @@ private:
     using StateEdit = std::function<void(QJsonObject &mine, QList<QJsonObject> &others)>;
     /** Changes the state file under its lock; @p edit gets this process' entry and the others. */
     void editState(const StateEdit &edit);
+    /** @return Whether @p pid runs (signal 0 reaches it and it is no zombie). */
+    bool processRuns(qint64 pid) const;
     bool isAlive(qint64 pid) const;
     qint64 pid() const;
 
