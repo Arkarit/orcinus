@@ -2489,8 +2489,10 @@ void DolphinColumnsViewTest::testOpeningAColumnLeavesTheOnesBeforeItAlone()
     m_testDir->createDir("alpha/alpha-child/deep");
     m_testDir->createFile("alpha/alpha-child/deep/deep-file.txt");
 
-    // Narrow enough that the columns overflow it, so the splitter is held at the width they take.
-    m_view->resize(420, 400);
+    // Narrow enough that two columns of the minimum width overflow it already, so the splitter is
+    // held at the width they take. Wider, the room left by two narrow columns (small fonts) can be
+    // less than a scroll bar, and the last column takes it on purpose.
+    m_view->resize(380, 400);
     QTRY_VERIFY_WITH_TIMEOUT(m_view->m_scrollArea->viewport()->width() > 0, 5000);
 
     m_view->openChild(0, urlOf(QStringLiteral("alpha")));
