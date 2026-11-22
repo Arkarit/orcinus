@@ -326,8 +326,8 @@ virtual machine first.
 open a saved one and reach the settings (*Settings → Configure Orcinus… → AI Support*).
 
 - **Modes and permissions.** Every agent starts in its most restrictive mode (e.g. *Plan* or
-  *Read-only*); the *Mode* box under the agent's name loosens it for the conversation, and you
-  can store a start mode per agent. When the agent wants to do something its mode does not
+  *Read-only*); the *Mode* box under the agent's name loosens it, and the agent starts in the
+  mode chosen there next time. When the agent wants to do something its mode does not
   allow, it asks in the conversation, and you answer there. The panel opens on its own when a
   question waits.
 - **What the agent sees.** With each message the agent gets the folder of the active view, the

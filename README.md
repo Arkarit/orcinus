@@ -31,7 +31,8 @@ and until 1.0 settings and internals may still change (settings are migrated whe
   where each folder's contents start and end.
 - **An AI assistant panel (optional)**: talk to an AI agent installed on your computer (Claude
   Code, Codex, OpenCode with a local model, …) about the folder you are in; it can open folders,
-  select files, operate Orcinus and show its work on a canvas. Nothing is set up by default.
+  select files, operate Orcinus and show its work on a canvas. Nothing is set up by default;
+  see [Setting up AI agents](docs/ai-agents.md).
 - **File name highlighting** by rules, a filter that keeps its text and leaves folders alone,
   scripts that run in a terminal, and more.
 
