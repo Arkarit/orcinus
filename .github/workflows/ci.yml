@@ -39,7 +39,7 @@ jobs:
           fetch-depth: 0
 
       - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_TESTING=ON -DWHALE_TESTS_OWN_HOME=ON
 
       - name: Build
         run: cmake --build build

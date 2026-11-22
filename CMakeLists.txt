@@ -247,10 +247,19 @@ add_subdirectory(appiumtests)
 # windows on the developer's desktop. Not the Appium tests, which need a real session.
 # They also run in English whatever the developer's language: they compare texts.
 option(WHALE_TESTS_OFFSCREEN "Run the tests under src/ on the offscreen Qt platform" ON)
+# Tests in test mode keep their settings in ~/.qttest. Run in parallel (ctest -j), a test can
+# read what another one changes at the same moment; a home of its own for each test avoids that.
+# Off by default: locally the tests keep the developer's home (fonts, look). The CI turns it on.
+option(WHALE_TESTS_OWN_HOME "Give every test under src/ a home directory of its own in the build directory" OFF)
 function(whale_tests_environment directory)
     get_property(tests DIRECTORY ${directory} PROPERTY TESTS)
     foreach(test IN LISTS tests)
         set_property(TEST ${test} DIRECTORY ${directory} APPEND PROPERTY ENVIRONMENT ${ARGN})
+        if(WHALE_TESTS_OWN_HOME)
+            set(home "${CMAKE_BINARY_DIR}/test-homes/${test}")
+            file(MAKE_DIRECTORY "${home}")
+            set_property(TEST ${test} DIRECTORY ${directory} APPEND PROPERTY ENVIRONMENT "HOME=${home}")
+        endif()
     endforeach()
     get_property(subdirectories DIRECTORY ${directory} PROPERTY SUBDIRECTORIES)
     foreach(subdirectory IN LISTS subdirectories)
