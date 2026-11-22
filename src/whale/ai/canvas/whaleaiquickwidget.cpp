@@ -7,13 +7,46 @@
 #include "whaleaiquickwidget.h"
 
 #include <QApplication>
+#include <QFileInfo>
 #include <QKeyEvent>
+#include <QQmlEngine>
 #include <QQuickItem>
+#include <QQuickStyle>
 #include <QQuickWindow>
+
+namespace
+{
+/**
+ * Without QT_QUICK_CONTROLS_STYLE, Qt Quick Controls takes the widget style of QT_STYLE_OVERRIDE
+ * (e.g. "breeze", common outside Plasma) as the name of its own style, finds no such QML module
+ * and loads nothing. Then the canvas uses KDE's desktop style, which draws with the widget style
+ * anyway, or Fusion. Once, before the first QML is loaded; a style the user set stays.
+ */
+void chooseControlsStyle(const QQmlEngine *engine)
+{
+    static bool chosen = false;
+    if (chosen) {
+        return;
+    }
+    chosen = true;
+    if (!qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE") || qEnvironmentVariableIsEmpty("QT_STYLE_OVERRIDE")) {
+        return;
+    }
+    const QStringList importPaths = engine->importPathList();
+    for (const QString &path : importPaths) {
+        if (QFileInfo::exists(path + QStringLiteral("/org/kde/desktop/qmldir"))) {
+            QQuickStyle::setStyle(QStringLiteral("org.kde.desktop"));
+            return;
+        }
+    }
+    QQuickStyle::setStyle(QStringLiteral("Fusion"));
+}
+}
 
 WhaleAiQuickWidget::WhaleAiQuickWidget(QWidget *parent)
     : QQuickWidget(parent)
 {
+    chooseControlsStyle(engine());
     setResizeMode(QQuickWidget::SizeRootObjectToView);
     setFocusPolicy(Qt::StrongFocus);
     qApp->installEventFilter(this);

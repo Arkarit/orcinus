@@ -133,6 +133,16 @@ QQuickItem *WhaleAiCanvasPanelTest::findItem(const QString &objectName) const
     return find(m_panel->canvasWidget()->rootObject());
 }
 
+// A widget style Qt Quick Controls does not have (as in the CI and outside Plasma): the canvas
+// must load all the same. Before main(): Qt reads it when the application starts.
+static void overrideWidgetStyle()
+{
+    if (qEnvironmentVariableIsEmpty("QT_QUICK_CONTROLS_STYLE")) {
+        qputenv("QT_STYLE_OVERRIDE", "breeze");
+    }
+}
+Q_CONSTRUCTOR_FUNCTION(overrideWidgetStyle)
+
 void WhaleAiCanvasPanelTest::initTestCase()
 {
     QStandardPaths::setTestModeEnabled(true);
