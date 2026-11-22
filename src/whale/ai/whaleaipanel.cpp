@@ -53,6 +53,7 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QToolButton>
+#include <QTreeWidget>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -356,6 +357,27 @@ WhaleAiPanel::WhaleAiPanel(QWidget *parent)
     m_suggestions->setMenu(suggestionsMenu);
     upperLayout->addWidget(m_suggestions);
     connect(m_input, &QPlainTextEdit::textChanged, this, &WhaleAiPanel::updateSuggestions);
+    // AI17b: the commands, over the input while it starts with "/"; nothing shows otherwise. In
+    // the panel, not a popup of its own: the focus stays in the input, which steers the list.
+    m_commands = new QTreeWidget(upper);
+    m_commands->setObjectName(QStringLiteral("commands"));
+    m_commands->setColumnCount(2);
+    m_commands->setHeaderHidden(true);
+    m_commands->setRootIsDecorated(false);
+    m_commands->setUniformRowHeights(true);
+    m_commands->setFocusPolicy(Qt::NoFocus);
+    m_commands->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_commands->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_commands->hide();
+    upperLayout->addWidget(m_commands);
+    connect(m_input, &QPlainTextEdit::textChanged, this, &WhaleAiPanel::updateCommands);
+    connect(m_commands, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem *item) {
+        if (item->flags() & Qt::ItemIsEnabled) {
+            m_commands->setCurrentItem(item);
+            completeCommand();
+            m_input->setFocus(Qt::OtherFocusReason);
+        }
+    });
 
     // Setup, while no agent is set up
     auto *setup = new QWidget(this);
@@ -1429,8 +1451,11 @@ bool WhaleAiPanel::startSession()
     connect(session, &WhaleAcpSession::protocolWarning, this, [](const QString &message) {
         qCWarning(WhaleAiDebug) << message;
     });
+    connect(session, &WhaleAcpSession::availableCommandsChanged, this, &WhaleAiPanel::updateCommands);
     connect(session, &WhaleAcpSession::promptFinished, this, [this](const QString &stopReason) {
         m_transcript->endTurn();
+        m_sessionAnswered = true;
+        updateCommands();
         // At the end of each turn at once: Orcinus may be quit or crash before the timer.
         QScopeGuard save([this] {
             saveConversation();
@@ -1707,8 +1732,10 @@ void WhaleAiPanel::endSession(bool freeLocalModelNow)
     // It stops the agent on its own; deleting it at once would kill the agent instead.
     session->setParent(nullptr);
     QTimer::singleShot(10000, session, &QObject::deleteLater);
+    m_sessionAnswered = false;
     updateState();
     updateSessionInfo();
+    updateCommands();
 }
 
 void WhaleAiPanel::beginConversation(const WhaleAiAgent &agent, const QString &folder)
@@ -2298,6 +2325,35 @@ bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
     }
     if (watched == m_input && event->type() == QEvent::KeyPress) {
         auto *keyEvent = static_cast<QKeyEvent *>(event);
+        if (m_commands->isVisible() && m_commands->currentItem()) {
+            const int key = keyEvent->key();
+            if (key == Qt::Key_Up || key == Qt::Key_Down) {
+                const int step = key == Qt::Key_Up ? -1 : 1;
+                for (int row = m_commands->indexOfTopLevelItem(m_commands->currentItem()) + step; row >= 0 && row < m_commands->topLevelItemCount();
+                     row += step) {
+                    if (m_commands->topLevelItem(row)->flags() & Qt::ItemIsEnabled) {
+                        m_commands->setCurrentItem(m_commands->topLevelItem(row));
+                        break;
+                    }
+                }
+                return true;
+            }
+            if (key == Qt::Key_Tab) {
+                completeCommand();
+                return true;
+            }
+            if (key == Qt::Key_Escape) {
+                m_commandsDismissed = true;
+                m_commands->hide();
+                return true;
+            }
+            // Enter completes what is typed; a command typed in full goes out.
+            if ((key == Qt::Key_Return || key == Qt::Key_Enter) && !(keyEvent->modifiers() & Qt::ShiftModifier)
+                && m_input->toPlainText().trimmed().mid(1).compare(m_commands->currentItem()->data(0, Qt::UserRole).toString(), Qt::CaseInsensitive) != 0) {
+                completeCommand();
+                return true;
+            }
+        }
         if ((keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Enter) && !(keyEvent->modifiers() & Qt::ShiftModifier)) {
             if (sendPrompt(m_input->toPlainText())) {
                 m_input->clear();
@@ -2310,6 +2366,78 @@ bool WhaleAiPanel::eventFilter(QObject *watched, QEvent *event)
         }
     }
     return Panel::eventFilter(watched, event);
+}
+
+void WhaleAiPanel::updateCommands()
+{
+    if (!m_commands) {
+        return;
+    }
+    const QString text = m_input->toPlainText();
+    if (!text.startsWith(QLatin1Char('/'))) {
+        m_commandsDismissed = false;
+    }
+    // The command and maybe one more word ("/remember global"); a path is no command.
+    static const QRegularExpression typing(QStringLiteral("^/[^\\s/]*(?: [^\\s/]*)?$"));
+    if (m_commandsDismissed || !typing.match(text).hasMatch()) {
+        m_commands->hide();
+        return;
+    }
+    struct Entry {
+        QString name;
+        QString description;
+        QString hint;
+    };
+    // Orcinus' own first; they are not sent to the agent (AI16e).
+    const QString note = i18nc("@item what to write after a command", "note");
+    QList<Entry> entries{{QStringLiteral("remember"), i18nc("@item description of the /remember command", "Keep a note about this folder for the agent"), note},
+                         {QStringLiteral("remember global"), i18nc("@item description of the /remember global command", "Keep a note for every folder"), note}};
+    const QList<WhaleAcpCommand> agentCommands = m_session ? m_session->availableCommands() : QList<WhaleAcpCommand>();
+    for (const WhaleAcpCommand &command : agentCommands) {
+        if (command.name.compare(QLatin1String("remember"), Qt::CaseInsensitive) != 0) {
+            entries.append({command.name, command.description, command.inputHint});
+        }
+    }
+
+    const QString typed = text.mid(1);
+    m_commands->clear();
+    for (const Entry &entry : std::as_const(entries)) {
+        if (!entry.name.startsWith(typed, Qt::CaseInsensitive)) {
+            continue;
+        }
+        const QString description = entry.hint.isEmpty()
+            ? entry.description
+            : i18nc("@item %1 describes a command, %2 is what to write after it", "%1 (then: %2)", entry.description, entry.hint);
+        auto *item = new QTreeWidgetItem(m_commands, {QLatin1Char('/') + entry.name, description});
+        item->setData(0, Qt::UserRole, entry.name);
+        item->setToolTip(0, description);
+        item->setToolTip(1, description);
+    }
+    if (m_commands->topLevelItemCount() == 0) {
+        m_commands->hide();
+        return;
+    }
+    // The agent tells its commands only once the conversation runs.
+    if (agentCommands.isEmpty() && !m_sessionAnswered && !typed.contains(QLatin1Char(' '))) {
+        auto *item = new QTreeWidgetItem(m_commands, {i18nc("@info", "The agent's commands appear after its first answer.")});
+        item->setFlags(Qt::NoItemFlags);
+        item->setFirstColumnSpanned(true);
+    }
+    m_commands->setCurrentItem(m_commands->topLevelItem(0));
+    m_commands->resizeColumnToContents(0);
+    const int rows = std::min(m_commands->topLevelItemCount(), 6);
+    m_commands->setFixedHeight(rows * m_commands->sizeHintForRow(0) + 2 * m_commands->frameWidth());
+    m_commands->show();
+}
+
+void WhaleAiPanel::completeCommand()
+{
+    if (!m_commands->currentItem()) {
+        return;
+    }
+    // With a space: what follows is typed next, and the list goes.
+    m_input->setPlainText(QLatin1Char('/') + m_commands->currentItem()->data(0, Qt::UserRole).toString() + QLatin1Char(' '));
+    m_input->moveCursor(QTextCursor::End);
 }
 
 QString WhaleAiPanel::pastedImagesFolder()

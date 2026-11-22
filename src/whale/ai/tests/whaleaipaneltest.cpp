@@ -98,6 +98,7 @@ private Q_SLOTS:
     void conversationSearch();
     void rememberCommand();
     void agentCommandGoesAlone();
+    void commandList();
     void removedAgentEndsConversation();
     void links();
     void transcriptSelection();
@@ -1020,6 +1021,85 @@ void WhaleAiPanelTest::agentCommandGoesAlone()
     QVERIFY(all.contains(QLatin1String("text=/home/x what is this nopermission;links=1;")));
     QVERIFY(!all.contains(QLatin1String("text=/home/x what is this nopermission;links=1;context=|blocks=1;")));
     QCOMPARE(all.count(briefing), 1);
+}
+
+void WhaleAiPanelTest::commandList()
+{
+    // AI17b: the list shows only while the input starts with "/"; the input steers it.
+    auto *panel = new WhaleAiPanel;
+    std::unique_ptr<WhaleAiPanel> owner(panel);
+    panel->setUrl(QUrl::fromLocalFile(m_work.path()));
+    panel->resize(500, 600);
+    panel->show();
+    QVERIFY(QTest::qWaitForWindowExposed(panel));
+    auto *input = panel->findChild<QPlainTextEdit *>(QStringLiteral("input"));
+    auto *list = panel->findChild<QTreeWidget *>(QStringLiteral("commands"));
+    QVERIFY(list);
+    input->setFocus();
+    QVERIFY(!list->isVisible());
+    const auto names = [list] {
+        QStringList names;
+        for (int row = 0; row < list->topLevelItemCount(); ++row) {
+            names.append(list->topLevelItem(row)->text(0));
+        }
+        return names;
+    };
+
+    // No session yet: Orcinus' own and a line about the agent's.
+    QTest::keyClicks(input, QStringLiteral("/"));
+    QVERIFY(list->isVisible());
+    QCOMPARE(
+        names(),
+        (QStringList{QStringLiteral("/remember"), QStringLiteral("/remember global"), QStringLiteral("The agent's commands appear after its first answer.")}));
+    QVERIFY(!(list->topLevelItem(2)->flags() & Qt::ItemIsEnabled));
+    // Down moves among the commands only.
+    QTest::keyClick(input, Qt::Key_Down);
+    QCOMPARE(list->currentItem()->text(0), QStringLiteral("/remember global"));
+    QTest::keyClick(input, Qt::Key_Down);
+    QCOMPARE(list->currentItem()->text(0), QStringLiteral("/remember global"));
+    QTest::keyClick(input, Qt::Key_Up);
+    QCOMPARE(list->currentItem()->text(0), QStringLiteral("/remember"));
+    // Escape closes it until the "/" goes.
+    QTest::keyClick(input, Qt::Key_Escape);
+    QVERIFY(!list->isVisible());
+    QTest::keyClicks(input, QStringLiteral("r"));
+    QVERIFY(!list->isVisible());
+    input->clear();
+    QTest::keyClicks(input, QStringLiteral("/x"));
+    QVERIFY(!list->isVisible());
+    input->clear();
+    QTest::keyClicks(input, QStringLiteral("/home/x"));
+    QVERIFY(!list->isVisible());
+    input->clear();
+
+    // After the first answer: the agent's commands, with what to write after them.
+    QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
+    QVERIFY(waitForReady(*panel));
+    QTest::keyClicks(input, QStringLiteral("/"));
+    QCOMPARE(names(), (QStringList{QStringLiteral("/remember"), QStringLiteral("/remember global"), QStringLiteral("/review")}));
+    QCOMPARE(list->topLevelItem(2)->text(1), QStringLiteral("Review (then: what)"));
+    // Enter completes what is typed, it sends nothing.
+    const int entries = panel->transcript()->entries().size();
+    QTest::keyClicks(input, QStringLiteral("rev"));
+    QCOMPARE(names(), QStringList{QStringLiteral("/review")});
+    QTest::keyClick(input, Qt::Key_Return);
+    QCOMPARE(input->toPlainText(), QStringLiteral("/review "));
+    QVERIFY(!list->isVisible());
+    QCOMPARE(panel->transcript()->entries().size(), entries);
+    // Tab too; a command typed in full goes out with Enter.
+    input->clear();
+    QTest::keyClicks(input, QStringLiteral("/remember g"));
+    QCOMPARE(names(), QStringList{QStringLiteral("/remember global")});
+    QTest::keyClick(input, Qt::Key_Tab);
+    QCOMPARE(input->toPlainText(), QStringLiteral("/remember global "));
+    input->clear();
+    QTest::keyClicks(input, QStringLiteral("/review"));
+    QVERIFY(list->isVisible());
+    QTest::keyClick(input, Qt::Key_Return);
+    QVERIFY(input->toPlainText().isEmpty());
+    // The fake asks for a permission for it.
+    QVERIFY(waitForPermission(*panel));
+    QVERIFY(texts(*panel).contains(QLatin1String("text=/review;links=0;context=|blocks=1;")));
 }
 
 void WhaleAiPanelTest::promptTurn()

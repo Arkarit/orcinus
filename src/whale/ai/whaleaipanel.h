@@ -33,6 +33,7 @@ class QPushButton;
 class QSplitter;
 class QStackedWidget;
 class QTimer;
+class QTreeWidget;
 class QToolButton;
 class WhaleAiContextChips;
 class WhaleAiLocalLease;
@@ -204,6 +205,10 @@ private:
     /** Fills the suggestions menu in the conversation language. */
     void fillSuggestions(QMenu *menu);
     void updateSuggestions();
+    /** Shows the commands matching the input while it starts with "/" (AI17b). */
+    void updateCommands();
+    /** Puts the current command of the list into the input. */
+    void completeCommand();
     /** @return The PNG file @p image was saved as (pasted into the input), empty if it failed. */
     QString savePastedImage(const QImage &image);
     /** Puts @p text into the input, the cursor at its end; nothing is sent. */
@@ -246,6 +251,9 @@ private:
     QPlainTextEdit *m_input = nullptr;
     QToolButton *m_stop = nullptr;
     QPushButton *m_suggestions = nullptr; ///< prompts to start with, over the input
+    QTreeWidget *m_commands = nullptr; ///< the commands while the input starts with "/" (AI17b)
+    bool m_commandsDismissed = false; ///< Escape closed the list until the "/" goes
+    bool m_sessionAnswered = false; ///< the agent finished a turn, so it told its commands
     bool m_fresh = false; ///< a new conversation, nothing sent or opened yet
     QSplitter *m_inputSplitter = nullptr;
     bool m_inputSizesSet = false;

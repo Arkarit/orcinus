@@ -1586,7 +1586,7 @@ Steps:
   depend on `availableCommands()` (empty before the first prompt). Test with the fake agent: the
   blocks of `/usage` as first and as later message, the system prompt with the following message,
   `/home/x what is this` still with context.
-- **AI17b – Command popup.** Typing `/` at the start of the input opens a completion list:
+- **AI17b – Command popup (done 2026-11-22: a list in the panel over the input, not a popup window).** Typing `/` at the start of the input opens a completion list:
   Orcinus' own (`/remember`, `/remember global`) plus `availableCommands()` (name, description,
   input hint as placeholder), filtered while typing, Up/Down/Enter/Tab/Esc; with no session yet
   only Orcinus' own plus a line "The agent's commands appear after its first answer". Updates on
