@@ -174,8 +174,20 @@ public:
     }
     static bool isRunning(qint64 pid)
     {
-        // Our dummy service is reaped by init, so it does not linger as a zombie.
-        return pid > 0 && ::kill(pid_t(pid), 0) == 0;
+        if (pid <= 0 || ::kill(pid_t(pid), 0) != 0) {
+            return false;
+        }
+        // Our dummy service goes to PID 1. In a container that is often no init (GitHub's
+        // runs "tail -f /dev/null"), which does not reap it: a zombie has ended all the same.
+        QFile stat(QStringLiteral("/proc/%1/stat").arg(pid));
+        if (stat.open(QIODevice::ReadOnly)) {
+            const QByteArray line = stat.readAll();
+            const qsizetype end = line.lastIndexOf(')');
+            if (end >= 0 && end + 2 < line.size() && line.at(end + 2) == 'Z') {
+                return false;
+            }
+        }
+        return true;
     }
 
     static void writeFile(const QString &path, const QByteArray &content)
