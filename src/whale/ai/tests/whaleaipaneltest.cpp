@@ -97,6 +97,7 @@ private Q_SLOTS:
     void conversationTitle();
     void conversationSearch();
     void rememberCommand();
+    void agentCommandGoesAlone();
     void removedAgentEndsConversation();
     void links();
     void transcriptSelection();
@@ -985,6 +986,40 @@ void WhaleAiPanelTest::rememberCommand()
     QVERIFY(waitForReady(panel));
     QCOMPARE(memory.notes().size(), 1);
     QFile::remove(memory.path());
+}
+
+void WhaleAiPanelTest::agentCommandGoesAlone()
+{
+    // AI17a: a command goes as exactly one text block, without context, notes or system prompt.
+    WhaleAiPanel panel;
+    panel.setUrl(QUrl::fromLocalFile(m_work.path()));
+    const QString briefing = QStringLiteral("working with the user's files through the Orcinus file manager");
+    QVERIFY(panel.sendPrompt(QStringLiteral("/usage nopermission")));
+    QVERIFY(waitForReady(panel));
+    QString all = texts(panel);
+    QVERIFY2(all.contains(QLatin1String("text=/usage nopermission;links=0;context=|blocks=1;")), qPrintable(all));
+    QVERIFY(!all.contains(briefing));
+    // No "With: …" under it.
+    QVERIFY(!all.contains(QLatin1String("With:")));
+
+    // The system prompt goes with the next ordinary message, with the context.
+    QVERIFY(panel.sendPrompt(QStringLiteral("nopermission now")));
+    QVERIFY(waitForReady(panel));
+    all = texts(panel);
+    QCOMPARE(all.count(briefing), 1);
+    QVERIFY(all.indexOf(QLatin1String("text=/usage")) < all.indexOf(briefing));
+    QVERIFY(all.contains(QLatin1String("text=nopermission now;links=1;")));
+
+    // A later command goes alone too; a path is a message with context.
+    QVERIFY(panel.sendPrompt(QStringLiteral("/compact:all nopermission")));
+    QVERIFY(waitForReady(panel));
+    QVERIFY(texts(panel).contains(QLatin1String("text=/compact:all nopermission;links=0;context=|blocks=1;")));
+    QVERIFY(panel.sendPrompt(QStringLiteral("/home/x what is this nopermission")));
+    QVERIFY(waitForReady(panel));
+    all = texts(panel);
+    QVERIFY(all.contains(QLatin1String("text=/home/x what is this nopermission;links=1;")));
+    QVERIFY(!all.contains(QLatin1String("text=/home/x what is this nopermission;links=1;context=|blocks=1;")));
+    QCOMPARE(all.count(briefing), 1);
 }
 
 void WhaleAiPanelTest::promptTurn()

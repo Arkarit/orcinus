@@ -265,6 +265,7 @@ private:
     QCheckBox *m_showTimestamps = nullptr;
     WhaleAiViewActions m_viewActions;
     QString m_pendingPrompt;
+    bool m_pendingCommand = false; ///< m_pendingPrompt is a command of the agent and goes alone (AI17a)
     WhaleAiContext m_pendingContext;
     WhaleAiContextChips *m_chips = nullptr;
     std::function<WhaleAiContext()> m_contextProvider;

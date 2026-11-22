@@ -1578,7 +1578,7 @@ Findings (2026-11-22, `@agentclientprotocol/claude-agent-acp` 0.106.0, Agent SDK
   without asking the adapter project (outward-facing, only with the user's OK).
 
 Steps:
-- **AI17a – Commands go alone.** A prompt whose first word is `/name` (letters, digits, `-`, `_`,
+- **AI17a – Commands go alone (done 2026-11-22).** A prompt whose first word is `/name` (letters, digits, `-`, `_`,
   `:`; no further `/`, so `/home/user/x` stays a message) is a command: it goes as exactly one text
   block, without context, notes or system prompt. The system prompt and guidance then go with the
   next ordinary message (`m_systemPromptSent` stays false); notes not sent stay pending for it.

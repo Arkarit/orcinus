@@ -1205,6 +1205,20 @@ bool WhaleAiPanel::sendPrompt(const QString &text)
     if (!m_session && !startSession()) {
         return false;
     }
+    // AI17a: a command of the agent ("/usage", "/compact …") goes alone, as one text block:
+    // agents answer some commands only so (Claude's /usage gives its limits). Context, notes
+    // and the system prompt wait for the next message. A path ("/home/…") is no command.
+    static const QRegularExpression command(QStringLiteral("^/[A-Za-z0-9_:-]+(?:\\s|$)"));
+    if (command.match(prompt).hasMatch()) {
+        m_pendingCommand = true;
+        m_pendingContext = {};
+        m_pendingNotes.clear();
+        m_transcript->addUserMessage(prompt, QString());
+        m_pendingPrompt = prompt;
+        sendPending();
+        updateState();
+        return true;
+    }
     // Current, also if the other view changed without a signal; what goes is shown.
     refreshContext();
     m_pendingContext = m_chips->context();
@@ -1473,6 +1487,11 @@ void WhaleAiPanel::sendPending()
     if (!m_session || m_session->state() != WhaleAcpSession::State::Ready || m_modeState != ModeState::Set || m_pendingPrompt.isEmpty()) {
         return;
     }
+    if (std::exchange(m_pendingCommand, false)) {
+        m_session->prompt(QJsonArray{WhaleAcpContent::text(std::exchange(m_pendingPrompt, QString()))});
+        updateState();
+        return;
+    }
     QJsonArray blocks = WhaleAiContextPrompt::blocks(std::exchange(m_pendingContext, {}), std::exchange(m_pendingPrompt, QString()));
     const QList<WhaleAiNote> notes = std::exchange(m_pendingNotes, {});
     if (!notes.isEmpty()) {
@@ -1666,6 +1685,7 @@ void WhaleAiPanel::endSession(bool freeLocalModelNow)
     }
     m_localProgress.clear();
     m_pendingPrompt.clear();
+    m_pendingCommand = false;
     m_pendingNotes.clear();
     m_pendingContext = {};
     m_modeState = ModeState::Unknown;

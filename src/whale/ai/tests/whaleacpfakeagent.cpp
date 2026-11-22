@@ -351,6 +351,10 @@ void handlePrompt(const QJsonObject &message)
     chunk(QStringLiteral("agent_thought_chunk"), QStringLiteral("thinking"));
     chunk(QStringLiteral("agent_message_chunk"),
           QStringLiteral("cwd=%1;mcp=%2;text=%3;links=%4;context=%5").arg(sessionCwd, mcpNames.join(QLatin1Char(',')), text).arg(links).arg(contextText));
+    if (text.startsWith(QLatin1Char('/'))) {
+        // A command of the agent: how many blocks it came in (AI17a).
+        chunk(QStringLiteral("agent_message_chunk"), QStringLiteral("|blocks=%1;").arg(prompt.size()));
+    }
 
     static const QRegularExpression fileCommand(QStringLiteral("(readfile|writefile):(\\S+)"));
     for (auto it = fileCommand.globalMatch(text); it.hasNext();) {
