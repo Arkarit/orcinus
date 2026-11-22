@@ -13,7 +13,7 @@ listed here behaves as described in the
 Each section states what differs, where to find it, and whether the default
 matches Dolphin's behavior. As a rule, a new behavior that would change something existing
 users rely on is off by default, and their settings and toolbars are kept; additions are on.
-New users start with Orcinus' own defaults, see [section 10](#10-defaults-for-new-users).
+New users start with Orcinus' own defaults, see [section 11](#11-defaults-for-new-users).
 
 Settings are under *Settings → Configure Orcinus…*; this document names the page and the
 option, e.g. *View → Details → Dragging*.
@@ -85,7 +85,7 @@ and the status bar. Dialogs, menus and the views themselves do not change.
 
 - *Normal*: Dolphin's look (default for existing users; *Defaults* restores it).
 - *Compact*: smaller margins and buttons; text fields keep their height and frame (default
-  for new users, see section 10). The two bars at the top take about 78 instead of 94 pixels.
+  for new users, see section 11). The two bars at the top take about 78 instead of 94 pixels.
 - *Very compact*: also lower text fields and combo boxes, drawn without a frame; about 61
   pixels for the two top bars, a status bar of 20 instead of 30 pixels. Thin lines separate
   the file view from the file view toolbar and the filter bar.
@@ -207,7 +207,7 @@ Dolphin leaves 2 pixels above and below every item. *View → Icons / Compact / 
 Columns → Density* sets this space for each view mode:
 
 - *Normal*: 2 pixels, Dolphin's look (default for existing users; *Defaults* restores it).
-- *Compact*: 1 pixel (default for new users, see section 10).
+- *Compact*: 1 pixel (default for new users, see section 11).
 - *Very compact*: no space; with 16 pixel icons and the usual system font a row is about
   18 pixels high instead of 22.
 - *Custom*: the space in pixels (0 to 10) and, in Compact, Details and Columns, the height of a text
@@ -306,21 +306,102 @@ File names can be colored, bold or italic by rules, like colored `ls` output in 
 - In *Glob Pattern* mode, spaces, commas and semicolons separate several patterns; an item is
   shown if it matches one of them (`*.jpg *.png`). For a literal space, use `?`.
 
-## 9. Behavior options
+## 9. AI support
 
-### 9.1 Dragging from anywhere in a Details row
+Orcinus can talk to an AI agent that runs on your computer, such as Claude Code, Codex or
+OpenCode with a local model. You write in a panel; the agent sees the folder you have open and
+what you selected, and it can open folders, select files and operate Orcinus for you. Orcinus
+does not call any AI service itself: login, model, billing and the agent's own tools stay with
+the agent. Nothing is set up by default and nothing leaves the computer before you add an agent.
+How to set one up is described in [Setting up AI agents](ai-agents.md).
+
+**Before you start.** An agent works with your rights: it can read, change and delete your
+files, run programs and, if you allow it, ask for administrator rights. Orcinus has no sandbox
+of its own. The first time, a dialog explains this; if you are new to AI agents, try them in a
+virtual machine first.
+
+### 9.1 The AI Assistant panel
+
+*View → Panels → AI Assistant* (F8). At the top you choose the agent, start a new conversation,
+open a saved one and reach the settings (*Settings → Configure Orcinus… → AI Support*).
+
+- **Modes and permissions.** Every agent starts in its most restrictive mode (e.g. *Plan* or
+  *Read-only*); the *Mode* box under the agent's name loosens it for the conversation, and you
+  can store a start mode per agent. When the agent wants to do something its mode does not
+  allow, it asks in the conversation, and you answer there. The panel opens on its own when a
+  question waits.
+- **What the agent sees.** With each message the agent gets the folder of the active view, the
+  selected items and the folder of the other split view; the line under your message says what
+  was sent. Files dropped on the input, copied files and pasted images go along as chips.
+- **What the agent does in Orcinus.** It can open folders, select files, switch the view mode,
+  split the view, change a number of settings and profiles, and run most actions of the menus.
+  Each of these shows up as a line in the conversation (the *Actions* box hides them). It cannot
+  change its own AI settings: it can only suggest a new agent, which you add yourself.
+- **Commands.** A message starting with `/` is a command of the agent and goes to it alone (e.g.
+  Claude's `/usage` with its 5-hour and weekly limits, or Codex' `/status`). Typing `/` lists
+  Orcinus' and the agent's commands.
+- **Usage.** The line under the agent's name shows the model and how full the context is; its
+  tooltip lists the tokens of the conversation and, if the agent reports it, the cost (with a
+  subscription only what the same use of the API would cost).
+- **Suggestions.** A new conversation offers some requests to start with (rename files, check
+  the system, report a problem with Orcinus, …). They are put into the input for you to
+  complete; nothing is sent before you press Enter.
+- **Administrator rights.** If allowed (*AI Support → Agents → Administrator rights*, on by
+  default), the agent may run single commands as administrator through `pkexec`; the system asks
+  for your password every time.
+
+### 9.2 Conversations and memory
+
+- **Saved conversations** (*AI Support → Memory → Conversations*, on, kept 90 days): the *Saved
+  Conversations* button lists them; an agent that supports it continues a saved conversation
+  where it left off. The same menu exports the conversation shown as PDF, Markdown or text.
+- **Language**: agents answer in the language of Orcinus, or in the one set under *Talk with
+  agents in*.
+- **Memory** (*AI Support → Memory*): short notes the agents get in every conversation, for all
+  folders or for one folder and its subfolders. *Manual* (default for new users): the agent
+  proposes a note and you keep or discard it; *Automatic*: it keeps notes itself; *Off*. Write a
+  note yourself with `/remember …` (for the folder shown) or `/remember global …`. The notes are
+  the same for every agent and separate from the agents' own memories.
+- **System prompt** (*AI Support → System Prompt*): what Orcinus tells every agent at the start;
+  you can replace it with your own text.
+
+### 9.3 Local models
+
+Agents such as OpenCode can work with a model on your own graphics card instead of a cloud
+service. Orcinus finds the models of **LM Studio** and **Strata**: *AI Support → Agents → Add →
+Local Model (LM Studio)…* (or *(Strata)*) creates an agent for one of them. Orcinus starts the
+model server when a conversation needs it and unloads the model when the conversation ends or
+the panel stays hidden, so it does not keep the graphics memory; the button next to the agent
+loads or unloads it by hand.
+
+### 9.4 The AI Canvas and tools
+
+*View → Panels → AI Canvas* is where the agent shows its work: images and videos it made, files
+it found, sounds, texts and before/after comparisons. Clicking an item shows the file in the
+view.
+
+On request the agent also builds small **tools** for the canvas: a window of its own with
+buttons, lists and previews (Qt Quick), optionally with a Python program behind it, e.g. "go
+through the photos of this folder and let me keep or reject each one". A tool opens as a tab of
+the canvas; *Keep on Canvas* keeps it for the next start. The tools button lists your tools and
+offers example tools (*Add Example Tool*, e.g. *Photo Triage*). Tools run with your rights like
+the agent; the program of a tool you have not kept starts only after you confirm it.
+
+## 10. Behavior options
+
+### 10.1 Dragging from anywhere in a Details row
 
 *View → Details → Dragging: Drag files and folders from anywhere on the row* (off by
 default). In Dolphin, dragging from the empty part of an unselected row starts a selection
 rectangle. With the option, it drags the item; *Shift* plus drag there starts a rectangle.
 
-### 9.2 Always follow symbolic links to their target
+### 10.2 Always follow symbolic links to their target
 
 *Interface → Folders & Tabs → Always follow symbolic links to their target* (off by
 default). A folder opened through a symbolic link is shown at its real location, so the
 location bar shows the target path instead of the path of the link.
 
-### 9.3 Running scripts in a terminal
+### 10.3 Running scripts in a terminal
 
 *Interface → Confirmations → When opening an executable file* has, besides Dolphin's
 *Always ask* (default), *Open in application* and *Run script*, four more choices: *Run
@@ -331,7 +412,7 @@ comes to the front when the script fails.
 *Shift+double-click* (or *Shift+Enter*) on a script always runs it in a terminal that stays
 open, whatever the setting.
 
-## 10. Defaults for new users
+## 11. Defaults for new users
 
 A new user (no Orcinus settings yet) starts with these differences from Dolphin's defaults:
 
@@ -344,13 +425,13 @@ A new user (no Orcinus settings yet) starts with these differences from Dolphin'
 - The information density is *Compact* in all four view modes (4.6), and so is the bar
   density (2.5).
 
-## 11. Smaller differences
+## 12. Smaller differences
 
 - *Help → About Orcinus* names the Dolphin version Orcinus is based on and credits Dolphin's
   developers.
 - The Information panel also works with older versions of Baloo Widgets.
 
-## 12. Known limitations
+## 13. Known limitations
 
 - The handbook and the help links describe Dolphin; the Orcinus features are only
   described here.

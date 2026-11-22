@@ -29,6 +29,9 @@ and until 1.0 settings and internals may still change (settings are migrated whe
 - **Show flat**: the files of all subfolders in one list.
 - **Expandable folders in the Compact view**, with colored backgrounds and names that show
   where each folder's contents start and end.
+- **An AI assistant panel (optional)**: talk to an AI agent installed on your computer (Claude
+  Code, Codex, OpenCode with a local model, …) about the folder you are in; it can open folders,
+  select files, operate Orcinus and show its work on a canvas. Nothing is set up by default.
 - **File name highlighting** by rules, a filter that keeps its text and leaves folders alone,
   scripts that run in a terminal, and more.
 
@@ -108,7 +111,7 @@ rule for getting there still applies: a feature must be **non-intrusive**. It mu
 the main menu, context menus or toolbars for people who do not need it. A new behavior that
 changes something existing users rely on is off by default, and their settings are kept. New
 users start with Orcinus' own defaults, chosen for its audience; they are listed in
-[the differences to Dolphin](docs/orcinus-vs-dolphin.md#10-defaults-for-new-users).
+[the differences to Dolphin](docs/orcinus-vs-dolphin.md#11-defaults-for-new-users).
 [Dolphin's development philosophy](https://invent.kde.org/system/dolphin/-/blob/master/README.md#development-philosophy)
 describes its target users and this rule in detail.
 
