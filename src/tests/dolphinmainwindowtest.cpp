@@ -851,8 +851,13 @@ void DolphinMainWindowTest::testSplitViewAtStartup()
     QFETCH(bool, expectedSplit);
 
     // The other tests start with a single view. Saving would split the views of open windows.
-    auto restore = qScopeGuard([] {
+    // Closing a window also saves the settings version, after which new windows no longer hide
+    // the panels of a first start: they would open in every later test.
+    const int version = GeneralSettings::version();
+    auto restore = qScopeGuard([version] {
         TestHelpers::openNewWindowsInSingleView();
+        GeneralSettings::setVersion(version);
+        GeneralSettings::self()->save();
     });
     GeneralSettings::setSplitViewAtStartup(GeneralSettings::EnumSplitViewAtStartup::LastState);
 
