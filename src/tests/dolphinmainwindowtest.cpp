@@ -3924,7 +3924,12 @@ void DolphinMainWindowTest::testAiWindowTools()
     call(QStringLiteral("set_panel_width"), {{QStringLiteral("panel"), QStringLiteral("nope")}, {QStringLiteral("width"), 200}}, &error);
     QVERIFY(error);
 
-    // Split view.
+    // Split view, with room for it: panels left open by tests before (saved with the window)
+    // would leave the views too narrow for their share.
+    for (QDockWidget *dock : m_mainWindow->findChildren<QDockWidget *>()) {
+        dock->hide();
+    }
+    QTRY_COMPARE(m_mainWindow->centralWidget()->width(), m_mainWindow->width());
     call(QStringLiteral("set_split_ratio"), {{QStringLiteral("leftShare"), 0.3}}, &error);
     QVERIFY(error);
     DolphinTabPage *tabPage = m_mainWindow->findChild<DolphinTabWidget *>("tabWidget")->currentTabPage();
