@@ -30,7 +30,7 @@ jobs:
             solid kiconthemes kcompletion ktextwidgets knotifications kcrash kwindowsystem \
             kwidgetsaddons kcodecs kguiaddons kcolorscheme kxmlgui kdoctools kfilemetadata \
             baloo baloo-widgets packagekit-qt6 mpv breeze-icons \
-            breeze ttf-dejavu noto-fonts kio-extras kdegraphics-thumbnailers
+            breeze ttf-dejavu noto-fonts kio-extras kdegraphics-thumbnailers glibc-locales
           # The tests check permissions and show no root warning, so they run as a normal user.
           useradd --create-home tester
 
@@ -46,10 +46,11 @@ jobs:
 
       - name: Test
         # Two tests are excluded until issue #14 is fixed (they still run locally).
+        # A real locale: under C, gettext ignores the language asked for (conversation language).
         run: |
           chown -R tester: build
           install -d -m 700 -o tester /tmp/runtime-tester
-          su tester -c "cd '$PWD' && HOME=/home/tester XDG_RUNTIME_DIR=/tmp/runtime-tester QT_STYLE_OVERRIDE=breeze \
+          su tester -c "cd '$PWD' && HOME=/home/tester XDG_RUNTIME_DIR=/tmp/runtime-tester QT_STYLE_OVERRIDE=breeze LANG=en_US.UTF-8 \
             dbus-run-session -- ctest --test-dir build --output-on-failure -j $(nproc) \
             -E '^(whaleselectiontest|whaleexpansiontinttest)$'"
 
