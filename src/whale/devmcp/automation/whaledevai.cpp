@@ -234,6 +234,16 @@ QJsonObject WhaleDevAi::state() const
 
     const QWidget *stop = aiPanel->findChild<QWidget *>(QStringLiteral("stop"));
     const QWidget *dock = qobject_cast<QWidget *>(aiPanel->parent());
+    // AI17: the session line with its tooltip (tokens, cost) and the agent's commands.
+    const QLabel *info = aiPanel->findChild<QLabel *>(QStringLiteral("sessionInfo"));
+    QJsonArray commands;
+    if (session) {
+        for (const WhaleAcpCommand &command : session->availableCommands()) {
+            commands.append(QJsonObject{{QStringLiteral("name"), command.name},
+                                        {QStringLiteral("description"), command.description},
+                                        {QStringLiteral("inputHint"), command.inputHint}});
+        }
+    }
     return {
         {QStringLiteral("available"), true},
         {QStringLiteral("panelVisible"), dock && dock->isVisible()},
@@ -254,6 +264,9 @@ QJsonObject WhaleDevAi::state() const
         {QStringLiteral("lastStopReason"), m_stopReasons.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(m_stopReasons.constLast())},
         {QStringLiteral("toolCallCount"), m_toolCalls.size()},
         {QStringLiteral("pendingPermissions"), pending},
+        {QStringLiteral("sessionInfo"), info ? info->text() : QString()},
+        {QStringLiteral("sessionInfoToolTip"), info ? info->toolTip() : QString()},
+        {QStringLiteral("commands"), commands},
         {QStringLiteral("error"), m_error},
     };
 }

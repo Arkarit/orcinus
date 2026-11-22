@@ -1595,10 +1595,20 @@ Steps:
   the prompt response (sum per session). The session info keeps "Context: N %"; its tooltip adds
   the session's tokens (input, output, cache) and, if reported, the cost marked as "API
   equivalent". Open (user): show the cost in the line itself or only in the tooltip.
-- **AI17d – Real run.** Claude in the panel (offscreen, isolated profile, user's OK for the quota):
+- **AI17d – Real run (done 2026-11-22).** Claude in the panel (offscreen, isolated profile, user's OK for the quota):
   `/usage` as first and later message gives the adapter's Markdown with the limits; the popup
   lists the agent's commands after the first answer; tooltip shows tokens. Codex: what it
   advertises (only with the user's OK).
+  Results: Claude (claude-agent-acp, Opus): `/usage` as first and as later message gives the
+  adapter's Markdown (5-hour and weekly limits, session cost, tokens), rendered as tables and
+  bars; 62 commands after the first answer, some descriptions a paragraph long (tooltips now
+  rich text, so they wrap); tooltip tokens match `/usage` for cache read/write (input/output
+  differ a little: the adapter also counts its own background turns). Codex (codex-acp, read-only
+  start mode): 11 commands plus ~35 skills named `$name` (mentions in the text, not `/` commands:
+  left out of the list); `/status` answers with model, sandbox, tokens and the 5-hour and weekly
+  limits; Codex reports no cost, so the tooltip shows tokens only (they match `/status`).
+  Dev MCP AI state now has `sessionInfo`, `sessionInfoToolTip` and `commands`.
+  Later maybe: a `$` list for Codex skills.
 
 **AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
 and a local agent).

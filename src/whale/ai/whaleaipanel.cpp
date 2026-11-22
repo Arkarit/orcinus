@@ -2418,6 +2418,10 @@ void WhaleAiPanel::updateCommands()
                          {QStringLiteral("remember global"), i18nc("@item description of the /remember global command", "Keep a note for every folder"), note}};
     const QList<WhaleAcpCommand> agentCommands = m_session ? m_session->availableCommands() : QList<WhaleAcpCommand>();
     for (const WhaleAcpCommand &command : agentCommands) {
+        // Codex also lists its skills as "$name": mentions in the text, not "/" commands.
+        if (command.name.startsWith(QLatin1Char('$'))) {
+            continue;
+        }
         if (command.name.compare(QLatin1String("remember"), Qt::CaseInsensitive) != 0) {
             entries.append({command.name, command.description, command.inputHint});
         }
@@ -2434,8 +2438,10 @@ void WhaleAiPanel::updateCommands()
             : i18nc("@item %1 describes a command, %2 is what to write after it", "%1 (then: %2)", entry.description, entry.hint);
         auto *item = new QTreeWidgetItem(m_commands, {QLatin1Char('/') + entry.name, description});
         item->setData(0, Qt::UserRole, entry.name);
-        item->setToolTip(0, description);
-        item->setToolTip(1, description);
+        // Rich text, so it wraps: some descriptions are a paragraph long.
+        const QString toolTip = QStringLiteral("<qt>%1</qt>").arg(description.toHtmlEscaped());
+        item->setToolTip(0, toolTip);
+        item->setToolTip(1, toolTip);
     }
     if (m_commands->topLevelItemCount() == 0) {
         m_commands->hide();

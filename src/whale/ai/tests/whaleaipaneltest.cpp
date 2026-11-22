@@ -1073,7 +1073,7 @@ void WhaleAiPanelTest::commandList()
     QVERIFY(!list->isVisible());
     input->clear();
 
-    // After the first answer: the agent's commands, with what to write after them.
+    // After the first answer: the agent's commands, with what to write after them; not its "$" skills.
     QVERIFY(panel->sendPrompt(QStringLiteral("nopermission")));
     QVERIFY(waitForReady(*panel));
     QTest::keyClicks(input, QStringLiteral("/"));

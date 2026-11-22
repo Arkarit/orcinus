@@ -514,7 +514,9 @@ void handlePrompt(const QJsonObject &message)
             {QStringLiteral("availableCommands"),
              QJsonArray{QJsonObject{{QStringLiteral("name"), QStringLiteral("review")},
                                     {QStringLiteral("description"), QStringLiteral("Review")},
-                                    {QStringLiteral("input"), QJsonObject{{QStringLiteral("hint"), QStringLiteral("what")}}}}}}});
+                                    {QStringLiteral("input"), QJsonObject{{QStringLiteral("hint"), QStringLiteral("what")}}}},
+                        // A skill as Codex lists it (AI17d).
+                        QJsonObject{{QStringLiteral("name"), QStringLiteral("$imagegen")}, {QStringLiteral("description"), QStringLiteral("Images")}}}}});
     // Tokens of this turn (AI17c).
     respond(promptId,
             {{QStringLiteral("stopReason"), QStringLiteral("end_turn")},
