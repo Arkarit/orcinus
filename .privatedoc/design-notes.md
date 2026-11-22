@@ -11,7 +11,7 @@ General rules that apply to every feature:
 
 - **Defaults.** A new behavior that changes something existing users rely on is off by default,
   unless it only adds something; their settings and toolbars are kept. New users get Orcinus' own
-  defaults (since 2026-11-10, listed in `docs/orcinus-vs-dolphin.md` section 10).
+  defaults (since 2026-11-10, listed in `docs/orcinus-vs-dolphin.md` section 11).
 - **Non-intrusive.** Following Dolphin's development philosophy, features must not clutter menus,
   context menus or toolbars for users who do not need them.
 - **Transferable core.** Narrow features and fixes are kept small, self-contained and free of
@@ -782,6 +782,95 @@ Smaller icons alone give only 43 px: line edits (31) and combo boxes (32) then s
   the KCM. Profile element `toolbarDensity` after `density`; the shipped profiles do not set it.
 
 **Result.** Top bars 94 → 78 (Compact) → 61 px (Very compact); status bar 30 → 24 → 20 px.
+
+## AI support (AI0–AI17, CV0–CV4; 2026-11-12 to 2026-11-22)
+
+**Goal.** A panel in which the user talks to an AI agent about the folder in front of them
+("crop the images of this folder to 4:3"), and the agent can act in Orcinus. The full step plans
+are `.privatedoc/ai-support-plan.md` and `.privatedoc/ai-canvas-plan.md`; user documentation in
+`docs/orcinus-vs-dolphin.md` section 9 and `docs/ai-agents.md`.
+
+**Orcinus is a client, not an agent.** It calls no LLM API and has no tool loop of its own. It
+starts an external agent as a subprocess and talks the Agent Client Protocol (ACP, JSON-RPC over
+stdio; `WhaleAcpConnection`, `WhaleAcpSession`, library `whaleai`). Login, billing, model choice
+and the agent's own tools stay with the agent; any ACP agent works (Claude Code through
+`claude-agent-acp`, Codex through `codex-acp`, OpenCode, Gemini CLI, …).
+
+**Non-intrusive and explicit.** Panel off by default, an entry in the Panels menu and F8, no
+toolbar button, no context menu entries; no agent configured, nothing leaves the machine before
+the user adds one. A disclaimer (AI5f) is confirmed once before the first use. CMake options
+`WHALE_ENABLE_AI` and `WHALE_ENABLE_AI_CANVAS` (default ON; the features are off at run time).
+
+**Control lies with the agent's modes, not with a sandbox.** Every agent starts in its most
+restrictive mode (`restrictiveMode()`, e.g. Plan, Read-only) until the user loosens it; the mode
+chosen in the panel's *Mode* box becomes the start mode (AI5). ACP permission requests are shown
+inline and answered there; the panel shows itself when one waits. A sandbox of our own (AI5d/e:
+user, mount and PID namespaces, folder access following the view) was built and **removed again**
+(2026-11-15): the agents' own sandboxes (Codex' bwrap, Claude's per-project settings) and ours
+kept getting in each other's way, and every fix found the next conflict. Instead the docs and the
+disclaimer say plainly that the agent works with the user's rights. Administrator rights go
+through `pkexec` (2026-11-21), which asks every time; `sudo` was rejected for its timestamp
+caching.
+
+**Context is shown, never sent silently.** Each prompt carries the active folder, the selection
+and the other split view as `resource_link` blocks plus a short text; the transcript line under
+the message says what went along. Dropped or copied files and pasted images become chips. The
+system prompt (AI7, replaceable by the user) leads the first ordinary message, since ACP has no
+system prompt of its own.
+
+**Back channel through MCP (AI6, AI9).** `session/new` passes our own stdio MCP server
+`orcinus-mcp` to the agent; it relays to the panel over a per-conversation Unix socket in
+`$XDG_RUNTIME_DIR/orcinus-ai/` with a random token. Not D-Bus: stdio MCP is what every ACP agent
+supports, and the socket binds the calls to one conversation. Tools are generic where possible
+(`list_actions`/`trigger_action` over the `KActionCollection`, `list_settings`/`set_setting` for
+settings verified to apply live, window and profile tools), so new features come along. A block
+list keeps out actions with dialogs or outside effects (weak point: a new dangerous action is
+allowed until it is listed; see the header of `whaleaiuiactions.h`). Everything that changes the
+view shows up as a line in the transcript. The agent may read its own AI settings but only
+*propose* an agent (AI11): agent entries are command lines that run with the user's rights.
+
+**Local models (AI12, AI13).** OpenCode runs the model as an agent; Orcinus discovers LM Studio
+(`lms`) and Strata (`~/Strata`) models, writes OpenCode's configuration into the agent's
+environment (`OPENCODE_CONFIG_CONTENT`, the user's OpenCode config untouched), starts the server
+when a conversation needs it and frees the model when it ends or the panel stays hidden, so the
+graphics memory is not held. A state file shared by Orcinus processes makes this crash-safe and
+lets another Orcinus take over a loaded model. A server the user started stays the user's.
+
+**Conversations and memory (AI14–AI16).** Conversations are stored as JSON (90 days by default)
+and resumed with ACP `session/load` when the agent supports it; export as PDF, Markdown or text.
+The memory is Orcinus' own, the same for every agent and separate from CLAUDE.md/AGENTS.md:
+global notes and folder notes (a folder note applies below it too), cut to a budget, nearest
+first. Modes Off / Automatic / Manual; Manual (agent proposes, user keeps) for new users, Off for
+those who had agents set up before (new behavior off by default). `/remember` is the user's own
+note and never reaches the agent.
+
+**Commands and usage (AI17).** A prompt whose first word is `/name` goes as exactly one text
+block, without context, notes or system prompt: Claude's adapter answers `/usage` with its
+structured limits only for a lone block. The system prompt then goes with the next message. A
+list over the input (not a popup window, so the focus stays in the input) offers Orcinus' and
+the agent's commands; Codex' `$skill` entries are mentions, not commands, and are left out.
+Tokens are summed from the prompt responses, the cost is the last `usage_update`; both only in
+the tooltip of the session line (with a subscription the cost is only an API equivalent).
+
+**AI canvas and tools (CV0–CV4).** A panel (not a window: no embedding of foreign windows on
+Wayland) where the agent presents images, files, sounds, texts and comparisons, and where it
+builds small tools. Tool UIs are QML in a `QQuickWidget` (PyQt in process was rejected: a crash
+of AI-written code would take the file manager down). File access of a tool goes through an
+`orcinus` object on KIO (undo, trash, remote locations) and restricted imports: a guard rail, not
+a sandbox. Backends are ordinary processes (e.g. `python3 backend.py`) with newline-delimited
+JSON over stdio; Python 3 is a package dependency for that. Tools live in
+`~/.local/share/orcinus/ai/tools/`; keeping one on the canvas asks once what it is and runs, and
+its backend then starts without the agent; changed files ask again. Without
+`QT_QUICK_CONTROLS_STYLE`, a widget style named in `QT_STYLE_OVERRIDE` (e.g. breeze) would be
+taken as a Qt Quick Controls style; `WhaleAiQuickWidget` then picks `org.kde.desktop` or Fusion.
+
+**Tests.** A fake ACP agent (`whaleacpfakeagent`) echoes what it receives, so the blocks of each
+prompt are checked in `whaleaipaneltest`; fakes for LM Studio and Strata cover the local runtime;
+real agents ran in an isolated profile through the dev MCP (AI10: scripted scenarios with a local
+model; AI17d: Claude and Codex).
+
+**Open.** Remaining AI strings are translated in the release batch; an editable "Prompts" tab for
+the suggestions; agent tests with Strata as the model; a `$` list for Codex skills.
 
 ## Default file manager and "Show in folder" (plan from 2026-10-03, FileManager1 not implemented)
 

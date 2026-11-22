@@ -1,6 +1,6 @@
 # AI support (AI0–AI10)
 
-Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15): more AI integration is planned first. AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15; AI9b done 2026-11-16 (incl. findings of the real agent test). AI10 (automated agent tests with a local model) planned 2026-11-16.
+Branch `ai-support`, started 2026-11-12. Status: AI0–AI3 done (2026-11-12); AI5 and AI4 done (2026-11-13); AI5d done (2026-11-13); AI6 done (2026-11-14): back channel + attack tests passed. AI7 done (2026-11-15). AI5e built and then removed with the whole sandbox; AI5f (disclaimer) done (2026-11-15). AI8 (documentation) postponed (user, 2026-11-15), done 2026-11-23 after AI17 (2026-11-22). AI9 (the agent operates Orcinus) planned 2026-11-15; AI9a (spike) done 2026-11-15; AI9b done 2026-11-16 (incl. findings of the real agent test). AI10 (automated agent tests with a local model) planned 2026-11-16.
 
 ## Problem
 
@@ -1610,8 +1610,9 @@ Steps:
   Dev MCP AI state now has `sessionInfo`, `sessionInfoToolTip` and `commands`.
   Later maybe: a `$` list for Codex skills.
 
-**AI8 – Documentation.** `docs/orcinus-vs-dolphin.md`, design notes, user docs (setup of a cloud
-and a local agent).
+**AI8 – Documentation (done 2026-11-23).** `docs/orcinus-vs-dolphin.md` chapter 9 (4f5925b8f),
+`docs/ai-agents.md` (setup of a cloud and a local agent, b38849b61), design notes section "AI
+support"; README lists the panel and links the guide.
 
 ### AI10 – Automated agent tests (planned 2026-11-16)
 
