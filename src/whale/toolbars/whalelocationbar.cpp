@@ -234,10 +234,16 @@ void WhaleLocationBar::updateNavigatorHeights()
         return;
     }
     const int height = editor->sizeHint().height();
-    if (height == m_urlNavigator->minimumHeight()) {
+    // Newer KIO caps the navigator at the editor's height when it is created and keeps that cap
+    // when the style changes: a view of before a density change would stay taller than a new one.
+    const bool capped = m_urlNavigator->maximumHeight() < QWIDGETSIZE_MAX;
+    if (height == m_urlNavigator->minimumHeight() && (!capped || height == m_urlNavigator->maximumHeight())) {
         return;
     }
     m_urlNavigator->setMinimumHeight(height);
+    if (capped) {
+        m_urlNavigator->setMaximumHeight(height);
+    }
     // The path buttons take the navigator's minimum height when they are created; buttons
     // without one (e.g. the toggle button) keep it that way.
     const auto buttons = m_urlNavigator->findChildren<QAbstractButton *>(Qt::FindDirectChildrenOnly);
