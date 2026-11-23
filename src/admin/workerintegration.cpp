@@ -19,6 +19,7 @@
 #include <KProtocolInfo>
 
 #include <QAction>
+#include <QPointer>
 
 #include <iostream>
 
@@ -104,8 +105,11 @@ QString Admin::warningMessage()
 
 namespace
 {
-/** The only WorkerIntegration object that is ever constructed. It is only ever accessed directly from within this file. */
-WorkerIntegration *instance = nullptr;
+/**
+ * The only WorkerIntegration object that is ever constructed. It is only ever accessed directly from within this file.
+ * It is a child of its DolphinMainWindow, so QPointer resets it when that window is destroyed (tests create several windows one after the other).
+ */
+QPointer<WorkerIntegration> instance;
 }
 
 WorkerIntegration::WorkerIntegration(DolphinMainWindow *parent, QAction *actAsAdminAction)
