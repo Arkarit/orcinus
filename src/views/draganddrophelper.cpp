@@ -6,6 +6,7 @@
  */
 
 #include "draganddrophelper.h"
+#include "syntheticexecutablebits.h"
 
 #include <KIO/DropJob>
 #include <KJobWidgets>
@@ -55,6 +56,7 @@ KIO::DropJob *DragAndDropHelper::dropUrls(const QUrl &destUrl, QDropEvent *event
         // Drop into a directory or a desktop-file
         KIO::DropJob *job = KIO::drop(event, destUrl, dropjobFlags);
         KJobWidgets::setWindow(job, window);
+        QObject::connect(job, &KIO::DropJob::copyJobStarted, job, &SyntheticExecutableBits::cleanUpAfter);
         return job;
     }
 

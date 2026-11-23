@@ -13,6 +13,7 @@
 #include "dolphinitemlistview.h"
 #include "dolphinnewfilemenuobserver.h"
 #include "draganddrophelper.h"
+#include "syntheticexecutablebits.h"
 #ifndef QT_NO_ACCESSIBILITY
 #include "kitemviews/accessibility/kitemlistviewaccessible.h"
 #endif
@@ -1300,6 +1301,7 @@ void DolphinView::copySelectedItems(const KFileItemList &selection, const QUrl &
 
     KIO::CopyJob *job = KIO::copy(selection.urlList(), destinationUrl, KIO::DefaultFlags);
     KJobWidgets::setWindow(job, this);
+    SyntheticExecutableBits::cleanUpAfter(job);
 
     connect(job, &KIO::CopyJob::result, this, &DolphinView::slotJobResult);
     connect(job, &KIO::CopyJob::copying, this, &DolphinView::slotItemCreatedFromJob);
@@ -1322,6 +1324,7 @@ void DolphinView::moveSelectedItems(const KFileItemList &selection, const QUrl &
 
     KIO::CopyJob *job = KIO::move(selection.urlList(), destinationUrl, KIO::DefaultFlags);
     KJobWidgets::setWindow(job, this);
+    SyntheticExecutableBits::cleanUpAfter(job);
 
     connect(job, &KIO::CopyJob::result, this, &DolphinView::slotJobResult);
     connect(job, &KIO::CopyJob::moving, this, &DolphinView::slotItemCreatedFromJob);
@@ -3229,6 +3232,7 @@ void DolphinView::pasteToUrl(const QUrl &url)
 {
     KIO::PasteJob *job = KIO::paste(QApplication::clipboard()->mimeData(), url);
     KJobWidgets::setWindow(job, this);
+    connect(job, &KIO::PasteJob::copyJobStarted, job, &SyntheticExecutableBits::cleanUpAfter);
     m_clearSelectionBeforeSelectingNewItems = true;
     m_markFirstNewlySelectedItemAsCurrent = true;
     m_selectJobCreatedItems = true;

@@ -94,6 +94,11 @@ ecm_add_test(versioncontrolobservertest.cpp testdir.cpp
 TEST_NAME versioncontrolobservertest
 LINK_LIBRARIES dolphinprivate dolphinvcs Qt6::Test)
 
+# SyntheticExecutableBitsTest
+ecm_add_test(syntheticexecutablebitstest.cpp
+TEST_NAME syntheticexecutablebitstest
+LINK_LIBRARIES dolphinprivate KF6::KIOCore Qt6::Test)
+
 # KFileItemModelTest
 ecm_add_test(kfileitemmodeltest.cpp testdir.cpp
 TEST_NAME kfileitemmodeltest

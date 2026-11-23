@@ -124,6 +124,7 @@ target_sources(dolphinprivate PRIVATE
     views/dolphinview.cpp
     views/dolphinviewactionhandler.cpp
     views/draganddrophelper.cpp
+    views/syntheticexecutablebits.cpp
     views/expansiontintsettings.cpp
     views/filenamehighlighter.cpp
     views/filenamehighlightingsettings.cpp
@@ -183,6 +184,7 @@ target_sources(dolphinprivate PRIVATE
     views/dolphinview.h
     views/dolphinviewactionhandler.h
     views/draganddrophelper.h
+    views/syntheticexecutablebits.h
     views/expansiontintsettings.h
     views/filenamehighlighter.h
     views/filenamehighlightingsettings.h

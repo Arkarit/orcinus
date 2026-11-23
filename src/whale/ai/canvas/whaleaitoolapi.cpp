@@ -6,6 +6,7 @@
 
 #include "whaleaitoolapi.h"
 
+#include "views/syntheticexecutablebits.h"
 #include "whaleaicanvasmedia.h"
 
 #include <KConfigGroup>
@@ -347,6 +348,7 @@ void WhaleAiToolApi::copy(const QStringList &urls, const QString &destination, c
         return;
     }
     KIO::CopyJob *job = KIO::copy(sources, target, KIO::HideProgressInfo);
+    SyntheticExecutableBits::cleanUpAfter(job);
     KIO::FileUndoManager::self()->recordCopyJob(job);
     finish(job, callback);
 }
@@ -361,6 +363,7 @@ void WhaleAiToolApi::move(const QStringList &urls, const QString &destination, c
         return;
     }
     KIO::CopyJob *job = KIO::move(sources, target, KIO::HideProgressInfo);
+    SyntheticExecutableBits::cleanUpAfter(job);
     KIO::FileUndoManager::self()->recordCopyJob(job);
     finish(job, callback);
 }

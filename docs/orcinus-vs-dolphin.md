@@ -433,6 +433,11 @@ A new user (no Orcinus settings yet) starts with these differences from Dolphin'
 - *File → Recent Folders* lists the folders visited last, in all windows, and goes back to one
   when it is chosen; *Clear List* at its end empties it. The same menu is available as a
   toolbar button (*Configure Toolbars…*). Search results are not listed.
+- Files copied or moved from FAT, NTFS or exFAT are no longer all executable: these file systems
+  have no executable bit, and their mount options often mark every file as executable. After the
+  copy, Orcinus removes the bit again, except for real programs (ELF binaries and scripts that
+  start with `#!`). This covers copy, cut and paste, drag and drop and *Copy to/Move to Other
+  View*; the *Copy To/Move To* submenus of the context menu are run by KIO and are not covered.
 
 ## 13. Known limitations
 

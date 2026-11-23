@@ -9,6 +9,7 @@
 
 #include "folderspanel.h"
 #include "global.h"
+#include "views/syntheticexecutablebits.h"
 
 #include <KConfigGroup>
 #include <KFileItemListProperties>
@@ -178,6 +179,7 @@ void TreeViewContextMenu::paste()
 {
     KIO::PasteJob *job = KIO::paste(QApplication::clipboard()->mimeData(), m_fileItem.url());
     KJobWidgets::setWindow(job, m_parent);
+    connect(job, &KIO::PasteJob::copyJobStarted, job, &SyntheticExecutableBits::cleanUpAfter);
 }
 
 void TreeViewContextMenu::rename()
