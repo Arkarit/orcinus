@@ -47,6 +47,8 @@ public:
         QImage scaled;
         /// The size (in device pixels) it was fitted into.
         QSize available;
+        /// The device pixel ratio the scaled image is tagged with.
+        qreal dpr = 1.0;
         bool error = false;
         /// Whether the file has more than one frame (animated GIF, WebP …); the images are its first.
         bool animated = false;
@@ -67,8 +69,9 @@ public:
 
     /**
      * Asks for the image of @p url (a local file) fitted into @p available with the device
-     * pixel ratio @p dpr. Nothing happens if it is there already or on its way. The current
-     * file is decoded before the others. imageReady() tells when it is there.
+     * pixel ratio @p dpr. Nothing happens if it is there already or on its way. If only the
+     * device pixel ratio changed, the image is tagged with the new one without scaling it
+     * again. The current file is decoded before the others. imageReady() tells when it is there.
      */
     void request(const QUrl &url, const QSize &available, qreal dpr);
 
@@ -102,6 +105,7 @@ private:
     struct Pending {
         std::shared_ptr<std::atomic_bool> cancelled;
         QSize available;
+        qreal dpr = 1.0;
     };
 
     void start(const QUrl &url, const QImage &full, const QSize &available, qreal dpr);

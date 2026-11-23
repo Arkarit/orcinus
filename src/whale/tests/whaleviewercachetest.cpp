@@ -37,6 +37,8 @@ private Q_SLOTS:
     void testLargeImage();
     void testLargeNeighbourIsDecodedWhenShown();
     void testLargeNeighbourShownWhileDecoding();
+    void testOtherDevicePixelRatio();
+    void testOtherDevicePixelRatioWhileDecoding();
     void testUpscale();
     void testColorProfileToSRgb();
     void testRequestFull();
@@ -225,6 +227,42 @@ void WhaleViewerCacheTest::testLargeNeighbourShownWhileDecoding()
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 30000);
     QVERIFY(!cache.entry(large)->error);
     QCOMPARE(cache.entry(large)->scaled.size(), QSize(800, 800));
+}
+
+void WhaleViewerCacheTest::testOtherDevicePixelRatio()
+{
+    // The same size in device pixels on a screen with another scale (issue #21): the image is
+    // tagged with the new ratio instead of being reused with the old one.
+    const QUrl url = createImage(QStringLiteral("a.png"), QSize(400, 300));
+    WhaleViewerCache cache;
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.setCurrent(url);
+    cache.request(url, QSize(200, 200), 2.0);
+    QTRY_COMPARE(ready.count(), 1);
+    QCOMPARE(cache.entry(url)->scaled.devicePixelRatio(), 2.0);
+
+    cache.request(url, QSize(200, 200), 1.0);
+    QCOMPARE(ready.count(), 2);
+    QVERIFY(!cache.isPending(url));
+    QCOMPARE(cache.entry(url)->dpr, 1.0);
+    QCOMPARE(cache.entry(url)->scaled.devicePixelRatio(), 1.0);
+    QCOMPARE(cache.entry(url)->scaled.size(), QSize(200, 150));
+
+    // Nothing changed: no news.
+    cache.request(url, QSize(200, 200), 1.0);
+    QCOMPARE(ready.count(), 2);
+}
+
+void WhaleViewerCacheTest::testOtherDevicePixelRatioWhileDecoding()
+{
+    const QUrl url = createImage(QStringLiteral("a.png"), QSize(400, 300));
+    WhaleViewerCache cache;
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.setCurrent(url);
+    cache.request(url, QSize(200, 200), 2.0);
+    cache.request(url, QSize(200, 200), 1.0); // moved to another screen before it was there
+    QTRY_COMPARE(ready.count(), 1);
+    QCOMPARE(cache.entry(url)->scaled.devicePixelRatio(), 1.0);
 }
 
 void WhaleViewerCacheTest::testUpscale()

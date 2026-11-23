@@ -110,16 +110,24 @@ void WhaleViewerCache::setUpscale(bool upscale)
 
 void WhaleViewerCache::request(const QUrl &url, const QSize &available, qreal dpr)
 {
-    const auto entryIt = m_entries.constFind(url);
-    if (entryIt != m_entries.constEnd() && (entryIt->error || entryIt->available == available)) {
+    const auto entryIt = m_entries.find(url);
+    const auto pendingIt = m_pending.constFind(url);
+    const bool pendingMatches = pendingIt != m_pending.constEnd() && pendingIt->available == available && pendingIt->dpr == dpr;
+    if (entryIt != m_entries.end() && (entryIt->error || entryIt->available == available)) {
+        // The same size in device pixels on a screen with another scale (issue #21): only the
+        // logical size of the image changes.
+        if (!entryIt->error && entryIt->dpr != dpr && !pendingMatches) {
+            entryIt->scaled.setDevicePixelRatio(dpr);
+            entryIt->dpr = dpr;
+            Q_EMIT imageReady(url);
+        }
         return;
     }
-    const auto pendingIt = m_pending.constFind(url);
-    if (pendingIt != m_pending.constEnd() && pendingIt->available == available) {
+    if (pendingMatches) {
         return;
     }
     // An image already decoded is only scaled again.
-    start(url, entryIt != m_entries.constEnd() ? entryIt->full : QImage(), available, dpr);
+    start(url, entryIt != m_entries.end() ? entryIt->full : QImage(), available, dpr);
 }
 
 void WhaleViewerCache::requestFull(const QUrl &url, qreal dpr)
@@ -138,7 +146,7 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
         *pendingIt->cancelled = true;
     }
     auto cancelled = std::make_shared<std::atomic_bool>(false);
-    m_pending.insert(url, {cancelled, available});
+    m_pending.insert(url, {cancelled, available, dpr});
 
     auto watcher = new QFutureWatcher<Decoded>(this);
     const bool rescale = !full.isNull();
@@ -165,6 +173,7 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
         entry.fullSize = decoded.full.size();
         entry.scaled = decoded.scaled;
         entry.available = available;
+        entry.dpr = dpr;
         entry.error = decoded.scaled.isNull();
         // Only scaled again: the file was not read.
         const Entry *before = rescale ? this->entry(url) : nullptr;
