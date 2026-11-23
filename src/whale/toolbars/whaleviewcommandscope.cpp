@@ -84,11 +84,9 @@ WhaleViewCommandScope::WhaleViewCommandScope(DolphinViewContainer *container, QO
     // for its own handler on every change of the active view).
     m_actionHandler->updateViewActions();
 
-    // DolphinViewActionHandler parents the "view_settings" menu to QApplication::activeWindow()
-    // (for accessibility). QWidget::setParent() drops the popup type then, so when this view
-    // is created in an active window (e.g. when the split view opens), the menu became a
-    // plain child widget of that (or even another) window and never opened. A popup of the
-    // view's own window instead.
+    // DolphinViewActionHandler parents the "view_settings" menu (for accessibility) to its
+    // owner's window, or to QApplication::activeWindow() when the owner is no widget, as this
+    // scope is. That can be another window, so make it a popup of the view's own window.
     if (auto viewSettings = qobject_cast<KActionMenu *>(action(QStringLiteral("view_settings")))) {
         QMenu *menu = viewSettings->menu();
         if (menu->windowType() != Qt::Popup || menu->parentWidget() != container->window()) {

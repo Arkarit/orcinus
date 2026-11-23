@@ -435,8 +435,12 @@ void DolphinViewActionHandler::createActions(SelectionMode::ActionTextHelper *ac
     viewSettings->addAction(adjustViewProps);
     viewSettings->setPopupMode(QToolButton::ToolButtonPopupMode::MenuButtonPopup);
     connect(viewSettings, &KActionMenu::triggered, viewModeActions, &KSelectAction::triggered);
-    // HACK KActionMenu doesn't set a parent for its menu() causing accessibility traversal issues
-    viewSettings->menu()->setParent(QApplication::activeWindow());
+    // HACK KActionMenu doesn't set a parent for its menu() causing accessibility traversal issues.
+    // Prefer the window of this handler's owner: the active window can be another one (e.g. File
+    // > New Window in the same process). QWidget::setParent() drops the window type, so keep the
+    // menu a popup; otherwise it became a plain child widget drawn inside (and clipped by) its parent.
+    auto ownerWidget = qobject_cast<QWidget *>(parent());
+    viewSettings->menu()->setParent(ownerWidget ? ownerWidget->window() : QApplication::activeWindow(), Qt::Popup);
 }
 
 QActionGroup *DolphinViewActionHandler::createFileItemRolesActionGroup(const QString &groupPrefix, KActionCategory *category)

@@ -47,6 +47,7 @@
 #include "whaleviewer.h"
 
 #include <KActionCollection>
+#include <KActionMenu>
 #include <KConfig>
 #include <KConfigGui>
 #include <KFileItem>
@@ -92,6 +93,7 @@ private Q_SLOTS:
     void init();
     void testWhaleRuntimeIdentity();
     void testClipboardChangeBeforeTheFirstView();
+    void testViewSettingsMenuOfASecondWindowIsItsOwnPopup();
     void testSyncDesktopAndPhoneUi();
     void testClosingTabsWithSearchBoxVisible();
     void testLeavingASearchRestoresTheFolderViewProperties();
@@ -244,6 +246,28 @@ void DolphinMainWindowTest::testClipboardChangeBeforeTheFirstView()
     QVERIFY(m_mainWindow->activeViewContainer());
     Q_EMIT QGuiApplication::clipboard()->dataChanged();
     QVERIFY(m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::Paste)));
+}
+
+/**
+ * The "View Settings" menu of a window created while another one is active must be a popup of
+ * its own window, not a child widget of the active one (issue #3).
+ */
+void DolphinMainWindowTest::testViewSettingsMenuOfASecondWindowIsItsOwnPopup()
+{
+    m_mainWindow->openDirectories({QUrl::fromLocalFile(QDir::homePath())}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    m_mainWindow->QWidget::activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(m_mainWindow.data()));
+    QCOMPARE(QApplication::activeWindow(), m_mainWindow.data());
+
+    QScopedPointer<DolphinMainWindow> secondWindow(new DolphinMainWindow());
+    for (DolphinMainWindow *window : {m_mainWindow.data(), secondWindow.data()}) {
+        auto viewSettings = qobject_cast<KActionMenu *>(window->actionCollection()->action(QStringLiteral("view_settings")));
+        QVERIFY(viewSettings);
+        QCOMPARE(viewSettings->menu()->windowType(), Qt::Popup);
+        QCOMPARE(viewSettings->menu()->parentWidget(), window);
+    }
 }
 
 /**
