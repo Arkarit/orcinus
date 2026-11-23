@@ -10,6 +10,7 @@
 #include <QHash>
 #include <QImage>
 #include <QObject>
+#include <QSet>
 #include <QUrl>
 
 #include <atomic>
@@ -23,6 +24,9 @@
  * well, to scale it again for another window size (and, later, for zoom). The full images of
  * other files than the current one stay only within a memory budget; beyond it, only their
  * scaled image stays, and the full one is decoded again when it is needed.
+ *
+ * Only the shown file may decode to a very large image; neighbours are preloaded within Qt's
+ * default allocation limit and decoded again when they are shown if they were over it.
  *
  * Images with a colour profile of their own are converted to sRGB, the colour space the
  * compositor assumes for the window (V-E14).
@@ -105,6 +109,8 @@ private:
 
     QHash<QUrl, Entry> m_entries;
     QHash<QUrl, Pending> m_pending;
+    /// Neighbours that failed within the preload allocation limit: decoded again once shown.
+    QSet<QUrl> m_retryWhenCurrent;
     QUrl m_current;
     qint64 m_budget;
     bool m_upscale = false;

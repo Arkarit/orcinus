@@ -35,6 +35,8 @@ private Q_SLOTS:
     void testBudget();
     void testRetainOnly();
     void testLargeImage();
+    void testLargeNeighbourIsDecodedWhenShown();
+    void testLargeNeighbourShownWhileDecoding();
     void testUpscale();
     void testColorProfileToSRgb();
     void testRequestFull();
@@ -183,6 +185,46 @@ void WhaleViewerCacheTest::testLargeImage()
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 30000);
     QVERIFY(!cache.entry(url)->error);
     QCOMPARE(cache.entry(url)->scaled.size(), QSize(800, 800));
+}
+
+void WhaleViewerCacheTest::testLargeNeighbourIsDecodedWhenShown()
+{
+    // A neighbour is preloaded within Qt's default limit only (issue #20): over it, it fails
+    // as a neighbour and is decoded when it becomes the shown file.
+    const QUrl large = createImage(QStringLiteral("large.png"), QSize(8200, 8200));
+    const QUrl shown = createImage(QStringLiteral("shown.png"), QSize(40, 30));
+    WhaleViewerCache cache;
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.setCurrent(shown);
+    cache.request(large, QSize(800, 800), 1.0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 30000);
+    QVERIFY(cache.entry(large));
+    QVERIFY(cache.entry(large)->error);
+    QVERIFY(cache.entry(large)->full.isNull());
+
+    cache.setCurrent(large);
+    QVERIFY(!cache.entry(large));
+    cache.request(large, QSize(800, 800), 1.0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 30000);
+    QVERIFY(!cache.entry(large)->error);
+    QCOMPARE(cache.entry(large)->scaled.size(), QSize(800, 800));
+}
+
+void WhaleViewerCacheTest::testLargeNeighbourShownWhileDecoding()
+{
+    // Shown while its preload is still on its way: the failed preload is not reported, the file
+    // is decoded again with the limit of the shown file.
+    const QUrl large = createImage(QStringLiteral("large.png"), QSize(8200, 8200));
+    const QUrl shown = createImage(QStringLiteral("shown.png"), QSize(40, 30));
+    WhaleViewerCache cache;
+    QSignalSpy ready(&cache, &WhaleViewerCache::imageReady);
+    cache.setCurrent(shown);
+    cache.request(large, QSize(800, 800), 1.0);
+    cache.setCurrent(large);
+    cache.request(large, QSize(800, 800), 1.0); // on its way already
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 30000);
+    QVERIFY(!cache.entry(large)->error);
+    QCOMPARE(cache.entry(large)->scaled.size(), QSize(800, 800));
 }
 
 void WhaleViewerCacheTest::testUpscale()

@@ -14,8 +14,11 @@
 
 namespace
 {
-// Qt refuses images over 256 MB (about 64 megapixels) by default: panoramas are larger.
+// Qt refuses images over 256 MB (about 64 megapixels) by default: panoramas are larger. Only the
+// shown file gets the higher limit; neighbours are preloaded within Qt's default, so a huge file
+// next to the shown one is not decoded before it is opened (issue #20).
 constexpr int AllocationLimitMB = 2048;
+constexpr int PreloadAllocationLimitMB = 256;
 constexpr qint64 DefaultBudget = 512 * 1024 * 1024;
 // Two threads: the shown file and one neighbour at a time, without taking every core.
 constexpr int ThreadCount = 2;
@@ -54,7 +57,7 @@ void convertToSRgb(QImage &image)
     }
 }
 
-Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, bool upscale, std::shared_ptr<std::atomic_bool> cancelled)
+Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, bool upscale, int allocationLimitMB, std::shared_ptr<std::atomic_bool> cancelled)
 {
     if (*cancelled) {
         return {};
@@ -63,7 +66,7 @@ Decoded decode(const QString &path, QImage full, QSize available, qreal dpr, boo
     if (full.isNull()) {
         QImageReader reader(path);
         reader.setAutoTransform(true);
-        reader.setAllocationLimit(AllocationLimitMB);
+        reader.setAllocationLimit(allocationLimitMB);
         full = reader.read();
         convertToSRgb(full);
         animated = reader.supportsAnimation() && reader.imageCount() > 1;
@@ -139,7 +142,8 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
 
     auto watcher = new QFutureWatcher<Decoded>(this);
     const bool rescale = !full.isNull();
-    connect(watcher, &QFutureWatcher<Decoded>::finished, this, [this, watcher, url, cancelled, available, rescale]() {
+    const bool preload = url != m_current;
+    connect(watcher, &QFutureWatcher<Decoded>::finished, this, [this, watcher, url, cancelled, available, dpr, rescale, preload]() {
         watcher->deleteLater();
         const auto it = m_pending.constFind(url);
         if (it == m_pending.constEnd() || it->cancelled != cancelled) {
@@ -147,6 +151,15 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
         }
         m_pending.erase(it);
         const Decoded decoded = watcher->result();
+        m_retryWhenCurrent.remove(url);
+        // A neighbour may only have been over the preload limit: it is tried again as the shown file.
+        if (decoded.scaled.isNull() && preload && !rescale) {
+            if (url == m_current) { // became the shown file meanwhile
+                start(url, QImage(), available, dpr);
+                return;
+            }
+            m_retryWhenCurrent.insert(url);
+        }
         Entry entry;
         entry.full = decoded.full;
         entry.fullSize = decoded.full.size();
@@ -160,9 +173,10 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
         enforceBudget();
         Q_EMIT imageReady(url);
     });
-    const int priority = url == m_current ? CurrentPriority : 0;
+    const int priority = preload ? 0 : CurrentPriority;
+    const int allocationLimitMB = preload ? PreloadAllocationLimitMB : AllocationLimitMB;
     watcher->setFuture(QtConcurrent::task(&decode)
-                           .withArguments(url.toLocalFile(), full, available, dpr, m_upscale, cancelled)
+                           .withArguments(url.toLocalFile(), full, available, dpr, m_upscale, allocationLimitMB, cancelled)
                            .onThreadPool(*pool())
                            .withPriority(priority)
                            .spawn());
@@ -171,6 +185,9 @@ void WhaleViewerCache::start(const QUrl &url, const QImage &full, const QSize &a
 void WhaleViewerCache::setCurrent(const QUrl &url)
 {
     m_current = url;
+    if (m_retryWhenCurrent.remove(url)) {
+        m_entries.remove(url); // the next request() decodes it with the limit of the shown file
+    }
     enforceBudget();
 }
 
@@ -178,6 +195,9 @@ void WhaleViewerCache::retainOnly(const QList<QUrl> &urls)
 {
     for (auto it = m_entries.begin(); it != m_entries.end();) {
         it = urls.contains(it.key()) ? std::next(it) : m_entries.erase(it);
+    }
+    for (auto it = m_retryWhenCurrent.begin(); it != m_retryWhenCurrent.end();) {
+        it = urls.contains(*it) ? std::next(it) : m_retryWhenCurrent.erase(it);
     }
     for (auto it = m_pending.begin(); it != m_pending.end();) {
         if (urls.contains(it.key())) {
