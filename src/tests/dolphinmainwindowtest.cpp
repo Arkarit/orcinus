@@ -57,10 +57,12 @@
 
 #include <QAccessible>
 #include <QApplication>
+#include <QClipboard>
 #include <QComboBox>
 #include <QDockWidget>
 #include <QDomDocument>
 #include <QFileSystemWatcher>
+#include <QGuiApplication>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -89,6 +91,7 @@ private Q_SLOTS:
     void initTestCase();
     void init();
     void testWhaleRuntimeIdentity();
+    void testClipboardChangeBeforeTheFirstView();
     void testSyncDesktopAndPhoneUi();
     void testClosingTabsWithSearchBoxVisible();
     void testLeavingASearchRestoresTheFolderViewProperties();
@@ -225,6 +228,22 @@ void DolphinMainWindowTest::testWhaleRuntimeIdentity()
     QCOMPARE(Dolphin::currentInstanceServiceName(), QStringLiteral(WHALE_APP_ID "-%1").arg(QCoreApplication::applicationPid()));
     QCOMPARE(Dolphin::mainWindowDbusPath(), QStringLiteral("/orcinus/Orcinus_1"));
     QCOMPARE(m_mainWindow->dbusName(), Dolphin::mainWindowDbusPath());
+}
+
+/**
+ * A window that has no view yet (no tab opened) must not crash when the clipboard changes
+ * (updatePasteAction() used to dereference the missing view container, issue #2).
+ */
+void DolphinMainWindowTest::testClipboardChangeBeforeTheFirstView()
+{
+    QVERIFY(!m_mainWindow->activeViewContainer());
+    Q_EMIT QGuiApplication::clipboard()->dataChanged();
+
+    // Once the window gets a view, the paste action is updated as before.
+    m_mainWindow->openDirectories({QUrl::fromLocalFile(QDir::homePath())}, false);
+    QVERIFY(m_mainWindow->activeViewContainer());
+    Q_EMIT QGuiApplication::clipboard()->dataChanged();
+    QVERIFY(m_mainWindow->actionCollection()->action(KStandardAction::name(KStandardAction::Paste)));
 }
 
 /**

@@ -1051,6 +1051,11 @@ void DolphinMainWindow::updateSearchAction()
 
 void DolphinMainWindow::updatePasteAction()
 {
+    if (!m_activeViewContainer) {
+        // The clipboard can change before the window has a view (no tab opened yet).
+        // activeViewChanged() calls this again once there is one.
+        return;
+    }
     QAction *pasteAction = actionCollection()->action(KStandardAction::name(KStandardAction::Paste));
     const std::pair<bool, QString> pasteInfo = m_activeViewContainer->view()->pasteInfo();
     pasteAction->setEnabled(pasteInfo.first);
