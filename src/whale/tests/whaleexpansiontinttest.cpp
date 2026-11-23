@@ -10,6 +10,7 @@
 #include "kitemviews/kitemlistcontainer.h"
 #include "kitemviews/kitemlistcontroller.h"
 #include "kitemviews/kitemlistheader.h"
+#include "kitemviews/kitemlistselectionmanager.h"
 #include "kitemviews/kitemlistwidget.h"
 #include "testdir.h"
 #include "views/dolphinitemlistview.h"
@@ -297,6 +298,9 @@ void WhaleExpansionTintTest::testTintsByDepth()
     const QColor depth2(0xe0, 0xff, 0xe0);
     const QColor depth3(0xe0, 0xe0, 0xff);
     m_view->setExpansionTintColors({depth1, depth2, depth3});
+    // The current item is "a" (the first one); newer Breeze draws a rounded focus frame around
+    // it that covers the pixels checked next to its arrow below. Move it to an unrelated item.
+    m_view->controller()->selectionManager()->setCurrentItem(indexOf(QStringLiteral("file0")));
     QTest::qWait(50);
     const QImage image = grabView();
 

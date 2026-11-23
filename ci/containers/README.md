@@ -68,8 +68,6 @@ with `SRC_DIR` and `BUILD_DIR` pointing into the checkout.
 
 ## Known test results
 
-- Issue #14 (`whaleexpansiontinttest`, `whaleselectiontest`) fails everywhere, as in the GitHub
-  CI, which excludes both.
 - `ubuntu-26.10`: three tests crash in `KColorButton` (KDE Frameworks 6.29) on the offscreen
   platform, which has no clipboard there. A limit of the test environment, not of Orcinus.
 - `fedora-45`: the script tests of `whalescriptlaunchertest` skip. With Qt 6.11 and

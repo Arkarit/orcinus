@@ -527,7 +527,9 @@ void WhaleSelectionTest::testCreateAndDeleteWhileSelected()
     const QUrl current = viewBridge->selection().current();
     QVERIFY(current != url(QStringLiteral("b.txt")));
     QVERIFY(row(listView, current.fileName()).isValid());
-    QCOMPARE(shownCurrent(listView), current.fileName());
+    // The plugin view follows the bridge's selection signal, which comes once the event loop
+    // is idle: wait for it (it failed now and then in the CI container).
+    QTRY_COMPARE(shownCurrent(listView), current.fileName());
 }
 
 void WhaleSelectionTest::testRenameSelected()
@@ -541,8 +543,12 @@ void WhaleSelectionTest::testRenameSelected()
 
     QVERIFY(KIO::moveAs(url(QStringLiteral("a.txt")), url(QStringLiteral("z.txt")), KIO::HideProgressInfo)->exec());
     // The renamed item stays selected under its new URL; the old URL is gone.
-    QTRY_COMPARE(context.selection(), WhaleSelection({url(QStringLiteral("z.txt"))}, url(QStringLiteral("z.txt"))));
-    QVERIFY(!changed.isEmpty());
+    const WhaleSelection renamed({url(QStringLiteral("z.txt"))}, url(QStringLiteral("z.txt")));
+    QTRY_COMPARE(context.selection(), renamed);
+    // selection() reads the view directly, the signal follows once the event loop is idle
+    // (DolphinViewBridge's selection timer): wait for it instead of expecting it already.
+    QTRY_VERIFY(!changed.isEmpty());
+    QCOMPARE(changed.last().at(0).value<WhaleSelection>(), renamed);
     QTRY_COMPARE(shownSelection(listView), QStringList({QStringLiteral("z.txt")}));
 }
 
