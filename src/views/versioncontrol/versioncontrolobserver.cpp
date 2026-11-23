@@ -162,6 +162,18 @@ void VersionControlObserver::slotItemsChanged(const KItemRangeList &itemRanges, 
     }
 }
 
+namespace
+{
+/** Whether \a path is the repository root \a root or lies below it (not just begins with its path, as /a/foobar does with /a/foo). */
+bool isInsideRepository(const QString &path, const QString &root)
+{
+    if (root.isEmpty()) {
+        return false;
+    }
+    return path == root || path.startsWith(root.endsWith(QLatin1Char('/')) ? root : root + QLatin1Char('/'));
+}
+}
+
 void VersionControlObserver::verifyDirectory()
 {
     if (!m_model) {
@@ -173,7 +185,7 @@ void VersionControlObserver::verifyDirectory()
         return;
     }
 
-    if (m_currentPlugin && rootItem.url().path().startsWith(m_localRepoRoot) && QFile::exists(m_localRepoRoot + '/' + m_currentPlugin->fileName())) {
+    if (m_currentPlugin && isInsideRepository(rootItem.url().path(), m_localRepoRoot) && QFile::exists(m_localRepoRoot + '/' + m_currentPlugin->fileName())) {
         // current directory is still versioned
         updateItemStates();
         return;

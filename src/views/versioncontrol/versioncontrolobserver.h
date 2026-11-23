@@ -152,6 +152,7 @@ private:
     UpdateItemStatesThread *m_updateItemStatesThread;
 
     friend class UpdateItemStatesThread;
+    friend class VersionControlObserverTest;
 };
 
 #endif // REVISIONCONTROLOBSERVER_H

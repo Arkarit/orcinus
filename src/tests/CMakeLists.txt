@@ -89,6 +89,11 @@ ecm_add_test(mountpointobservertest.cpp
 TEST_NAME mountpointobservertest
 LINK_LIBRARIES dolphinprivate dolphinstatic Qt6::Test)
 
+# VersionControlObserverTest
+ecm_add_test(versioncontrolobservertest.cpp testdir.cpp
+TEST_NAME versioncontrolobservertest
+LINK_LIBRARIES dolphinprivate dolphinvcs Qt6::Test)
+
 # KFileItemModelTest
 ecm_add_test(kfileitemmodeltest.cpp testdir.cpp
 TEST_NAME kfileitemmodeltest
