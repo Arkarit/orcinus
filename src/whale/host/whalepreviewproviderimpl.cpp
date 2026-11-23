@@ -7,6 +7,7 @@
 #include "whalepreviewproviderimpl.h"
 
 #include "dolphinviewbridge.h"
+#include "kitemviews/previewjobkill.h"
 
 #include <KConfigGroup>
 #include <KIO/PreviewJob>
@@ -203,7 +204,7 @@ void WhalePreviewProviderImpl::killJob(KIO::PreviewJob *job)
 {
     m_pendingPerJob.remove(job);
     disconnect(job, nullptr, this, nullptr);
-    job->kill(KJob::Quietly);
+    PreviewJobKill::kill(job);
     ++m_statistics.jobsKilled;
 }
 

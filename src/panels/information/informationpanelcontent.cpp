@@ -6,6 +6,8 @@
 
 #include "informationpanelcontent.h"
 
+#include "kitemviews/previewjobkill.h"
+
 #include <KConfigGroup>
 #include <KIO/PreviewJob>
 #include <KIconLoader>
@@ -155,7 +157,7 @@ void InformationPanelContent::killPreviewJob()
     }
 
     m_previewJob->disconnect(this);
-    m_previewJob->kill();
+    PreviewJobKill::kill(m_previewJob);
     m_previewJob->deleteLater();
     m_previewJob = nullptr;
 }

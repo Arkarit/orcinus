@@ -82,6 +82,7 @@ target_sources(dolphinprivate PRIVATE
     kitemviews/kfileitemlisttostring.cpp
     kitemviews/kfileitemmodel.cpp
     kitemviews/kfileitemmodelrolesupdater.cpp
+    kitemviews/previewjobkill.cpp
     kitemviews/kitemlistcontainer.cpp
     kitemviews/kitemlistcontroller.cpp
     kitemviews/kitemlistgroupheader.cpp
@@ -143,6 +144,7 @@ target_sources(dolphinprivate PRIVATE
     kitemviews/kfileitemlisttostring.h
     kitemviews/kfileitemmodel.h
     kitemviews/kfileitemmodelrolesupdater.h
+    kitemviews/previewjobkill.h
     kitemviews/kitemlistcontainer.h
     kitemviews/kitemlistcontroller.h
     kitemviews/kitemlistgroupheader.h
