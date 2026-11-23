@@ -430,6 +430,9 @@ A new user (no Orcinus settings yet) starts with these differences from Dolphin'
 - *Help → About Orcinus* names the Dolphin version Orcinus is based on and credits Dolphin's
   developers.
 - The Information panel also works with older versions of Baloo Widgets.
+- *File → Recent Folders* lists the folders visited last, in all windows, and goes back to one
+  when it is chosen; *Clear List* at its end empties it. The same menu is available as a
+  toolbar button (*Configure Toolbars…*). Search results are not listed.
 
 ## 13. Known limitations
 

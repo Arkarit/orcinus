@@ -54,6 +54,8 @@
 #include <KIO/StatJob>
 #include <KMessageWidget>
 #include <KProtocolManager>
+#include <KRecentFilesAction>
+#include <KSharedConfig>
 #include <KStandardAction>
 
 #include <QAccessible>
@@ -68,6 +70,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QKeySequence>
+#include <QMenuBar>
 #include <QPixmap>
 #include <QScopeGuard>
 #include <QScopedPointer>
@@ -94,6 +97,7 @@ private Q_SLOTS:
     void testWhaleRuntimeIdentity();
     void testClipboardChangeBeforeTheFirstView();
     void testViewSettingsMenuOfASecondWindowIsItsOwnPopup();
+    void testRecentFolders();
     void testSyncDesktopAndPhoneUi();
     void testClosingTabsWithSearchBoxVisible();
     void testLeavingASearchRestoresTheFolderViewProperties();
@@ -268,6 +272,93 @@ void DolphinMainWindowTest::testViewSettingsMenuOfASecondWindowIsItsOwnPopup()
         QCOMPARE(viewSettings->menu()->windowType(), Qt::Popup);
         QCOMPARE(viewSettings->menu()->parentWidget(), window);
     }
+}
+
+/**
+ * File > Recent Folders lists the folders visited last, most recent first, keeps them for later
+ * windows, goes back to one when it is chosen and can be cleared (issue #22).
+ */
+void DolphinMainWindowTest::testRecentFolders()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("one")));
+    QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("two")));
+    const QUrl one = QUrl::fromLocalFile(dir.filePath(QStringLiteral("one")));
+    const QUrl two = QUrl::fromLocalFile(dir.filePath(QStringLiteral("two")));
+
+    // KRecentFilesAction ignores folders in the temporary directory, where the test folders are.
+    const QByteArray tmpDir = qgetenv("TMPDIR");
+    qputenv("TMPDIR", "/nonexistent-orcinus-test-tmp");
+    const auto restore = qScopeGuard([&tmpDir]() {
+        if (tmpDir.isNull()) {
+            qunsetenv("TMPDIR");
+        } else {
+            qputenv("TMPDIR", tmpDir);
+        }
+        KSharedConfig::openStateConfig()->deleteGroup(QStringLiteral("RecentFolders"));
+        KSharedConfig::openStateConfig()->sync();
+    });
+    KSharedConfig::openStateConfig()->deleteGroup(QStringLiteral("RecentFolders"));
+    KSharedConfig::openStateConfig()->sync();
+
+    // A new window reads the (empty) list.
+    m_mainWindow.reset(new DolphinMainWindow());
+    auto recentFolders = qobject_cast<KRecentFilesAction *>(m_mainWindow->actionCollection()->action(QStringLiteral("whale_recent_folders")));
+    QVERIFY(recentFolders);
+    QVERIFY(recentFolders->urls().isEmpty());
+
+    // In the File menu, right after "Add to Places".
+    m_mainWindow->openDirectories({one}, false);
+    m_mainWindow->show();
+    QVERIFY(QTest::qWaitForWindowExposed(m_mainWindow.data()));
+    QMenu *fileMenu = nullptr;
+    for (QAction *menuAction : m_mainWindow->menuBar()->actions()) {
+        if (menuAction->menu() && menuAction->menu()->objectName() == QLatin1String("file")) {
+            fileMenu = menuAction->menu();
+        }
+    }
+    QVERIFY(fileMenu);
+    const QList<QAction *> fileActions = fileMenu->actions();
+    const int addToPlaces = fileActions.indexOf(m_mainWindow->actionCollection()->action(QStringLiteral("add_to_places")));
+    QVERIFY(addToPlaces >= 0);
+    QCOMPARE(fileActions.value(addToPlaces + 1), recentFolders);
+
+    // Visited folders, the last one first; search results are left out.
+    m_mainWindow->changeUrl(two);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->url(), two);
+    m_mainWindow->changeUrl(QUrl(QStringLiteral("filenamesearch:?search=x&url=") + QString::fromUtf8(QUrl::toPercentEncoding(one.toString()))));
+    QCOMPARE(recentFolders->urls().value(0), two);
+    QVERIFY(recentFolders->urls().contains(one));
+    QCOMPARE(recentFolders->urls().size(), 2);
+
+    // A later window has them as well.
+    {
+        DolphinMainWindow other;
+        auto otherRecent = qobject_cast<KRecentFilesAction *>(other.actionCollection()->action(QStringLiteral("whale_recent_folders")));
+        QCOMPARE(otherRecent->urls().size(), 2);
+        QCOMPARE(otherRecent->urls().value(0), two);
+    }
+
+    // Choosing one goes back to it.
+    m_mainWindow->changeUrl(two);
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->url(), two);
+    QAction *oneEntry = nullptr;
+    for (QAction *entry : recentFolders->actions()) {
+        if (entry->data().toUrl() == one || entry->text().contains(one.toLocalFile())) {
+            oneEntry = entry;
+        }
+    }
+    QVERIFY(oneEntry);
+    oneEntry->trigger();
+    QTRY_COMPARE(m_mainWindow->activeViewContainer()->url(), one);
+    QTRY_COMPARE(recentFolders->urls().value(0), one);
+
+    // Clearing empties the list for later windows too.
+    recentFolders->clear();
+    QVERIFY(recentFolders->urls().isEmpty());
+    DolphinMainWindow cleared;
+    QVERIFY(qobject_cast<KRecentFilesAction *>(cleared.actionCollection()->action(QStringLiteral("whale_recent_folders")))->urls().isEmpty());
 }
 
 /**

@@ -167,6 +167,22 @@ void popOut(DolphinMainWindow *window, const DolphinViewContainer *container)
 {
     Dolphin::openNewWindow({container->url()}, window, Dolphin::OpenNewWindowFlag::None, container->view()->ownStyleData());
 }
+
+// Whale: the recently visited folders (File > Recent Folders) are kept in the state
+// configuration, shared by all windows and instances. Read again before each change, so that
+// one window does not overwrite what another one added.
+KConfigGroup recentFoldersGroup()
+{
+    const KSharedConfig::Ptr config = KSharedConfig::openStateConfig();
+    config->reparseConfiguration();
+    return config->group(QStringLiteral("RecentFolders"));
+}
+
+void saveRecentFolders(KRecentFilesAction *recentFolders, KConfigGroup group)
+{
+    recentFolders->saveEntries(group);
+    group.sync();
+}
 }
 
 DolphinMainWindow::DolphinMainWindow()
@@ -462,9 +478,6 @@ void DolphinMainWindow::changeUrl(const QUrl &url)
     updateViewActions();
     updateGoActions();
     m_diskSpaceUsageMenu->setUrl(url);
-
-    // will signal used urls to activities manager, too
-    m_recentFiles->addUrl(url, QString(), "inode/directory");
 
     Q_EMIT urlChanged(url);
 }
@@ -2517,7 +2530,31 @@ void DolphinMainWindow::setupActions()
     windowColorSchemeMenu->menu()->setTitle(i18n("&Window Color Scheme"));
     actionCollection()->addAction(QStringLiteral("window_color_sheme"), windowColorSchemeMenu);
 
-    m_recentFiles = new KRecentFilesAction(this);
+    // Whale: the visited folders as a menu (File > Recent Folders) and a toolbar button.
+    m_recentFiles = new KRecentFilesAction(QIcon::fromTheme(QStringLiteral("folder-open-recent")), i18nc("@action:inmenu File", "Recent Folders"), this);
+    m_recentFiles->setWhatsThis(xi18nc("@info:whatsthis", "This lists the folders visited last. Choose one to go back to it."));
+    m_recentFiles->setToolBarMode(KSelectAction::MenuMode);
+    m_recentFiles->setToolButtonPopupMode(QToolButton::InstantPopup);
+    m_recentFiles->loadEntries(recentFoldersGroup());
+    actionCollection()->addAction(QStringLiteral("whale_recent_folders"), m_recentFiles);
+    // Queued: going there reloads the list (below), which deletes the action being triggered.
+    connect(m_recentFiles, &KRecentFilesAction::urlSelected, this, &DolphinMainWindow::changeUrl, Qt::QueuedConnection);
+    // Every folder shown in the active view, also a new tab's or the one at startup.
+    connect(this, &DolphinMainWindow::urlChanged, this, [this](const QUrl &url) {
+        // will signal used urls to activities manager, too
+        // Whale: and is listed in File > Recent Folders; search results are no folder to go back to.
+        if (url.isValid() && !isSearchUrl(url)) {
+            const KConfigGroup group = recentFoldersGroup();
+            m_recentFiles->loadEntries(group);
+            m_recentFiles->addUrl(url, QString(), QStringLiteral("inode/directory"));
+            saveRecentFolders(m_recentFiles, group);
+        }
+    });
+    connect(m_recentFiles, &KRecentFilesAction::recentListCleared, this, [this]() {
+        KConfigGroup group = recentFoldersGroup();
+        group.deleteGroup();
+        saveRecentFolders(m_recentFiles, group);
+    });
 }
 
 void DolphinMainWindow::setupDockWidgets()
