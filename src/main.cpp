@@ -395,8 +395,10 @@ int main(int argc, char **argv)
         mainWindow->activeViewContainer()->view()->setOwnStyleData(viewStyle);
     }
 
-    if (startWithStyle && viewStyle.isEmpty()) {
-        WhaleStyleManager::ensure(mainWindow)->applyStyle(WhaleDefaultStyles::startStyleId()); // Whale
+    if (viewStyle.isEmpty()) {
+        // Whale: every new window opens with the startup profile, on top of what the window
+        // restored or remembered (a new user's first window with the shipped start profile).
+        WhaleStyleManager::ensure(mainWindow)->applyStartupStyle(startWithStyle);
     }
 
     mainWindow->setSessionAutoSaveEnabled(GeneralSettings::rememberOpenedTabs());

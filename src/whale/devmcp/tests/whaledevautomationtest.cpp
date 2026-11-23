@@ -23,6 +23,7 @@
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTest>
@@ -200,9 +201,9 @@ void WhaleDevAutomationTest::testUiState()
     QCOMPARE(focus.value(QStringLiteral("keyboardFocus")).toBool(), true);
     QVERIFY(focus.value(QStringLiteral("anomalies")).toArray().isEmpty());
 
-    // No pointers or addresses anywhere in the state.
-    const QByteArray json = QJsonDocument(state).toJson();
-    QVERIFY(!json.contains("0x"));
+    // No pointers or addresses anywhere in the state (a window size like "1200x800" is fine).
+    const QString json = QString::fromUtf8(QJsonDocument(state).toJson());
+    QVERIFY2(!json.contains(QRegularExpression(QStringLiteral("0x[0-9a-fA-F]{6,}"))), qPrintable(json));
 }
 
 void WhaleDevAutomationTest::testSetView()

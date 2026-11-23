@@ -73,6 +73,7 @@ private Q_SLOTS:
     void testAddRenameRemoveMove();
     void testSaveRemovesDeletedStyle();
     void testReplaceStyles();
+    void testStartupStyle();
     void testRegistry();
 
 private:
@@ -283,6 +284,30 @@ void WhaleStyleStoreTest::testSaveRemovesDeletedStyle()
     QCOMPARE(config->group(QStringLiteral("Style")).groupList(), QStringList{QStringLiteral("b")});
     QVERIFY(!config->group(QStringLiteral("Style")).group(QStringLiteral("a")).group(QStringLiteral("Element")).exists());
     QCOMPARE(WhaleStyleStore(config).ids(), QStringList{QStringLiteral("b")});
+}
+
+void WhaleStyleStoreTest::testStartupStyle()
+{
+    WhaleStyleStore store(freshConfig("[General]\nOrder=a,b\nStartupProfile=b\n\n[Style][a]\nName=A\n\n[Style][b]\nName=B\n"));
+    QCOMPARE(store.startupStyleId(), QStringLiteral("b"));
+
+    // Only an existing style.
+    QVERIFY(!store.setStartupStyleId(QStringLiteral("nope")));
+    QCOMPARE(store.startupStyleId(), QStringLiteral("b"));
+    QVERIFY(store.setStartupStyleId(QStringLiteral("a")));
+    store.save();
+    QCOMPARE(WhaleStyleStore(freshConfig()).startupStyleId(), QStringLiteral("a"));
+
+    // Gone with its style, also from the file.
+    QVERIFY(store.removeStyle(QStringLiteral("a")));
+    QCOMPARE(store.startupStyleId(), QString());
+    store.save();
+    QVERIFY(!freshConfig()->group(QStringLiteral("General")).hasKey("StartupProfile"));
+
+    // Cleared.
+    QVERIFY(store.setStartupStyleId(QStringLiteral("b")));
+    QVERIFY(store.setStartupStyleId(QString()));
+    QCOMPARE(store.startupStyleId(), QString());
 }
 
 void WhaleStyleStoreTest::testReplaceStyles()

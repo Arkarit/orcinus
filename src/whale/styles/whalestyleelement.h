@@ -49,6 +49,13 @@ public:
      *         element existed. Empty (the default): such a style leaves the element as it is.
      */
     virtual QString valueIfMissing() const;
+
+    /**
+     * @return Whether the element is applied only when a new window opens with the style (the
+     *         startup profile), not when the style is applied to a window later, e.g. the
+     *         window size.
+     */
+    virtual bool newWindowsOnly() const;
 };
 
 #endif

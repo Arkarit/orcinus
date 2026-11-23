@@ -19,6 +19,7 @@ const QString StyleGroup = QStringLiteral("Style");
 const QString ElementGroup = QStringLiteral("Element");
 const QString VersionKey = QStringLiteral("Version");
 const QString OrderKey = QStringLiteral("Order");
+const QString StartupKey = QStringLiteral("StartupProfile");
 const QString NameKey = QStringLiteral("Name");
 const QString ShortcutKey = QStringLiteral("Shortcut");
 const QString EnabledKey = QStringLiteral("Enabled");
@@ -125,6 +126,7 @@ void WhaleStyleStore::load()
 
     const KConfigGroup general = m_config->group(GeneralGroup);
     m_fileVersion = std::max(general.readEntry(VersionKey, currentVersion()), currentVersion());
+    m_startupStyleId = general.readEntry(StartupKey, QString());
 
     const KConfigGroup styles = m_config->group(StyleGroup);
     QStringList remaining = styles.groupList();
@@ -156,6 +158,11 @@ void WhaleStyleStore::save()
     KConfigGroup general = m_config->group(GeneralGroup);
     general.writeEntry(VersionKey, m_fileVersion);
     general.writeEntry(OrderKey, ids());
+    if (startupStyleId().isEmpty()) {
+        general.deleteEntry(StartupKey);
+    } else {
+        general.writeEntry(StartupKey, m_startupStyleId);
+    }
     m_config->sync();
 }
 
@@ -250,6 +257,20 @@ bool WhaleStyleStore::replaceStyles(const QList<WhaleStyle> &styles)
     for (WhaleStyle &style : m_styles) {
         style.name = style.name.trimmed();
     }
+    return true;
+}
+
+QString WhaleStyleStore::startupStyleId() const
+{
+    return indexOf(m_startupStyleId) < 0 ? QString() : m_startupStyleId;
+}
+
+bool WhaleStyleStore::setStartupStyleId(const QString &id)
+{
+    if (!id.isEmpty() && indexOf(id) < 0) {
+        return false;
+    }
+    m_startupStyleId = id;
     return true;
 }
 

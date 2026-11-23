@@ -22,6 +22,11 @@ QString WhaleStyleElement::valueIfMissing() const
     return QString();
 }
 
+bool WhaleStyleElement::newWindowsOnly() const
+{
+    return false;
+}
+
 const WhaleStyleElements &WhaleStyleElements::self()
 {
     static WhaleStyleElements elements;

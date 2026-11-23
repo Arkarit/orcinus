@@ -100,12 +100,25 @@ public:
      */
     bool replaceStyles(const QList<WhaleStyle> &styles);
 
+    /**
+     * @return The ID of the startup profile, the style every new window opens with; empty
+     *         without one or when that style does not exist (any more).
+     */
+    QString startupStyleId() const;
+
+    /**
+     * Sets the startup profile; an empty @p id clears it.
+     * @return Whether it was set (false for an unknown ID).
+     */
+    bool setStartupStyleId(const QString &id);
+
 private:
     int indexOf(const QString &id) const;
 
     KSharedConfigPtr m_config;
     int m_fileVersion;
     QList<WhaleStyle> m_styles;
+    QString m_startupStyleId;
 };
 
 #endif

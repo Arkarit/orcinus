@@ -19,6 +19,7 @@
 #include <KMessageBox>
 
 #include <QAbstractItemModel>
+#include <QComboBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
@@ -67,6 +68,16 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
     listButtons->addWidget(m_upButton);
     listButtons->addWidget(m_downButton);
     listLayout->addLayout(listButtons);
+
+    // The profile every new window opens with
+    auto startupForm = new QFormLayout();
+    m_startup = new QComboBox(this);
+    m_startup->setObjectName(QStringLiteral("startupStyle"));
+    m_startup->setToolTip(xi18nc("@info:tooltip",
+                                 "Every new window opens with this profile, on top of what Orcinus remembers from the last window.<nl/>"
+                                 "Only then its window size is applied."));
+    startupForm->addRow(i18nc("@label:listbox", "Startup profile:"), m_startup);
+    listLayout->addLayout(startupForm);
     topLayout->addLayout(listLayout, 2);
 
     // The chosen style
@@ -127,6 +138,13 @@ WhaleStylesSettingsPage::WhaleStylesSettingsPage(DolphinMainWindow *window, QWid
     connect(m_elements, &QTreeWidget::itemChanged, this, &WhaleStylesSettingsPage::elementToggled);
     connect(m_captureButton, &QPushButton::clicked, this, &WhaleStylesSettingsPage::captureAgain);
     connect(m_applyButton, &QPushButton::clicked, this, &WhaleStylesSettingsPage::applyToWindow);
+    connect(m_startup, &QComboBox::activated, this, [this](int index) {
+        const QString id = m_startup->itemData(index).toString();
+        if (id != m_startupId) {
+            m_startupId = id;
+            markChanged();
+        }
+    });
 
     loadStyles();
 }
@@ -138,6 +156,7 @@ void WhaleStylesSettingsPage::applySettings()
     renameCurrent();
     WhaleStyles *styles = WhaleStyles::self();
     if (styles->editableStore().replaceStyles(m_styles)) {
+        styles->editableStore().setStartupStyleId(m_startupId);
         styles->save();
     }
 }
@@ -151,6 +170,7 @@ void WhaleStylesSettingsPage::loadStyles()
     // Another process may have changed them.
     WhaleStyles::self()->reload();
     m_styles = WhaleStyles::self()->store().styles();
+    m_startupId = WhaleStyles::self()->store().startupStyleId();
     fillList(m_styles.isEmpty() ? QString() : m_styles.first().id);
 }
 
@@ -169,7 +189,19 @@ void WhaleStylesSettingsPage::fillList(const QString &currentId)
     }
     m_list->setCurrentRow(current);
     m_filling = false;
+    fillStartupList();
     showCurrentStyle();
+}
+
+void WhaleStylesSettingsPage::fillStartupList()
+{
+    m_startup->clear();
+    m_startup->addItem(i18nc("@item:inlistbox no startup profile", "None"), QString());
+    for (const WhaleStyle &style : std::as_const(m_styles)) {
+        m_startup->addItem(style.name, style.id);
+    }
+    const int index = m_startup->findData(m_startupId);
+    m_startup->setCurrentIndex(index < 0 ? 0 : index);
 }
 
 void WhaleStylesSettingsPage::showCurrentStyle()
@@ -204,6 +236,9 @@ void WhaleStylesSettingsPage::showCurrentStyle()
             item->setText(1, element->describe(it->value));
             item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
             item->setCheckState(0, it->enabled ? Qt::Checked : Qt::Unchecked);
+            if (element->newWindowsOnly()) {
+                item->setToolTip(0, i18nc("@info:tooltip", "Applied only when a new window opens with this profile as the startup profile."));
+            }
             if (m_window && !element->isAvailable(m_window)) {
                 // F1: e.g. the style of a view with a style for each folder.
                 item->setFlags(item->flags() & ~Qt::ItemIsEnabled);
@@ -296,6 +331,9 @@ void WhaleStylesSettingsPage::removeCurrent()
     if (index < 0) {
         return;
     }
+    if (m_styles.at(index).id == m_startupId) {
+        m_startupId.clear();
+    }
     m_styles.removeAt(index);
     const int next = std::min<int>(index, m_styles.size() - 1);
     fillList(next < 0 ? QString() : m_styles.at(next).id);
@@ -329,6 +367,7 @@ void WhaleStylesSettingsPage::takeListOrder()
     }
     if (ordered.size() == m_styles.size()) {
         m_styles = ordered;
+        fillStartupList();
         updateButtons();
         markChanged();
     }
@@ -352,6 +391,7 @@ void WhaleStylesSettingsPage::renameCurrent()
     // The ID stays, and with it the action and its shortcut.
     style->name = name;
     m_list->currentItem()->setText(name);
+    fillStartupList();
     markChanged();
 }
 

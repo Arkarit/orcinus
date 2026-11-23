@@ -6,6 +6,8 @@
 
 #include "whalestylemanager.h"
 
+#include "whaledefaultstyles.h"
+
 #include "dolphinmainwindow.h"
 #include "whalestyleelement.h"
 #include "whalestyleelements.h"
@@ -124,18 +126,30 @@ void WhaleStyleManager::plugStyles()
     rebuildStyleActions();
 }
 
-bool WhaleStyleManager::applyStyle(const QString &id)
+bool WhaleStyleManager::applyStyle(const QString &id, ApplyReason reason)
 {
     const WhaleStyle *style = WhaleStyles::self()->store().style(id);
     if (!style) {
         return false;
     }
     // A copy: applying may let the window reload the styles.
-    applyStyle(WhaleStyle(*style));
+    applyStyle(WhaleStyle(*style), reason);
     return true;
 }
 
-void WhaleStyleManager::applyStyle(const WhaleStyle &style)
+QString WhaleStyleManager::applyStartupStyle(bool firstStart)
+{
+    QString id = WhaleStyles::self()->store().startupStyleId();
+    if (id.isEmpty() && firstStart) {
+        id = WhaleDefaultStyles::startStyleId();
+    }
+    if (id.isEmpty() || !applyStyle(id, ApplyReason::NewWindow)) {
+        return QString();
+    }
+    return id;
+}
+
+void WhaleStyleManager::applyStyle(const WhaleStyle &style, ApplyReason reason)
 {
     const QList<const WhaleStyleElement *> elements = WhaleStyleElements::self().elements();
     for (const WhaleStyleElement *element : elements) {
@@ -146,6 +160,9 @@ void WhaleStyleManager::applyStyle(const WhaleStyle &style)
         } else {
             state.value = element->valueIfMissing();
             state.enabled = !state.value.isEmpty();
+        }
+        if (element->newWindowsOnly() && reason != ApplyReason::NewWindow) {
+            continue;
         }
         if (state.enabled && element->isAvailable(m_window)) {
             element->apply(m_window, state.value);

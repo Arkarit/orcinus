@@ -59,6 +59,8 @@ private Q_SLOTS:
     void testStyleWithoutShownViews();
     void testStyleWithoutNewPanels();
     void testDefaultStyles();
+    void testWindowSizeOnlyForNewWindows();
+    void testStartupStyle();
 
 private:
     DolphinMainWindow *openWindow();
@@ -232,7 +234,7 @@ void WhaleStyleManagerTest::testSaveAddsActionInAllWindows()
     WhaleStyleStore reread(WhaleStyleStore::defaultConfig());
     const WhaleStyle *style = reread.style(QStringLiteral("bilder-mehr"));
     QVERIFY(style);
-    QCOMPARE(style->elements.size(), 14);
+    QCOMPARE(style->elements.size(), 15);
     QVERIFY(!style->elements.contains(QStringLiteral("filterBar.right")));
     QVERIFY(!style->elements.contains(QStringLiteral("view.right")));
     for (const WhaleStyleElementState &state : style->elements) {
@@ -562,6 +564,61 @@ void WhaleStyleManagerTest::testStyleWithoutNewPanels()
 }
 
 QTEST_MAIN(WhaleStyleManagerTest)
+
+void WhaleStyleManagerTest::testWindowSizeOnlyForNewWindows()
+{
+    DolphinMainWindow *window = openWindow();
+    QVERIFY(window);
+    WhaleStyleManager *manager = WhaleStyleManager::ensure(window);
+    const QSize before = window->size();
+    QVERIFY(manager->saveCurrentAsStyle(QStringLiteral("Klein")) == QStringLiteral("klein"));
+    WhaleStyle style = *WhaleStyles::self()->store().style(QStringLiteral("klein"));
+    QCOMPARE(style.elements.value(QStringLiteral("windowSize")).value, QStringLiteral("%1x%2").arg(before.width()).arg(before.height()));
+    style.elements[QStringLiteral("windowSize")].value = QStringLiteral("600x400");
+
+    // Switching profiles never resizes the window.
+    manager->applyStyle(style);
+    QTest::qWait(50);
+    QCOMPARE(window->size(), before);
+
+    manager->applyStyle(style, WhaleStyleManager::ApplyReason::NewWindow);
+    QTRY_COMPARE(window->size(), QSize(600, 400));
+
+    // Unchecked: not even for a new window.
+    window->resize(before);
+    QTRY_COMPARE(window->size(), before);
+    style.elements[QStringLiteral("windowSize")].enabled = false;
+    manager->applyStyle(style, WhaleStyleManager::ApplyReason::NewWindow);
+    QTest::qWait(50);
+    QCOMPARE(window->size(), before);
+}
+
+void WhaleStyleManagerTest::testStartupStyle()
+{
+    DolphinMainWindow *window = openWindow();
+    QVERIFY(window);
+    WhaleStyleManager *manager = WhaleStyleManager::ensure(window);
+    makeSchlicht(window);
+    QCOMPARE(manager->saveCurrentAsStyle(QStringLiteral("Schlicht")), QStringLiteral("schlicht"));
+    makeBilder(window);
+    QCOMPARE(manager->saveCurrentAsStyle(QStringLiteral("Bilder")), QStringLiteral("bilder"));
+
+    // Without a startup profile nothing happens; on the first start the shipped one would.
+    QCOMPARE(manager->applyStartupStyle(false), QString());
+    QCOMPARE(manager->applyStartupStyle(true), QString()); // not in this store
+
+    WhaleStyleStore &store = WhaleStyles::self()->editableStore();
+    QVERIFY(store.setStartupStyleId(QStringLiteral("schlicht")));
+    WhaleStyles::self()->save();
+
+    DolphinMainWindow *second = openWindow();
+    QVERIFY(second);
+    WhaleStyleManager *secondManager = WhaleStyleManager::ensure(second);
+    makeBilder(second);
+    QCOMPARE(secondManager->applyStartupStyle(false), QStringLiteral("schlicht"));
+    QCOMPARE(secondManager->lastStyleId(), QStringLiteral("schlicht"));
+    QTRY_VERIFY(dock(second, "infoDock")->isHidden());
+}
 
 void WhaleStyleManagerTest::testDefaultStyles()
 {

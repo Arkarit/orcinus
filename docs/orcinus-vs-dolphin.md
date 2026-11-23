@@ -243,12 +243,18 @@ pictures.
   a click in *View → Profiles* or its keyboard shortcut.
 - A profile can set: split view, the display style and the view of each side, linked views,
   zoom, the information density (4.6), the bar density (2.5), the filter bar of each side,
-  menu bar, toolbars, file view toolbars, status bar and panels. Elements without a check mark are left as they are, so a profile can also change
-  only a few things.
+  menu bar, toolbars, file view toolbars, status bar, panels and the window size (size or
+  maximized; not the position, which applications cannot set on Wayland). Elements without a
+  check mark are left as they are, so a profile can also change only a few things.
 - *Save Profile "…"* updates the profile applied last with the current state of the window.
 - The *Profiles* settings page lists the profiles: order, name, shortcut, the elements and
   their values, *New from Window*, *Capture Again* and *Apply to Window*.
 - An applied profile is also what new windows, tabs and split views start with.
+- *Startup profile* on the *Profiles* settings page: every new window opens with this
+  profile. It is applied on top of what Orcinus remembers, including the folders and tabs
+  restored with *Remember open folders and tabs*, so it overrides the remembered look. The
+  window size of a profile is applied only then; switching profiles in an open window never
+  resizes it. Views popped out of a split view keep their own look.
 - New users get seven profiles, applied from the main toolbar: *Compact* (applied on the first
   start), *Dual Compact*, *Details*, *Dual Details*, *Images Only* (large icons, filtered to
   image files, no panels), *Locked Cushion Map* (Details and the Cushion Treemap, linked) and

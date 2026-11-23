@@ -32,6 +32,7 @@
 #include <QDockWidget>
 #include <QMenuBar>
 #include <QScopeGuard>
+#include <QScreen>
 #include <QStandardPaths>
 #include <QTest>
 
@@ -76,6 +77,7 @@ private Q_SLOTS:
     void testStatusBar();
     void testPanels();
     void testWholeWindow();
+    void testWindowSize();
 
 private:
     DolphinViewContainer *showMainWindow();
@@ -170,7 +172,8 @@ void WhaleStyleElementsTest::testOrder()
                           QStringLiteral("toolBars"),
                           QStringLiteral("fileViewToolBars"),
                           QStringLiteral("statusBar"),
-                          QStringLiteral("panels")}));
+                          QStringLiteral("panels"),
+                          QStringLiteral("windowSize")}));
 }
 
 void WhaleStyleElementsTest::testSplit()
@@ -563,8 +566,49 @@ void WhaleStyleElementsTest::testWholeWindow()
     QCOMPARE(view->viewMode(), DolphinView::IconsView);
     QVERIFY(view->previewsShown());
     for (const WhaleStyleElement *e : elements) {
+        if (e->newWindowsOnly()) {
+            continue; // the window size: bounded by the (offscreen) screen, see testWindowSize()
+        }
         QCOMPARE(e->capture(m_mainWindow.data()), bilder.value(e->key()));
     }
+}
+
+void WhaleStyleElementsTest::testWindowSize()
+{
+    QVERIFY(showMainWindow());
+    const WhaleStyleElement *size = element("windowSize");
+    QVERIFY(size->newWindowsOnly());
+    QVERIFY(!element("panels")->newWindowsOnly());
+
+    const QSize available = m_mainWindow->screen()->availableSize();
+    const QSize wanted = QSize(available.width() / 2, available.height() / 2);
+    size->apply(m_mainWindow.data(), QStringLiteral("%1x%2").arg(wanted.width()).arg(wanted.height()));
+    QTRY_COMPARE(m_mainWindow->size(), wanted);
+    QCOMPARE(size->capture(m_mainWindow.data()), QStringLiteral("%1x%2").arg(wanted.width()).arg(wanted.height()));
+    QCOMPARE(size->describe(QStringLiteral("1200x800")), QStringLiteral("1200 × 800"));
+
+    // Never larger than the screen.
+    size->apply(m_mainWindow.data(), QStringLiteral("%1x%2").arg(available.width() + 500).arg(available.height() + 500));
+    QTRY_VERIFY(m_mainWindow->width() <= available.width() && m_mainWindow->height() <= available.height());
+
+    // Unreadable: left as it is.
+    size->apply(m_mainWindow.data(), QStringLiteral("%1x%2").arg(wanted.width()).arg(wanted.height()));
+    QTRY_COMPARE(m_mainWindow->size(), wanted);
+    for (const QString &broken : {QStringLiteral("big"), QStringLiteral("0x100"), QStringLiteral("100x"), QString()}) {
+        size->apply(m_mainWindow.data(), broken);
+        QVERIFY(size->describe(broken).isEmpty());
+    }
+    QCOMPARE(m_mainWindow->size(), wanted);
+
+    size->apply(m_mainWindow.data(), QStringLiteral("maximized"));
+    QTRY_VERIFY(m_mainWindow->isMaximized());
+    QCOMPARE(size->capture(m_mainWindow.data()), QStringLiteral("maximized"));
+    QCOMPARE(size->describe(QStringLiteral("maximized")), QStringLiteral("Maximized"));
+
+    // A size ends the maximized state.
+    size->apply(m_mainWindow.data(), QStringLiteral("%1x%2").arg(wanted.width()).arg(wanted.height()));
+    QTRY_VERIFY(!m_mainWindow->isMaximized());
+    QTRY_COMPARE(m_mainWindow->size(), wanted);
 }
 
 /**

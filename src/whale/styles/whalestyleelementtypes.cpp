@@ -35,6 +35,7 @@
 #include <QDockWidget>
 #include <QMenuBar>
 #include <QPointer>
+#include <QScreen>
 
 #include <algorithm>
 #include <array>
@@ -1130,6 +1131,83 @@ public:
                                : i18nc("@item:intext style element value, list of panels", "Shown: %1", shown.join(QStringLiteral(", ")));
     }
 };
+
+// ---- windowSize ----
+
+// The size of the window: "maximized" or "<width>x<height>" in device independent pixels.
+// Only for a new window (the startup profile): switching profiles never resizes a window.
+// Not the position, which an application cannot set on Wayland.
+class WindowSizeElement : public WhaleStyleElement
+{
+public:
+    QString key() const override
+    {
+        return QStringLiteral("windowSize");
+    }
+    QString title() const override
+    {
+        return i18nc("@item:inlistbox style element", "Window size");
+    }
+    bool newWindowsOnly() const override
+    {
+        return true;
+    }
+    QString capture(const DolphinMainWindow *window) const override
+    {
+        if (window->isMaximized()) {
+            return QStringLiteral("maximized");
+        }
+        // Full screen keeps the size the window has without it.
+        const QSize size = window->isFullScreen() ? window->normalGeometry().size() : window->size();
+        return QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+    }
+    void apply(DolphinMainWindow *window, const QString &value) const override
+    {
+        if (value.trimmed() == QLatin1String("maximized")) {
+            window->setWindowState((window->windowState() & ~Qt::WindowFullScreen) | Qt::WindowMaximized);
+            return;
+        }
+        const std::optional<QSize> size = sizeFrom(value);
+        if (!size) {
+            return;
+        }
+        window->setWindowState(window->windowState() & ~(Qt::WindowMaximized | Qt::WindowFullScreen));
+        QSize bounded = *size;
+        if (const QScreen *screen = window->screen()) {
+            // Saved on a larger screen: never larger than this one.
+            bounded = bounded.boundedTo(screen->availableSize());
+        }
+        window->resize(bounded);
+    }
+    QString describe(const QString &value) const override
+    {
+        if (value.trimmed() == QLatin1String("maximized")) {
+            return i18nc("@item:intext window size", "Maximized");
+        }
+        const std::optional<QSize> size = sizeFrom(value);
+        if (!size) {
+            return QString();
+        }
+        return i18nc("@item:intext window size, %1 width, %2 height in pixels", "%1 × %2", QString::number(size->width()), QString::number(size->height()));
+    }
+
+private:
+    static std::optional<QSize> sizeFrom(const QString &value)
+    {
+        const QStringList parts = value.trimmed().split(u'x');
+        if (parts.size() != 2) {
+            return std::nullopt;
+        }
+        bool widthOk = false;
+        bool heightOk = false;
+        const int width = parts.at(0).toInt(&widthOk);
+        const int height = parts.at(1).toInt(&heightOk);
+        if (!widthOk || !heightOk || width <= 0 || height <= 0) {
+            return std::nullopt;
+        }
+        return QSize(width, height);
+    }
+};
 }
 
 void WhaleStyleElementTypes::addTo(WhaleStyleElements &elements)
@@ -1151,4 +1229,5 @@ void WhaleStyleElementTypes::addTo(WhaleStyleElements &elements)
     elements.add(std::make_unique<FileViewToolBarsElement>());
     elements.add(std::make_unique<StatusBarElement>());
     elements.add(std::make_unique<PanelsElement>());
+    elements.add(std::make_unique<WindowSizeElement>());
 }

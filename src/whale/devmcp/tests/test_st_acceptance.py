@@ -15,6 +15,7 @@ styles, driven only through the dev MCP:
   G  back to "Bilder" after the restart
   H  the filter bars (FB3): media on the left, their texts on the right
   I  "Kissen" (LK7): the treemap on the right and the linked views
+  J  startup profile "Bilder" with a window size: the restarted window is "Bilder", 760x560
 
 Whale runs on a private D-Bus session bus (the script starts one) and is restarted like O3.
 Arguments as test_o3_acceptance.py.
@@ -234,7 +235,7 @@ def run(args, work):
         check('"id":"zwei"' in reply[0]["text"].replace(" ", ""), "E: new id", reply)
         state = s.expect("E: three styles", {"styles.menu": {"$contains": "whale_style_zwei"}}, focus=False)
         zwei = state["styles"]["list"][2]
-        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 16, "E: all elements captured", zwei)
+        check(zwei["elements"]["split"]["enabled"] and len(zwei["elements"]) == 17, "E: all elements captured", zwei)
         check("[Style][zwei]" in styles_file.read_text(), "E: in the file")
         client.tool("apply_style", id="bilder")
         s.expect("E: Bilder closes the right view", BILDER, focus=False)
@@ -306,6 +307,20 @@ def run(args, work):
         check(kissen["elements"]["view.right"]["description"] == "Cushion Treemap", "I: description", kissen["elements"])
         check(kissen["elements"]["splitLock"]["description"] == "Linked", "I: lock description", kissen["elements"])
         print("ok    I: treemap and lock")
+        w.quit()
+
+        # J: the startup profile overrides the remembered state ("Kissen") and sets the size
+        text = styles_file.read_text().replace("[General]\n", "[General]\nStartupProfile=bilder\n", 1)
+        text += "\n[Style][bilder][Element][windowSize]\nEnabled=true\nValue=760x560\n"
+        styles_file.write_text(text)
+        w = Session(args, work, folder)
+        client = w.client
+        s = Scenario(client, args.screenshots)
+        s.require_keyboard_focus = False
+        s.expect("J: restarted with the startup profile", dict(BILDER, **{
+            "panes.0.loading": False, "splitLock.locked": False, "styles.lastStyle": "bilder",
+            "styles.current.windowSize": "760x560"}), focus=False)
+        print("ok    J: startup profile")
         w.quit()
     finally:
         w.kill()

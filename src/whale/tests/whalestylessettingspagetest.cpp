@@ -20,6 +20,7 @@
 #include <KKeySequenceWidget>
 #include <KLocalizedString>
 
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QLineEdit>
 #include <QListWidget>
@@ -51,6 +52,7 @@ private Q_SLOTS:
     void testCaptureAgain();
     void testApplyToWindowKeepsStatusBarOnOk();
     void testUnavailableInFolderMode();
+    void testStartupStyle();
 
 private:
     void openDialog();
@@ -162,7 +164,7 @@ void WhaleStylesSettingsPageTest::testListsStyles()
     QCOMPARE(child<QListWidget>("styleList")->currentRow(), 0);
     QCOMPARE(child<QLineEdit>("styleName")->text(), QStringLiteral("Schlicht"));
     auto tree = child<QTreeWidget>("styleElements");
-    QCOMPARE(tree->topLevelItemCount(), 16);
+    QCOMPARE(tree->topLevelItemCount(), 17);
     // Captured with a single view: no filter and no view of a right view.
     QVERIFY(!(elementItem(QStringLiteral("filterBar.right"))->flags() & Qt::ItemIsEnabled));
     QVERIFY(!(elementItem(QStringLiteral("view.right"))->flags() & Qt::ItemIsEnabled));
@@ -230,6 +232,42 @@ void WhaleStylesSettingsPageTest::testElementsOnOff()
     elementItem(QStringLiteral("panels"))->setCheckState(0, Qt::Checked);
     apply();
     QVERIFY(WhaleStyles::self()->store().style(id)->elements.value(QStringLiteral("panels")).enabled);
+}
+
+void WhaleStylesSettingsPageTest::testStartupStyle()
+{
+    saveStyle(QStringLiteral("Schlicht"));
+    saveStyle(QStringLiteral("Bilder"));
+    openDialog();
+
+    auto startup = child<QComboBox>("startupStyle");
+    QVERIFY(startup);
+    QCOMPARE(startup->count(), 3);
+    QCOMPARE(startup->currentIndex(), 0); // None
+    QCOMPARE(startup->itemText(2), QStringLiteral("Bilder"));
+
+    // The window size is marked as an element for new windows only.
+    QVERIFY(!elementItem(QStringLiteral("windowSize"))->toolTip(0).isEmpty());
+
+    startup->setCurrentIndex(2);
+    Q_EMIT startup->activated(2);
+    apply();
+    WhaleStyles::self()->reload();
+    QCOMPARE(WhaleStyles::self()->store().startupStyleId(), QStringLiteral("bilder"));
+
+    // A renamed profile keeps being the startup profile, with its new name.
+    child<QListWidget>("styleList")->setCurrentRow(1);
+    child<QLineEdit>("styleName")->setText(QStringLiteral("Bilder & mehr"));
+    Q_EMIT child<QLineEdit>("styleName")->editingFinished();
+    QCOMPARE(startup->currentText(), QStringLiteral("Bilder & mehr"));
+
+    // Deleting it leaves no startup profile.
+    child<QPushButton>("removeStyle")->click();
+    QCOMPARE(startup->currentIndex(), 0);
+    QCOMPARE(startup->count(), 2);
+    apply();
+    WhaleStyles::self()->reload();
+    QCOMPARE(WhaleStyles::self()->store().startupStyleId(), QString());
 }
 
 void WhaleStylesSettingsPageTest::testOrderAndDelete()

@@ -14,6 +14,7 @@
 
 class DolphinMainWindow;
 class KKeySequenceWidget;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
@@ -50,6 +51,7 @@ public:
 private:
     void loadStyles();
     void fillList(const QString &currentId);
+    void fillStartupList();
     void showCurrentStyle();
     void updateButtons();
     int currentIndex() const;
@@ -71,6 +73,7 @@ private:
 
     QPointer<DolphinMainWindow> m_window;
     QList<WhaleStyle> m_styles;
+    QString m_startupId;
     bool m_filling = false;
 
     QListWidget *m_list = nullptr;
@@ -78,6 +81,7 @@ private:
     QPushButton *m_removeButton = nullptr;
     QPushButton *m_upButton = nullptr;
     QPushButton *m_downButton = nullptr;
+    QComboBox *m_startup = nullptr;
     QWidget *m_details = nullptr;
     QLineEdit *m_name = nullptr;
     KKeySequenceWidget *m_shortcut = nullptr;

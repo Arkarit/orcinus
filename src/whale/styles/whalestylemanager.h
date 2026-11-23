@@ -61,14 +61,29 @@ public:
     /** Creates the actions of the styles and keeps them up to date; after setupGUI(). */
     void plugStyles();
 
+    /** Why a style is applied. */
+    enum class ApplyReason {
+        /** To a window that is open already (menu, shortcut, settings page). */
+        Switch,
+        /** To a new window (the startup profile): also the elements for new windows only. */
+        NewWindow,
+    };
+
     /**
      * Applies the style with @p id to the window.
      * @return Whether there is such a style.
      */
-    bool applyStyle(const QString &id);
+    bool applyStyle(const QString &id, ApplyReason reason = ApplyReason::Switch);
 
     /** Applies @p style, which need not be saved (e.g. as edited on the settings page). */
-    void applyStyle(const WhaleStyle &style);
+    void applyStyle(const WhaleStyle &style, ApplyReason reason = ApplyReason::Switch);
+
+    /**
+     * Applies the startup profile to a new window, or on the first start the shipped profile
+     * a new user starts with (@p firstStart).
+     * @return The ID of the applied style, or empty.
+     */
+    QString applyStartupStyle(bool firstStart);
 
     /** @return The ID of the style applied or saved last in this window, or empty. */
     QString lastStyleId() const;
