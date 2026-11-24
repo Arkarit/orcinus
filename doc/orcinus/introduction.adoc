@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Orcinus contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Source: .privatedoc/orcinus-handbook-raw/Introduction.md (German: Einleitung.md)
+// Source: .privatedoc/orcinus-handbook-raw/Introduction.md (German: Einfuehrung.md)
 
 [#orcinus-introduction]
 == Introduction to Orcinus
