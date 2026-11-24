@@ -4,7 +4,7 @@
 // Source: .privatedoc/orcinus-handbook-raw/Introduction.md (German: Einleitung.md)
 
 [#orcinus-introduction]
-== Introduction
+== Introduction to Orcinus
 
 [#why-orcinus]
 === Why Orcinus at all? Isn't Dolphin good enough?

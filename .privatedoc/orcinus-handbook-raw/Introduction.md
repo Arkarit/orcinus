@@ -1,4 +1,4 @@
-# Introduction
+# Introduction to Orcinus
 
 ## Why Orcinus at all? Isn't Dolphin good enough?
 
