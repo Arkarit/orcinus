@@ -64,9 +64,9 @@ bars too. The location bar can be moved or removed like any toolbar element.
 
 ### 2.3 Split and search buttons
 
-- A `>>` button at the right end of the toolbar of the only view opens the split view. With
-  two views, a `<<` button at the end of the right view's toolbar closes the right view,
-  whatever "close split view" is set to. Right-clicking `<<` offers *Split View To Tabs*
+- A `<<` button at the right end of the toolbar of the only view opens the split view. With
+  two views, a `>>` button at the end of the right view's toolbar closes the right view,
+  whatever "close split view" is set to. Right-clicking `>>` offers *Split View To Tabs*
   and *Pop out Right View* (into a window of its own).
 - The search button of a file view toolbar opens the search bar of that view.
 
