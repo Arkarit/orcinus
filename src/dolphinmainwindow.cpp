@@ -2745,6 +2745,10 @@ void DolphinMainWindow::setupDockWidgets()
     auto *aiPanel = new WhaleAiPanel(aiDock);
     aiPanel->setCustomContextMenuActions({lockLayoutAction});
     aiDock->setWidget(aiPanel);
+#if HAVE_AI_CANVAS
+    // The canvas is at least as wide as the AI panel; its own minimum is much smaller.
+    aiCanvas->setMinimumWidth(aiPanel->minimumSizeHint().width());
+#endif
     createPanelAction(QIcon::fromTheme(QStringLiteral("dialog-messages")), Qt::Key_F8, aiDock, QStringLiteral("show_ai_panel"));
     addDockWidget(Qt::RightDockWidgetArea, aiDock);
     // Hidden until the user opens it, also for users whose saved window state does not know it
