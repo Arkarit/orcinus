@@ -72,15 +72,21 @@ add_custom_command(OUTPUT ${cache}
 
 add_custom_target(orcinus-handbook ALL DEPENDS ${cache})
 
-# The handbook as HTML pages in <build>/doc/orcinus/html, for a look in a browser and later
-# for the website (HB3). Not part of "all".
+# The handbook as HTML pages in <build>/doc/orcinus/html, readable in a web browser (KDE's
+# style sheets copied next to them, see browser-html.cmake); later the base for the website
+# (HB3). Not part of "all". KHelpCenter does not use these pages, it reads the cache.
 set(html_dir ${CMAKE_CURRENT_BINARY_DIR}/html)
+find_path(WHALE_KDOCTOOLS_COMMON_DIR kde-default.css
+    PATH_SUFFIXES ${KDE_INSTALL_DOCBUNDLEDIR}/en/kdoctools6-common share/doc/HTML/en/kdoctools6-common
+    DOC "KDocTools' kdoctools6-common folder (style sheets of the handbook pages)")
 add_custom_target(orcinus-handbook-html
     COMMAND ${CMAKE_COMMAND} -E rm -rf ${html_dir}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${html_dir}
     COMMAND ${CMAKE_COMMAND} -E chdir ${html_dir} ${meinproc} --check ${book}
     COMMAND ${CMAKE_COMMAND} -E copy ${dolphin_images} ${orcinus_images} ${html_dir}
-    DEPENDS ${cache}
+    COMMAND ${CMAKE_COMMAND} -DHTML_DIR=${html_dir} -DCOMMON_DIR=${WHALE_KDOCTOOLS_COMMON_DIR}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/browser-html.cmake
+    DEPENDS ${cache} ${CMAKE_CURRENT_SOURCE_DIR}/browser-html.cmake
     COMMENT "Writing the Orcinus handbook as HTML to ${html_dir}"
     VERBATIM)
 
