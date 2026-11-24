@@ -569,43 +569,61 @@ FocusScope {
             }
         }
 
-        RowLayout {
-            spacing: 6
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 4
 
-            Button {
-                objectName: "prevBtn"
-                text: "◀"
-                padding: 6
-                enabled: root.index > 0
-                onClicked: root.go(root.index - 1)
-            }
-            Button {
-                objectName: "nextBtn"
-                text: "▶"
-                padding: 6
-                enabled: root.index >= 0 && root.index < root.images.length - 1
-                onClicked: root.go(root.index + 1)
-            }
-            Button {
-                objectName: "clearBtn"
-                text: "Clear rating"
-                padding: 6
-                enabled: root.currentRating > 0
-                onClicked: root.rate(0)
-            }
-            CheckBox {
-                objectName: "autoNextBox"
-                text: "Auto-advance"
-                checked: root.autoNext
-                onToggled: {
-                    root.autoNext = checked;
-                    orcinus.setSetting("autoNext", checked);
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 6
+
+                Button {
+                    objectName: "prevBtn"
+                    text: "◀"
+                    padding: 6
+                    Layout.fillWidth: true
+                    enabled: root.index > 0
+                    onClicked: root.go(root.index - 1)
+                }
+                Button {
+                    objectName: "nextBtn"
+                    text: "▶"
+                    padding: 6
+                    Layout.fillWidth: true
+                    enabled: root.index >= 0 && root.index < root.images.length - 1
+                    onClicked: root.go(root.index + 1)
+                }
+                Button {
+                    objectName: "clearBtn"
+                    text: "Clear rating"
+                    padding: 6
+                    Layout.fillWidth: true
+                    enabled: root.currentRating > 0
+                    onClicked: root.rate(0)
                 }
             }
-            Item { Layout.fillWidth: true }
-        }
 
-        RowLayout {
+            RowLayout {
+                Layout.fillWidth: true
+
+                CheckBox {
+                    objectName: "autoNextBox"
+                    text: "Auto-advance"
+                    checked: root.autoNext
+                    onToggled: {
+                        root.autoNext = checked;
+                        orcinus.setSetting("autoNext", checked);
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                Button {
+                    objectName: "exportBtn"
+                    text: "Write XMP"
+                    padding: 6
+                    onClicked: root.writeXmp()
+                }
+            }
+
             Text {
                 id: status
                 objectName: "status"
@@ -616,13 +634,6 @@ FocusScope {
                 text: orcinus.backend.state === "waiting"
                     ? "Click Start in the tab bar first."
                     : (root.statusMessage || "1–5 rate · → next · ← previous · 0 clear rating")
-            }
-
-            Button {
-                objectName: "exportBtn"
-                text: "Write XMP"
-                padding: 6
-                onClicked: root.writeXmp()
             }
         }
     }
