@@ -1,4 +1,4 @@
-# Einleitung
+# Einführung in Orcinus
 
 ## Warum überhaupt Orcinus? Dolphin ist doch gut genug!
 
