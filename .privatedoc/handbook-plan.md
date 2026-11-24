@@ -100,5 +100,7 @@ C. **Assembled book: works.** Orcinus intro, Dolphin chapters, an Orcinus chapte
     `orcinus.adoc`, placed in `index.docbook.in`); image placeholders become `// TODO image`
     comments until the image exists. The German text is kept for HB4 (translation).
   - Introduction done (`introduction.adoc`, ID `orcinus-introduction`).
+  - Preview: `./show-handbook.sh` builds `orcinus-handbook-html` in `../build-whale` and opens
+    the pages in the browser (style sheets copied next to them, `browser-html.cmake`).
 - HB3 HTML for the website.
 - HB4 Translations (po4a for the AsciiDoc parts; Dolphin's parts from `po/<lang>/docs/dolphin`).
