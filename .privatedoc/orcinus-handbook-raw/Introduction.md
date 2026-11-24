@@ -20,8 +20,9 @@ First impressions can be deceiving, however – Orcinus is not just a dolphin in
 
 Discovering these features and learning how to put them to good use is precisely what this handbook is all about.
 
+Please note that the first part of this handbook has been taken directly from the Dolphin handbook. Most of it still applies to Orcinus. Any differences and new features are covered in the second, Orcinus-specific part of the handbook.
+
 **Our motto:**
 
 *Make the common case simple and excellent.*
-
 *Make the uncommon case possible.*

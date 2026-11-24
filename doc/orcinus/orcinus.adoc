@@ -12,3 +12,5 @@
 :idseparator: -
 
 include::introduction.adoc[]
+
+include::little-things.adoc[]

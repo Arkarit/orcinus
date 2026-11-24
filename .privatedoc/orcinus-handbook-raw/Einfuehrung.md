@@ -18,8 +18,8 @@ Wer sich also mit Dolphin auskennt, wird sich in Orcinus auf den ersten Blick zu
 
 Der erste Blick trügt jedoch – Orcinus ist nicht nur ein Delfin im schwarz-weißen Skin, sondern erweitert das stabile, bewährte Dolphin-Gerüst um eine Fülle nützlicher Funktionen.
 Genau diese Funktionen zu entdecken und anwenden zu lernen, ist der Sinn dieses Handbuchs.
+Bitte beachtet, dass der erste Teil des Handbuchs direkt von Dolphin übernommen wurde. Das meiste trifft zu; wo es Abweichungen und neue Funktionen gibt, erfahrt Ihr im zweiten, Orcinus-spezifischem Teil des Handbuchs.
 
-Unser Motto:
-
-Make the common case simple and excellent.
-Make the uncommon case possible.
+**Unser Motto:**
+*Make the common case simple and excellent.*
+*Make the uncommon case possible.*
