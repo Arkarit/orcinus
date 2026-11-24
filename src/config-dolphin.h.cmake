@@ -15,6 +15,8 @@
 #define WHALE_VERSION "@WHALE_VERSION@"
 #define WHALE_BUG_URL "@WHALE_BUG_URL@"
 #define WHALE_HOMEPAGE "@WHALE_HOMEPAGE@"
+/* The handbook Help opens: help:/WHALE_HANDBOOK/ ("orcinus", or "dolphin" without the Orcinus handbook) */
+#define WHALE_HANDBOOK "@WHALE_HANDBOOK@"
 #cmakedefine01 WHALE_PROVIDE_FILEMANAGER1
 #cmakedefine01 WHALE_DEV_BUILD
 #cmakedefine01 WHALE_ENABLE_DEV_MCP

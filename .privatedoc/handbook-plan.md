@@ -16,9 +16,10 @@ Dolphin's handbook and writes Orcinus' differences and additions around it.
   and the translations would be lost.
 - **Orcinus' parts are written in AsciiDoc** (easier to write, also for non-developers) and
   converted to DocBook at build time with Asciidoctor.
-- **A small DocBook frame** (`doc/orcinus/index.docbook`, KDE DocBook 4.5 dialect) assembles the
-  book: Orcinus chapters plus Dolphin's chapters or sections, taken from `doc/index.docbook`
-  with XInclude/XPointer, without touching that file.
+- **A small DocBook frame** (`doc/orcinus/index.docbook.in`, KDE DocBook 4.5 dialect) assembles
+  the book: Orcinus chapters plus Dolphin's chapters or sections, cut as text out of
+  `doc/index.docbook` without touching that file (`<!-- orcinus:… -->` markers, replaced by
+  `doc/orcinus/assemble-handbook.cmake`). Not XInclude, see HB1.
 - Granularity: Orcinus text can go before, between and after Dolphin's chapters and `sect1`
   sections, and link into them. Text inside a Dolphin section cannot be changed without
   changing the upstream file; where Dolphin's text is wrong for Orcinus, a note in the Orcinus
@@ -28,7 +29,7 @@ Dolphin's handbook and writes Orcinus' differences and additions around it.
 
 Spike files are not kept; the steps are described below.
 
-A. **XInclude: works, with a preprocessing step.**
+A. **XInclude: works, with a preprocessing step.** (Replaced in HB1, see there.)
    - `meinproc6` does not process XInclude itself (the element is left alone, a validity error).
    - `xmllint --loaddtd --xinclude --nonet` with `XML_CATALOG_FILES` = KDocTools' catalog
      resolves it; KDE entities of the frame stay, those of the included part are expanded.
@@ -71,9 +72,27 @@ C. **Assembled book: works.** Orcinus intro, Dolphin chapters, an Orcinus chapte
 
 ## Steps (after the spike)
 
-- HB1 Build: CMake custom command (Asciidoctor → DocBook fragment, xmllint XInclude → resolved
-  book, `kdoctools_create_handbook` on the result), install as `orcinus` handbook; Help menu
-  points to `help:/orcinus`.
+- HB1 Build — **done 2026-11-24.**
+  - XInclude was dropped: `xmllint` expands the KDE entities of the included part
+    (`&dolphin;` → `<application>…`), and the expanded markup is invalid in some places
+    (`guimenuitem`, `holder`, `action`), so `meinproc6 --check` fails (exit 1). The spike
+    had taken these for warnings. Instead the frame has `<!-- orcinus:… -->` markers that
+    `assemble-handbook.cmake` (`cmake -P`) replaces with text cut out of Dolphin's file and
+    of the converted Orcinus parts; entities stay references, `--check` passes cleanly and
+    fails on unknown IDs. `xmllint` is no longer an own dependency (meinproc6 uses it).
+  - Chain in `doc/orcinus/CMakeLists.txt`: Asciidoctor (`--failure-level WARN`) →
+    `db5-to-db45.xsl` via `meinproc6 --stylesheet` → assembly → `meinproc6 --check --cache`.
+    Not `kdoctools_create_handbook`: it works on source-dir files only. Installed to
+    `share/doc/HTML/en/orcinus` with Dolphin's images; target `orcinus-handbook-html` writes
+    HTML pages to `<build>/doc/orcinus/html` (not in `all`).
+  - Option `WHALE_BUILD_HANDBOOK` (ON); without KF6DocTools or asciidoctor it is skipped and
+    `WHALE_HANDBOOK` falls back to `dolphin`. `X-DocPath` of the desktop file (F1, Help menu)
+    and the `help:/dolphin/` links of inherited What's This texts point to
+    `help:/${WHALE_HANDBOOK}/` (`Dolphin::withHandbookLinks()`, applied after translation,
+    so the upstream strings and their translations stay unchanged).
+  - Book now: Orcinus introduction (placeholder), Dolphin's chapters, own Credits chapter
+    holding Dolphin's credits body. Authors/copyright: Orcinus + Dolphin's handbook's.
+  - Open: packaging recipes (PPA, AUR, CI images) need asciidoctor as build dependency.
 - HB2 Structure and first Orcinus chapters (from `docs/orcinus-vs-dolphin.md`).
 - HB3 HTML for the website.
 - HB4 Translations (po4a for the AsciiDoc parts; Dolphin's parts from `po/<lang>/docs/dolphin`).

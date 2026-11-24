@@ -50,6 +50,12 @@ QString Dolphin::mainWindowDbusPath()
     return QStringLiteral("/" WHALE_COMPONENT "/" WHALE_DISPLAY_NAME "_1");
 }
 
+QString Dolphin::withHandbookLinks(const QString &text)
+{
+    QString result = text;
+    return result.replace(QLatin1String("help:/dolphin/"), QLatin1String("help:/" WHALE_HANDBOOK "/"));
+}
+
 void Dolphin::openNewWindow(const QList<QUrl> &urls, QWidget *window, const OpenNewWindowFlags &flags, const QByteArray &viewStyle)
 {
     QString command = QStringLiteral(WHALE_EXECUTABLE);
