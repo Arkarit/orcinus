@@ -68,6 +68,7 @@ target_sources(dolphinstatic PRIVATE
     whaleaiprofiletools.cpp
     whaleaitranscript.cpp
     whaleaiwindowtools.cpp
+    whaleai.qrc
 )
 target_link_libraries(dolphinstatic whaleai)
 

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+SPDX-FileCopyrightText: 2026 Orcinus contributors
+SPDX-License-Identifier: GPL-2.0-or-later
+-->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="shellA" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3daee9"/>
+      <stop offset="1" stop-color="#1d99f3"/>
+    </linearGradient>
+  </defs>
+  <!-- antenna and warm status lamp -->
+  <path d="M16 7V4.5" fill="none" stroke="#31363b" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="16" cy="3.5" r="2" fill="#fdbc4b" stroke="#31363b" stroke-width="1.25"/>
+  <!-- round-eared shell -->
+  <circle cx="4.5" cy="17" r="3" fill="#1d99f3" stroke="#31363b" stroke-width="1.5"/>
+  <circle cx="27.5" cy="17" r="3" fill="#1d99f3" stroke="#31363b" stroke-width="1.5"/>
+  <rect x="5" y="7" width="22" height="21" rx="7" fill="url(#shellA)" stroke="#31363b" stroke-width="1.5"/>
+  <!-- bright face panel -->
+  <rect x="8" y="11" width="16" height="12" rx="5" fill="#eff0f1" stroke="#31363b" stroke-width="1.25"/>
+  <!-- friendly eyes -->
+  <circle cx="12.5" cy="16.5" r="2.5" fill="#ffffff" stroke="#31363b" stroke-width="1.25"/>
+  <circle cx="19.5" cy="16.5" r="2.5" fill="#ffffff" stroke="#31363b" stroke-width="1.25"/>
+  <circle cx="13" cy="16.5" r="1.1" fill="#1d99f3"/>
+  <circle cx="20" cy="16.5" r="1.1" fill="#1d99f3"/>
+  <!-- tiny, calm smile -->
+  <path d="M14 20c1.1.8 2.9.8 4 0" fill="none" stroke="#31363b" stroke-width="1.25" stroke-linecap="round"/>
+  <!-- shell highlight and chat-tail notch -->
+  <path d="M9 9.5h7" fill="none" stroke="#ffffff" stroke-opacity=".45" stroke-width="1" stroke-linecap="round"/>
+  <path d="M21 27v2.5l3-2.5" fill="url(#shellA)" stroke="#31363b" stroke-width="1.5" stroke-linejoin="round"/>
+</svg>

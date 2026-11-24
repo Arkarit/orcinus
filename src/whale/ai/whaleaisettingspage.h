@@ -15,6 +15,7 @@
 
 class QCheckBox;
 class QComboBox;
+class QIcon;
 class QLabel;
 class QListWidget;
 class QMenu;
@@ -61,6 +62,9 @@ public:
      *         replaces the agent's own ways to log in.
      */
     static QString resultText(const WhaleAiAgentTest::Result &result, const WhaleAiLoginHint &loginHint = {});
+
+    /** @return The icon of the page in the settings dialog. */
+    static QIcon icon();
 
 private:
     void fillList(const QString &currentId);

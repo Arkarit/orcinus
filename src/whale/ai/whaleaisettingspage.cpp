@@ -23,6 +23,7 @@
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
@@ -47,6 +48,12 @@ constexpr int LogLines = 12;
 static int freeDelayUnit(const QString &provider)
 {
     return provider == QLatin1String("strata") ? 60 : 1;
+}
+
+static void initResources()
+{
+    // The resources of a static library are only linked in when something refers to them.
+    Q_INIT_RESOURCE(whaleai);
 }
 
 WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
@@ -661,6 +668,12 @@ void WhaleAiSettingsPage::toggleEditPrompt(bool edit)
     m_prompt->setReadOnly(!edit);
     m_resetPrompt->setEnabled(edit);
     Q_EMIT changed();
+}
+
+QIcon WhaleAiSettingsPage::icon()
+{
+    initResources();
+    return QIcon(QStringLiteral(":/whale/icons/whale-ai.svg"));
 }
 
 QString WhaleAiSettingsPage::resultText(const WhaleAiAgentTest::Result &result, const WhaleAiLoginHint &loginHint)

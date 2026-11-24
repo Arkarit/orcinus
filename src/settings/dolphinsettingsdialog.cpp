@@ -74,7 +74,7 @@ DolphinSettingsDialog::DolphinSettingsDialog(const QUrl &url, QWidget *parent, K
     // Whale: AI2, the agents of the AI panel.
     auto aiSettingsPage = new WhaleAiSettingsPage(this);
     KPageWidgetItem *aiSettingsFrame = addPage(aiSettingsPage, i18nc("@title:group", "AI Support"));
-    aiSettingsFrame->setIcon(QIcon::fromTheme(QStringLiteral("dialog-messages")));
+    aiSettingsFrame->setIcon(WhaleAiSettingsPage::icon());
     connect(aiSettingsPage, &WhaleAiSettingsPage::changed, this, &DolphinSettingsDialog::enableApply);
     aiAgentsSettings = aiSettingsFrame;
 #endif

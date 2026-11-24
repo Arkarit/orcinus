@@ -157,6 +157,8 @@ void WhaleAiSettingsPageTest::emptyPage()
     for (const QString &name : {QStringLiteral("edit"), QStringLiteral("remove"), QStringLiteral("default"), QStringLiteral("test")}) {
         QVERIFY2(!child<QPushButton>(page, name)->isEnabled(), qPrintable(name));
     }
+    // The icon of the page comes from the resources of the static library.
+    QVERIFY(!WhaleAiSettingsPage::icon().pixmap(32, 32).isNull());
 }
 
 void WhaleAiSettingsPageTest::addKnownAgent()
