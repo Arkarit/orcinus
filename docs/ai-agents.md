@@ -51,7 +51,7 @@ confirmed it.
    The agent in Orcinus uses this login; Orcinus never sees your password.
 2. **Add the agent.** *Settings → Configure Orcinus… → AI Support → Agents → Add → Claude* (or
    *Codex*). The entry shows the command Orcinus starts; *Use by Default* makes it the agent of
-   new conversations.
+   new conversations. *Move Up* and *Move Down* set the order of the agent menu in the panel.
 3. **Test it.** *Test* starts the agent once and reports its name and version. If it needs a
    login, the result says how to log in, and *Log In in a Terminal…* opens a terminal with the
    right command.

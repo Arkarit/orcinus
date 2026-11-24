@@ -82,6 +82,11 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     m_remove->setObjectName(QStringLiteral("remove"));
     m_default = new QPushButton(QIcon::fromTheme(QStringLiteral("starred-symbolic")), i18nc("@action:button", "Use by Default"), this);
     m_default->setObjectName(QStringLiteral("default"));
+    // The order of the list is the order of the agent menu in the AI panel.
+    m_up = new QPushButton(QIcon::fromTheme(QStringLiteral("arrow-up")), i18nc("@action:button", "Move Up"), this);
+    m_up->setObjectName(QStringLiteral("up"));
+    m_down = new QPushButton(QIcon::fromTheme(QStringLiteral("arrow-down")), i18nc("@action:button", "Move Down"), this);
+    m_down->setObjectName(QStringLiteral("down"));
     m_test = new QPushButton(QIcon::fromTheme(QStringLiteral("system-run")), i18nc("@action:button", "Test"), this);
     m_test->setObjectName(QStringLiteral("test"));
     m_test->setToolTip(i18nc("@info:tooltip", "Starts the agent without a prompt and shows what it reports. This costs nothing."));
@@ -91,6 +96,9 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     buttons->addWidget(m_edit);
     buttons->addWidget(m_remove);
     buttons->addWidget(m_default);
+    buttons->addSpacing(m_add->sizeHint().height() / 2);
+    buttons->addWidget(m_up);
+    buttons->addWidget(m_down);
     buttons->addSpacing(m_add->sizeHint().height() / 2);
     buttons->addWidget(m_test);
     buttons->addStretch();
@@ -302,6 +310,12 @@ WhaleAiSettingsPage::WhaleAiSettingsPage(QWidget *parent)
     connect(m_edit, &QPushButton::clicked, this, &WhaleAiSettingsPage::editCurrent);
     connect(m_remove, &QPushButton::clicked, this, &WhaleAiSettingsPage::removeCurrent);
     connect(m_default, &QPushButton::clicked, this, &WhaleAiSettingsPage::makeCurrentDefault);
+    connect(m_up, &QPushButton::clicked, this, [this] {
+        moveCurrent(-1);
+    });
+    connect(m_down, &QPushButton::clicked, this, [this] {
+        moveCurrent(1);
+    });
     connect(m_test, &QPushButton::clicked, this, &WhaleAiSettingsPage::testCurrent);
     connect(m_logIn, &QPushButton::clicked, this, &WhaleAiSettingsPage::logInInTerminal);
 
@@ -471,6 +485,8 @@ void WhaleAiSettingsPage::updateButtons()
     m_edit->setEnabled(row >= 0);
     m_remove->setEnabled(row >= 0);
     m_default->setEnabled(row >= 0 && m_agents.at(row).id != m_defaultId);
+    m_up->setEnabled(row > 0);
+    m_down->setEnabled(row >= 0 && row < m_agents.size() - 1);
     m_test->setEnabled(row >= 0 && !m_tester->isRunning());
 }
 
@@ -599,6 +615,18 @@ void WhaleAiSettingsPage::removeCurrent()
         m_defaultId = m_agents.isEmpty() ? QString() : m_agents.first().id;
     }
     fillList(m_agents.isEmpty() ? QString() : m_agents.at(qMin(row, m_agents.size() - 1)).id);
+    setAgentsChanged();
+}
+
+void WhaleAiSettingsPage::moveCurrent(int offset)
+{
+    const int row = currentRow();
+    const int target = row + offset;
+    if (row < 0 || target < 0 || target >= m_agents.size()) {
+        return;
+    }
+    m_agents.move(row, target);
+    fillList(m_agents.at(target).id);
     setAgentsChanged();
 }
 

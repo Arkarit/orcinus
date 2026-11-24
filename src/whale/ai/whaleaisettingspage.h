@@ -77,6 +77,8 @@ private:
     void addLocalModel(const QString &provider);
     void editCurrent();
     void removeCurrent();
+    /** Moves the selected agent by @p offset rows; the list's order is the agent menu's. */
+    void moveCurrent(int offset);
     void makeCurrentDefault();
     void testCurrent();
     void logInInTerminal();
@@ -92,6 +94,8 @@ private:
     QPushButton *m_edit = nullptr;
     QPushButton *m_remove = nullptr;
     QPushButton *m_default = nullptr;
+    QPushButton *m_up = nullptr;
+    QPushButton *m_down = nullptr;
     QPushButton *m_test = nullptr;
     QLabel *m_result = nullptr;
     QPushButton *m_logIn = nullptr;

@@ -60,6 +60,7 @@ private Q_SLOTS:
     void freeDelays();
     void editAgent();
     void removeAndDefault();
+    void moveAgents();
     void testReady();
     void testNeedsLogin();
     void loginHintText();
@@ -154,7 +155,8 @@ void WhaleAiSettingsPageTest::emptyPage()
     WhaleAiSettingsPage page;
     QCOMPARE(child<QListWidget>(page, QStringLiteral("agents"))->count(), 0);
     QVERIFY(child<QPushButton>(page, QStringLiteral("add"))->isEnabled());
-    for (const QString &name : {QStringLiteral("edit"), QStringLiteral("remove"), QStringLiteral("default"), QStringLiteral("test")}) {
+    for (const QString &name :
+         {QStringLiteral("edit"), QStringLiteral("remove"), QStringLiteral("default"), QStringLiteral("up"), QStringLiteral("down"), QStringLiteral("test")}) {
         QVERIFY2(!child<QPushButton>(page, name)->isEnabled(), qPrintable(name));
     }
     // The icon of the page comes from the resources of the static library.
@@ -569,6 +571,55 @@ void WhaleAiSettingsPageTest::removeAndDefault()
     QVERIFY(page.defaultAgentId().isEmpty());
     page.applySettings();
     QVERIFY(WhaleAiAgents::agents().isEmpty());
+}
+
+void WhaleAiSettingsPageTest::moveAgents()
+{
+    WhaleAiAgents::setAgents({fakeAgent(QStringLiteral("a"), QStringLiteral("basic")),
+                              fakeAgent(QStringLiteral("b"), QStringLiteral("basic")),
+                              fakeAgent(QStringLiteral("c"), QStringLiteral("basic"))});
+    WhaleAiAgents::setDefaultAgentId(QStringLiteral("a"));
+    WhaleAiSettingsPage page;
+    QSignalSpy changed(&page, &WhaleAiSettingsPage::changed);
+    auto *list = child<QListWidget>(page, QStringLiteral("agents"));
+    auto *up = child<QPushButton>(page, QStringLiteral("up"));
+    auto *down = child<QPushButton>(page, QStringLiteral("down"));
+    const auto ids = [&page] {
+        QStringList result;
+        for (const WhaleAiAgent &agent : page.agents()) {
+            result.append(agent.id);
+        }
+        return result;
+    };
+
+    // The first one cannot move up, the last one not down.
+    QCOMPARE(list->currentRow(), 0);
+    QVERIFY(!up->isEnabled());
+    QVERIFY(down->isEnabled());
+    list->setCurrentRow(2);
+    QVERIFY(up->isEnabled());
+    QVERIFY(!down->isEnabled());
+
+    // The moved agent stays selected, the default stays the same.
+    up->click();
+    QCOMPARE(ids(), (QStringList{QStringLiteral("a"), QStringLiteral("c"), QStringLiteral("b")}));
+    QCOMPARE(list->currentRow(), 1);
+    up->click();
+    QCOMPARE(ids(), (QStringList{QStringLiteral("c"), QStringLiteral("a"), QStringLiteral("b")}));
+    QCOMPARE(list->currentRow(), 0);
+    QVERIFY(!up->isEnabled());
+    list->setCurrentRow(1);
+    down->click();
+    QCOMPARE(ids(), (QStringList{QStringLiteral("c"), QStringLiteral("b"), QStringLiteral("a")}));
+    QCOMPARE(page.defaultAgentId(), QStringLiteral("a"));
+    QCOMPARE(list->item(2)->text(), QStringLiteral("A (default)"));
+    QCOMPARE(changed.count(), 3);
+
+    // Applying stores the order, which the agent menu of the panel follows.
+    page.applySettings();
+    QCOMPARE(WhaleAiAgents::agents().size(), 3);
+    QCOMPARE(WhaleAiAgents::agents().at(0).id, QStringLiteral("c"));
+    QCOMPARE(WhaleAiAgents::agents().at(2).id, QStringLiteral("a"));
 }
 
 void WhaleAiSettingsPageTest::testReady()
