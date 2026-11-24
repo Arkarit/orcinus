@@ -1,20 +1,14 @@
 // SPDX-FileCopyrightText: 2026 Orcinus contributors
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Orcinus' own chapters of the handbook. index.docbook.in decides where each chapter goes
-// between Dolphin's chapters; give every chapter an explicit ID for that.
+// Orcinus' own chapters of the handbook, one file per chapter. index.docbook.in decides
+// where each chapter goes between Dolphin's chapters; give every chapter an explicit ID
+// for that. The chapters are written in .privatedoc/orcinus-handbook-raw/ (Markdown, English
+// and German) and converted to AsciiDoc here.
 // See .privatedoc/handbook-plan.md.
 = The Orcinus Handbook
 :doctype: book
 :idprefix:
 :idseparator: -
 
-[#orcinus-introduction]
-== Introduction to Orcinus
-
-Orcinus is a file manager for power users, based on Dolphin.
-It keeps what Dolphin does and adds to it.
-
-This handbook contains Dolphin's handbook.
-Where Orcinus works differently or offers more, the Orcinus chapters say so.
-Dolphin's chapters start with xref:introduction[].
+include::introduction.adoc[]

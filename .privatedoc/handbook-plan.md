@@ -94,5 +94,11 @@ C. **Assembled book: works.** Orcinus intro, Dolphin chapters, an Orcinus chapte
     holding Dolphin's credits body. Authors/copyright: Orcinus + Dolphin's handbook's.
   - Open: packaging recipes (PPA, AUR, CI images) need asciidoctor as build dependency.
 - HB2 Structure and first Orcinus chapters (from `docs/orcinus-vs-dolphin.md`).
+  - Workflow (2026-11-24): the user writes chapters in Markdown, English and German, in
+    `.privatedoc/orcinus-handbook-raw/` (committed as the source). Claude converts the
+    English one to `doc/orcinus/<chapter>.adoc` (explicit chapter ID, included from
+    `orcinus.adoc`, placed in `index.docbook.in`); image placeholders become `// TODO image`
+    comments until the image exists. The German text is kept for HB4 (translation).
+  - Introduction done (`introduction.adoc`, ID `orcinus-introduction`).
 - HB3 HTML for the website.
 - HB4 Translations (po4a for the AsciiDoc parts; Dolphin's parts from `po/<lang>/docs/dolphin`).
