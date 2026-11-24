@@ -154,33 +154,51 @@ int main(int argc, char **argv)
     aboutData.setDesktopFileName(QStringLiteral(WHALE_APP_ID));
     aboutData.setHomepage(QStringLiteral(WHALE_HOMEPAGE));
     aboutData.setBugAddress(QByteArrayLiteral(WHALE_BUG_URL));
+    // The Authors tab is one list: Orcinus' authors first, then Dolphin's, each task prefixed
+    // with its project. The prefix is a separate string so Dolphin's translations still apply.
+    const auto projectTask = [](const QString &project, const QString &task) {
+        return i18nc("@info:credit %1 is a project name (Orcinus or Dolphin), %2 a task in it", "%1: %2", project, task);
+    };
+    const auto orcinusTask = [&projectTask](const QString &task) {
+        return projectTask(QStringLiteral("Orcinus"), task);
+    };
+    const auto dolphinTask = [&projectTask](const QString &task) {
+        return projectTask(QStringLiteral("Dolphin"), task);
+    };
+    aboutData.addAuthor(i18nc("@info:credit", "Arkarit (Heiko Achilles)"),
+                        orcinusTask(i18nc("@info:credit", "Maintainer and developer")),
+                        QStringLiteral("orcinus-filemanager@online.de"));
+    aboutData.addAuthor(i18nc("@info:credit", "Claude Code"), orcinusTask(i18nc("@info:credit", "Developer (AI agent)")));
+    aboutData.addAuthor(i18nc("@info:credit", "Codex"), orcinusTask(i18nc("@info:credit", "Graphics (AI agent)")));
     aboutData.addAuthor(i18nc("@info:credit", "Felix Ernst"),
-                        i18nc("@info:credit", "Maintainer (since 2021) and developer"),
+                        dolphinTask(i18nc("@info:credit", "Maintainer (since 2021) and developer")),
                         QStringLiteral("felixernst@kde.org"));
     aboutData.addAuthor(i18nc("@info:credit", "Méven Car"),
-                        i18nc("@info:credit", "Maintainer (since 2021) and developer (since 2019)"),
+                        dolphinTask(i18nc("@info:credit", "Maintainer (since 2021) and developer (since 2019)")),
                         QStringLiteral("meven@kde.org"));
     aboutData.addAuthor(i18nc("@info:credit", "Elvis Angelaccio"),
-                        i18nc("@info:credit", "Maintainer (2018–2021) and developer"),
+                        dolphinTask(i18nc("@info:credit", "Maintainer (2018–2021) and developer")),
                         QStringLiteral("elvis.angelaccio@kde.org"));
     aboutData.addAuthor(i18nc("@info:credit", "Emmanuel Pescosta"),
-                        i18nc("@info:credit", "Maintainer (2014–2018) and developer"),
+                        dolphinTask(i18nc("@info:credit", "Maintainer (2014–2018) and developer")),
                         QStringLiteral("emmanuelpescosta099@gmail.com"));
     aboutData.addAuthor(i18nc("@info:credit", "Frank Reininghaus"),
-                        i18nc("@info:credit", "Maintainer (2012–2014) and developer"),
+                        dolphinTask(i18nc("@info:credit", "Maintainer (2012–2014) and developer")),
                         QStringLiteral("frank78ac@googlemail.com"));
     aboutData.addAuthor(i18nc("@info:credit", "Peter Penz"),
-                        i18nc("@info:credit", "Maintainer and developer (2006–2012)"),
+                        dolphinTask(i18nc("@info:credit", "Maintainer and developer (2006–2012)")),
                         QStringLiteral("peter.penz19@gmail.com"));
-    aboutData.addAuthor(i18nc("@info:credit", "Sebastian Trüg"), i18nc("@info:credit", "Developer"), QStringLiteral("trueg@kde.org"));
-    aboutData.addAuthor(i18nc("@info:credit", "David Faure"), i18nc("@info:credit", "Developer"), QStringLiteral("faure@kde.org"));
-    aboutData.addAuthor(i18nc("@info:credit", "Aaron J. Seigo"), i18nc("@info:credit", "Developer"), QStringLiteral("aseigo@kde.org"));
-    aboutData.addAuthor(i18nc("@info:credit", "Rafael Fernández López"), i18nc("@info:credit", "Developer"), QStringLiteral("ereslibre@kde.org"));
-    aboutData.addAuthor(i18nc("@info:credit", "Kevin Ottens"), i18nc("@info:credit", "Developer"), QStringLiteral("ervin@kde.org"));
-    aboutData.addAuthor(i18nc("@info:credit", "Holger Freyther"), i18nc("@info:credit", "Developer"), QStringLiteral("freyther@gmx.net"));
-    aboutData.addAuthor(i18nc("@info:credit", "Max Blazejak"), i18nc("@info:credit", "Developer"), QStringLiteral("m43ksrocks@gmail.com"));
-    aboutData.addAuthor(i18nc("@info:credit", "Michael Austin"), i18nc("@info:credit", "Documentation"), QStringLiteral("tuxedup@users.sourceforge.net"));
-    aboutData.addAuthor(i18nc("@info:credit", "Yuma Kakei"), i18nc("@info:credit", "Documentation"), QStringLiteral("yumasansansan@gmail.com"));
+    aboutData.addAuthor(i18nc("@info:credit", "Sebastian Trüg"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("trueg@kde.org"));
+    aboutData.addAuthor(i18nc("@info:credit", "David Faure"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("faure@kde.org"));
+    aboutData.addAuthor(i18nc("@info:credit", "Aaron J. Seigo"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("aseigo@kde.org"));
+    aboutData.addAuthor(i18nc("@info:credit", "Rafael Fernández López"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("ereslibre@kde.org"));
+    aboutData.addAuthor(i18nc("@info:credit", "Kevin Ottens"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("ervin@kde.org"));
+    aboutData.addAuthor(i18nc("@info:credit", "Holger Freyther"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("freyther@gmx.net"));
+    aboutData.addAuthor(i18nc("@info:credit", "Max Blazejak"), dolphinTask(i18nc("@info:credit", "Developer")), QStringLiteral("m43ksrocks@gmail.com"));
+    aboutData.addAuthor(i18nc("@info:credit", "Michael Austin"),
+                        dolphinTask(i18nc("@info:credit", "Documentation")),
+                        QStringLiteral("tuxedup@users.sourceforge.net"));
+    aboutData.addAuthor(i18nc("@info:credit", "Yuma Kakei"), dolphinTask(i18nc("@info:credit", "Documentation")), QStringLiteral("yumasansansan@gmail.com"));
 
     KAboutData::setApplicationData(aboutData);
     KCrash::initialize();

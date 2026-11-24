@@ -3565,7 +3565,7 @@ void DolphinMainWindow::showAboutDialog()
         link.arg(dolphinUrl, dolphinUrl),
         licenseLink,
         QString(),
-        i18nc("@info:credit", "Orcinus: %1", QStringLiteral("Arkarit")),
+        i18nc("@info:credit", "Orcinus: %1", QStringLiteral("Arkarit (Heiko Achilles), Claude Code, Codex")),
         link.arg(whaleUrl, whaleUrl),
         licenseLink,
         QString(),

@@ -131,6 +131,20 @@ Orcinus is developed with the help of AI, and contributions made partly or entir
 welcome. What counts is what a contribution delivers, not how it was made; every contribution
 gets the same careful review.
 
+## Credits
+
+**Orcinus**
+
+- Arkarit (Heiko Achilles): maintainer and developer
+- Claude Code: developer (AI agent)
+- Codex: graphics (AI agent)
+
+**Dolphin**
+
+Orcinus is built on the work of the Dolphin developers; *Help → About Orcinus → Authors* lists
+its maintainers and developers, and the Git history keeps every contribution. See
+[KDE Invent](https://invent.kde.org/system/dolphin).
+
 ## License
 
 Orcinus is licensed like Dolphin, mainly under the GPL 2.0 or later; see the SPDX headers and
