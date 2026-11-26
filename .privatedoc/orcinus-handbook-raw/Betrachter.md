@@ -45,10 +45,10 @@ Manchmal willst Du ein Bild ja tatsächlich bearbeiten. Dann hilft **Umschalt+Do
 
 Auf der Seite *Einstellungen → Orcinus einrichten … → Betrachter* legst Du fest,
 
-- **welche Dateitypen** der Betrachter öffnet (Bilder; mit libmpv auch Videos). Alles, was hier nicht angehakt ist, öffnet sich wie gewohnt in seiner Anwendung,
+- **welche Dateitypen** der Betrachter öffnet (Bilder und Videos). Alles, was hier nicht angehakt ist, öffnet sich wie gewohnt in seiner Anwendung,
 - ob er am Ende des Ordners **wieder von vorn** anfängt,
 - ob **kleine Bilder** auf Bildschirmgröße **vergrößert** werden,
 - ob vergrößerte Bilder **geglättet** werden (oder ob Du die Pixel lieber knackig eckig magst),
 - und wie **Videos** abgespielt werden: automatisch starten, mit Ton, in Schleife.
 
-<TODO-Bild (orcinus-viewer-settings.png): Die Einstellungsseite „Betrachter“>
+![Die Einstellungsseite „Betrachter“](images/orcinus-viewer-settings.png)

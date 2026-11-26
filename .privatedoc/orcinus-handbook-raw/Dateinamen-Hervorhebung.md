@@ -19,7 +19,7 @@ Eine Regel trifft zu auf
 
 Jede Regel gilt für Dateien, Ordner oder beides und legt Textfarbe, Fett und Kursiv fest. Jedes davon kannst Du auch auf *Unverändert* lassen.
 
-<TODO-Bild (orcinus-name-highlighting-rule.png): Eine Regel bearbeiten>
+![Eine Regel bearbeiten](images/orcinus-name-highlighting-rule.png)
 
 ### Wer gewinnt?
 

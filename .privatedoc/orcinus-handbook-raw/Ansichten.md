@@ -6,7 +6,7 @@ Dolphin bringt drei Ansichtsmodi mit: Symbole, Kompakt und Details. Orcinus legt
 
 Alle Ansichten stehen gemeinsam im Menü *Ansicht* und im Ansichtsmodus-Knopf der Werkzeugleiste. Sind es mehr als fünf, rutschen sie in ein Untermenü *Ansichtsmodi*, damit das Menü nicht aus allen Nähten platzt.
 
-<TODO-Bild (orcinus-view-modes.png): Der Ansichtsmodus-Knopf mit allen Ansichten>
+![Der Ansichtsmodus-Knopf mit allen Ansichten](images/orcinus-view-modes.png)
 
 ## Die Spaltenansicht
 

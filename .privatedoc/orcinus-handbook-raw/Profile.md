@@ -6,7 +6,7 @@ Du kennst das: Für die tägliche Arbeit willst Du ein schlankes Fenster, eine A
 
 Genau dafür gibt es **Profile**. Ein Profil schaltet das komplette Aussehen eines Fensters auf einmal um.
 
-<TODO-Bild (orcinus-profiles-menu.png): Das Profile-Menü in der Hauptwerkzeugleiste>
+![Das Profile-Menü in der Hauptwerkzeugleiste](images/orcinus-profiles-menu.png)
 
 ## Was ein Profil alles kann
 
@@ -45,7 +45,7 @@ Unter *Einstellungen → Orcinus einrichten … → Profile* findest Du alle Pro
 - mit *Neu erfassen* ein bestehendes Profil mit dem aktuellen Fenster überschreiben,
 - und mit *Auf Fenster anwenden* ein Profil gleich ausprobieren.
 
-<TODO-Bild (orcinus-profiles-settings.png): Die Einstellungsseite „Profile“>
+![Die Einstellungsseite „Profile“](images/orcinus-profiles-settings.png)
 
 ### Das Startprofil
 
