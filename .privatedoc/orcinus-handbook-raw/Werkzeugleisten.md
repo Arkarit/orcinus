@@ -4,7 +4,7 @@
 
 In Dolphin gibt es eine Werkzeugleiste für das ganze Fenster. Das ist übersichtlich, solange Du nur eine Ansicht offen hast. Sobald Du aber die Ansicht teilst, fängt das Rätselraten an: Auf welche Hälfte wirkt jetzt der Zurück-Knopf? Und warum zeigt der Knopf für versteckte Dateien gerade „an“, obwohl links gar keine zu sehen sind?
 
-Orcinus macht es anders: **Jede Dateiansicht kann ihre eigene Werkzeugleiste bekommen**, direkt über der Ansicht. In einer geteilten Ansicht also zwei Stück, eine pro Hälfte. (Es ist aber auch möglich, die Dolphin-Vorgehensweise mit nur einer Werkzeugleiste beizubehalten bzw. wiederherzustellen, falls Dir das besser gefällt).
+Orcinus macht es anders: **Jede Dateiansicht kann ihre eigene Werkzeugleiste bekommen**, direkt über der Ansicht. In einer geteilten Ansicht also zwei Stück, eine pro Hälfte. (Es ist aber auch möglich, die Dolphin-Vorgehensweise mit nur einer Werkzeugleiste beizubehalten bzw. wiederherzustellen, falls Dir das besser gefällt.)
 
 ![Geteilte Ansicht mit zwei Werkzeugleisten der Dateiansichten](images/orcinus-file-view-toolbars.png)
 

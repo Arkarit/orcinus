@@ -44,7 +44,7 @@ Im Modus **Globbing-Ausdruck** kannst Du mehrere Muster angeben, getrennt durch 
 Apropos Skripte: Unter *Einstellungen → Orcinus einrichten … → Benutzeroberfläche → Bestätigungen → Beim Öffnen einer ausführbaren Datei* gibt es neben Dolphins *Immer nachfragen*, *In Anwendung öffnen* und *Skript ausführen* vier weitere Möglichkeiten:
 
 - **Skript im Terminal ausführen:** Das Terminal bleibt offen, bis Du die Eingabetaste drückst.
-- **Skript im Terminal ausführen und schließen:** Das Terminal schließt sich, wenn das Skript endet, außer das Skript meldet in seinem Rückgabewert einen Fehler.
+- **Skript im Terminal ausführen und schließen:** Das Terminal schließt sich, wenn das Skript endet, außer das Skript endet mit einem Fehlercode.
 - **Skript im minimierten Terminal ausführen**
 - **Skript im minimierten Terminal ausführen und schließen**
 

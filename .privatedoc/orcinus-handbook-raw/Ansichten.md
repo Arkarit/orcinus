@@ -74,7 +74,7 @@ Unter *Ansicht → Symbole / Kompakt / Details / Spalten → Dichte* stellst Du 
 
 - **Normal:** 2 Pixel, wie in Dolphin.
 - **Kompakt:** 1 Pixel. Das ist die Voreinstellung für neue Benutzer.
-- **Sehr kompakt:** gar kein Abstand. Mit 16-Pixel-Symbolen und der üblichen Systemschrift ist eine Zeile dann etwa 18 statt 22 Pixel hoch. Das sind ~22 % mehr Dateien auf dem Bildschirm, ganz ohne neuen Monitor.
+- **Sehr kompakt:** gar kein Abstand. Mit 16-Pixel-Symbolen und der üblichen Systemschrift ist eine Zeile dann etwa 18 statt 22 Pixel hoch. Das sind rund 22 % mehr Dateien auf dem Bildschirm, ganz ohne neuen Monitor.
 - **Benutzerdefiniert:** der Abstand in Pixeln (0 bis 10) und, in Kompakt, Details und Spalten, die Zeilenhöhe in Prozent der Schrifthöhe (50 bis 150 %). Unter 100 % können sich die Buchstaben benachbarter Zeilen berühren. Ausprobieren auf eigene Gefahr.
 
 ![Links Normal, rechts Sehr kompakt (Informations- und Leistendichte). Rechts passen alle Dateien ins Fenster.](images/orcinus-information-density.png)

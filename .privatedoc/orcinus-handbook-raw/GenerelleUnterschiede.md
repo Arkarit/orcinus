@@ -34,7 +34,7 @@ Eine Ausnahme gibt es (noch): „Im Ordner anzeigen“ aus dem Browser und ander
 
 ### Wenn's mal knallt
 
-Abstürze kommen in den besten Familien vor. Wenn Du einen Absturzbericht sendest, geht dieser an den Issue-Tracker von Orcinus und nicht bei den Dolphin-Entwicklern auf bugs.kde.org. Die können für unsere Fehler schließlich nichts.
+Abstürze kommen in den besten Familien vor. Wenn Du einen Absturzbericht sendest, geht dieser an den Issue-Tracker von Orcinus und nicht an die Dolphin-Entwickler auf bugs.kde.org. Die können für unsere Fehler schließlich nichts.
 
 Unter *Hilfe → Über Orcinus* siehst Du übrigens auch, auf welcher Dolphin-Version Dein Orcinus basiert. Im Reiter *Autoren* stehen zuerst die Orcinus-Autoren und danach die Dolphin-Entwickler, auf deren Flossen wir stehen.
 
