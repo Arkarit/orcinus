@@ -6,7 +6,7 @@ Nicht jede Verbesserung muss revolutionär sein. Oft sind es gerade die kleinen 
 
 Wenn man eine bestimmte Aktion hundertmal am Tag ausführt, kann bereits ein einziger eingesparter Mausklick eine erhebliche Verbesserung darstellen. Und manchmal geht es auch einfach nur darum, dass etwas angenehmer aussieht oder weniger Platz verschwendet.
 
-Orcinus widmet diesen kleinen Dingen bewusst viel Aufmerksamkeit. Einige davon wirst Du vermutlich erst dann wirklich zu schätzen wissen, wenn Du wieder einmal mit einem anderen Dateimanager arbeitet.
+Orcinus widmet diesen kleinen Dingen bewusst viel Aufmerksamkeit. Einige davon wirst Du vermutlich erst dann wirklich zu schätzen wissen, wenn Du wieder einmal mit einem anderen Dateimanager arbeitest.
 
 Hier ist unsere Sammlung. Kein Anspruch auf Vollständigkeit, aber jede Menge eingesparte Klicks.
 
@@ -26,7 +26,7 @@ Ein neuer Knopf in der Filterleiste legt fest, worauf der Filter wirkt:
 
 ## Mehrere Muster auf einmal
 
-Im Modus **Globbing-Ausdruck** kannst Du mehrere Muster angeben, getrennt durch Leerzeichen, Komma oder Semikolon: `*.jpg *.png *.webp`. Ein Element wird angezeigt, wenn es auf eines der Muster passt. Brauchst Du ein echtes Leerzeichen im Muster, nimm `?`.
+Im Modus **Globbing-Ausdruck** kannst Du mehrere Muster angeben, getrennt durch Leerzeichen, Komma oder Semikolon: `*.jpg *.png *.webp`. Ein Element wird angezeigt, wenn es auf eines der Muster passt. Leerzeichen innerhalb eines Dateinamens kannst Du näherungsweise mit dem Platzhalter `?` abdecken.
 
 ## Zuletzt besuchte Ordner
 
@@ -44,7 +44,7 @@ Im Modus **Globbing-Ausdruck** kannst Du mehrere Muster angeben, getrennt durch 
 Apropos Skripte: Unter *Einstellungen → Orcinus einrichten … → Benutzeroberfläche → Bestätigungen → Beim Öffnen einer ausführbaren Datei* gibt es neben Dolphins *Immer nachfragen*, *In Anwendung öffnen* und *Skript ausführen* vier weitere Möglichkeiten:
 
 - **Skript im Terminal ausführen:** Das Terminal bleibt offen, bis Du die Eingabetaste drückst.
-- **Skript im Terminal ausführen und schließen:** Das Terminal schließt sich, wenn das Skript endet, außer es ist fehlgeschlagen.
+- **Skript im Terminal ausführen und schließen:** Das Terminal schließt sich, wenn das Skript endet, außer das Skript meldet in seinem Rückgabewert einen Fehler.
 - **Skript im minimierten Terminal ausführen**
 - **Skript im minimierten Terminal ausführen und schließen**
 

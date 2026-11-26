@@ -4,7 +4,7 @@
 
 Klassischer Ablauf: Du klickst doppelt auf ein Foto, ein Bildbetrachter geht auf, Du blätterst zwanzig Bilder weiter, findest das richtige, schließt den Betrachter und stehst in Orcinus wieder beim ersten Bild. Wo war das nochmal?
 
-In Orcinus öffnet sich ein Bild (und, wenn Orcinus mit libmpv gebaut wurde, auch ein Video) im **eingebauten Vollbild-Betrachter**. Das Besondere: **Was der Betrachter zeigt, ist gleichzeitig das aktuelle und ausgewählte Element in der Ansicht.** Drückst Du *Esc*, stehst Du also genau bei der Datei, die Du zuletzt angesehen hast. Bereit zum Kopieren, Verschieben oder Löschen.
+In Orcinus öffnet sich ein Bild oder Video im **eingebauten Vollbild-Betrachter**. Das Besondere: **Was der Betrachter zeigt, ist gleichzeitig das aktuelle und ausgewählte Element in der Ansicht.** Drückst Du *Esc*, stehst Du also genau bei der Datei, die Du zuletzt angesehen hast. Bereit zum Kopieren, Verschieben oder Löschen.
 
 ![Der eingebaute Betrachter](images/orcinus-viewer.png)
 
@@ -30,7 +30,7 @@ Der Betrachter geht dabei durch die anzeigbaren Dateien des Ordners, und zwar in
 
 ## Videos
 
-Ist Orcinus mit libmpv gebaut, spielt der Betrachter auch Videos ab:
+Der Betrachter spielt auch Videos ab:
 
 - **Leertaste** oder ein **Klick** spielt ab und hält an.
 - **Links** / **Rechts** springt 5 Sekunden zurück bzw. vor.

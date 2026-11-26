@@ -17,6 +17,7 @@ Hier hört der Spaß kurz auf. Ein Agent arbeitet **mit Deinen Rechten**. Er kan
 - Wenn KI-Agenten neu für Dich sind, probier sie zuerst in einer **virtuellen Maschine** aus.
 - Mach **Sicherungen** von allem, was Dir wichtig ist.
 - Wenn Du nicht verstehst, was der Agent vorhat: **Frag ihn**, bevor Du es erlaubst.
+- Wenn Du einen Cloud-Agenten benutzt, werden reale Dateiinhalte an den Server des Cloudbetreibers weitergegeben. Sei Dir dessen gewahr.
 
 Beim ersten Öffnen erklärt Dir ein Dialog genau das. Erst wenn Du ihn bestätigt hast, funktioniert die Seitenleiste.
 
@@ -28,7 +29,7 @@ Du öffnest sie mit **F8** oder über *Ansicht → Seitenleisten → KI-Assisten
 
 ### Modi und Erlaubnisse
 
-Jeder Agent startet in seinem **vorsichtigsten Modus**, etwa *Plan* oder *Nur lesen*. Er darf sich also umsehen, fragt aber, bevor er etwas ändert. Über das Feld *Modus* unter dem Namen des Agenten lockerst Du das. Der Modus, den Du dort wählst, gilt auch beim nächsten Start.
+Ein frisch eingerichteter Agent startet in seinem **vorsichtigsten Modus**, etwa *Plan* oder *Nur lesen*. Er darf sich also umsehen, fragt aber, bevor er etwas ändert. Über das Feld *Modus* unter dem Namen des Agenten lockerst Du das. Der Modus, den Du dort wählst, gilt auch beim nächsten Start.
 
 Will der Agent etwas tun, das sein Modus nicht erlaubt, **fragt er im Gespräch**, und Du antwortest dort. Wartet eine Frage, öffnet sich die Seitenleiste von selbst, damit der Agent nicht ewig Däumchen dreht.
 
@@ -40,7 +41,13 @@ Mit jeder Nachricht bekommt der Agent den Ordner der aktiven Ansicht, die ausgew
 
 Er kann Ordner öffnen, Dateien auswählen, den Ansichtsmodus wechseln, die Ansicht teilen, eine Reihe von Einstellungen und Profilen ändern und die meisten Aktionen aus den Menüs ausführen. Jede dieser Aktionen erscheint als Zeile im Gespräch. Mit dem Feld *Aktionen* blendest Du sie aus.
 
-Was er **nicht** kann: seine eigenen KI-Einstellungen ändern. Er kann höchstens einen neuen Agenten vorschlagen, den Du dann selbst hinzufügst. Kein Agent befördert sich selbst.
+Grenzen der Orcinus-Schnittstelle:
+Orcinus stellt dem Agenten keine Funktionen zur Änderung seiner eigenen KI-Einstellungen zur Verfügung. Er kann lediglich einen neuen Agenten vorschlagen, den Du dann selbst hinzufügst. Das schließt jedoch nicht aus, dass der KI-Agent das über das Dateisystem umgehen kann. Also, immer vorsichtig bleiben.
+
+Was Orcinus und der Agent **nicht** tun können:
+Rückgängig machen (Undo) für Aktionen des KI-Agenten.
+Orcinus kann die Aktionen eines KI-Agenten nicht rückgängig machen. Ein Agent kann außerhalb von Orcinus Programme ausführen, Dateien verändern oder löschen und Systemeinstellungen ändern. Solche Aktionen liegen außerhalb der Kontrolle von Orcinus.
+Betrachte Undo deshalb als Komfortfunktion, nicht als Sicherheitsnetz. Es ersetzt weder eine Datensicherung noch die sorgfältige Prüfung dessen, was Du dem Agenten erlaubst. Wenn im Zweifel, besser vorher manuell ein Backup machen, oder zumindest den Agenten bitten das zu tun.
 
 ### Befehle
 
@@ -56,7 +63,7 @@ Ein neues Gespräch bietet Dir ein paar Vorschläge zum Einstieg an: Dateien umb
 
 ### Administratorrechte
 
-Ist es erlaubt (*KI-Unterstützung → Agenten → Administratorrechte*, standardmäßig an), darf der Agent einzelne Befehle über `pkexec` als Administrator ausführen. Das System fragt dann **jedes Mal** nach Deinem Passwort. Lies vorher genau, was da ausgeführt werden soll.
+Ist es erlaubt (*KI-Unterstützung → Agenten → Nach Administratorrechten fragen erlauben*, standardmäßig an), darf der Agent einzelne Befehle über `pkexec` als Administrator ausführen. Das System fragt dann **jedes Mal** nach Deinem Passwort. Lies vorher genau, was da ausgeführt werden soll.
 
 ## Gespräche und Gedächtnis
 
@@ -72,7 +79,7 @@ Ist es erlaubt (*KI-Unterstützung → Agenten → Administratorrechte*, standar
 
 ## Lokale Modelle
 
-Agenten wie OpenCode können statt mit einem Cloud-Dienst auch mit einem **Modell auf Deiner eigenen Grafikkarte** arbeiten. Dann verlässt nichts Deinen Rechner, und eine Rechnung gibt es auch nicht. Dafür braucht es eine Karte mit genug Speicher, und ein lokales Modell ist langsamer und weniger fähig als die großen Cloud-Modelle.
+Agenten wie OpenCode können statt mit einem Cloud-Dienst auch mit einem **Modell auf Deiner eigenen Grafikkarte** arbeiten. Dann verlässt nichts Deinen Rechner (so lange Dein Setup selbst keine Daten weitergibt), und eine Rechnung gibt es auch nicht (Nun ja, ausser der Stromrechnung. Und die Raten der 2.000,- € bis 15.000,- € Grafikkarte, die Du brauchst. Aber sonst nix, versprochen.). Dafür braucht es eine Karte mit genug Speicher, und ein lokales Modell ist meist langsamer und weniger fähig als die großen Cloud-Modelle.
 
 Orcinus findet die Modelle von **LM Studio** und **Strata**: *KI-Unterstützung → Agenten → Hinzufügen → Lokales Modell (LM Studio) …* (oder *(Strata)*) legt einen Agenten für eines davon an.
 

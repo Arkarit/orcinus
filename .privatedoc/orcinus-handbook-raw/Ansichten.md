@@ -25,7 +25,7 @@ Nur *Flach anzeigen* gibt es hier nicht. Jede Spalte zeigt nun mal genau einen O
 
 ## Ansichts-Plugins
 
-Weitere Ansichten können als **Plugins** dazukommen. Orcinus 0.1 bringt eines mit, die *Cushion Treemap*. Die ist so schön, dass sie ein eigenes Kapitel bekommt.
+Weitere Ansichten können als **Plugins** dazukommen. Orcinus bringt eines mit, die *Cushion Treemap*. Die ist so schön, dass sie ein eigenes Kapitel bekommt.
 
 Die Ansicht, die Du für einen Ort wählst, merkt sich Orcinus genau für diesen Ort (nicht für seine Unterordner), im Verlauf und in der Sitzung. Der Anzeigestil, der für den Ordner gespeichert ist, bleibt dabei unberührt. Dolphin bekommt davon also nichts mit. Optionen, die eine Ansicht nicht kann, bleiben sichtbar, sind aber ausgegraut.
 
@@ -74,7 +74,7 @@ Unter *Ansicht → Symbole / Kompakt / Details / Spalten → Dichte* stellst Du 
 
 - **Normal:** 2 Pixel, wie in Dolphin.
 - **Kompakt:** 1 Pixel. Das ist die Voreinstellung für neue Benutzer.
-- **Sehr kompakt:** gar kein Abstand. Mit 16-Pixel-Symbolen und der üblichen Systemschrift ist eine Zeile dann etwa 18 statt 22 Pixel hoch. Das sind fast 20 % mehr Dateien auf dem Bildschirm, ganz ohne neuen Monitor.
+- **Sehr kompakt:** gar kein Abstand. Mit 16-Pixel-Symbolen und der üblichen Systemschrift ist eine Zeile dann etwa 18 statt 22 Pixel hoch. Das sind ~22 % mehr Dateien auf dem Bildschirm, ganz ohne neuen Monitor.
 - **Benutzerdefiniert:** der Abstand in Pixeln (0 bis 10) und, in Kompakt, Details und Spalten, die Zeilenhöhe in Prozent der Schrifthöhe (50 bis 150 %). Unter 100 % können sich die Buchstaben benachbarter Zeilen berühren. Ausprobieren auf eigene Gefahr.
 
 ![Links Normal, rechts Sehr kompakt (Informations- und Leistendichte). Rechts passen alle Dateien ins Fenster.](images/orcinus-information-density.png)
