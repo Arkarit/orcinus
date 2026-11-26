@@ -28,13 +28,13 @@ Taken with the dev build (2026-11-26) in a fresh profile: Breeze light, no kdegl
 The demo home contains only generated files (landscape pictures, empty/allocated dummy files). It lived in the scratchpad (`/tmp/...`), which is why "Home" in the location bar is not `/home/<user>`.
 The "Devices" and "Removable Devices" sections of Places were hidden so the host's drives do not appear.
 
-Done (23): first start, file view toolbars, location bar second row, menu bar element, bar density, split own style, linked views (also used for the profile "Locked Cushion Map"), treemap, columns view, expansion tint Compact/Details, information density, flat view, profile "Images Only", viewer, name highlighting, filter bar; on 2026-11-27 also view modes menu, profiles menu, settings pages Profiles and Viewer, the name highlighting rule editor and Dolphin vs. Orcinus (stock Dolphin 25.12.3 in a fresh profile, left; Orcinus with the defaults for new users, right).
+Done: first start, file view toolbars, location bar second row, menu bar element, bar density, split own style, linked views (also used for the profile "Locked Cushion Map"), treemap, columns view, expansion tint Compact/Details, information density, flat view, profile "Images Only", viewer, name highlighting, filter bar; on 2026-11-27 also view modes menu, profiles menu, settings pages Profiles and Viewer, the name highlighting rule editor and Dolphin vs. Orcinus (stock Dolphin 25.12.3 in a fresh profile, left; Orcinus with the defaults for new users, right).
 
 How menus and dialogs were taken (2026-11-27): an invisible `kwin_wayland --virtual --xwayland` on a private D-Bus daemon, Orcinus started there with `QT_QPA_PLATFORM=xcb` (Wayland popups need a real input serial), clicks through XTest on that Xwayland display (ctypes, libXtst), screen captured through KWin's `ScreenShot2.CaptureWorkspace` (`KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1`), then cropped to the window's client area. Nothing touches the desktop.
 
-Still missing (`<TODO-Bild …>` in the text): the AI panels need a configured agent and a conversation:
+AI panel and canvas (2026-11-27): local agent "Qwen3.8 27B (local)" (LM Studio, OpenCode) in the AI Workbench profile; the panel shows the agent's plan in plan mode, the canvas the before/after comparison it made after the switch to build mode.
 
-- `orcinus-ai-panel.png`, `orcinus-ai-canvas.png`
+All screenshots done (25).
 
 ## UI terms without a German translation yet
 

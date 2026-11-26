@@ -25,7 +25,7 @@ Beim ersten Öffnen erklärt Dir ein Dialog genau das. Erst wenn Du ihn bestäti
 
 Du öffnest sie mit **F8** oder über *Ansicht → Seitenleisten → KI-Assistent*. Oben wählst Du den Agenten, beginnst ein neues Gespräch, öffnest ein gespeichertes oder springst in die Einstellungen (*Einstellungen → Orcinus einrichten … → KI-Unterstützung*).
 
-<TODO-Bild (orcinus-ai-panel.png): Die Seitenleiste „KI-Assistent“>
+![Die Seitenleiste „KI-Assistent“](images/orcinus-ai-panel.png)
 
 ### Modi und Erlaubnisse
 
@@ -89,7 +89,7 @@ Orcinus startet den Modellserver, wenn ein Gespräch ihn braucht, und entlädt d
 
 *Ansicht → Seitenleisten → KI-Leinwand* ist der Ort, an dem der Agent seine Arbeit zeigt: Bilder und Videos, die er erzeugt hat, Dateien, die er gefunden hat, Töne, Texte und Vorher-Nachher-Vergleiche. Ein Klick auf ein Element zeigt die Datei in der Ansicht.
 
-<TODO-Bild (orcinus-ai-canvas.png): Die KI-Leinwand mit einem Vorher-Nachher-Vergleich>
+![Die KI-Leinwand mit einem Vorher-Nachher-Vergleich](images/orcinus-ai-canvas.png)
 
 Auf Wunsch baut Dir der Agent auch kleine **Werkzeuge** für die Leinwand: ein eigenes Fenster mit Knöpfen, Listen und Vorschauen (Qt Quick), wahlweise mit einem Python-Programm dahinter. Zum Beispiel: „Geh die Fotos in diesem Ordner durch und lass mich jedes behalten oder verwerfen.“ Ein Werkzeug öffnet sich als Reiter der Leinwand. Mit *Auf der Leinwand behalten* bleibt es auch für den nächsten Start da.
 
