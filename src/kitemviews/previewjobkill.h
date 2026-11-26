@@ -33,6 +33,23 @@ namespace PreviewJobKill
  * Use this for every PreviewJob that is killed.
  */
 DOLPHIN_EXPORT void kill(KIO::PreviewJob *job);
+
+/**
+ * Installs an application-wide guard against the timeout of finished preview sub-jobs.
+ *
+ * Before KIO 6.25, a per-file sub-job (KIO::FilePreviewJob) does not stop its 2 s timeout
+ * timer when it finishes. A finished sub-job waits for its deferred deletion, which does not
+ * happen inside a nested event loop (e.g. a context menu opened right after start-up) that was
+ * entered after deleteLater() was called. When the timeout fires there, it calls kill() on its
+ * already deleted transfer job and crashes. This also affects sub-jobs that finished normally,
+ * so kill() above cannot cover it.
+ *
+ * The guard is an event filter on the application that drops timer events for finished
+ * KIO::FilePreviewJob objects. It does nothing with KIO 6.25 or newer.
+ *
+ * Call once after the QApplication has been created.
+ */
+DOLPHIN_EXPORT void installFinishedJobTimeoutGuard();
 }
 
 #endif
