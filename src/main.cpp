@@ -14,6 +14,7 @@
 #include "dolphinmainwindow.h"
 #include "dolphinviewcontainer.h"
 #include "global.h"
+#include "kitemviews/previewjobkill.h"
 #include "settings/viewmodes/viewmodesettings.h"
 #include "whaledefaultstyles.h" // Whale
 #include "whaledensitystyle.h" // Whale
@@ -117,6 +118,7 @@ int main(int argc, char **argv)
     KIconTheme::initTheme();
 
     QApplication app(argc, argv);
+    PreviewJobKill::installFinishedJobTimeoutGuard(); // KIO < 6.25 preview timeout crash
     app.setWindowIcon(QIcon::fromTheme(QStringLiteral(WHALE_APP_ID), app.windowIcon()));
 
 #if HAVE_STYLE_MANAGER
