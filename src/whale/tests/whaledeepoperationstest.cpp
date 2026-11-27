@@ -271,6 +271,7 @@ void WhaleDeepOperationsTest::initTestCase()
     qputenv("XDG_DATA_HOME", m_tmpHome.filePath(QStringLiteral("data")).toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::hideJobProgress();
     TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));
@@ -1254,6 +1255,8 @@ void WhaleDeepOperationsTest::testSplitView()
     menu->hide();
     trash->trigger();
     QTRY_VERIFY(!QFile::exists(path(QStringLiteral("a/trash-me.txt"))));
+    // The treemap scans the folder again and has no cells meanwhile.
+    QTRY_VERIFY(cellRect(view, url(QStringLiteral("a/trash-me.txt"))).isEmpty() && !cellRect(view, url(QStringLiteral("a/deep.txt"))).isEmpty());
     QCOMPARE(right->viewHost()->bridge()->selection().selected(), QList<QUrl>({url(QStringLiteral("b/target.txt"))}));
     QCOMPARE(right->url(), url(QStringLiteral("b")));
     QVERIFY(QFile::exists(path(QStringLiteral("b/target.txt"))));
