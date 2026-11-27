@@ -18,7 +18,7 @@ Working notes for the raw chapters in this folder. Not part of the handbook itse
 | 10 | `KI-Unterstuetzung.md` | KI-Unterstützung | draft |
 | 11 | `DieKleinigkeiten.md` | Die Kleinigkeiten (filter, recent folders, Shift+double-click, scripts, dragging, symlinks, exec bit) | user's start, completed |
 
-The English versions (`Introduction.md`, `TheLittleThings.md`) are not updated yet; they follow once the German text is approved.
+English versions (2026-11-27, after the German text was approved): `Introduction.md`, `DolphinAndOrcinus.md`, `Toolbars.md`, `SplitView.md`, `Views.md`, `TheCushionTreemap.md`, `Profiles.md`, `TheViewer.md`, `FileNameHighlighting.md`, `AISupport.md`, `TheLittleThings.md`. UI terms are the English msgids from the source.
 
 Sources: `docs/orcinus-vs-dolphin.md`, `docs/ai-agents.md`, `~/Desktop/orcinus-features.txt`, and checks in the source code.
 
