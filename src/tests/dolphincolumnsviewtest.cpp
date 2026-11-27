@@ -21,6 +21,7 @@
 #include "views/zoomlevelinfo.h"
 
 #include <KConfigGroup>
+#include <KIO/DeleteJob>
 #include <KProtocolManager>
 #include <KSharedConfig>
 
@@ -851,7 +852,11 @@ void DolphinColumnsViewTest::testTheContentWidthFollowsInsertedAndRemovedNames()
     const int widthWithTheName = pane->calculateOptimalWidth();
     QVERIFY(widthWithTheName > widthBefore);
 
-    QVERIFY(QFile::remove(m_testDir->url().toLocalFile() + QLatin1Char('/') + longName));
+    // Removed as the file manager does, through KIO, which tells the listers. A file removed
+    // from outside right after it was listed is sometimes never noticed (KDirWatch, KIO 6.24
+    // to 6.31 at least), which made this test fail now and then.
+    KIO::DeleteJob *removal = KIO::del(QUrl::fromLocalFile(m_testDir->url().toLocalFile() + QLatin1Char('/') + longName), KIO::HideProgressInfo);
+    QVERIFY2(removal->exec(), qPrintable(removal->errorString()));
     QTRY_COMPARE_WITH_TIMEOUT(indexOfName(pane, longName), -1, 5000);
     QCOMPARE(pane->calculateOptimalWidth(), widthBefore);
 
@@ -2467,7 +2472,9 @@ void DolphinColumnsViewTest::testAFolderCreatedBeforeAColumnClickIsNotSelectedLa
     QTRY_VERIFY_WITH_TIMEOUT(indexOfName(childPane, QStringLiteral("created")) >= 0, 10000);
     QVERIFY(childPane->controller()->selectionManager()->selectedItems().isEmpty());
 
-    QVERIFY(QDir(createdUrl.toLocalFile()).removeRecursively());
+    // Through KIO, which tells the listers (see testTheContentWidthFollowsInsertedAndRemovedNames()).
+    KIO::DeleteJob *removal = KIO::del(createdUrl, KIO::HideProgressInfo);
+    QVERIFY2(removal->exec(), qPrintable(removal->errorString()));
     QTRY_COMPARE_WITH_TIMEOUT(indexOfName(childPane, QStringLiteral("created")), -1, 10000);
     activateColumn(2);
     m_testDir->createDir("alpha/alpha-child/created");
