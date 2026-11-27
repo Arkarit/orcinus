@@ -1382,7 +1382,7 @@ private:
     bool m_clearSelectionBeforeSelectingNewItems;
     bool m_markFirstNewlySelectedItemAsCurrent;
     /// Decides whether items created by jobs should automatically be selected.
-    bool m_selectJobCreatedItems;
+    bool m_selectJobCreatedItems = false;
 
     VersionControlObserver *m_versionControlObserver;
 
