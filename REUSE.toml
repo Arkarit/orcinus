@@ -31,9 +31,9 @@ precedence = "aggregate"
 SPDX-FileCopyrightText = "KDE Contributors"
 SPDX-License-Identifier = "GPL-2.0-or-later"
 
-# Screenshots of the Orcinus handbook chapters.
+# Screenshots of the Orcinus handbook chapters (and of their raw drafts).
 [[annotations]]
-path = "doc/orcinus/*.png"
+path = ["doc/orcinus/*.png", ".privatedoc/orcinus-handbook-raw/images/*.png"]
 precedence = "aggregate"
 SPDX-FileCopyrightText = "2026 Orcinus contributors"
 SPDX-License-Identifier = "GPL-2.0-or-later"
