@@ -110,9 +110,11 @@ void WhaleViewHost::replaceDolphinView(DolphinView *dolphinView)
     DolphinView *oldView = m_dolphinView;
 
     // The recursive content works on the model of its view, so the new view gets a new one.
+    // The old one goes only once the new one is there: switching the bridge below emits
+    // signals whose receivers ask the content (hasDestination()), disabled until then.
     const bool recursive = m_recursiveContent->isEnabled();
     m_recursiveContent->setEnabled(false);
-    delete m_recursiveContent;
+    std::unique_ptr<WhaleRecursiveContent> oldContent(m_recursiveContent);
 
     m_dolphinView = dolphinView;
     m_stack->insertWidget(m_stack->indexOf(oldView), dolphinView);
@@ -123,6 +125,7 @@ void WhaleViewHost::replaceDolphinView(DolphinView *dolphinView)
     m_dolphinViewAdapter->setDolphinView(dolphinView);
     m_recursiveContent = new WhaleRecursiveContent(dolphinView, m_bridge, this);
     connect(m_recursiveContent, &WhaleRecursiveContent::requestMessage, this, &WhaleViewHost::messageRequested);
+    oldContent.reset();
     if (recursive) {
         updateRecursiveContent();
     }
