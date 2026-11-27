@@ -25,10 +25,8 @@ Erm … something like that.
 
 Anyone familiar with Dolphin will feel right at home in Orcinus at first glance.
 
-// TODO image: Dolphin and Orcinus side by side in their default configurations –
-// remarkably similar at first glance. Planned file name: orcinus-dolphin-comparison.png
-// (Orcinus' images need the prefix orcinus-), then:
-// image::orcinus-dolphin-comparison.png[Dolphin and Orcinus side by side in their default configurations]
+.Dolphin and Orcinus side by side in their default configurations – the family resemblance is obvious at first glance, the differences are in the details.
+image::orcinus-vs-dolphin.png["Dolphin and Orcinus side by side in their default configurations"]
 
 First impressions can be deceiving, however – Orcinus is not just a dolphin in a black-and-white skin.
 It builds upon Dolphin's stable, proven foundation, adding a wealth of useful features.
@@ -37,9 +35,10 @@ Discovering these features and learning how to put them to good use is precisely
 
 Please note that the first part of this handbook has been taken directly from the Dolphin handbook.
 Most of it still applies to Orcinus.
-Any differences and new features are covered in the <<orcinus-little-things,second, Orcinus-specific part>> of the handbook.
+Any differences and new features are covered in the <<orcinus-and-dolphin,second, Orcinus-specific part>> of the handbook.
 
 *Our motto:*
 
-_Make the common case simple and excellent._ +
+_Make the common case simple and excellent._
+
 _Make the uncommon case possible._

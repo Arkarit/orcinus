@@ -60,6 +60,26 @@ Orcinus' own features and contains the &dolphin; handbook.
 
 <!-- orcinus:dolphin-chapters except credits -->
 
+<!-- orcinus:chapter orcinus-and-dolphin -->
+
+<!-- orcinus:chapter orcinus-toolbars -->
+
+<!-- orcinus:chapter orcinus-split-view -->
+
+<!-- orcinus:chapter orcinus-views -->
+
+<!-- orcinus:chapter orcinus-treemap -->
+
+<!-- orcinus:chapter orcinus-profiles -->
+
+<!-- orcinus:chapter orcinus-viewer -->
+
+<!-- orcinus:chapter orcinus-name-highlighting -->
+
+<!-- orcinus:chapter orcinus-ai-support -->
+
+<!-- orcinus:chapter orcinus-ai-agents -->
+
 <!-- orcinus:chapter orcinus-little-things -->
 
 <chapter id="credits">

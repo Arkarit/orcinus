@@ -8,7 +8,7 @@ To do this, Orcinus talks to an **AI agent running on your computer**, for examp
 
 Orcinus itself calls **no AI service**. Login, model, billing and the agent's tools remain the agent's business. Out of the box nothing is set up, and nothing leaves your computer before you add an agent yourself.
 
-How to set up an agent is described in the guide "Setting up AI agents" (`docs/ai-agents.md`).
+How to set up an agent is described in the chapter "Setting up AI Agents".
 
 ## Before you start: a serious word
 

@@ -16,7 +16,8 @@ Working notes for the raw chapters in this folder. Not part of the handbook itse
 | 8 | `Betrachter.md` | Der eingebaute Betrachter | draft |
 | 9 | `Dateinamen-Hervorhebung.md` | Dateinamen hervorheben | draft |
 | 10 | `KI-Unterstuetzung.md` | KI-Unterstützung | draft |
-| 11 | `DieKleinigkeiten.md` | Die Kleinigkeiten (filter, recent folders, Shift+double-click, scripts, dragging, symlinks, exec bit) | user's start, completed |
+| 11 | `KI-Agenten-einrichten.md` | KI-Agenten einrichten (from `docs/ai-agents.md`, 2026-11-27) | draft |
+| 12 | `DieKleinigkeiten.md` | Die Kleinigkeiten (filter, recent folders, Shift+double-click, scripts, dragging, symlinks, exec bit) | user's start, completed |
 
 English versions (2026-11-27, after the German text was approved): `Introduction.md`, `DolphinAndOrcinus.md`, `Toolbars.md`, `SplitView.md`, `Views.md`, `TheCushionTreemap.md`, `Profiles.md`, `TheViewer.md`, `FileNameHighlighting.md`, `AISupport.md`, `TheLittleThings.md`. UI terms are the English msgids from the source.
 
@@ -56,10 +57,15 @@ Several Orcinus strings are not translated in `po-orcinus/de/orcinus.po` yet. Th
 | Talk with agents in | Mit Agenten sprechen in |
 | Administrator rights | Administratorrechte |
 | Configure Orcinus… | Orcinus einrichten … |
+| Edit… / Use by Default / Test / Log In in a Terminal… / Other Agent… (AI agents) | Bearbeiten … / Als Standard verwenden / Testen / Im Terminal anmelden … / Anderer Agent … |
 
-## Open points for the review
+## Decisions (2026-11-27)
 
-- Tone: "Du" capitalized throughout (as the user's "Ihr" was). Lowercase "du" is more common in current handbooks; easy to switch.
-- `GenerelleUnterschiede.md`: the filter bar is shown in new windows, but on the very first start the profile *Compact* hides it (checked in the dev build). Mentioned in the text; intended?
-- The Treemap chapter is its own chapter; it could also become a section of "Ansichten".
-- Chapter "KI-Unterstützung" refers to `docs/ai-agents.md` for the setup; in the handbook that should become a chapter or a link to the website.
+- "Du" stays capitalized (user).
+- The profile *Compact* hiding the filter bar on the very first start is intended.
+- The treemap and the AI agent setup are chapters of their own.
+
+## AsciiDoc (2026-11-27)
+
+The English chapters are converted to `doc/orcinus/*.adoc` (one file per chapter, explicit chapter and section IDs, cross-references as xrefs, the profile table as a variable list); the screenshots are copied to `doc/orcinus/`. Edit the `.adoc` files from now on; the Markdown files here stay the German review base.
+

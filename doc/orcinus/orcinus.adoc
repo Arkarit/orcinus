@@ -13,4 +13,24 @@
 
 include::introduction.adoc[]
 
+include::orcinus-and-dolphin.adoc[]
+
+include::toolbars.adoc[]
+
+include::split-view.adoc[]
+
+include::views.adoc[]
+
+include::treemap.adoc[]
+
+include::profiles.adoc[]
+
+include::viewer.adoc[]
+
+include::name-highlighting.adoc[]
+
+include::ai-support.adoc[]
+
+include::ai-agents.adoc[]
+
 include::little-things.adoc[]

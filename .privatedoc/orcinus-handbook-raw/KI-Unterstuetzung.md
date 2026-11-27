@@ -8,7 +8,7 @@ Orcinus redet dabei mit einem **KI-Agenten, der auf Deinem Rechner läuft**, zum
 
 Orcinus selbst ruft **keinen KI-Dienst** auf. Anmeldung, Modell, Abrechnung und die Werkzeuge des Agenten bleiben Sache des Agenten. Ab Werk ist nichts eingerichtet, und nichts verlässt Deinen Rechner, bevor Du selbst einen Agenten hinzufügst.
 
-Wie Du einen Agenten einrichtest, steht in der Anleitung „KI-Agenten einrichten“ (`docs/ai-agents.md`).
+Wie Du einen Agenten einrichtest, steht im Kapitel „KI-Agenten einrichten“.
 
 ## Bevor Du loslegst: ein ernstes Wort
 
