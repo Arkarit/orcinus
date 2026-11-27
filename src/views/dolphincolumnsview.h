@@ -114,6 +114,8 @@ private:
     /// Creates the column for @p dirUrl and adds it after the last one.
     DolphinColumnPane *appendPane(const QUrl &dirUrl);
     DolphinColumnPane *insertPane(int index, const QUrl &dirUrl);
+    /// Disconnects the column, its controller and its model from the view before the column goes.
+    void disconnectPane(DolphinColumnPane *pane);
     DolphinColumnPane *activePane() const;
 
     void handleKeyLeft(int sourceColumn);

@@ -60,8 +60,20 @@ DolphinColumnsView::DolphinColumnsView(const QUrl &url, QWidget *parent, std::op
 
 DolphinColumnsView::~DolphinColumnsView()
 {
+    // The columns are deleted with the widgets, after this view's own members: their dir listers
+    // still signal when they stop, and the slots would read the destroyed view.
+    for (DolphinColumnPane *pane : std::as_const(m_columns)) {
+        disconnectPane(pane);
+    }
     // The models of the columns are deleted with them.
     setBaseModel(m_baseModel);
+}
+
+void DolphinColumnsView::disconnectPane(DolphinColumnPane *pane)
+{
+    disconnect(pane, nullptr, this, nullptr);
+    disconnect(pane->controller(), nullptr, this, nullptr);
+    disconnect(pane->model(), nullptr, this, nullptr);
 }
 
 void DolphinColumnsView::initColumnsUi()
@@ -802,8 +814,7 @@ void DolphinColumnsView::popAfter(int columnIndex)
             m_pendingAutoSelect = nullptr;
         }
         pane->setParent(nullptr);
-        disconnect(pane, nullptr, this, nullptr);
-        disconnect(pane->controller(), nullptr, this, nullptr);
+        disconnectPane(pane);
         KItemListController::deleteLaterAfterDrag(pane, pane->controller());
     }
 
