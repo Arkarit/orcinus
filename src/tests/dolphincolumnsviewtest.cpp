@@ -3354,7 +3354,9 @@ void DolphinColumnsViewTest::testTheItemCountFollowsTheActiveColumn()
     QTRY_VERIFY_WITH_TIMEOUT(itemCountChanged.count() > 0, 5000);
 
     itemCountChanged.clear();
-    m_testDir->removeFile(QStringLiteral("alpha/new-file.txt"));
+    // Through KIO: KDirWatch can miss a removal right after the file appeared.
+    KIO::DeleteJob *removal = KIO::del(urlOf(QStringLiteral("alpha/new-file.txt")), KIO::HideProgressInfo);
+    QVERIFY2(removal->exec(), qPrintable(removal->errorString()));
     QTRY_VERIFY_WITH_TIMEOUT(itemCountChanged.count() > 0, 5000);
 
     itemCountChanged.clear();
