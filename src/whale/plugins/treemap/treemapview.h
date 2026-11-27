@@ -21,6 +21,8 @@
 #include <QVariantMap>
 #include <QWidget>
 
+#include <optional>
+
 class QCheckBox;
 class QComboBox;
 class QLabel;
@@ -106,6 +108,9 @@ private:
     bool m_layoutValid = false;
     bool m_imageValid = false;
     int m_hoveredCell = -1;
+    // Where the pointer is on the canvas, while it is on it; the hovered cell follows it
+    // through changes of the layout.
+    std::optional<QPointF> m_pointer;
     int m_wheelDelta = 0;
     qint64 m_layoutMicroseconds = 0;
     qint64 m_renderMicroseconds = 0;

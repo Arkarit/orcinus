@@ -66,6 +66,19 @@ class ElidingLabel : public QLabel
 public:
     using QLabel::QLabel;
 
+    // One line, whatever the text: a text with a glyph of a fallback font (—, ›) would make
+    // QLabel's size hint taller, and the canvas below would lose a pixel (and its hovered
+    // cell) whenever the pointer moved onto such an entry.
+    QSize sizeHint() const override
+    {
+        return {QLabel::sizeHint().width(), lineHeight()};
+    }
+
+    QSize minimumSizeHint() const override
+    {
+        return {QLabel::minimumSizeHint().width(), lineHeight()};
+    }
+
 protected:
     void paintEvent(QPaintEvent *event) override
     {
@@ -73,6 +86,13 @@ protected:
         QPainter painter(this);
         painter.setPen(palette().color(QPalette::WindowText));
         painter.drawText(contentsRect(), alignment(), fontMetrics().elidedText(text(), Qt::ElideMiddle, contentsRect().width()));
+    }
+
+private:
+    int lineHeight() const
+    {
+        const QMargins margins = contentsMargins();
+        return fontMetrics().height() + margins.top() + margins.bottom() + 2 * margin();
     }
 };
 
@@ -212,17 +232,21 @@ void TreemapCanvas::paintMessage(QPainter &painter, const QString &text)
 void TreemapCanvas::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    // The hovered cell is gone with the old layout; the selection is kept by URL. Announced
-    // first: invalidateLayout() forgets the cell, after it hoverCell(-1) would change nothing,
-    // and the bar and the information panel would still describe the old cell.
-    if (m_hoveredCell >= 0) {
-        m_view->hoverCell(-1);
-    }
+    // The cells move with the layout; the selection is kept by URL. The pointer stays where it
+    // is, so the cell under it in the new layout is the hovered one now (a panel that opens,
+    // or a bar one pixel taller, no longer drops what the pointer is on). Its index can be the
+    // old one for another entry, so the change is always announced (bar, information panel).
+    const bool hovered = m_hoveredCell >= 0;
     invalidateLayout();
+    if (hovered) {
+        m_hoveredCell = -2; // no cell: hoverCell() announces whatever comes
+        m_view->hoverCell(m_pointer && rect().contains(m_pointer->toPoint()) ? cellAt(*m_pointer) : -1);
+    }
 }
 
 void TreemapCanvas::mouseMoveEvent(QMouseEvent *event)
 {
+    m_pointer = event->position();
     m_view->hoverCell(cellAt(event->position()));
 }
 
@@ -326,6 +350,7 @@ void TreemapCanvas::showMenuForSelection()
 
 void TreemapCanvas::leaveEvent(QEvent *event)
 {
+    m_pointer.reset();
     m_view->hoverCell(-1);
     QWidget::leaveEvent(event);
 }

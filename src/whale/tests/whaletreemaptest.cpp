@@ -826,17 +826,22 @@ void WhaleTreemapTest::testResize()
     // From elsewhere first: an earlier test may have left the pointer on big.bin, and a move to
     // where it already is delivers no event.
     QTest::mouseMove(canvasOf(view), cellRect(view, url(QStringLiteral("docs/report.pdf"))).center());
-    QTest::mouseMove(canvasOf(view), cellRect(view, url(QStringLiteral("big.bin"))).center());
+    const QPoint pointer = cellRect(view, url(QStringLiteral("big.bin"))).center();
+    QTest::mouseMove(canvasOf(view), pointer);
     QTRY_COMPARE(describedUrl(info), url(QStringLiteral("big.bin")));
 
     m_mainWindow->resize(1400, 900);
     QTRY_VERIFY(cellRect(view, url(QStringLiteral("media/song.flac"))) != before);
-    // The hovered cell went with the old layout: the deep selection is described again, also
-    // when the pointer then leaves.
-    QVERIFY(treemapState(view).value(QStringLiteral("hovered")).toString().isEmpty());
-    QTRY_COMPARE(describedUrl(info), url(QStringLiteral("media/song.flac")));
+    // The pointer stays where it is: the entry under it in the new layout is the hovered one,
+    // and it is described.
+    const QUrl underPointer = urlAt(view, pointer);
+    QVERIFY(!underPointer.isEmpty());
+    QTRY_COMPARE(QUrl(treemapState(view).value(QStringLiteral("hovered")).toString()), underPointer);
+    QTRY_COMPARE(describedUrl(info), underPointer);
+    // When the pointer leaves, the deep selection is described again.
     QEvent leave(QEvent::Leave);
     QApplication::sendEvent(canvasOf(view), &leave);
+    QVERIFY(treemapState(view).value(QStringLiteral("hovered")).toString().isEmpty());
     QCOMPARE(describedUrl(info), url(QStringLiteral("media/song.flac")));
     const QVariantMap state = treemapState(view);
     QVERIFY(state.value(QStringLiteral("layoutCount")).toInt() > layouts);
