@@ -76,6 +76,7 @@ void WhaleViewerSettingsPageTest::initTestCase()
     qputenv("XDG_DATA_HOME", m_tmpHome.filePath(QStringLiteral("data")).toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::hideJobProgress();
     GeneralSettings::self()->setRememberOpenedTabs(false);
     GeneralSettings::self()->save();
 }

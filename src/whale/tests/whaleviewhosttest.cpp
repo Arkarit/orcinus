@@ -168,6 +168,7 @@ void WhaleViewHostTest::initTestCase()
     qputenv("HOME", m_tmpHome.path().toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::hideJobProgress();
     TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
 

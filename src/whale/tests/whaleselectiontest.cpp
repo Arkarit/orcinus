@@ -156,6 +156,7 @@ void WhaleSelectionTest::initTestCase()
     qputenv("HOME", m_tmpHome.path().toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::hideJobProgress();
     TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));

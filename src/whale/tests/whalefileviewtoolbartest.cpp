@@ -215,6 +215,7 @@ void WhaleFileViewToolBarTest::initTestCase()
     qputenv("XDG_DATA_HOME", m_tmpHome.filePath(QStringLiteral("data")).toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::hideJobProgress();
     TestHelpers::openNewWindowsInSingleView();
     KLocalizedString::setApplicationDomain(TRANSLATION_DOMAIN);
     QCoreApplication::addLibraryPath(QStringLiteral(WHALE_TEST_PLUGIN_DIR));

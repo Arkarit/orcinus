@@ -202,6 +202,7 @@ void DolphinMainWindowTest::initTestCase()
     qputenv("HOME", m_tmpHome.path().toUtf8());
     QStandardPaths::setTestModeEnabled(true);
     TestHelpers::disableAnimations();
+    TestHelpers::hideJobProgress();
     TestHelpers::openNewWindowsInSingleView();
     // Use fullWidth statusbar during testing, to test out most of the features.
     GeneralSettings *settings = GeneralSettings::self();
