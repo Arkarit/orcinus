@@ -6,7 +6,7 @@ Klassischer Ablauf: Du klickst doppelt auf ein Foto, ein Bildbetrachter geht auf
 
 In Orcinus öffnet sich ein Bild oder Video im **eingebauten Vollbild-Betrachter**. Das Besondere: **Was der Betrachter zeigt, ist gleichzeitig das aktuelle und ausgewählte Element in der Ansicht.** Drückst Du *Esc*, stehst Du also genau bei der Datei, die Du zuletzt angesehen hast. Bereit zum Kopieren, Verschieben oder Löschen.
 
-![Der eingebaute Betrachter](images/orcinus-viewer.png)
+![Der eingebaute Betrachter](../../doc/orcinus/orcinus-viewer.png)
 
 ## Blättern
 
@@ -51,4 +51,4 @@ Auf der Seite *Einstellungen → Orcinus einrichten … → Betrachter* legst Du
 - ob vergrößerte Bilder **geglättet** werden (oder ob Du die Pixel lieber knackig eckig magst),
 - und wie **Videos** abgespielt werden: automatisch starten, mit Ton, in Schleife.
 
-![Die Einstellungsseite „Betrachter“](images/orcinus-viewer-settings.png)
+![Die Einstellungsseite „Betrachter“](../../doc/orcinus/orcinus-viewer-settings.png)

@@ -25,7 +25,7 @@ When you open the panel for the first time, a dialog explains exactly this. Only
 
 You open it with **F8** or via *View → Panels → AI Assistant*. At the top you choose the agent, start a new conversation, open a saved one or jump to the settings (*Settings → Configure Orcinus… → AI Support*).
 
-![The "AI Assistant" panel](images/orcinus-ai-panel.png)
+![The "AI Assistant" panel](../../doc/orcinus/orcinus-ai-panel.png)
 
 ### Modes and permissions
 
@@ -89,7 +89,7 @@ Orcinus starts the model server when a conversation needs it and unloads the mod
 
 *View → Panels → AI Canvas* is where the agent shows its work: images and videos it has generated, files it has found, sounds, texts and before-and-after comparisons. Clicking an item shows the file in the view.
 
-![The AI Canvas with a before-and-after comparison](images/orcinus-ai-canvas.png)
+![The AI Canvas with a before-and-after comparison](../../doc/orcinus/orcinus-ai-canvas.png)
 
 If you ask, the agent also builds small **tools** for the canvas: a window of its own with buttons, lists and previews (Qt Quick), optionally with a Python program behind it. For example: "Go through the photos in this folder and let me keep or discard each one." A tool opens as a tab of the canvas. With *Keep on Canvas* it's still there the next time you start.
 

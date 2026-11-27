@@ -6,7 +6,7 @@ Dolphin has one toolbar for the whole window. That's nice and tidy as long as yo
 
 Orcinus does it differently: **every file view can get its own toolbar**, right above the view. In a split view that means two of them, one per half. (You can also keep or bring back Dolphin's way with just one toolbar, if you prefer that.)
 
-![Split view with two file view toolbars](images/orcinus-file-view-toolbars.png)
+![Split view with two file view toolbars](../../doc/orcinus/orcinus-file-view-toolbars.png)
 
 The buttons on such a toolbar only act on their own view and only show its state: Back and Forward (with their history menus), Up, Reload, the location bar, view mode, zoom, sorting, previews, hidden files, Filter and Search. Clicking a button makes its view the active one right away. So the next keyboard shortcut lands exactly where you just clicked.
 
@@ -29,7 +29,7 @@ It follows logically: every view also has **its own location bar**. It sits in t
 
 When a view gets narrow, the location bar doesn't disappear into the toolbar's overflow menu (where nobody would ever find it again) but moves to a **second row**. And since it would look rather restless if the file lists then started at different heights, all views of a tab do this together.
 
-![Narrow views: the location bars move to a second row together](images/orcinus-location-bar-second-row.png)
+![Narrow views: the location bars move to a second row together](../../doc/orcinus/orcinus-location-bar-second-row.png)
 
 The location bar is a perfectly normal toolbar element. So you can move it around or remove it altogether.
 
@@ -50,7 +50,7 @@ The classic menu bar is quite a space hog: a whole row of height for a handful o
 
 That's why Orcinus has the **menu bar as a toolbar element**. You'll find it in *Configure Toolbars…* as *Menu Bar*; for new users it already sits in the main toolbar. It shows all menu titles side by side, but shares its row with other buttons. And when space runs short, it turns into a menu button (the "burger" ☰).
 
-![The menu bar in the main toolbar: with enough room it shows all menus, in a narrow window it becomes the menu button.](images/orcinus-menu-bar-element.png)
+![The menu bar in the main toolbar: with enough room it shows all menus, in a narrow window it becomes the menu button.](../../doc/orcinus/orcinus-menu-bar-element.png)
 
 The classic menu bar is still there, of course. *Ctrl+M* shows and hides it as usual, independently of the element.
 
@@ -64,6 +64,6 @@ In *Settings → Configure Orcinus… → Interface → Status & Location bars �
 - **Compact:** smaller margins and buttons. Text fields keep their height and frame. This is the default for new users. The two bars at the top then need about 78 instead of 94 pixels.
 - **Very compact:** text fields and drop-down lists get flatter too and lose their frame. The two top bars then get by with about 61 pixels, the status bar with 20 instead of 30. Thin lines separate the file view from its toolbar and the filter bar.
 
-![Bar density Normal, Compact and Very compact compared](images/orcinus-bar-density.png)
+![Bar density Normal, Compact and Very compact compared](../../doc/orcinus/orcinus-bar-density.png)
 
 The change takes effect immediately. Dialogs, menus and the views themselves stay as they are. The views have a setting of their own, the *information density* (see the chapter "Views"). You set the icon size as usual in the context menu of the respective toolbar.

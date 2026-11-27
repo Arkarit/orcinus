@@ -42,7 +42,7 @@ By the way, *Help → About Orcinus* also shows which Dolphin version your Orcin
 
 When you start Orcinus for the very first time, you don't get Dolphin's defaults but our own. We think they suit power users better:
 
-![Orcinus on its very first start](images/orcinus-first-start.png)
+![Orcinus on its very first start](../../doc/orcinus/orcinus-first-start.png)
 
 - The **main toolbar** is short: Profiles, the menu bar as an element and the menu button. The navigation buttons live in the file view toolbars instead (more on that in the chapter "Toolbars").
 - Every file view has **its own toolbar** with Back, Forward, view settings, Up, the location bar, Filter and Search.

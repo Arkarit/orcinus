@@ -42,7 +42,7 @@ Unter *Hilfe → Über Orcinus* siehst Du übrigens auch, auf welcher Dolphin-Ve
 
 Wenn Du Orcinus zum ersten Mal startest, bekommst Du nicht Dolphins Voreinstellungen, sondern unsere eigenen. Wir finden, dass sie für Power-User besser passen:
 
-![Orcinus beim allerersten Start](images/orcinus-first-start.png)
+![Orcinus beim allerersten Start](../../doc/orcinus/orcinus-first-start.png)
 
 - Die **Hauptwerkzeugleiste** ist kurz: Profile, die Menüleiste als Element und der Menüknopf. Die Navigationsknöpfe stecken nämlich in den Werkzeugleisten der Dateiansichten (mehr dazu im Kapitel „Werkzeugleisten“).
 - Jede Dateiansicht hat eine **eigene Werkzeugleiste** mit Zurück, Vor, Ansichtseinstellungen, Hoch, Adressleiste, Filter und Suche.

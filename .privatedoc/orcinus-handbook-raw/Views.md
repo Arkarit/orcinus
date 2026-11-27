@@ -6,13 +6,13 @@ Dolphin comes with three view modes: Icons, Compact and Details. Orcinus adds a 
 
 All views sit together in the *View* menu and in the view mode button of the toolbar. If there are more than five, they move into a *View Modes* submenu so the menu doesn't burst at the seams.
 
-![The view mode button with all views](images/orcinus-view-modes.png)
+![The view mode button with all views](../../doc/orcinus/orcinus-view-modes.png)
 
 ## The Columns view
 
 The Columns view (*Ctrl+4*, also known as "Miller columns") comes from Dolphin's development version and is the fourth view mode in Orcinus, next to Icons, Compact and Details. Every folder along the path gets a column of its own. Select a folder and it opens in a new column to its right. If you've ever used a Mac, you'll feel right at home.
 
-![The Columns view](images/orcinus-columns-view.png)
+![The Columns view](../../doc/orcinus/orcinus-columns-view.png)
 
 Orcinus makes a few extra things possible:
 
@@ -48,11 +48,11 @@ In the Compact view, expanding has a catch: an expanded folder can wrap into the
 
 That's why Orcinus **tints the contents of expanded folders by their depth**. Every subfolder reads as one block. For deeper levels the colors repeat. And where there's room, the **names of the expanded folders run vertically** in the indentation next to their contents.
 
-![Expanded, tinted subfolders in the Compact view. The folder "website" wraps into the second column, and its name runs vertically next to it.](images/orcinus-expansion-tint-compact.png)
+![Expanded, tinted subfolders in the Compact view. The folder "website" wraps into the second column, and its name runs vertically next to it.](../../doc/orcinus/orcinus-expansion-tint-compact.png)
 
 In the Details view this works the same way in the name column. There, the folder names stay at the top while you scroll through a long folder, so you always know where you are. The tree lines of the Details view are replaced by the colors.
 
-![Tinted subfolders in the Details view](images/orcinus-expansion-tint-details.png)
+![Tinted subfolders in the Details view](../../doc/orcinus/orcinus-expansion-tint-details.png)
 
 On the settings page *View → Highlighting → Expanded Folders* each of the two views has a setting of its own, with these presets:
 
@@ -77,7 +77,7 @@ On the settings pages *View → Icons / Compact / Details / Columns → Density*
 - **Very compact:** no spacing at all. With 16-pixel icons and the usual system font, a row is then about 18 instead of 22 pixels high. That's roughly 22% more files on screen, without buying a new monitor.
 - **Custom:** the padding in pixels (0 to 10) and, in Compact, Details and Columns, the line height as a percentage of the font height (50 to 150%). Below 100%, the letters of neighboring rows can touch. Try it at your own risk.
 
-![Normal on the left, Very compact on the right (information and bar density). On the right, all files fit into the window.](images/orcinus-information-density.png)
+![Normal on the left, Very compact on the right (information and bar density). On the right, all files fit into the window.](../../doc/orcinus/orcinus-information-density.png)
 
 In the Compact view, the gap between the columns shrinks with the density as well (8, 6 and 4 pixels). The space to the left and right of icon and name stays as it is.
 
@@ -87,7 +87,7 @@ Sometimes you don't care about the folders at all. You just want to see **all fi
 
 That's what *View → Show flat (no folders)* is for. The view then shows all files from all subfolders in one single list, with no folders at all. In the Details view there's the *Relative Path* column to go with it, so you still know where a file comes from.
 
-![Flat view with the "Relative Path" column](images/orcinus-flat-view.png)
+![Flat view with the "Relative Path" column](../../doc/orcinus/orcinus-flat-view.png)
 
 Sorting, filtering, selecting and previews work as usual. Sorted by size, by the way, this finds the fattest chunks in a folder tree in no time. Orcinus remembers the setting for each place.
 

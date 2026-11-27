@@ -4,7 +4,7 @@
 
 The disk is full. Again. Somewhere a few gigabytes are lying around, but where? The classic answer is tools like Filelight, KDirStat or WinDirStat. Orcinus has something like that built right in: the **Cushion Treemap**.
 
-![The Cushion Treemap of the home folder, colored by top folders. The ISO file in Downloads is the clear winner.](images/orcinus-treemap.png)
+![The Cushion Treemap of the home folder, colored by top folders. The ISO file in Downloads is the clear winner.](../../doc/orcinus/orcinus-treemap.png)
 
 The treemap shows how the space below the current location is used. **Every file is a rectangle** whose area matches its size, and **folders are groups of rectangles**. The cushion shading makes the folder structure stand out in relief. Big files catch your eye immediately, and a folder full of odds and ends looks like a mosaic.
 
@@ -38,7 +38,7 @@ The treemap really shows its strengths in the **split, linked view** (see the ch
 
 The ready-made profile **Locked Cushion Map** sets this up for you with one click.
 
-![The profile "Locked Cushion Map": one click on the ISO file in the treemap, and the Details view jumps into the "Downloads" folder.](images/orcinus-linked-views.png)
+![The profile "Locked Cushion Map": one click on the ISO file in the treemap, and the Details view jumps into the "Downloads" folder.](../../doc/orcinus/orcinus-linked-views.png)
 
 ## Limits
 

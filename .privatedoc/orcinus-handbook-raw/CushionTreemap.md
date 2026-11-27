@@ -4,7 +4,7 @@
 
 Die Festplatte ist voll. Schon wieder. Irgendwo liegen ein paar Gigabyte herum, aber wo? Die klassische Antwort sind Programme wie Filelight, KDirStat oder WinDirStat. Orcinus hat so etwas direkt eingebaut: die **Cushion Treemap**.
 
-![Die Cushion Treemap des Persönlichen Ordners, eingefärbt nach obersten Ordnern. Die ISO-Datei in den Downloads ist der klare Sieger.](images/orcinus-treemap.png)
+![Die Cushion Treemap des Persönlichen Ordners, eingefärbt nach obersten Ordnern. Die ISO-Datei in den Downloads ist der klare Sieger.](../../doc/orcinus/orcinus-treemap.png)
 
 Die Treemap zeigt, wie der Platz unterhalb des aktuellen Orts verbraucht wird. **Jede Datei ist ein Rechteck**, dessen Fläche ihrer Größe entspricht, und **Ordner sind Gruppen von Rechtecken**. Die Polster-Schattierung („Cushion“) lässt die Ordnerstruktur plastisch hervortreten. Große Dateien springen Dir sofort ins Auge, und ein Ordner voller Kleinkram sieht aus wie ein Mosaik.
 
@@ -38,7 +38,7 @@ Am besten spielt die Treemap ihre Stärken in der **geteilten, verknüpften Ansi
 
 Das fertige Profil **Verknüpfte Cushion Map** richtet Dir das mit einem Klick ein.
 
-![Das Profil „Verknüpfte Cushion Map“: Ein Klick auf die ISO-Datei in der Treemap, und die Detailansicht springt in den Ordner „Downloads“.](images/orcinus-linked-views.png)
+![Das Profil „Verknüpfte Cushion Map“: Ein Klick auf die ISO-Datei in der Treemap, und die Detailansicht springt in den Ordner „Downloads“.](../../doc/orcinus/orcinus-linked-views.png)
 
 ## Grenzen
 

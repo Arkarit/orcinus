@@ -6,7 +6,7 @@ You know how it is: for everyday work you want a slim window, one view, Compact,
 
 That's exactly what **profiles** are for. A profile switches the complete look of a window at once.
 
-![The Profiles menu in the main toolbar](images/orcinus-profiles-menu.png)
+![The Profiles menu in the main toolbar](../../doc/orcinus/orcinus-profiles-menu.png)
 
 ## What a profile can do
 
@@ -45,7 +45,7 @@ In *Settings → Configure Orcinus… → Profiles* you'll find all profiles in 
 - overwrite an existing profile with the current window with *Capture Again*,
 - and try a profile right away with *Apply to Window*.
 
-![The "Profiles" settings page](images/orcinus-profiles-settings.png)
+![The "Profiles" settings page](../../doc/orcinus/orcinus-profiles-settings.png)
 
 ### The startup profile
 
@@ -69,4 +69,4 @@ New users get seven ready-made profiles that you can apply straight from the mai
 
 The profiles are created once. If you delete one, it won't come back uninvited. Promise.
 
-![The profile "Images Only"](images/orcinus-profile-images-only.png)
+![The profile "Images Only"](../../doc/orcinus/orcinus-profile-images-only.png)

@@ -10,7 +10,7 @@ In Dolphin steht unter *Einstellungen → Dolphin einrichten … → Ansicht →
 
 In Orcinus **behält jede Ansicht ihren eigenen Anzeigestil** (Ansichtsmodus, Sortierung, versteckte Dateien, Vorschauen, Spalten), auch wenn sie in einen anderen Ordner wechselt. Orcinus merkt sich das für die Seite (links oder rechts), und genau so starten dann auch neue Fenster, Unterfenster und geteilte Ansichten.
 
-![Links Details, rechts Symbole – und das bleibt auch so](images/orcinus-split-own-style.png)
+![Links Details, rechts Symbole – und das bleibt auch so](../../doc/orcinus/orcinus-split-own-style.png)
 
 Ein paar Orte haben ihren eigenen Stil, etwa Papierkorb, Suche, zuletzt benutzte Dateien und Downloads. Die zeigen ihn weiterhin, und wenn Du sie verlässt, bekommt die Ansicht ihren eigenen Stil zurück.
 
@@ -32,7 +32,7 @@ Das ersetzt Dolphins Ankreuzfeld „Neue Fenster in geteilter Ansicht öffnen“
 
 Jetzt wird's richtig spannend. Am linken Ende der Werkzeugleiste der rechten Ansicht sitzt ein Knopf mit einem **Kettenglied**. Damit verknüpfst Du die beiden Ansichten miteinander:
 
-![Verknüpfte Ansichten: Rechts in der Cushion Treemap ist die ISO-Datei ausgewählt, und die Detailansicht links ist ihr in den Ordner „Downloads“ gefolgt.](images/orcinus-linked-views.png)
+![Verknüpfte Ansichten: Rechts in der Cushion Treemap ist die ISO-Datei ausgewählt, und die Detailansicht links ist ihr in den Ordner „Downloads“ gefolgt.](../../doc/orcinus/orcinus-linked-views.png)
 
 - **Gleicher Ordner:** Beide Ansichten zeigen immer denselben Ordner. Beim Verknüpfen übernimmt die rechte Ansicht den Ort der aktiven.
 - **Gespiegelte Auswahl:** Was Du in der einen Ansicht auswählst, wird auch in der anderen ausgewählt.

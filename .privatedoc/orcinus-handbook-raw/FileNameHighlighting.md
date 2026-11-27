@@ -6,7 +6,7 @@ If you work in the terminal a lot, you know the colored `ls`: programs in green,
 
 Orcinus can do that too. On the settings page *View → Highlighting → File Names* you color file names, make them **bold** or *italic*, following rules you define yourself. For new users, highlighting is already switched on.
 
-![Highlighted file names: scripts, links and media files](images/orcinus-name-highlighting.png)
+![Highlighted file names: scripts, links and media files](../../doc/orcinus/orcinus-name-highlighting.png)
 
 ## Rules
 
@@ -19,7 +19,7 @@ A rule matches
 
 Each rule applies to files, folders or both, and sets text color, bold and italic. You can also leave any of these *Unchanged*.
 
-![Editing a rule](images/orcinus-name-highlighting-rule.png)
+![Editing a rule](../../doc/orcinus/orcinus-name-highlighting-rule.png)
 
 ### Who wins?
 

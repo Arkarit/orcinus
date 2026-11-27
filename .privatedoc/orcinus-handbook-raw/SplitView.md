@@ -10,7 +10,7 @@ In Dolphin, *Settings → Configure Dolphin… → View → General* is set to *
 
 In Orcinus, **every view keeps its own display style** (view mode, sorting, hidden files, previews, columns), even when it moves to another folder. Orcinus remembers this per side (left or right), and that's exactly how new windows, tabs and split views start as well.
 
-![Details on the left, icons on the right – and it stays that way](images/orcinus-split-own-style.png)
+![Details on the left, icons on the right – and it stays that way](../../doc/orcinus/orcinus-split-own-style.png)
 
 A few places have a style of their own, such as the Trash, search, recent files and Downloads. They keep showing it, and when you leave them, the view gets its own style back.
 
@@ -32,7 +32,7 @@ This replaces Dolphin's checkbox "Open new windows in split view". If that was o
 
 Now it gets really exciting. At the left end of the right view's toolbar sits a button with a **chain link**. It links the two views to each other:
 
-![Linked views: the ISO file is selected in the Cushion Treemap on the right, and the Details view on the left has followed it into the "Downloads" folder.](images/orcinus-linked-views.png)
+![Linked views: the ISO file is selected in the Cushion Treemap on the right, and the Details view on the left has followed it into the "Downloads" folder.](../../doc/orcinus/orcinus-linked-views.png)
 
 - **Same folder:** both views always show the same folder. When you link them, the right view takes over the location of the active one.
 - **Mirrored selection:** whatever you select in one view is selected in the other as well.

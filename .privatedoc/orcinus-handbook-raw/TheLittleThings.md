@@ -22,7 +22,7 @@ A new button in the filter bar decides what the filter applies to:
 - **Folders (Files Stay Shown)**
 - **Files and Folders:** Dolphin's behavior.
 
-![The filter bar with the "Filter Applies To" button](images/orcinus-filter-bar.png)
+![The filter bar with the "Filter Applies To" button](../../doc/orcinus/orcinus-filter-bar.png)
 
 ## Several patterns at once
 

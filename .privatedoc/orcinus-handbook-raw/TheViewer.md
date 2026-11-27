@@ -6,7 +6,7 @@ The classic routine: you double-click a photo, an image viewer opens, you flip t
 
 In Orcinus, an image or video opens in the **built-in full-screen viewer**. The special thing about it: **whatever the viewer shows is also the current and selected item in the view.** So when you press *Esc*, you're right at the file you looked at last. Ready to copy, move or delete.
 
-![The built-in viewer](images/orcinus-viewer.png)
+![The built-in viewer](../../doc/orcinus/orcinus-viewer.png)
 
 ## Flipping through
 
@@ -51,4 +51,4 @@ On the page *Settings → Configure Orcinus… → Viewer* you decide
 - whether enlarged images are **smoothed** (or whether you prefer your pixels crisp and blocky),
 - and how **videos** are played: start automatically, with sound, in a loop.
 
-![The "Viewer" settings page](images/orcinus-viewer-settings.png)
+![The "Viewer" settings page](../../doc/orcinus/orcinus-viewer-settings.png)

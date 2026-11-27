@@ -6,13 +6,13 @@ Dolphin bringt drei Ansichtsmodi mit: Symbole, Kompakt und Details. Orcinus legt
 
 Alle Ansichten stehen gemeinsam im Menü *Ansicht* und im Ansichtsmodus-Knopf der Werkzeugleiste. Sind es mehr als fünf, rutschen sie in ein Untermenü *Ansichtsmodi*, damit das Menü nicht aus allen Nähten platzt.
 
-![Der Ansichtsmodus-Knopf mit allen Ansichten](images/orcinus-view-modes.png)
+![Der Ansichtsmodus-Knopf mit allen Ansichten](../../doc/orcinus/orcinus-view-modes.png)
 
 ## Die Spaltenansicht
 
 Die Spaltenansicht (*Strg+4*, auch als „Miller Columns“ bekannt) stammt aus Dolphins Entwicklungsversion und ist in Orcinus der vierte Ansichtsmodus neben Symbolen, Kompakt und Details. Jeder Ordner auf dem Weg bekommt eine eigene Spalte. Wählst Du einen Ordner aus, öffnet er sich in einer neuen Spalte rechts daneben. Wer schon einmal einen Mac benutzt hat, fühlt sich gleich zuhause.
 
-![Die Spaltenansicht](images/orcinus-columns-view.png)
+![Die Spaltenansicht](../../doc/orcinus/orcinus-columns-view.png)
 
 Orcinus macht ein paar Dinge zusätzlich möglich:
 
@@ -48,11 +48,11 @@ In der Kompaktansicht hat das Aufklappen einen Haken: Ein aufgeklappter Ordner k
 
 Orcinus **färbt deshalb den Inhalt aufgeklappter Ordner nach ihrer Tiefe ein**. So liest sich jeder Unterordner als ein Block. Für tiefere Ebenen wiederholen sich die Farben. Und wo Platz ist, stehen die **Namen der aufgeklappten Ordner senkrecht** in der Einrückung neben ihrem Inhalt.
 
-![Aufgeklappte, eingefärbte Unterordner in der Kompaktansicht. Der Ordner „website“ bricht in die zweite Spalte um, und sein Name steht senkrecht daneben.](images/orcinus-expansion-tint-compact.png)
+![Aufgeklappte, eingefärbte Unterordner in der Kompaktansicht. Der Ordner „website“ bricht in die zweite Spalte um, und sein Name steht senkrecht daneben.](../../doc/orcinus/orcinus-expansion-tint-compact.png)
 
 In der Detailansicht funktioniert das in der Namensspalte genauso. Dort bleiben die Ordnernamen beim Scrollen durch einen langen Ordner oben stehen, Du weißt also immer, wo Du gerade bist. Die Baumlinien der Detailansicht werden dabei durch die Farben ersetzt.
 
-![Eingefärbte Unterordner in der Detailansicht](images/orcinus-expansion-tint-details.png)
+![Eingefärbte Unterordner in der Detailansicht](../../doc/orcinus/orcinus-expansion-tint-details.png)
 
 Unter *Ansicht → Hervorhebung → Aufgeklappte Ordner* gibt es für beide Ansichten eine eigene Einstellung mit diesen Vorgaben:
 
@@ -77,7 +77,7 @@ Unter *Ansicht → Symbole / Kompakt / Details / Spalten → Dichte* stellst Du 
 - **Sehr kompakt:** gar kein Abstand. Mit 16-Pixel-Symbolen und der üblichen Systemschrift ist eine Zeile dann etwa 18 statt 22 Pixel hoch. Das sind rund 22 % mehr Dateien auf dem Bildschirm, ganz ohne neuen Monitor.
 - **Benutzerdefiniert:** der Abstand in Pixeln (0 bis 10) und, in Kompakt, Details und Spalten, die Zeilenhöhe in Prozent der Schrifthöhe (50 bis 150 %). Unter 100 % können sich die Buchstaben benachbarter Zeilen berühren. Ausprobieren auf eigene Gefahr.
 
-![Links Normal, rechts Sehr kompakt (Informations- und Leistendichte). Rechts passen alle Dateien ins Fenster.](images/orcinus-information-density.png)
+![Links Normal, rechts Sehr kompakt (Informations- und Leistendichte). Rechts passen alle Dateien ins Fenster.](../../doc/orcinus/orcinus-information-density.png)
 
 In der Kompaktansicht schrumpft mit der Dichte auch der Abstand zwischen den Spalten (8, 6 und 4 Pixel). Der Platz links und rechts von Symbol und Name bleibt, wie er ist.
 
@@ -87,7 +87,7 @@ Manchmal interessieren Dich die Ordner überhaupt nicht. Du willst einfach **all
 
 Dafür gibt es *Ansicht → Flach anzeigen (ohne Ordner)*. Die Ansicht zeigt dann alle Dateien aus allen Unterordnern in einer einzigen Liste, ganz ohne Ordner. In der Detailansicht gibt es dazu die Spalte *Relativer Pfad*, damit Du trotzdem weißt, woher eine Datei kommt.
 
-![Flache Ansicht mit der Spalte „Relativer Pfad“](images/orcinus-flat-view.png)
+![Flache Ansicht mit der Spalte „Relativer Pfad“](../../doc/orcinus/orcinus-flat-view.png)
 
 Sortieren, Filtern, Auswählen und Vorschauen funktionieren ganz normal. Nach Größe sortiert findest Du so übrigens blitzschnell die dicksten Brocken in einem Ordnerbaum. Orcinus merkt sich die Einstellung für jeden Ort.
 

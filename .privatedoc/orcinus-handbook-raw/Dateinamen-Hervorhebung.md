@@ -6,7 +6,7 @@ Wer viel im Terminal arbeitet, kennt das farbige `ls`: Programme grün, Verknüp
 
 Orcinus kann das auch. Unter *Ansicht → Hervorhebung → Dateinamen* färbst Du Dateinamen ein, machst sie **fett** oder *kursiv*, und zwar nach Regeln, die Du selbst bestimmst. Für neue Benutzer ist die Hervorhebung bereits eingeschaltet.
 
-![Hervorgehobene Dateinamen: Skripte, Verknüpfungen und Mediendateien](images/orcinus-name-highlighting.png)
+![Hervorgehobene Dateinamen: Skripte, Verknüpfungen und Mediendateien](../../doc/orcinus/orcinus-name-highlighting.png)
 
 ## Regeln
 
@@ -19,7 +19,7 @@ Eine Regel trifft zu auf
 
 Jede Regel gilt für Dateien, Ordner oder beides und legt Textfarbe, Fett und Kursiv fest. Jedes davon kannst Du auch auf *Unverändert* lassen.
 
-![Eine Regel bearbeiten](images/orcinus-name-highlighting-rule.png)
+![Eine Regel bearbeiten](../../doc/orcinus/orcinus-name-highlighting-rule.png)
 
 ### Wer gewinnt?
 

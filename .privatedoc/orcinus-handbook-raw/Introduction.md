@@ -14,7 +14,7 @@ Orcinus is a fork of Dolphin. A substantial portion of the application – curre
 
 Anyone familiar with Dolphin will feel right at home in Orcinus at first glance.
 
-![Dolphin and Orcinus side by side in their default configurations – the family resemblance is obvious at first glance, the differences are in the details.](images/orcinus-vs-dolphin.png)
+![Dolphin and Orcinus side by side in their default configurations – the family resemblance is obvious at first glance, the differences are in the details.](../../doc/orcinus/orcinus-vs-dolphin.png)
 
 First impressions can be deceiving, however – Orcinus is not just a dolphin in a black-and-white skin. It builds upon Dolphin's stable, proven foundation, adding a wealth of useful features.
 

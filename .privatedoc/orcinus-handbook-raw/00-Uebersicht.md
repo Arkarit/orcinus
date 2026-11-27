@@ -23,7 +23,7 @@ English versions (2026-11-27, after the German text was approved): `Introduction
 
 Sources: `docs/orcinus-vs-dolphin.md`, `docs/ai-agents.md`, `~/Desktop/orcinus-features.txt`, and checks in the source code.
 
-## Screenshots (`images/`)
+## Screenshots (`doc/orcinus/*.png`, shared with the AsciiDoc chapters)
 
 Taken with the dev build (2026-11-26) in a fresh profile: Breeze light, no kdeglobals of the user, Orcinus' defaults for new users (profile Compact, densities Compact), **English UI** (the handbook's base language is English; German screenshots would come with the translation).
 The demo home contains only generated files (landscape pictures, empty/allocated dummy files). It lived in the scratchpad (`/tmp/...`), which is why "Home" in the location bar is not `/home/<user>`.

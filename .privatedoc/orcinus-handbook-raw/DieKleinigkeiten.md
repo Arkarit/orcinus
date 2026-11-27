@@ -22,7 +22,7 @@ Ein neuer Knopf in der Filterleiste legt fest, worauf der Filter wirkt:
 - **Ordner (Dateien bleiben sichtbar)**
 - **Dateien und Ordner:** Dolphins Verhalten.
 
-![Die Filterleiste mit dem Knopf „Filter gilt für“](images/orcinus-filter-bar.png)
+![Die Filterleiste mit dem Knopf „Filter gilt für“](../../doc/orcinus/orcinus-filter-bar.png)
 
 ## Mehrere Muster auf einmal
 
