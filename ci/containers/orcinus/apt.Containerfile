@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: CC0-1.0
 #
 # Orcinus' own dependencies on top of ../kde-dev/apt.Containerfile: metadata (Baloo),
-# video (libmpv), Qt Multimedia, PackageKit, DocTools and the thumbnailers the tests use.
+# video (libmpv), Qt Multimedia, PackageKit, DocTools and Asciidoctor (the handbook), and the
+# thumbnailers the tests use.
 
 ARG KDE_DEV_IMAGE
 FROM ${KDE_DEV_IMAGE}
@@ -15,7 +16,7 @@ RUN if [ -f /etc/apt/sources.list.d/neon.list ]; then \
     fi \
  && apt-get update \
  && apt-get install -y --no-install-recommends ${baloo} \
-      libkf6doctools-dev libkf6filemetadata-dev \
+      libkf6doctools-dev asciidoctor libkf6filemetadata-dev \
       libpackagekitqt6-dev libmpv-dev qt6-multimedia-dev kio-extras kdegraphics-thumbnailers \
       qt6-declarative-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
  && rm -rf /var/lib/apt/lists/*
