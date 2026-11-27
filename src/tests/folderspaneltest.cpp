@@ -15,7 +15,10 @@
 
 #include "testdir.h"
 
+#include <KCoreDirLister>
+
 #include <QDir>
+#include <QFileInfo>
 #include <QScrollBar>
 #include <QSignalSpy>
 #include <QStandardPaths>
@@ -69,6 +72,17 @@ QUrl createNestedFolders(TestDir &testDir, const QString &name, int levels)
         path += QStringLiteral("%1-%2/").arg(name).arg(level);
     }
     testDir.createDir(path);
+    // KIO may still have the listing of the folder above the test folder from an earlier test
+    // function and learns of the new test folder only from KDirWatch, a moment later. A panel
+    // that expands towards it before that gives up (KFileItemModel::slotCompleted() drops the
+    // folders it cannot find), so that folder is listed again first.
+    KCoreDirLister lister;
+    lister.openUrl(QUrl::fromLocalFile(QFileInfo(testDir.path()).absolutePath()), KCoreDirLister::Reload);
+    QTest::qWaitFor(
+        [&lister]() {
+            return lister.isFinished();
+        },
+        LoadTimeout);
     return QUrl::fromLocalFile(testDir.path() + QLatin1Char('/') + path);
 }
 
