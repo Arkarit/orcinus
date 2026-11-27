@@ -35,6 +35,13 @@ QString currentInstanceServiceName();
  */
 QString mainWindowDbusPath();
 
+/**
+ * Orcinus (HB1): points the help:/dolphin/ links in a text inherited from Dolphin to the
+ * handbook Help opens, help:/orcinus/, which contains Dolphin's chapters under the same page
+ * names. The texts themselves stay as they are upstream, so their translations are kept.
+ */
+QString withHandbookLinks(const QString &text);
+
 enum class OpenNewWindowFlag {
     None = 0,
     Select = 1 << 1

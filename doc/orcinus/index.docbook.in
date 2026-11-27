@@ -1,0 +1,98 @@
+<?xml version="1.0" ?>
+<!DOCTYPE book PUBLIC "-//KDE//DTD DocBook XML V4.5-Based Variant V1.1//EN" "dtd/kdedbx45.dtd" [
+  <!ENTITY % addindex "IGNORE">
+  <!ENTITY % English "INCLUDE"><!-- change language only here -->
+]>
+<!--
+SPDX-FileCopyrightText: 2026 Orcinus contributors
+SPDX-License-Identifier: GPL-2.0-or-later
+
+Frame of the Orcinus handbook (.privatedoc/handbook-plan.md). It sets the order of the
+chapters: Orcinus' own ones come from orcinus.adoc (after the conversion to DocBook),
+Dolphin's ones from Dolphin's unchanged handbook (doc/index.docbook). The build replaces
+the orcinus: markers with them, see assemble-handbook.cmake for the markers.
+-->
+
+<book id="orcinus" lang="&language;">
+
+<bookinfo>
+<title>The Orcinus Handbook</title>
+
+<authorgroup>
+<author>
+<firstname>Heiko</firstname>
+<surname>Achilles</surname>
+<othername>Arkarit</othername>
+</author>
+<!-- The authors of Dolphin's handbook, whose chapters this book contains. -->
+<!-- orcinus:dolphin-authors -->
+
+<!-- TRANS:ROLES_OF_TRANSLATORS -->
+</authorgroup>
+
+<copyright>
+<year>2026</year>
+<holder>Orcinus contributors</holder>
+</copyright>
+<!-- orcinus:dolphin-copyright -->
+
+<legalnotice>&FDLNotice;</legalnotice>
+
+<date>@WHALE_HANDBOOK_DATE@</date>
+<releaseinfo>Orcinus @WHALE_VERSION@</releaseinfo>
+
+<abstract>
+<para>
+Orcinus is a file manager for power users, based on &dolphin;. This handbook describes
+Orcinus' own features and contains the &dolphin; handbook.
+</para>
+</abstract>
+
+<keywordset>
+<keyword>Orcinus</keyword>
+<keyword>Dolphin</keyword>
+<keyword>file manager</keyword>
+<keyword>KDE</keyword>
+</keywordset>
+</bookinfo>
+
+<!-- orcinus:chapter orcinus-introduction -->
+
+<!-- orcinus:dolphin-chapters except credits -->
+
+<!-- orcinus:chapter orcinus-and-dolphin -->
+
+<!-- orcinus:chapter orcinus-toolbars -->
+
+<!-- orcinus:chapter orcinus-split-view -->
+
+<!-- orcinus:chapter orcinus-views -->
+
+<!-- orcinus:chapter orcinus-treemap -->
+
+<!-- orcinus:chapter orcinus-profiles -->
+
+<!-- orcinus:chapter orcinus-viewer -->
+
+<!-- orcinus:chapter orcinus-name-highlighting -->
+
+<!-- orcinus:chapter orcinus-ai-support -->
+
+<!-- orcinus:chapter orcinus-ai-agents -->
+
+<!-- orcinus:chapter orcinus-little-things -->
+
+<chapter id="credits">
+<title>Credits and License</title>
+
+<para>
+Orcinus
+</para>
+<para>
+Program copyright 2026 Orcinus contributors. Orcinus is based on &dolphin;.
+</para>
+
+<!-- orcinus:dolphin-chapter-body credits -->
+</chapter>
+
+</book>

@@ -27,7 +27,7 @@ Not supported: Debian 13 (KDE Frameworks 6.13; Orcinus needs 6.23).
   offscreen tests). Nothing in it is specific to Orcinus, so other KDE or Qt projects can build
   on it with their own layer.
 - `orcinus/<family>.Containerfile` → `localhost/orcinus-dev:<name>`: what only Orcinus needs on
-  top (Baloo, libmpv, Qt Multimedia, PackageKit, DocTools, thumbnailers).
+  top (Baloo, libmpv, Qt Multimedia, PackageKit, DocTools, Asciidoctor, thumbnailers).
 
 One Containerfile serves each package manager family (apt, dnf, zypper, pacman); the
 distribution is chosen by the base image in `containers.sh`.

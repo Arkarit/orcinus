@@ -36,6 +36,8 @@ Build-Depends: debhelper-compat (= 13),
                libkf6baloo-dev,
                libbaloowidgets-dev,
                libmpv-dev,
+               libkf6doctools-dev,
+               asciidoctor,
                qt6-declarative-dev,
 Standards-Version: 4.7.3
 Homepage: https://arkarit.github.io/orcinus/

@@ -1,0 +1,44 @@
+// SPDX-FileCopyrightText: 2026 Orcinus contributors
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// Source: .privatedoc/orcinus-handbook-raw/Introduction.md (German: Einfuehrung.md)
+
+[#orcinus-introduction]
+== Introduction to Orcinus
+
+[#why-orcinus]
+=== Why Orcinus at all? Isn't Dolphin good enough?
+
+Yes, of course Dolphin is more than good enough for the vast majority of its users.
+
+However, if, like me, you've endured decades of torment at the hands of Windows Explorer and switched to Directory Opus long ago – a file manager that plays in an entirely different league – you may find yourself missing quite a few things in Dolphin.
+
+From the sheer density of information displayed to color-coded file types and flat views of directory contents, there is still room for improvement for power users who spend a large part of their day working in a file manager.
+
+Orcinus was born out of this need.
+
+Orcinus is a fork of Dolphin.
+A substantial portion of the application – currently around 55% of its code – is therefore still based on Dolphin.
+Or, if you will: dwarfs standing on the shoulders of giants.
+Or rather, orcas standing on the fins of dolphins.
+Erm … something like that.
+
+Anyone familiar with Dolphin will feel right at home in Orcinus at first glance.
+
+.Dolphin and Orcinus side by side in their default configurations – the family resemblance is obvious at first glance, the differences are in the details.
+image::orcinus-vs-dolphin.png["Dolphin and Orcinus side by side in their default configurations"]
+
+First impressions can be deceiving, however – Orcinus is not just a dolphin in a black-and-white skin.
+It builds upon Dolphin's stable, proven foundation, adding a wealth of useful features.
+
+Discovering these features and learning how to put them to good use is precisely what this handbook is all about.
+
+Please note that the first part of this handbook has been taken directly from the Dolphin handbook.
+Most of it still applies to Orcinus.
+Any differences and new features are covered in the <<orcinus-and-dolphin,second, Orcinus-specific part>> of the handbook.
+
+*Our motto:*
+
+_Make the common case simple and excellent._
+
+_Make the uncommon case possible._

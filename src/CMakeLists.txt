@@ -682,6 +682,7 @@ string(REPLACE "Icon=org.kde.dolphin" "Icon=${WHALE_APP_ID}" whale_desktop_conte
 string(REPLACE "InitialPreference=10" "InitialPreference=9" whale_desktop_contents "${whale_desktop_contents}")
 string(REPLACE "X-DBUS-ServiceName=org.kde.dolphin" "X-DBUS-ServiceName=${WHALE_APP_ID}" whale_desktop_contents "${whale_desktop_contents}")
 string(REPLACE "StartupWMClass=dolphin" "StartupWMClass=${WHALE_EXECUTABLE}" whale_desktop_contents "${whale_desktop_contents}")
+string(REPLACE "X-DocPath=dolphin/" "X-DocPath=${WHALE_HANDBOOK}/" whale_desktop_contents "${whale_desktop_contents}")
 string(REGEX REPLACE "(^|\n)X-KDE-Shortcuts=[^\n]*" "" whale_desktop_contents "${whale_desktop_contents}")
 set(whale_desktop_file ${CMAKE_CURRENT_BINARY_DIR}/${WHALE_APP_ID}.desktop)
 file(WRITE ${whale_desktop_file} "${whale_desktop_contents}")

@@ -47,6 +47,7 @@ DolphinUrlNavigator::DolphinUrlNavigator(const QUrl &url, QWidget *parent)
                         "about the basic and advanced features of the location bar "
                         "<link url='help:/dolphin/location-bar.html'>click here</link>. "
                         "This will open the dedicated page in the Handbook.</para>"));
+    setWhatsThis(Dolphin::withHandbookLinks(whatsThis())); // Orcinus: help:/orcinus
 
     DolphinUrlNavigatorsController::registerDolphinUrlNavigator(this);
 

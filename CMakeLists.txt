@@ -145,6 +145,28 @@ find_package(KF6 ${KF6_MIN_VERSION} OPTIONAL_COMPONENTS
     DocTools
 )
 
+# The Orcinus handbook (help:/orcinus, doc/orcinus, .privatedoc/handbook-plan.md). Optional:
+# without the tools Orcinus is built without it, and Help opens Dolphin's handbook instead
+# (help:/dolphin, there when Dolphin is installed).
+option(WHALE_BUILD_HANDBOOK "Build the Orcinus handbook (needs KF6DocTools and Asciidoctor)" ON)
+set(WHALE_HAVE_HANDBOOK OFF)
+if(WHALE_BUILD_HANDBOOK)
+    find_program(WHALE_ASCIIDOCTOR_EXECUTABLE asciidoctor)
+    if(NOT KF6DocTools_FOUND)
+        message(STATUS "Orcinus handbook: not built, KF6DocTools is missing")
+    elseif(NOT WHALE_ASCIIDOCTOR_EXECUTABLE)
+        message(STATUS "Orcinus handbook: not built, asciidoctor is missing")
+    else()
+        set(WHALE_HAVE_HANDBOOK ON)
+    endif()
+endif()
+add_feature_info(WHALE_HANDBOOK WHALE_HAVE_HANDBOOK "The Orcinus handbook (help:/orcinus)")
+if(WHALE_HAVE_HANDBOOK)
+    set(WHALE_HANDBOOK "${WHALE_COMPONENT}")
+else()
+    set(WHALE_HANDBOOK "dolphin")
+endif()
+
 find_package(PackageKitQt6)
 set_package_properties(PackageKitQt6
         PROPERTIES DESCRIPTION "Software Manager integration"
@@ -240,6 +262,9 @@ endif()
 add_subdirectory(src)
 if(WHALE_INSTALL_DOLPHIN_EXTRAS)
     add_subdirectory(doc)
+endif()
+if(WHALE_HAVE_HANDBOOK)
+    add_subdirectory(doc/orcinus)
 endif()
 add_subdirectory(appiumtests)
 

@@ -1,0 +1,36 @@
+// SPDX-FileCopyrightText: 2026 Orcinus contributors
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// Orcinus' own chapters of the handbook, one file per chapter. index.docbook.in decides
+// where each chapter goes between Dolphin's chapters; give every chapter an explicit ID
+// for that. The chapters are written in .privatedoc/orcinus-handbook-raw/ (Markdown, English
+// and German) and converted to AsciiDoc here.
+// See .privatedoc/handbook-plan.md.
+= The Orcinus Handbook
+:doctype: book
+:idprefix:
+:idseparator: -
+
+include::introduction.adoc[]
+
+include::orcinus-and-dolphin.adoc[]
+
+include::toolbars.adoc[]
+
+include::split-view.adoc[]
+
+include::views.adoc[]
+
+include::treemap.adoc[]
+
+include::profiles.adoc[]
+
+include::viewer.adoc[]
+
+include::name-highlighting.adoc[]
+
+include::ai-support.adoc[]
+
+include::ai-agents.adoc[]
+
+include::little-things.adoc[]
